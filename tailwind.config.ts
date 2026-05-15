@@ -51,6 +51,7 @@ const config: Config = {
         'high':       '0 8px 32px rgba(13, 27, 75, 0.20)',
         'card':       '0 2px 12px rgba(34, 119, 240, 0.08)',
         'card-hover': '0 6px 24px rgba(34, 119, 240, 0.15)',
+        'blue':       '0 4px 16px rgba(34, 119, 240, 0.35)',
       },
       animation: {
         'fade-in':   'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',

@@ -79,7 +79,7 @@ function Sidebar({ open, setOpen }: { open: boolean, setOpen: (v: boolean) => vo
       <div className={`px-4 py-6 flex items-center justify-between min-h-[72px] relative z-10`}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-lg">
-            <span className="text-ybm-blue font-black text-[10px] tracking-tighter italic">YBM</span>
+            <span className="text-ybm-blue font-black text-[10px] tracking-tighter">YBM</span>
           </div>
           {open && (
             <div className="leading-tight animate-fade-in">
@@ -231,7 +231,7 @@ export default function Dashboard() {
               <div className="absolute top-[-100px] right-[-100px] w-80 h-80 rounded-full bg-slate-50 opacity-50 blur-3xl pointer-events-none" />
               
               <div className="relative z-10 space-y-6">
-                <p className="text-ybm-blue font-medium italic text-lg opacity-80">
+                <p className="text-ybm-blue font-medium text-lg opacity-80">
                   다시 오신 것을 환영합니다, {userName || '학습자'}님
                 </p>
                 <h2 className="text-slate-900 text-5xl font-bold leading-tight">
@@ -247,7 +247,7 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-slate-400 text-xs font-bold uppercase">총 학습 시간</p>
-                  <p className="text-slate-900 text-3xl font-light font-mono">42.5<span className="text-sm font-sans font-bold ml-1 italic">시간</span></p>
+                  <p className="text-slate-900 text-3xl font-light font-mono">42.5<span className="text-sm font-sans font-bold ml-1">시간</span></p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-slate-400 text-xs font-bold uppercase">어휘 마스터</p>

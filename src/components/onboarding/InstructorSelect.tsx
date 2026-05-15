@@ -11,8 +11,8 @@ const INSTRUCTORS = [
     badge: '단기 목표 전문',
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승',
     quote: '"이거 또 틀렸네. 패턴 외워."',
-    badgeCls: 'bg-white/20 text-white',
-    accentLeft: '#FFFFFF',
+    badgeCls: 'bg-slate-100 text-slate-600',
+    accentLeft: '#2277F0',
     proposal: {
       plan: '4주 초집중 스피드 팩',
       target: 'Part 5 정답률 95% 달성',
@@ -32,8 +32,8 @@ const INSTRUCTORS = [
     badge: '꼼꼼 관리형',
     desc: '친근하고 꼼꼼한 1:1 코칭, 개념부터 탄탄하게',
     quote: '"헷갈릴 수 있어, 같이 보자."',
-    badgeCls: 'bg-white/20 text-white',
-    accentLeft: 'rgba(255,255,255,0.4)',
+    badgeCls: 'bg-slate-100 text-slate-600',
+    accentLeft: '#64748B',
     proposal: {
       plan: '8주 탄탄 개념 코스',
       target: '문법 기초 완벽 마스터',
@@ -53,8 +53,8 @@ const INSTRUCTORS = [
     badge: '균형 코칭형',
     desc: '현실적인 목표와 균형 잡힌 피드백',
     quote: '"틀렸어, 근데 이건 잘하고 있어."',
-    badgeCls: 'bg-white/20 text-white',
-    accentLeft: 'rgba(255,255,255,0.2)',
+    badgeCls: 'bg-slate-100 text-slate-600',
+    accentLeft: '#94A3B8',
     proposal: {
       plan: '6주 실용 득점 전략',
       target: '가성비 위주 핵심 공략',
@@ -88,16 +88,16 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
   if (view === 'list') {
     return (
       <div className="flex flex-col min-h-screen bg-ybm-onboarding px-6 py-10 animate-fade-in relative overflow-hidden">
-        <div className="absolute top-[-60px] right-[-40px] w-56 h-56 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+        <div className="absolute top-[-60px] right-[-40px] w-56 h-56 rounded-full bg-ybm-blue/5 blur-3xl pointer-events-none" />
 
         <div className="max-w-sm mx-auto w-full flex-1 space-y-6 z-10">
           <header className="text-center space-y-4 pb-2">
-            <div className="relative w-16 h-16 mx-auto flex items-center justify-center bg-white/10 rounded-2xl border border-white/20 animate-float">
+            <div className="relative w-16 h-16 mx-auto flex items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm animate-float">
               <span className="text-3xl">📧</span>
             </div>
             <div className="space-y-1">
-              <h2 className="text-white font-bold text-2xl tracking-tight">제안서 도착!</h2>
-              <p className="text-white/50 text-sm font-medium">{userName}님께 도착한 3개의 맞춤 제안서</p>
+              <h2 className="text-slate-900 font-bold text-2xl tracking-tight">제안서 도착!</h2>
+              <p className="text-slate-500 text-sm font-medium">{userName}님께 도착한 3개의 맞춤 제안서</p>
             </div>
           </header>
 
@@ -105,39 +105,39 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
             {INSTRUCTORS.map((inst) => (
               <div
                 key={inst.id}
-                className="bg-white/10 border border-white/15 backdrop-blur-sm rounded-2xl p-5 flex flex-col gap-4 border-l-4"
+                className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 border-l-4 shadow-sm"
                 style={{ borderLeftColor: inst.accentLeft }}
               >
                 <div className="flex items-start gap-4">
                   <span className="text-5xl">{inst.emoji}</span>
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-white font-bold text-lg">{inst.name}</span>
+                      <span className="text-slate-900 font-bold text-lg">{inst.name}</span>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold ${inst.badgeCls}`}>
                         {inst.badge}
                       </span>
                     </div>
-                    <p className="text-white/60 text-sm leading-snug">{inst.desc}</p>
-                    <p className="text-white/30 text-xs italic mt-1">{inst.quote}</p>
+                    <p className="text-slate-600 text-sm leading-snug">{inst.desc}</p>
+                    <p className="text-slate-400 text-xs mt-1">{inst.quote}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => goToDetail('proposal', inst)}
-                    className="h-10 text-[11px] font-bold border border-white/25 text-white/70 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
+                    className="h-10 text-[11px] font-bold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
                   >
                     의뢰서
                   </button>
                   <button
                     onClick={() => goToDetail('chat', inst)}
-                    className="h-10 text-[11px] font-bold border border-white/25 text-white/70 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
+                    className="h-10 text-[11px] font-bold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
                   >
                     1분 대화
                   </button>
                   <button
                     onClick={() => handleConfirm(inst.id)}
-                    className="h-10 text-[11px] font-bold bg-white text-ybm-blue rounded-xl shadow-mid active:scale-95 transition-transform hover:bg-ybm-blue-light"
+                    className="h-10 text-[11px] font-bold bg-ybm-blue text-white rounded-xl shadow-md active:scale-95 transition-transform hover:opacity-90"
                   >
                     수업 시작
                   </button>
@@ -153,16 +153,16 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col min-h-screen bg-ybm-onboarding animate-fade-in">
       {/* 상단 헤더 */}
-      <header className="flex items-center px-6 py-4 bg-white/10 border-b border-white/15 backdrop-blur-md sticky top-0 z-20">
+      <header className="flex items-center px-6 py-4 bg-white/80 border-b border-slate-200 backdrop-blur-md sticky top-0 z-20">
         <button
           onClick={() => setView('list')}
-          className="p-2 -ml-2 text-white/60 hover:text-white transition-colors"
+          className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <h3 className="ml-2 text-white font-extrabold tracking-tight">
+        <h3 className="ml-2 text-slate-900 font-bold tracking-tight">
           {view === 'proposal' ? '📋 제안서' : '💬 1분 대화'}
         </h3>
       </header>
@@ -175,14 +175,14 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
               <div className="text-center space-y-4">
                 <span className="text-8xl block animate-float">{selectedInst.emoji}</span>
                 <div className="space-y-2">
-                  <h4 className="text-white text-3xl font-extrabold tracking-tight">{selectedInst.name}</h4>
-                  <span className="inline-block text-xs px-3 py-1 rounded-full font-bold bg-white/20 text-white">
+                  <h4 className="text-slate-900 text-3xl font-bold tracking-tight">{selectedInst.name}</h4>
+                  <span className="inline-block text-xs px-3 py-1 rounded-full font-bold bg-slate-100 text-slate-600">
                     {selectedInst.badge}
                   </span>
                 </div>
                 <div className="flex justify-center gap-2 flex-wrap">
                   {selectedInst.proposal.tags.map((tag: string) => (
-                    <span key={tag} className="text-[11px] px-2.5 py-1 bg-white/15 text-white/80 rounded-full font-bold">
+                    <span key={tag} className="text-[11px] px-2.5 py-1 bg-slate-50 text-slate-500 rounded-full font-bold border border-slate-100">
                       {tag}
                     </span>
                   ))}
@@ -191,28 +191,28 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
               {/* 제안서 카드 */}
               <div className="space-y-4">
-                <div className="bg-white/10 border border-white/15 rounded-2xl p-6 space-y-5 relative overflow-hidden backdrop-blur-sm">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-white/40" />
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5 relative overflow-hidden shadow-sm">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-ybm-blue/20" />
                   <div>
-                    <label className="text-white/40 text-[10px] font-extrabold uppercase tracking-widest mb-2 block">
+                    <label className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2 block">
                       추천 플랜
                     </label>
-                    <p className="text-white text-xl font-bold">{selectedInst.proposal.plan}</p>
+                    <p className="text-slate-900 text-xl font-bold">{selectedInst.proposal.plan}</p>
                   </div>
-                  <div className="h-px bg-white/10" />
+                  <div className="h-px bg-slate-100" />
                   <div>
-                    <label className="text-white/40 text-[10px] font-extrabold uppercase tracking-widest mb-2 block">
+                    <label className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2 block">
                       목표
                     </label>
-                    <p className="text-white text-xl font-bold">{selectedInst.proposal.target}</p>
+                    <p className="text-slate-900 text-xl font-bold">{selectedInst.proposal.target}</p>
                   </div>
                 </div>
 
-                <div className="bg-white/8 border border-dashed border-white/25 rounded-2xl p-6 relative">
-                  <span className="absolute -top-3 left-5 bg-white text-ybm-blue text-[10px] font-extrabold px-3 py-1 rounded-full shadow-mid">
+                <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 relative">
+                  <span className="absolute -top-3 left-5 bg-white border border-slate-200 text-ybm-blue text-[10px] font-bold px-3 py-1 rounded-full shadow-sm">
                     선생님 한마디
                   </span>
-                  <p className="text-white/80 leading-relaxed italic font-medium pt-2">
+                  <p className="text-slate-600 leading-relaxed font-medium pt-2 text-sm">
                     "{selectedInst.proposal.comment}"
                   </p>
                 </div>
@@ -221,13 +221,13 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
           ) : (
             <div className="space-y-8">
               {/* 강사 상태 카드 */}
-              <div className="bg-white/10 border border-white/15 backdrop-blur-sm rounded-2xl flex items-center gap-4 p-4">
+              <div className="bg-white border border-slate-200 shadow-sm rounded-2xl flex items-center gap-4 p-4">
                 <span className="text-4xl">{selectedInst.emoji}</span>
                 <div>
-                  <p className="text-white font-bold text-lg leading-none">{selectedInst.name}</p>
+                  <p className="text-slate-900 font-bold text-lg leading-none">{selectedInst.name}</p>
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                    <span className="text-white/50 text-xs font-bold">온라인</span>
+                    <span className="text-slate-500 text-xs font-bold">온라인</span>
                   </div>
                 </div>
               </div>
@@ -241,8 +241,8 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                   >
                     <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium leading-relaxed ${
                       c.role === 'instructor'
-                        ? 'bg-white/15 text-white border border-white/20'
-                        : 'bg-white text-ybm-blue shadow-mid'
+                        ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                        : 'bg-ybm-blue text-white shadow-md'
                     }`}>
                       {c.text}
                     </div>
@@ -255,11 +255,11 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
       </div>
 
       {/* 하단 버튼 */}
-      <div className="p-6 bg-white/10 backdrop-blur-xl border-t border-white/15 fixed bottom-0 left-0 w-full z-20">
+      <div className="p-6 bg-white/80 backdrop-blur-xl border-t border-slate-200 fixed bottom-0 left-0 w-full z-20">
         <div className="max-w-sm mx-auto">
           <button
             onClick={() => handleConfirm(selectedInst.id)}
-            className="w-full bg-white text-ybm-blue rounded-2xl h-[56px] font-bold text-lg shadow-high active:scale-95 transition-all hover:bg-ybm-blue-light"
+            className="w-full bg-ybm-blue text-white rounded-2xl h-[56px] font-bold text-lg shadow-lg active:scale-95 transition-all hover:opacity-90"
           >
             {selectedInst.name}과 함께 시작하기 →
           </button>
