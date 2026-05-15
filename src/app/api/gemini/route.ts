@@ -2,19 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /* ── 강사 페르소나 시스템 프롬프트 ── */
 const PERSONA_PROMPTS: Record<string, string> = {
-  driller: `당신은 특전사 교관 스타일의 YBM 토익 스타 강사입니다.
-짧고 단호하게 말하며, 칭찬보다는 빠른 교정과 다음 과제를 제시합니다.
-정답이면 "좋아. 다음 가자." 식으로 짧게 인정하고 바로 심화로 넘어가세요.
-오답이면 "틀렸어. 다시 봐." 식으로 단호하게 핵심 힌트만 주세요.`,
+  park: `당신은 YBM 토익 1위 강사 박혜원입니다.
+카리스마 넘치고 단호한 "파워토익" 스타일로 말합니다.
+이해보다는 패턴과 정답을 골라내는 기술을 강조하세요.
+말투는 짧고 강력하게, "~해요" 보다는 "~입니다", "~하세요"를 주로 사용하세요.
+학습자에게 약간의 긴장감을 주면서도 확실한 점수 상승을 약속하는 느낌입니다.`,
 
-  mentor: `당신은 친근한 형/언니 스타일의 YBM 토익 스타 강사입니다.
-따뜻하게 격려하며, 학습자가 스스로 답을 찾도록 유도합니다.
-정답이면 진심으로 칭찬하고 왜 맞았는지 간략히 설명해 주세요.
-오답이면 "같이 다시 봐보자" 식으로 부드럽게 힌트를 주세요.`,
+  jang: `당신은 친근하고 다정한 강사 장연지입니다.
+학습자의 고민을 잘 들어주고 꼼꼼하게 챙겨주는 스타일입니다.
+"괜찮아요", "함께 해봐요" 같은 격려의 표현을 많이 사용하세요.
+말투는 부드럽고 친절하며, 이모지를 가끔 섞어 써도 좋습니다.
+학습자가 토익을 어렵게 느끼지 않도록 편안한 분위기를 만들어주세요.`,
 
-  realist: `당신은 직장 선배 스타일의 YBM 토익 스타 강사입니다.
-현실적이고 균형 잡힌 피드백을 줍니다.
-정답도 오답도 감정 없이 사실 기반으로 설명하고, 실전에서 쓸 수 있는 팁을 덧붙이세요.`,
+  kim: `당신은 논리적이고 현실적인 강사 김토익입니다.
+군더더기 없는 실무적인 피드백을 주며, 데이터와 전략을 중시합니다.
+할 수 있는 것과 없는 것을 명확히 구분해주고, 가장 효율적인 경로를 제시하세요.
+말투는 신뢰감 있는 표준어이며, 정중하지만 단도직입적입니다.`,
 }
 
 const GEMINI_URL =
@@ -22,40 +25,51 @@ const GEMINI_URL =
 
 export async function POST(req: NextRequest) {
   try {
-    const { problem, correctAnswer, userAnswer, persona = 'mentor', history = [] } =
-      await req.json()
+    const { 
+      message, // 일반 대화용 메시지
+      problem, // 문제 풀이용 (선택)
+      correctAnswer, 
+      userAnswer, 
+      persona = 'jang', 
+      history = [] 
+    } = await req.json()
 
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 })
     }
 
-    const systemPrompt = PERSONA_PROMPTS[persona] ?? PERSONA_PROMPTS.mentor
+    const systemPrompt = PERSONA_PROMPTS[persona] ?? PERSONA_PROMPTS.jang
 
-    /* 대화 이력 구성 (최근 4턴) */
+    /* 대화 이력 구성 (최근 6턴으로 확장) */
     const historyContents = (history as { role: string; text: string }[])
-      .slice(-4)
-      .map((h) => ({ role: h.role, parts: [{ text: h.text }] }))
+      .slice(-6)
+      .map((h) => ({ 
+        role: h.role === 'instructor' ? 'model' : 'user', 
+        parts: [{ text: h.text }] 
+      }))
 
-    /* 현재 사용자 메시지 */
-    const userMessage = `
+    /* 사용자 메시지 구성 (문제 풀이 혹은 일반 대화) */
+    let finalUserMessage = message || userAnswer;
+    if (problem) {
+      finalUserMessage = `
 문제: ${problem}
 정답: ${correctAnswer}
 학습자 답변: "${userAnswer}"
 
-위 학습자 답변에 대해 강사 스타일로 한국어 2~3문장 피드백을 주세요.
-정답 여부 판단 + 핵심 포인트 또는 힌트를 포함하세요.
+위 상황에 대해 당신의 스타일로 피드백을 주세요.
 `.trim()
+    }
 
     const body = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [
         ...historyContents,
-        { role: 'user', parts: [{ text: userMessage }] },
+        { role: 'user', parts: [{ text: finalUserMessage }] },
       ],
       generationConfig: {
-        maxOutputTokens: 200,
-        temperature: 0.7,
+        maxOutputTokens: 300,
+        temperature: 0.8,
       },
     }
 

@@ -3,19 +3,19 @@ import Image from 'next/image'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const INST_INFO: Record<string, { emoji: string; name: string; msg: (n: string, s: number | null, p: string | null) => string }> = {
-  driller: {
+  park: {
     emoji: '🔥',
-    name: '드릴러',
+    name: '박혜원',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 포기하지 마세요!`,
   },
-  mentor: {
+  jang: {
     emoji: '🤝',
-    name: '멘토',
+    name: '장연지',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 저만 믿으세요!`,
   },
-  realist: {
+  kim: {
     emoji: '💼',
-    name: '리얼리스트',
+    name: '김토익',
     msg: (n, s, p) => `${p ?? '2개월'} 플랜이면 ${s ?? 700}점 충분히 가능해요, ${n}님.`,
   },
 }

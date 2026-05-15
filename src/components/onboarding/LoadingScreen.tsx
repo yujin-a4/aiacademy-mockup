@@ -5,8 +5,8 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 
 const LINES = [
   { emoji: '🔥', name: '박혜원', action: '제안서를 작성 중입니다...' },
-  { emoji: '🤝', name: '김토익', action: '목표 기간을 검토 중입니다...' },
-  { emoji: '💼', name: '이선생', action: '학습 성향을 분석하고 있습니다...' },
+  { emoji: '🤝', name: '장연지', action: '목표 기간을 검토 중입니다...' },
+  { emoji: '💼', name: '김토익', action: '학습 성향을 분석하고 있습니다...' },
 ]
 
 export default function LoadingScreen({ onNext }: { onNext: () => void }) {

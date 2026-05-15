@@ -36,7 +36,7 @@ const config: Config = {
         "cr-accent-light": "#D6EAFF",
       },
       fontFamily: {
-        sans:    ['Pretendard', 'Inter', 'sans-serif'],
+        sans:    ['-apple-system', 'BlinkMacSystemFont', '"Apple SD Gothic Neo"', 'Pretendard', 'system-ui', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
         display: ['Barlow Condensed', 'sans-serif'],
       },

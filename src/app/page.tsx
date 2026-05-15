@@ -5,9 +5,6 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-ybm-bg px-6 text-center overflow-hidden">
-      {/* 배경 패턴 (반투명 스트라이프) */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #2277F0 40px, #2277F0 80px)' }}></div>
-      
       <div className="relative space-y-12 animate-fade-in z-10">
         {/* 심플 로고 아이콘 */}
         <div className="relative w-40 h-40 mx-auto flex items-center justify-center bg-white rounded-[40px] border border-slate-200 shadow-xl animate-float">

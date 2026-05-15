@@ -36,8 +36,11 @@
 body {
   background-color: var(--ybm-bg);
   color: var(--ybm-text);
-  font-family: 'Pretendard', 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.022em; /* 애플 특유의 정갈하고 쫀쫀한 자간 */
+  text-rendering: optimizeLegibility;
 }
 
 /* 홈화면 전용 다크 배경 */
