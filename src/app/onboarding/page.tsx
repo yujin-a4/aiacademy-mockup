@@ -15,7 +15,7 @@ export default function OnboardingPage() {
   const next = () => setStep((s) => s + 1)
 
   return (
-    <main className="min-h-screen bg-dark-navy overflow-hidden">
+    <main className="min-h-screen bg-ybm-bg overflow-hidden">
       {step === 1 && <NameInput onNext={next} />}
       {step === 2 && <QuizCard onComplete={next} />}
       {step === 3 && <GoalSetting onNext={next} />}

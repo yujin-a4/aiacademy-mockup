@@ -60,15 +60,19 @@ export default function QuizCard({ onComplete }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-onboarding px-6 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-ybm-onboarding px-6 relative overflow-hidden">
+      {/* 배경 장식 */}
+      <div className="absolute top-[-60px] right-[-40px] w-56 h-56 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-40px] left-[-40px] w-44 h-44 rounded-full bg-ybm-blue/20 blur-2xl pointer-events-none" />
+
       <div className="w-full max-w-sm space-y-10 animate-fade-in z-10">
         {/* 진행 바 */}
         <div className="flex gap-2 px-1">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-                i <= idx ? 'bg-waong-lavender' : 'bg-white/20'
+              className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                i <= idx ? 'bg-white' : 'bg-white/20'
               }`}
             />
           ))}
@@ -84,9 +88,8 @@ export default function QuizCard({ onComplete }: Props) {
               className="object-contain"
             />
           </div>
-          <div className="bg-white rounded-2xl px-5 py-4 text-dark-navy text-base font-bold leading-relaxed shadow-high relative min-h-[60px] flex items-center justify-center">
-             {/* 말풍선 꼬리 */}
-             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-bottom-[10px] border-white" />
+          <div className="relative bg-white rounded-2xl px-5 py-4 text-ybm-text text-base font-bold leading-relaxed shadow-high min-h-[60px] flex items-center justify-center">
+            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />
             {showReaction ? q.reaction : q.label}
           </div>
         </div>
@@ -98,12 +101,12 @@ export default function QuizCard({ onComplete }: Props) {
               key={opt.value}
               onClick={() => handlePick(opt.value)}
               disabled={!!picked}
-              className={`w-full h-16 rounded-xl px-6 text-base font-bold transition-all duration-200 shadow-low ${
+              className={`w-full h-16 rounded-2xl px-6 text-base font-bold transition-all duration-200 border-2 ${
                 picked === opt.value
-                  ? 'bg-waong-lavender text-dark-navy scale-[1.02]'
+                  ? 'bg-white text-ybm-blue border-white scale-[1.02] shadow-high'
                   : picked
-                  ? 'bg-white/5 text-white/20 border border-white/10'
-                  : 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40'
+                  ? 'bg-white/5 text-white/25 border-white/10'
+                  : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40'
               }`}
             >
               {opt.text}

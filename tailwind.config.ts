@@ -9,6 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // 기존 다크 네이비 토큰 (홈화면 공유 사용)
         'dark-navy': '#0D1B4B',
         'navy-mid': '#1B3EAF',
         'waong-lavender': '#8B8FC8',
@@ -19,6 +20,15 @@ const config: Config = {
         'charcoal': '#2C2F4A',
         'success': '#1DB97A',
         'error-red': '#E8193C',
+        // YBM AI 어학원 블루 디자인 토큰 (tailwind.config-yj.ts 기준)
+        'ybm-blue':       '#2277F0',
+        'ybm-blue-mid':   '#5BA8F5',
+        'ybm-blue-light': '#D6EAFF',
+        'ybm-bg':         '#F0F5FF',
+        'ybm-card':       '#FFFFFF',
+        'ybm-text':       '#1A2B4B',
+        'ybm-text-sub':   '#6B7A99',
+        'ybm-border':     '#E2EAF4',
       },
       fontFamily: {
         sans: ['Pretendard', 'Inter', 'sans-serif'],
@@ -34,6 +44,8 @@ const config: Config = {
         'low': '0 2px 8px rgba(13, 27, 75, 0.08)',
         'mid': '0 4px 16px rgba(13, 27, 75, 0.14)',
         'high': '0 8px 32px rgba(13, 27, 75, 0.20)',
+        'card': '0 2px 12px rgba(34, 119, 240, 0.08)',
+        'card-hover': '0 6px 24px rgba(34, 119, 240, 0.15)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',

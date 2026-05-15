@@ -10,6 +10,7 @@
 }
 
 :root {
+  /* 기존 다크 네이비 계열 (홈화면 등 공유) */
   --dark-navy: #0D1B4B;
   --navy-mid: #1B3EAF;
   --waong-lavender: #8B8FC8;
@@ -18,32 +19,91 @@
   --light-gray: #EAECF4;
   --mid-gray: #9499B7;
   --charcoal: #2C2F4A;
-  
   --success: #1DB97A;
   --error: #E8193C;
+
+  /* YBM AI 어학원 블루 디자인 토큰 (tailwind.config-yj.ts 기준) */
+  --ybm-blue: #2277F0;
+  --ybm-blue-mid: #5BA8F5;
+  --ybm-blue-light: #D6EAFF;
+  --ybm-bg: #F0F5FF;
+  --ybm-card: #FFFFFF;
+  --ybm-text: #1A2B4B;
+  --ybm-text-sub: #6B7A99;
+  --ybm-border: #E2EAF4;
 }
 
 body {
-  background-color: var(--off-white);
-  color: var(--charcoal);
+  background-color: var(--ybm-bg);
+  color: var(--ybm-text);
   font-family: 'Pretendard', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 온보딩 전용 배경 클래스 */
+/* 홈화면 전용 다크 배경 */
 .bg-onboarding {
   background: linear-gradient(135deg, #0D1B4B 0%, #1B3EAF 100%);
 }
 
-/* 카드 스타일 */
-.ybm-card {
-  background: white;
-  border: 1px solid var(--light-gray);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(13, 27, 75, 0.08);
+/* 온보딩 플로우 전용 블루 배경 (홈과 이어지는 딥 블루) */
+.bg-ybm-onboarding {
+  background: linear-gradient(160deg, #0D1B4B 0%, #1040A8 55%, #2277F0 100%);
 }
 
-.ybm-card-selected {
-  border: 2px solid var(--waong-lavender);
-  box-shadow: 0 4px 16px rgba(13, 27, 75, 0.14);
+/* YBM 카드 (라이트 모드) */
+.ybm-card {
+  background: #FFFFFF;
+  border: 1px solid var(--ybm-border);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(34, 119, 240, 0.08);
 }
+
+.ybm-card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.ybm-card-hover:hover {
+  box-shadow: 0 6px 24px rgba(34, 119, 240, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 선택된 카드 */
+.ybm-card-selected {
+  border: 2px solid var(--ybm-blue);
+  box-shadow: 0 4px 20px rgba(34, 119, 240, 0.18);
+}
+
+/* YBM 메인 버튼 */
+.ybm-btn-primary {
+  background: var(--ybm-blue);
+  color: #ffffff;
+  border-radius: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(34, 119, 240, 0.30);
+}
+.ybm-btn-primary:hover {
+  background: #1a66d8;
+  box-shadow: 0 6px 20px rgba(34, 119, 240, 0.40);
+  transform: translateY(-1px);
+}
+.ybm-btn-primary:active {
+  transform: scale(0.97);
+}
+.ybm-btn-primary:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  transform: none;
+}
+
+/* YBM 보조 버튼 */
+.ybm-btn-secondary {
+  background: var(--ybm-blue-light);
+  color: var(--ybm-blue);
+  border-radius: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+.ybm-btn-secondary:hover {
+  background: #c5dfff;
+}
+
