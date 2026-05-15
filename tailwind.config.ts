@@ -20,15 +20,20 @@ const config: Config = {
         'charcoal': '#2C2F4A',
         'success': '#1DB97A',
         'error-red': '#E8193C',
-        // YBM AI 어학원 블루 디자인 토큰 (미니멀 슬레이트 테마로 변경)
-        'ybm-blue':       '#1E293B', // Slate 800 (기존 쨍한 블루 대신 차분하고 묵직한 포인트)
-        'ybm-blue-mid':   '#64748B', // Slate 500 (중간 톤)
-        'ybm-blue-light': '#F1F5F9', // Slate 100 (매우 연한 배경)
-        'ybm-bg':         '#F8FAFC', // Slate 50 (전체 배경)
-        'ybm-card':       '#FFFFFF', // 카드 배경
-        'ybm-text':       '#0F172A', // Slate 900 (메인 텍스트)
-        'ybm-text-sub':   '#64748B', // Slate 500 (서브 텍스트)
-        'ybm-border':     '#E2E8F0', // Slate 200 (테두리)
+        // ── 공통 YBM AI 어학원 블루 디자인 토큰 ────────
+        'ybm-blue':       '#2277F0',
+        'ybm-blue-mid':   '#5BA8F5',
+        'ybm-blue-light': '#D6EAFF',
+        'ybm-bg':         '#F0F5FF',
+        'ybm-card':       '#FFFFFF',
+        'ybm-text':       '#1A2B4B',
+        'ybm-text-sub':   '#6B7A99',
+        'ybm-border':     '#E2EAF4',
+        // ── 수업 화면(classroom) 전용 토큰 ─────────────
+        'cr-nav':         '#12203A',
+        'cr-panel':       '#EAF2FF',
+        'cr-accent':      '#2277F0',
+        'cr-accent-light':'#D6EAFF',
       },
       fontFamily: {
         sans: ['Pretendard', 'Inter', 'sans-serif'],
@@ -41,11 +46,12 @@ const config: Config = {
         'large': '20px',
       },
       boxShadow: {
-        'low': '0 2px 8px rgba(13, 27, 75, 0.08)',
-        'mid': '0 4px 16px rgba(13, 27, 75, 0.14)',
-        'high': '0 8px 32px rgba(13, 27, 75, 0.20)',
-        'card': '0 2px 12px rgba(15, 23, 42, 0.04)',
-        'card-hover': '0 6px 24px rgba(15, 23, 42, 0.08)',
+        'low':        '0 2px 8px rgba(13, 27, 75, 0.08)',
+        'mid':        '0 4px 16px rgba(13, 27, 75, 0.14)',
+        'high':       '0 8px 32px rgba(13, 27, 75, 0.20)',
+        'card':       '0 2px 12px rgba(34, 119, 240, 0.08)',
+        'card-hover': '0 6px 24px rgba(34, 119, 240, 0.15)',
+        'blue':       '0 4px 16px rgba(34, 119, 240, 0.35)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',

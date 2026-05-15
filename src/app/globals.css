@@ -47,7 +47,7 @@ body {
 
 /* 온보딩 플로우 전용 차분한 배경 */
 .bg-ybm-onboarding {
-  background: linear-gradient(160deg, #0F172A 0%, #1E293B 55%, #334155 100%);
+  background: #F8FAFC;
 }
 
 /* YBM 카드 (라이트 모드) */
