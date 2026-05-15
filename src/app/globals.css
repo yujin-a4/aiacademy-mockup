@@ -22,9 +22,9 @@
   --success: #1DB97A;
   --error: #E8193C;
 
-  /* YBM AI 어학원 디자인 토큰 (미니멀 슬레이트 테마로 변경) */
-  --ybm-blue: #1E293B;
-  --ybm-blue-mid: #64748B;
+  /* YBM AI 어학원 디자인 토큰 (브랜드 블루 포인트 적용) */
+  --ybm-blue: #2277F0;
+  --ybm-blue-mid: #5BA8F5;
   --ybm-blue-light: #F1F5F9;
   --ybm-bg: #F8FAFC;
   --ybm-card: #FFFFFF;
