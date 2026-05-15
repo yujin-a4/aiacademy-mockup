@@ -2,52 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --ybm-blue:       #2277F0;
-  --ybm-blue-mid:   #5BA8F5;
-  --ybm-blue-light: #D6EAFF;
-  --ybm-bg:         #F0F5FF;
-  --ybm-card:       #FFFFFF;
-  --ybm-text:       #1A2B4B;
-  --ybm-text-sub:   #6B7A99;
-  --ybm-border:     #E2EAF4;
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/PretendardVariable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
 }
 
-* {
-  box-sizing: border-box;
+:root {
+  --dark-navy: #0D1B4B;
+  --navy-mid: #1B3EAF;
+  --waong-lavender: #8B8FC8;
+  --lavender-light: #C4C6E8;
+  --off-white: #F7F8FC;
+  --light-gray: #EAECF4;
+  --mid-gray: #9499B7;
+  --charcoal: #2C2F4A;
+  
+  --success: #1DB97A;
+  --error: #E8193C;
 }
 
 body {
-  background-color: var(--ybm-bg);
-  color: var(--ybm-text);
-  font-family: var(--font-inter), sans-serif;
+  background-color: var(--off-white);
+  color: var(--charcoal);
+  font-family: 'Pretendard', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 공통 카드 스타일 */
+/* 온보딩 전용 배경 클래스 */
+.bg-onboarding {
+  background: linear-gradient(135deg, #0D1B4B 0%, #1B3EAF 100%);
+}
+
+/* 카드 스타일 */
 .ybm-card {
-  background: var(--ybm-card);
-  border: 1px solid var(--ybm-border);
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(34, 119, 240, 0.08);
-}
-
-/* 아이콘 뱃지 (이미지의 파란 둥근 사각형) */
-.ybm-icon-badge {
-  background: linear-gradient(135deg, var(--ybm-blue-mid), var(--ybm-blue));
+  background: white;
+  border: 1px solid var(--light-gray);
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  box-shadow: 0 2px 8px rgba(13, 27, 75, 0.08);
 }
 
-/* 주요 텍스트 강조 */
-.ybm-title {
-  color: var(--ybm-blue);
-  font-weight: 700;
-}
-
-.ybm-subtitle {
-  color: var(--ybm-text-sub);
-  font-size: 0.875rem;
+.ybm-card-selected {
+  border: 2px solid var(--waong-lavender);
+  box-shadow: 0 4px 16px rgba(13, 27, 75, 0.14);
 }
