@@ -3,13 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --dark-navy: #0A1628;
-  --lavender: #8B7CF6;
-  --lavender-light: #B8AFFD;
+  --ybm-blue:       #2277F0;
+  --ybm-blue-mid:   #5BA8F5;
+  --ybm-blue-light: #D6EAFF;
+  --ybm-bg:         #F0F5FF;
+  --ybm-card:       #FFFFFF;
+  --ybm-text:       #1A2B4B;
+  --ybm-text-sub:   #6B7A99;
+  --ybm-border:     #E2EAF4;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background-color: var(--dark-navy);
-  color: white;
+  background-color: var(--ybm-bg);
+  color: var(--ybm-text);
   font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 공통 카드 스타일 */
+.ybm-card {
+  background: var(--ybm-card);
+  border: 1px solid var(--ybm-border);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(34, 119, 240, 0.08);
+}
+
+/* 아이콘 뱃지 (이미지의 파란 둥근 사각형) */
+.ybm-icon-badge {
+  background: linear-gradient(135deg, var(--ybm-blue-mid), var(--ybm-blue));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 주요 텍스트 강조 */
+.ybm-title {
+  color: var(--ybm-blue);
+  font-weight: 700;
+}
+
+.ybm-subtitle {
+  color: var(--ybm-text-sub);
+  font-size: 0.875rem;
 }
