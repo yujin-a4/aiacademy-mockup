@@ -2,52 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --ybm-blue:       #2277F0;
-  --ybm-blue-mid:   #5BA8F5;
-  --ybm-blue-light: #D6EAFF;
-  --ybm-bg:         #F0F5FF;
-  --ybm-card:       #FFFFFF;
-  --ybm-text:       #1A2B4B;
-  --ybm-text-sub:   #6B7A99;
-  --ybm-border:     #E2EAF4;
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/PretendardVariable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
 }
 
-* {
-  box-sizing: border-box;
+:root {
+  /* 기존 다크 네이비 계열 (홈화면 등 공유) */
+  --dark-navy: #0D1B4B;
+  --navy-mid: #1B3EAF;
+  --waong-lavender: #8B8FC8;
+  --lavender-light: #C4C6E8;
+  --off-white: #F7F8FC;
+  --light-gray: #EAECF4;
+  --mid-gray: #9499B7;
+  --charcoal: #2C2F4A;
+  --success: #1DB97A;
+  --error: #E8193C;
+
+  /* YBM AI 어학원 디자인 토큰 (브랜드 블루 포인트 적용) */
+  --ybm-blue: #2277F0;
+  --ybm-blue-mid: #5BA8F5;
+  --ybm-blue-light: #F1F5F9;
+  --ybm-bg: #F8FAFC;
+  --ybm-card: #FFFFFF;
+  --ybm-text: #0F172A;
+  --ybm-text-sub: #64748B;
+  --ybm-border: #E2E8F0;
 }
 
 body {
   background-color: var(--ybm-bg);
   color: var(--ybm-text);
-  font-family: var(--font-inter), sans-serif;
+  font-family: 'Pretendard', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 공통 카드 스타일 */
+/* 홈화면 전용 다크 배경 */
+.bg-onboarding {
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+}
+
+/* 온보딩 플로우 전용 차분한 배경 */
+.bg-ybm-onboarding {
+  background: linear-gradient(160deg, #0F172A 0%, #1E293B 55%, #334155 100%);
+}
+
+/* YBM 카드 (라이트 모드) */
 .ybm-card {
-  background: var(--ybm-card);
+  background: #FFFFFF;
   border: 1px solid var(--ybm-border);
   border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(34, 119, 240, 0.08);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
 }
 
-/* 아이콘 뱃지 (이미지의 파란 둥근 사각형) */
-.ybm-icon-badge {
-  background: linear-gradient(135deg, var(--ybm-blue-mid), var(--ybm-blue));
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.ybm-card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.ybm-card-hover:hover {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
 }
 
-/* 주요 텍스트 강조 */
-.ybm-title {
-  color: var(--ybm-blue);
+/* 선택된 카드 */
+.ybm-card-selected {
+  border: 2px solid var(--ybm-blue);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.1);
+}
+
+/* YBM 메인 버튼 */
+.ybm-btn-primary {
+  background: var(--ybm-blue);
+  color: #ffffff;
+  border-radius: 14px;
   font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
+}
+.ybm-btn-primary:hover {
+  background: #0F172A;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
+  transform: translateY(-1px);
+}
+.ybm-btn-primary:active {
+  transform: scale(0.97);
+}
+.ybm-btn-primary:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  transform: none;
 }
 
-.ybm-subtitle {
-  color: var(--ybm-text-sub);
-  font-size: 0.875rem;
+/* YBM 보조 버튼 */
+.ybm-btn-secondary {
+  background: var(--ybm-blue-light);
+  color: var(--ybm-blue);
+  border-radius: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
 }
+.ybm-btn-secondary:hover {
+  background: #E2E8F0;
+}
+
