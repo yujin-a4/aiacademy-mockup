@@ -188,7 +188,7 @@ export default function Dashboard() {
         open={sidebarOpen}
         setOpen={setSidebarOpen}
         userName={userName ?? ''}
-        targetScore={targetScore ?? ''}
+        targetScore={targetScore?.toString() ?? ''}
         selectedInstructor={selectedInstructor}
       />
 
