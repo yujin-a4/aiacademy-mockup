@@ -92,11 +92,11 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
         <div className="max-w-sm mx-auto w-full flex-1 space-y-6 z-10">
           <header className="text-center space-y-4 pb-2">
-            <div className="relative w-20 h-20 mx-auto animate-float">
-              <Image src="/img/와옹이_궁금.png" alt="와옹이" fill className="object-contain" />
+            <div className="relative w-16 h-16 mx-auto flex items-center justify-center bg-white/10 rounded-2xl border border-white/20 animate-float">
+              <span className="text-3xl">📧</span>
             </div>
             <div className="space-y-1">
-              <h2 className="text-white font-extrabold text-2xl tracking-tight">제안서 도착!</h2>
+              <h2 className="text-white font-bold text-2xl tracking-tight">제안서 도착!</h2>
               <p className="text-white/50 text-sm font-medium">{userName}님께 도착한 3개의 맞춤 제안서</p>
             </div>
           </header>

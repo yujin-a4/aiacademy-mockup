@@ -31,11 +31,11 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
 
       <div className="w-full max-w-sm mx-auto space-y-8 animate-fade-in z-10">
         <div className="text-center space-y-4">
-          <div className="relative w-24 h-24 mx-auto animate-bounce-in">
-            <Image src="/img/와옹이_공부.png" alt="와옹이" fill className="object-contain" />
+          <div className="relative w-20 h-20 mx-auto flex items-center justify-center bg-white/10 rounded-2xl border border-white/20 animate-bounce-in">
+            <span className="text-3xl">🎯</span>
           </div>
           <div className="space-y-1">
-            <h2 className="text-white text-xl font-extrabold tracking-tight">목표를 설정해볼까요?</h2>
+            <h2 className="text-white text-xl font-bold tracking-tight">목표를 설정해볼까요?</h2>
             <p className="text-white/50 text-sm font-medium">3가지만 골라주시면 커리큘럼을 만들어드려요</p>
           </div>
         </div>

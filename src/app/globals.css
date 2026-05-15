@@ -22,15 +22,15 @@
   --success: #1DB97A;
   --error: #E8193C;
 
-  /* YBM AI 어학원 블루 디자인 토큰 (tailwind.config-yj.ts 기준) */
-  --ybm-blue: #2277F0;
-  --ybm-blue-mid: #5BA8F5;
-  --ybm-blue-light: #D6EAFF;
-  --ybm-bg: #F0F5FF;
+  /* YBM AI 어학원 디자인 토큰 (미니멀 슬레이트 테마로 변경) */
+  --ybm-blue: #1E293B;
+  --ybm-blue-mid: #64748B;
+  --ybm-blue-light: #F1F5F9;
+  --ybm-bg: #F8FAFC;
   --ybm-card: #FFFFFF;
-  --ybm-text: #1A2B4B;
-  --ybm-text-sub: #6B7A99;
-  --ybm-border: #E2EAF4;
+  --ybm-text: #0F172A;
+  --ybm-text-sub: #64748B;
+  --ybm-border: #E2E8F0;
 }
 
 body {
@@ -42,12 +42,12 @@ body {
 
 /* 홈화면 전용 다크 배경 */
 .bg-onboarding {
-  background: linear-gradient(135deg, #0D1B4B 0%, #1B3EAF 100%);
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
 }
 
-/* 온보딩 플로우 전용 블루 배경 (홈과 이어지는 딥 블루) */
+/* 온보딩 플로우 전용 차분한 배경 */
 .bg-ybm-onboarding {
-  background: linear-gradient(160deg, #0D1B4B 0%, #1040A8 55%, #2277F0 100%);
+  background: linear-gradient(160deg, #0F172A 0%, #1E293B 55%, #334155 100%);
 }
 
 /* YBM 카드 (라이트 모드) */
@@ -55,21 +55,21 @@ body {
   background: #FFFFFF;
   border: 1px solid var(--ybm-border);
   border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(34, 119, 240, 0.08);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
 }
 
 .ybm-card-hover {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .ybm-card-hover:hover {
-  box-shadow: 0 6px 24px rgba(34, 119, 240, 0.15);
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
   transform: translateY(-2px);
 }
 
 /* 선택된 카드 */
 .ybm-card-selected {
   border: 2px solid var(--ybm-blue);
-  box-shadow: 0 4px 20px rgba(34, 119, 240, 0.18);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.1);
 }
 
 /* YBM 메인 버튼 */
@@ -79,11 +79,11 @@ body {
   border-radius: 14px;
   font-weight: 700;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(34, 119, 240, 0.30);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
 }
 .ybm-btn-primary:hover {
-  background: #1a66d8;
-  box-shadow: 0 6px 20px rgba(34, 119, 240, 0.40);
+  background: #0F172A;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
   transform: translateY(-1px);
 }
 .ybm-btn-primary:active {
@@ -104,6 +104,6 @@ body {
   transition: all 0.2s ease;
 }
 .ybm-btn-secondary:hover {
-  background: #c5dfff;
+  background: #E2E8F0;
 }
 

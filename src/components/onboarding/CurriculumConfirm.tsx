@@ -38,14 +38,13 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
       <div className="absolute top-[-60px] right-[-40px] w-56 h-56 rounded-full bg-white/5 blur-3xl pointer-events-none" />
 
       <div className="px-6 py-10 max-w-sm mx-auto w-full flex-1 space-y-8 z-10 pb-36">
-        {/* 헤더 */}
         <header className="text-center space-y-6">
-          <div className="relative w-32 h-32 mx-auto animate-bounce-in">
-            <Image src="/img/와옹이_응원.png" alt="와옹이" fill className="object-contain" />
+          <div className="relative w-24 h-24 mx-auto flex items-center justify-center bg-white/10 rounded-3xl border border-white/20 animate-bounce-in">
+            <span className="text-4xl">🎓</span>
           </div>
           <div className="space-y-2">
-            <h2 className="text-white font-extrabold text-3xl tracking-tight">나의 커리큘럼</h2>
-            <p className="text-white/60 font-medium">{userName}님만을 위한 맞춤 코스 🎉</p>
+            <h2 className="text-white font-bold text-3xl tracking-tight">나의 커리큘럼</h2>
+            <p className="text-white/60 font-medium">{userName}님만을 위한 맞춤 코스</p>
           </div>
         </header>
 

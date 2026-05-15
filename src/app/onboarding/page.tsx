@@ -21,7 +21,7 @@ export default function OnboardingPage() {
       {step === 3 && <GoalSetting onNext={next} />}
       {step === 4 && <LoadingScreen onNext={next} />}
       {step === 5 && <InstructorSelect onNext={next} />}
-      {step === 6 && <CurriculumConfirm onComplete={() => router.push('/')} />}
+      {step === 6 && <CurriculumConfirm onComplete={() => router.push('/dashboard')} />}
     </main>
   )
 }

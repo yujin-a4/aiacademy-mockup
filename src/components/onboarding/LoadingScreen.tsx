@@ -33,14 +33,16 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
 
       <div className="w-full max-w-sm space-y-8 z-10">
         <div className="text-center space-y-6">
-          <div className="relative w-32 h-32 mx-auto animate-float">
-            <Image src="/img/와옹이_궁금.png" alt="와옹이" fill className="object-contain" />
+          <div className="relative w-24 h-24 mx-auto flex items-center justify-center animate-float">
             <div className="absolute inset-0 bg-white/10 rounded-full animate-pulse blur-xl" />
+            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shadow-2xl">
+              <span className="text-3xl">📊</span>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <p className="text-white/50 text-xs font-extrabold uppercase tracking-[0.2em]">맞춤 분석 중</p>
-            <h2 className="text-white text-xl font-extrabold">제안서를 생성하고 있어요</h2>
+            <p className="text-white/50 text-xs font-bold uppercase tracking-[0.2em]">맞춤 분석 중</p>
+            <h2 className="text-white text-xl font-bold">제안서를 생성하고 있어요</h2>
           </div>
         </div>
 

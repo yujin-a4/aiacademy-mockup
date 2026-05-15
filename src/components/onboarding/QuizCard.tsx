@@ -78,15 +78,10 @@ export default function QuizCard({ onComplete }: Props) {
           ))}
         </div>
 
-        {/* 와옹이 말풍선 */}
+        {/* 질문 헤더 */}
         <div className="text-center space-y-6">
-          <div className="relative w-28 h-28 mx-auto animate-bounce-in">
-            <Image
-              src={showReaction ? "/img/와옹이_기쁨.png" : "/img/와옹이_궁금.png"}
-              alt="와옹이"
-              fill
-              className="object-contain"
-            />
+          <div className="relative w-24 h-24 mx-auto flex items-center justify-center bg-white/10 rounded-3xl border border-white/20 animate-bounce-in">
+            <span className="text-4xl">{showReaction ? '✅' : '❓'}</span>
           </div>
           <div className="relative bg-white rounded-2xl px-5 py-4 text-ybm-text text-base font-bold leading-relaxed shadow-high min-h-[60px] flex items-center justify-center">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />

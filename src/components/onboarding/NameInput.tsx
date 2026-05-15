@@ -26,21 +26,16 @@ export default function NameInput({ onNext }: Props) {
 
       <div className="w-full max-w-sm space-y-10 animate-fade-in z-10">
         <div className="text-center space-y-6">
-          <div className="relative w-28 h-28 mx-auto animate-bounce-in">
-            <Image
-              src={confirmed ? "/img/와옹이_기쁨.png" : "/img/와옹이_기본.png"}
-              alt="와옹이"
-              fill
-              className="object-contain"
-            />
+          <div className="relative w-24 h-24 mx-auto flex items-center justify-center bg-white/10 rounded-3xl border border-white/20 animate-bounce-in">
+            <span className="text-4xl">👋</span>
           </div>
 
           {/* 말풍선 */}
           <div className="relative bg-white rounded-2xl px-5 py-4 text-ybm-text text-base font-medium leading-relaxed shadow-high">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />
             {confirmed
-              ? `${input}님, 반가워요! 딱 맞는 선생님을 찾아드릴게요 🎯`
-              : '안녕하세요! 저는 AI 매니저 와옹이에요. 선생님을 연결해드릴게요'}
+              ? `${input}님, 반갑습니다! 최적화된 학습 코스를 구성해 드릴게요.`
+              : '안녕하세요! YBM AI 코스에 오신 것을 환영합니다.'}
           </div>
         </div>
 
