@@ -37,7 +37,7 @@ function Sidebar({ open, setOpen, userName, targetScore, selectedInstructor }: {
   userName: string; targetScore: string; selectedInstructor: string | null
 }) {
   return (
-    <aside className={`hidden md:flex flex-col bg-[#111827] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[220px]' : 'w-[68px]'}`}>
+    <aside className={`hidden md:flex flex-col bg-[#111827] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[220px]' : 'w-[48px]'}`}>
       {/* 로고 + 토글 */}
       <div className="px-4 py-5 flex items-center justify-between min-h-[64px]">
         <div className="flex items-center gap-2.5">
@@ -123,7 +123,7 @@ function BottomNav() {
 /* ── 대시보드 메인 ── */
 export default function Dashboard() {
   const { userName, selectedInstructor, targetScore } = useOnboardingStore()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [missions, setMissions] = useState(MISSIONS)
 
   const instName = INST_NAME[selectedInstructor ?? 'jang'] ?? '장연지'
