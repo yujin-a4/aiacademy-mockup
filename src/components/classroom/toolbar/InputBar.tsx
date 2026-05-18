@@ -43,14 +43,9 @@ interface InputBarProps {
   actions?: ToolbarAction[]
   onValueChange?: (value: string) => void
   clearTrigger?: number
-  /**
-   * 마운트 시 startListening / stopListening 함수를 부모에게 전달.
-   * 부모가 ref에 저장해두고 TTS 종료 즉시 직접 호출 →
-   * React 리렌더 사이클 없이 STT 즉시 시작.
-   */
   onReadyToListen?: (startFn: () => void, stopFn: () => void) => void
-  /** STT 최종 결과 텍스트를 부모에게 전달 (submit 없이) */
   onSpeechResult?: (text: string) => void
+  onListeningChange?: (listening: boolean) => void
 }
 
 /* ── 파형 프로파일 (deterministic, 36개 바) ── */
@@ -69,18 +64,23 @@ export default function InputBar({
   clearTrigger,
   onReadyToListen,
   onSpeechResult,
+  onListeningChange,
 }: InputBarProps) {
   const [value, setValue]               = useState('')
   const [interimText, setInterim]       = useState('')
   const [isListening, setListening]     = useState(false)
   const [sttSupported, setSttSupported] = useState(true)
 
-  const inputRef     = useRef<HTMLInputElement>(null)
-  const recognRef    = useRef<SpeechRecognitionInstance | null>(null)
-  /* 항상 최신 handleMic을 가리키는 stable ref (클로저 stale 방지) */
-  const handleMicRef = useRef<() => void>(() => {})
+  const inputRef             = useRef<HTMLInputElement>(null)
+  const recognRef            = useRef<SpeechRecognitionInstance | null>(null)
+  const handleMicRef         = useRef<() => void>(() => {})
+  const onSpeechResultRef    = useRef(onSpeechResult)
+  const onListeningChangeRef = useRef(onListeningChange)
+  useEffect(() => { onSpeechResultRef.current    = onSpeechResult    }, [onSpeechResult])
+  useEffect(() => { onListeningChangeRef.current = onListeningChange }, [onListeningChange])
 
-  /* clearTrigger */
+  useEffect(() => { onListeningChangeRef.current?.(isListening) }, [isListening])
+
   useEffect(() => {
     if (clearTrigger !== undefined && clearTrigger > 0) {
       setValue('')
@@ -133,7 +133,7 @@ export default function InputBar({
       if (finalBuf) {
         setValue(finalBuf)
         setInterim('')
-        onSpeechResult?.(finalBuf)
+        onSpeechResultRef.current?.(finalBuf)
         inputRef.current?.focus()
       } else {
         setInterim(interimBuf)
@@ -144,52 +144,111 @@ export default function InputBar({
     rec.onend   = () => { setListening(false); setInterim('') }
     recognRef.current = rec
     rec.start()
-  }, [isListening, sttSupported, onSpeechResult])
+  }, [isListening, sttSupported])
 
-  /* handleMicRef를 매 렌더마다 최신으로 유지 */
   useEffect(() => { handleMicRef.current = handleMic })
 
-  /* 마운트 시 start/stopFn을 부모에게 한 번만 전달 */
+  const forceStartRef = useRef<() => void>(() => {})
   useEffect(() => {
-    const start = () => handleMicRef.current()
-    const stop  = () => { recognRef.current?.stop(); setListening(false); setInterim('') }
+    forceStartRef.current = () => {
+      const ok =
+        typeof window !== 'undefined' &&
+        ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+      if (!ok) return
+      try { recognRef.current?.stop() } catch (_) {}
+
+      const Ctor: SpeechRecognitionCtor | undefined =
+        (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
+          .SpeechRecognition ??
+        (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
+          .webkitSpeechRecognition
+      if (!Ctor) return
+
+      const rec = new Ctor()
+      rec.lang           = 'ko-KR'
+      rec.continuous     = true
+      rec.interimResults = true
+
+      rec.onstart = () => setListening(true)
+      rec.onresult = (e: SpeechRecognitionEvent) => {
+        let interimBuf = ''
+        let finalBuf   = ''
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript
+          if (e.results[i].isFinal) finalBuf += t
+          else                       interimBuf += t
+        }
+        if (finalBuf) {
+          setValue(finalBuf)
+          setInterim('')
+          onSpeechResultRef.current?.(finalBuf)
+          inputRef.current?.focus()
+        } else {
+          setInterim(interimBuf)
+        }
+      }
+      rec.onerror = () => { setListening(false); setInterim('') }
+      rec.onend   = () => { setListening(false); setInterim('') }
+      recognRef.current = rec
+      rec.start()
+    }
+  })
+
+  useEffect(() => {
+    const start = () => forceStartRef.current()
+    const stop  = () => { try { recognRef.current?.stop() } catch (_) {} setListening(false); setInterim('') }
     onReadyToListen?.(start, stop)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /* 텍스트 직접 입력 후 전송 */
+  const handleTextSubmit = useCallback(() => {
+    const text = value.trim()
+    if (!text) return
+    try { recognRef.current?.stop() } catch (_) {}
+    setListening(false)
+    setInterim('')
+    onSpeechResultRef.current?.(text)
+    setValue('')
+  }, [value])
+
   return (
     <div className="flex flex-col gap-2 w-full">
 
-      {isListening ? (
-        /* ── 녹음 중: 파형(위) + STT 텍스트(아래) ── */
-        <div className="bg-white border-2 border-cr-accent rounded-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-center gap-[3px] px-4 pt-4 pb-2" style={{ minHeight: 72 }}>
-            <VoiceWave />
-          </div>
-          <div className="px-4 pb-2" style={{ minHeight: 44 }}>
-            {interimText
-              ? <p className="text-sm text-ybm-text leading-snug">{interimText}</p>
-              : <p className="text-sm text-ybm-text-sub italic">음성 인식 중…</p>
-            }
-          </div>
-          <div className="px-4 pb-3 flex justify-end">
-            <button
-              onClick={handleMic}
-              aria-label="음성 입력 중지"
-              className="flex items-center gap-1.5 text-xs font-semibold bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <MicIcon />
-              중지
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* ── 일반 입력 ── */
+      <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-colors
+        ${isListening ? 'border-cr-accent' : value ? 'border-cr-accent/60' : 'border-ybm-border focus-within:border-cr-accent'}
+      `}>
+
+        {/* 파형 영역 — 마이크 켜져 있을 때만 표시 */}
+        {isListening && (
+          <>
+            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
+              <div className="flex-1 flex items-center justify-center gap-[3px]" style={{ minHeight: 44 }}>
+                <VoiceWave />
+              </div>
+              <button
+                onClick={handleMic}
+                aria-label="음성 입력 중지"
+                className="shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <span className="w-2 h-2 rounded-sm bg-current inline-block" />
+                중지
+              </button>
+            </div>
+            <div className="px-4 pb-2 min-h-[20px]">
+              {interimText
+                ? <p className="text-sm text-ybm-text leading-snug">{interimText}</p>
+                : <p className="text-xs text-ybm-text-sub italic">말하거나 아래에 직접 입력할 수 있어요</p>
+              }
+            </div>
+            <div className="mx-4 border-t border-ybm-border/50" />
+          </>
+        )}
+
+        {/* 텍스트 입력 — 항상 표시 */}
         <div
-          className={`flex items-center gap-2 bg-white border-2 rounded-2xl px-4 transition-colors min-w-0
-            ${value ? 'border-cr-accent/60' : 'border-ybm-border focus-within:border-cr-accent'}
-          `}
-          style={{ minHeight: 72 }}
+          className="flex items-center gap-2 px-4"
+          style={{ minHeight: isListening ? 48 : 72 }}
         >
           <input
             ref={inputRef}
@@ -197,25 +256,43 @@ export default function InputBar({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && value.trim() && actions[0] && !actions[0].disabled)
+              if (e.key !== 'Enter') return
+              if (isListening) {
+                handleTextSubmit()
+              } else if (value.trim() && actions[0] && !actions[0].disabled) {
                 actions[0].onClick(value)
+              }
             }}
-            placeholder={placeholder}
-            className="flex-1 bg-transparent text-sm text-ybm-text placeholder:text-ybm-text-sub outline-none min-w-0 py-4"
+            placeholder={isListening ? '직접 입력 후 Enter...' : placeholder}
+            className="flex-1 bg-transparent text-sm text-ybm-text placeholder:text-ybm-text-sub outline-none min-w-0 py-3"
           />
-          <button
-            aria-label="음성 입력 시작"
-            onClick={handleMic}
-            className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors
-              ${sttSupported
-                ? 'bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent'
-                : 'bg-ybm-bg text-ybm-text-sub cursor-not-allowed opacity-50'}
-            `}
-          >
-            <MicIcon />
-          </button>
+          {isListening ? (
+            value.trim() ? (
+              <button
+                onClick={handleTextSubmit}
+                className="shrink-0 flex items-center gap-1 text-xs font-semibold bg-cr-accent hover:bg-cr-accent/90 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                전송
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6h8M7 3l3 3-3 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            ) : null
+          ) : (
+            <button
+              aria-label="음성 입력 시작"
+              onClick={handleMic}
+              className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors
+                ${sttSupported
+                  ? 'bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent'
+                  : 'bg-ybm-bg text-ybm-text-sub cursor-not-allowed opacity-50'}
+              `}
+            >
+              <MicIcon />
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       {/* 액션 버튼들 */}
       {actions.length > 0 && (

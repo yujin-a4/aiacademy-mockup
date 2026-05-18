@@ -10,14 +10,19 @@ interface ClassroomLayoutProps {
   totalProblems: number
   instructorSpeech: string
   instructorLoading?: boolean
+  /** 강사 영상 src (없으면 이미지 표시) */
+  instructorVideoSrc?: string
+  /** 영상 재생 완료 콜백 */
+  onInstructorVideoEnd?: () => void
   onEnd?: () => void
   children: React.ReactNode
   toolbar?: React.ReactNode
   instructorInput?: React.ReactNode
-  /** PIP 마이크 버튼 동작 (패널 닫혔을 때) */
   onPipMic?: () => void
-  /** PIP에서 마이크가 활성화됐는지 여부 */
   pipListening?: boolean
+  /** 외부에서 패널 열림/닫힘을 제어할 때 사용. 미제공 시 내부 토글 상태로 동작 */
+  panelOpen?: boolean
+  onPanelToggle?: () => void
 }
 
 export default function ClassroomLayout({
@@ -25,14 +30,24 @@ export default function ClassroomLayout({
   totalProblems,
   instructorSpeech,
   instructorLoading = false,
+  instructorVideoSrc,
+  onInstructorVideoEnd,
   onEnd,
   children,
   toolbar,
   instructorInput,
   onPipMic,
   pipListening = false,
+  panelOpen: controlledOpen,
+  onPanelToggle,
 }: ClassroomLayoutProps) {
-  const [panelOpen, setPanelOpen] = useState(true)
+  const [internalOpen, setInternalOpen] = useState(true)
+  const panelOpen = controlledOpen !== undefined ? controlledOpen : internalOpen
+
+  const handleToggle = () => {
+    if (controlledOpen !== undefined) onPanelToggle?.()
+    else setInternalOpen((v) => !v)
+  }
 
   return (
     <div className="h-dvh flex flex-col bg-ybm-bg overflow-hidden">
@@ -56,6 +71,8 @@ export default function ClassroomLayout({
             <InstructorPanel
               speech={instructorSpeech}
               isLoading={instructorLoading}
+              videoSrc={instructorVideoSrc}
+              onVideoEnd={onInstructorVideoEnd}
               inputSlot={instructorInput}
             />
           </div>
@@ -68,7 +85,7 @@ export default function ClassroomLayout({
 
         {/* ── 패널 토글 탭 (태블릿 전용) ── */}
         <button
-          onClick={() => setPanelOpen((v) => !v)}
+          onClick={handleToggle}
           aria-label={panelOpen ? '강사 패널 접기' : '강사 패널 열기'}
           className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-20
             items-center justify-center
@@ -99,7 +116,7 @@ export default function ClassroomLayout({
         <InstructorPip
           speech={instructorSpeech}
           isLoading={instructorLoading}
-          onOpen={() => setPanelOpen(true)}
+          onOpen={handleToggle}
           onMic={() => onPipMic?.()}
           isListening={pipListening}
         />

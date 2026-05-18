@@ -8,25 +8,32 @@ interface InstructorPanelProps {
   isLoading?: boolean
   inputSlot?: React.ReactNode
   imageSrc?: string
+  /** 강사 영상 src. 제공되면 이미지 대신 영상 재생 */
+  videoSrc?: string
+  /** 영상 재생 완료 콜백 */
+  onVideoEnd?: () => void
   instructorName?: string
 }
 
-const CHAR_DELAY_MS = 28 // 한 글자당 딜레이
+const CHAR_DELAY_MS = 8 // 한 글자당 딜레이
 
 export default function InstructorPanel({
   speech,
   isLoading = false,
   inputSlot,
   imageSrc = '/instructor/park.png',
+  videoSrc,
+  onVideoEnd,
   instructorName = 'AI 강사',
 }: InstructorPanelProps) {
+  const [videoError, setVideoError] = useState(false)
   const [displayed, setDisplayed] = useState('')
   const [isTyping, setIsTyping]   = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  /* speech가 바뀔 때마다 타자기 효과 */
+  /* speech가 바뀔 때마다 타자기 효과 (isLoading과 무관하게 진행) */
   useEffect(() => {
-    if (!speech || isLoading) {
+    if (!speech) {
       setDisplayed('')
       setIsTyping(false)
       return
@@ -51,38 +58,49 @@ export default function InstructorPanel({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [speech, isLoading])
+  }, [speech])
 
   return (
     <div className="flex flex-col h-full bg-cr-panel">
 
-      {/* ── 태블릿: 강사 이미지 (세로 전체, 가로 꽉 채움) ── */}
-      <div className="hidden lg:block relative w-full shrink-0" style={{ paddingTop: 68 }}>
-        {imageSrc ? (
-          <div className="relative w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* ── 강사 영상 or 이미지 ── */}
+      <div className="relative w-full shrink-0 lg:pt-[68px]">
+        <div className="relative w-full overflow-hidden max-h-[200px] lg:max-h-none">
+          {/* 영상이 있으면 video, 오류/없으면 이미지 */}
+          {videoSrc && !videoError ? (
+            <video
+              key={videoSrc}
+              src={videoSrc}
+              autoPlay
+              playsInline
+              poster={imageSrc}
+              className="w-full h-auto block"
+              onEnded={() => onVideoEnd?.()}
+              onError={() => setVideoError(true)}
+            />
+          ) : imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageSrc}
               alt={instructorName}
               className="w-full h-auto block"
-              style={{ display: 'block' }}
             />
-            {/* 하단 뱃지 오버레이 */}
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-              <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                YBM AI 어학원
-              </span>
-              <span className="bg-black/30 text-white text-[10px] px-2 py-0.5 rounded-full">{instructorName}</span>
+          ) : (
+            <div className="w-full bg-cr-accent-light rounded-2xl flex items-center justify-center" style={{ height: 200 }}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-cr-accent/30">
+                <circle cx="24" cy="18" r="10" stroke="currentColor" strokeWidth="2.5" />
+                <path d="M6 44c0-9.941 8.059-18 18-18s18 8.059 18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
             </div>
+          )}
+          {/* 하단 뱃지 오버레이 */}
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              YBM AI 어학원
+            </span>
+            <span className="bg-black/30 text-white text-[10px] px-2 py-0.5 rounded-full">{instructorName}</span>
           </div>
-        ) : (
-          <div className="w-full bg-cr-accent-light rounded-2xl flex items-center justify-center" style={{ height: 200 }}>
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-cr-accent/30">
-              <circle cx="24" cy="18" r="10" stroke="currentColor" strokeWidth="2.5" />
-              <path d="M6 44c0-9.941 8.059-18 18-18s18 8.059 18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* ── 말풍선 ── */}

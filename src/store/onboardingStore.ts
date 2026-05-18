@@ -9,6 +9,7 @@ interface OnboardingState {
   motivationType: string | null; // '점수' | '성취감'
   targetScore: number | null;
   studyPeriod: string | null;
+  examDate: string | null;
   dailyTime: string | null;
   selectedInstructor: string | null;
 
@@ -18,6 +19,7 @@ interface OnboardingState {
   setMotivationType: (type: string) => void;
   setTargetScore: (score: number) => void;
   setStudyPeriod: (period: string) => void;
+  setExamDate: (date: string) => void;
   setDailyTime: (time: string) => void;
   setSelectedInstructor: (instructor: string) => void;
 }
@@ -29,6 +31,7 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   motivationType: null,
   targetScore: null,
   studyPeriod: null,
+  examDate: null,
   dailyTime: null,
   selectedInstructor: null,
 
@@ -38,6 +41,7 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setMotivationType: (type) => set({ motivationType: type }),
   setTargetScore: (score) => set({ targetScore: score }),
   setStudyPeriod: (period) => set({ studyPeriod: period }),
+  setExamDate: (date) => set({ examDate: date }),
   setDailyTime: (time) => set({ dailyTime: time }),
   setSelectedInstructor: (instructor) => set({ selectedInstructor: instructor }),
 }));
