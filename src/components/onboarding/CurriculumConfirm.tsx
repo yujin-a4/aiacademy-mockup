@@ -28,7 +28,7 @@ const CURRICULUM: Record<string, string[]> = {
 }
 
 export default function CurriculumConfirm({ onComplete }: { onComplete: () => void }) {
-  const { userName, selectedInstructor, targetScore, studyPeriod } = useOnboardingStore()
+  const { userName, selectedInstructor, targetScore, studyPeriod, saveCurrentProfile } = useOnboardingStore()
   const inst = INST_INFO[selectedInstructor ?? 'mentor']
   const curriculum = CURRICULUM[studyPeriod ?? '2개월'] ?? CURRICULUM['2개월']
 
@@ -104,7 +104,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
       <div className="p-6 bg-white/80 backdrop-blur-xl border-t border-slate-200 fixed bottom-0 left-0 w-full z-20">
         <div className="max-w-sm mx-auto space-y-3">
           <button
-            onClick={onComplete}
+            onClick={() => { saveCurrentProfile(); onComplete(); }}
             className="w-full bg-ybm-blue text-white rounded-2xl h-[56px] font-bold text-lg shadow-lg active:scale-95 transition-all hover:opacity-90"
           >
             확인하고 시작하기 🚀
