@@ -3,10 +3,18 @@ import { useVocaStore } from '@/store/vocaStore'
 import { useRouter } from 'next/navigation'
 import { useState, useMemo, useRef, useEffect } from 'react'
 
+function getCharDimensions(wordLength: number) {
+  if (wordLength <= 5) return { boxW: 52, boxH: 60, fontSize: 24, gap: 8 }
+  if (wordLength <= 7) return { boxW: 44, boxH: 52, fontSize: 20, gap: 8 }
+  if (wordLength <= 9) return { boxW: 38, boxH: 46, fontSize: 17, gap: 6 }
+  if (wordLength <= 12) return { boxW: 32, boxH: 40, fontSize: 14, gap: 5 }
+  return { boxW: 26, boxH: 34, fontSize: 12, gap: 4 }
+}
+
 export default function DictationPage() {
   const { todayWords, currentIndex, setDictationResult, initTodayWords } = useVocaStore()
   const router = useRouter()
-  
+
   const [inputVals, setInputVals] = useState<Record<number, string>>({})
   const [isEvaluated, setIsEvaluated] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -56,9 +64,9 @@ export default function DictationPage() {
 
   const handleInput = (index: number, val: string) => {
     if (isEvaluated) return
-    const char = val.slice(-1).toLowerCase() // only take last char
+    const char = val.slice(-1).toLowerCase()
     setInputVals(prev => ({ ...prev, [index]: char }))
-    
+
     // Auto focus next
     if (char) {
       const sortedBlanks = [...blankIndices].sort((a,b)=>a-b)
@@ -77,9 +85,9 @@ export default function DictationPage() {
         isCorrect = false
       }
     })
-    
+
     setIsEvaluated(true)
-    
+
     setTimeout(() => {
       setDictationResult(word.id, isCorrect)
       if (currentIndex >= todayWords.length - 1) {
@@ -89,6 +97,8 @@ export default function DictationPage() {
   }
 
   const isAllFilled = blankIndices.every(i => inputVals[i])
+  const dims = getCharDimensions(word.word.length)
+  const maskedExample = word.example.replace(new RegExp(word.word, 'gi'), '_'.repeat(word.word.length))
 
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-10">
@@ -108,24 +118,25 @@ export default function DictationPage() {
 
         <div className="mt-12 bg-white rounded-3xl p-10 shadow-lg border border-[#ECEAF5] flex flex-col items-center text-center">
           <h2 className="text-[20px] font-bold text-[#1C1B33]">{word.meaning}</h2>
-          <p className="mt-4 text-[#6B7280] text-[14px] italic">"{word.example}"</p>
-          
-          <div className="mt-10 flex flex-wrap justify-center gap-2">
+          <p className="mt-4 text-[#6B7280] text-[14px] italic">"{maskedExample}"</p>
+
+          <div className="mt-10 flex flex-nowrap justify-center overflow-x-auto" style={{ gap: dims.gap }}>
             {word.word.split('').map((char, i) => {
               const isBlank = blankIndices.includes(i)
               if (isBlank) {
                 const isWrong = isEvaluated && inputVals[i] !== char.toLowerCase()
                 const isCorrect = isEvaluated && inputVals[i] === char.toLowerCase()
-                
+
                 return (
                   <input
                     key={i}
                     ref={el => { inputRefs.current[i] = el }}
                     type="text"
-                    value={isEvaluated && isWrong ? char : (inputVals[i] || '')}
+                    value={isEvaluated && isWrong ? char.toLowerCase() : (inputVals[i] || '')}
                     onChange={(e) => handleInput(i, e.target.value)}
-                    className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-[20px] sm:text-[24px] font-bold uppercase rounded-xl border-2 outline-none transition-colors shadow-inner ${
-                      isCorrect ? 'bg-[#D1FAE5] border-[#10B981] text-[#059669]' : 
+                    style={{ width: dims.boxW, height: dims.boxH, fontSize: dims.fontSize }}
+                    className={`text-center font-bold rounded-xl border-2 outline-none transition-colors shadow-inner flex-shrink-0 ${
+                      isCorrect ? 'bg-[#D1FAE5] border-[#10B981] text-[#059669]' :
                       isWrong ? 'bg-[#FEE2E2] border-[#EF4444] text-[#DC2626]' :
                       'bg-white border-[#D1D5DB] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 text-[#1C1B33]'
                     }`}
@@ -134,8 +145,12 @@ export default function DictationPage() {
                 )
               }
               return (
-                <span key={i} className="w-10 h-12 sm:w-12 sm:h-14 flex items-center justify-center text-[20px] sm:text-[24px] font-bold uppercase text-[#1C1B33]">
-                  {char}
+                <span
+                  key={i}
+                  style={{ width: dims.boxW, height: dims.boxH, fontSize: dims.fontSize }}
+                  className="flex items-center justify-center font-bold text-[#1C1B33] flex-shrink-0"
+                >
+                  {char.toLowerCase()}
                 </span>
               )
             })}
