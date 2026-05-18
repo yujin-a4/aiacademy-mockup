@@ -214,7 +214,7 @@ function MyLearningInner() {
     (searchParams.get('tab') as 'part' | 'wrong' | 'voca') || 'part'
   )
   const [filter, setFilter] = useState<'전체' | 'LC' | 'RC'>('전체')
-  const [wrongSubTab, setWrongSubTab] = useState<'유형별' | '파트별' | '최근 오답' | 'AI 추천'>('유형별')
+  const [wrongSubTab, setWrongSubTab] = useState<'유형별' | '파트별' | 'AI 추천'>('유형별')
 
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
@@ -293,7 +293,7 @@ function MyLearningInner() {
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
-          <div className="max-w-[960px] mx-auto w-full">
+          <div className="max-w-[680px] mx-auto w-full">
 
             {/* AI 넛지 배너 */}
             {wrongAnswers.length > 0 && (
@@ -372,266 +372,192 @@ function MyLearningInner() {
 
             {/* ── AI 오답노트 ── */}
             {tab === 'wrong' && (
-              <div className="animate-fade-in flex gap-5 items-start">
-
-                {/* 메인 좌측 콘텐츠 */}
-                <div className="flex-1 min-w-0 space-y-4">
-                  {wrongAnswers.length === 0 ? (
-                    <div className="text-center py-16">
-                      <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                      </div>
-                      <p className="text-[#6B7280] text-[14px] font-medium">아직 오답이 없어요</p>
-                      <p className="text-[#9CA3AF] text-[12px] mt-1">파트별 연습을 풀면 틀린 문제가 자동으로 모입니다</p>
+              <div className="animate-fade-in space-y-4">
+                {wrongAnswers.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
                     </div>
-                  ) : (
-                    <>
-                      {/* 새 오답 알림 카드 */}
-                      <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-2xl px-4 py-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[#1C1B33] text-[13px] font-semibold">
-                            오늘 새 오답 {wrongAnswers.filter(w => new Date(w.timestamp).toDateString() === new Date().toDateString()).length}개가 추가됐어요
-                          </p>
-                          <p className="text-[#6B7280] text-[12px]">AI 분석이 완료됐습니다</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-[#4F46E5] bg-white border border-[#C7D2FE] px-2 py-0.5 rounded-full shrink-0">NEW</span>
-                      </div>
-
-                      {/* AI 분석 요약 카드 */}
-                      {topCategories.length > 0 && (
-                        <div className="bg-gradient-to-r from-[#4F46E5] to-[#6366F1] rounded-2xl p-4">
-                          <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1.5">AI 오답 분석 요약</p>
-                          <p className="text-white font-bold text-[15px] leading-snug">
-                            <span className="font-black">{topCategories[0][0]}</span> 유형이 가장 취약해요
-                          </p>
-                          <p className="text-white/70 text-[12px] mt-1 leading-relaxed">
-                            {topCategories[0][1].length}회 반복 오답{partGroups[0] ? ` · ${partGroups[0][0]} 집중 필요` : ''}
-                          </p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {topCategories.slice(0, 3).map(([cat, items]) => (
-                              <span key={cat} className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-lg">
-                                {cat} {items.length}회
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 요약 지표 3개 */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                          <p className="text-[#4F46E5] font-black text-[22px] leading-none">{wrongAnswers.length}</p>
-                          <p className="text-[#9CA3AF] text-[11px] mt-1.5">누적 오답</p>
-                        </div>
-                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                          <p className="text-[#4F46E5] font-black text-[22px] leading-none">{categoryGroups.length}</p>
-                          <p className="text-[#9CA3AF] text-[11px] mt-1.5">반복 유형</p>
-                        </div>
-                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                          <p className="text-[#059669] font-black text-[22px] leading-none">0</p>
-                          <p className="text-[#9CA3AF] text-[11px] mt-1.5">복습 완료</p>
-                        </div>
-                      </div>
-
-                      {/* Primary CTA */}
-                      <button
-                        onClick={() => setWrongSubTab('AI 추천')}
-                        className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                        </svg>
-                        AI 추천 순서대로 복습하기
-                      </button>
-
-                      {/* 서브 탭 */}
-                      <div className="flex border-b border-[#ECEAF5]">
-                        {(['유형별', '파트별', '최근 오답', 'AI 추천'] as const).map((t) => (
-                          <button key={t} onClick={() => setWrongSubTab(t)}
-                            className={`px-4 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${wrongSubTab === t ? 'text-[#4F46E5] border-[#4F46E5] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* 유형별 — 패턴 카드 */}
-                      {wrongSubTab === '유형별' && (
-                        <div className="space-y-3">
-                          {categoryGroups.length === 0 ? (
-                            <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 없습니다</p>
-                          ) : categoryGroups.map(([cat, items]) => (
-                            <div key={cat} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)] hover:border-[#C7D2FE] transition-all">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                    <polyline points="14 2 14 8 20 8"/>
-                                  </svg>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <p className="text-[#1C1B33] font-bold text-[14px]">{cat}</p>
-                                    <span className="text-[10px] font-bold text-[#DC2626] bg-[#FEF2F2] px-2 py-0.5 rounded-md">{items.length}회 오답</span>
-                                  </div>
-                                  <div className="h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#4F46E5] rounded-full transition-all" style={{ width: `${Math.min(items.length / 5 * 100, 100)}%` }} />
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => setWrongSubTab('최근 오답')}
-                                  className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
-                                >
-                                  집중 복습
-                                </button>
-                              </div>
-                              <p className="text-[#6B7280] text-[12px] mt-3 leading-relaxed pl-[52px]">
-                                {SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* 파트별 — 파트 요약 카드 */}
-                      {wrongSubTab === '파트별' && (
-                        <div className="space-y-3">
-                          {partGroups.map(([part, items]) => (
-                            <div key={part} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)] hover:border-[#C7D2FE] transition-all">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                                  <span className="text-[#4F46E5] font-black text-[12px]">{part.replace('Part ', 'P')}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <p className="text-[#1C1B33] font-bold text-[14px]">{part}</p>
-                                    <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">{items.length}개</span>
-                                  </div>
-                                  <div className="h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#4F46E5] rounded-full transition-all" style={{ width: `${Math.min(items.length / 5 * 100, 100)}%` }} />
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => setWrongSubTab('최근 오답')}
-                                  className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
-                                >
-                                  복습하기
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* 최근 오답 — 문제 원문 리스트 */}
-                      {wrongSubTab === '최근 오답' && (
-                        <div className="space-y-2">
-                          {wrongAnswers.map(item => <WrongItem key={item.id} item={item} showDate />)}
-                        </div>
-                      )}
-
-                      {/* AI 추천 */}
-                      {wrongSubTab === 'AI 추천' && (
-                        <div className="space-y-3">
-                          {topCategories.length === 0 ? (
-                            <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 부족합니다</p>
-                          ) : topCategories.map(([cat, items], idx) => (
-                            <div key={cat} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                              <div className="flex items-start gap-3 mb-2">
-                                <span className="w-6 h-6 rounded-full bg-[#4F46E5] text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">AI 추천 {idx + 1}순위</span>
-                                    <span className="text-[10px] text-[#9CA3AF]">{items.length}개 오답</span>
-                                  </div>
-                                  <p className="text-[14px] font-bold text-[#1C1B33]">{cat} 집중 복습</p>
-                                </div>
-                              </div>
-                              <p className="text-[12px] text-[#6B7280] leading-relaxed pl-9">{SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}</p>
-                              <div className="mt-3 pl-9">
-                                <Link href={`/my-learning/part/${items[0]?.partId ?? 'p5'}`}
-                                  className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors">
-                                  이 유형부터 복습
-                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                                </Link>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* 우측 패널 (데스크탑) */}
-                {wrongAnswers.length > 0 && (
-                  <div className="hidden xl:flex flex-col gap-4 w-[216px] shrink-0">
-
-                    {/* 복습 루틴 추천 */}
-                    <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2"/>
-                            <line x1="16" y1="2" x2="16" y2="6"/>
-                            <line x1="8" y1="2" x2="8" y2="6"/>
-                            <line x1="3" y1="10" x2="21" y2="10"/>
-                          </svg>
-                        </div>
-                        <p className="text-[#1C1B33] font-bold text-[13px]">복습 루틴 추천</p>
-                      </div>
-                      {topCategories.slice(0, 2).map(([cat, items], idx) => (
-                        <div key={cat} className={`flex items-center gap-2 py-2.5 ${idx > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
-                          <span className="w-5 h-5 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-semibold text-[#1C1B33] truncate">{idx === 0 ? '오늘' : '내일'}: {cat}</p>
-                            <p className="text-[10px] text-[#9CA3AF] mt-0.5">{items.length}문제 · {items.length * 3}분</p>
-                          </div>
-                        </div>
-                      ))}
-                      {partGroups.length > 0 && (
-                        <div className={`flex items-center gap-2 py-2.5 ${topCategories.slice(0, 2).length > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
-                          <span className="w-5 h-5 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-black flex items-center justify-center shrink-0">{Math.min(topCategories.length, 2) + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-semibold text-[#1C1B33] truncate">이번 주: {partGroups[0][0]}</p>
-                            <p className="text-[10px] text-[#9CA3AF] mt-0.5">{partGroups[0][1].length}문제 재시도</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 최근 오답 미리보기 */}
-                    <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-[#1C1B33] font-bold text-[13px]">최근 오답</p>
-                        <button
-                          onClick={() => setWrongSubTab('최근 오답')}
-                          className="text-[11px] text-[#4F46E5] font-semibold hover:underline"
-                        >
-                          전체보기
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {wrongAnswers.slice(0, 3).map(item => (
-                          <Link key={item.id} href={`/my-learning/wrong/${item.id}`}
-                            className="flex items-start gap-2 group">
-                            <span className="text-[9px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-1.5 py-0.5 rounded-md shrink-0 mt-0.5">{item.partLabel}</span>
-                            <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 group-hover:text-[#4F46E5] transition-colors">{item.questionText}</p>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-
+                    <p className="text-[#6B7280] text-[14px] font-medium">아직 오답이 없어요</p>
+                    <p className="text-[#9CA3AF] text-[12px] mt-1">파트별 연습을 풀면 틀린 문제가 자동으로 모입니다</p>
                   </div>
-                )}
+                ) : (
+                  <>
+                    {/* 새 오답 알림 카드 */}
+                    <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-2xl px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[#1C1B33] text-[13px] font-semibold">
+                          오늘 새 오답 {wrongAnswers.filter(w => new Date(w.timestamp).toDateString() === new Date().toDateString()).length}개가 추가됐어요
+                        </p>
+                        <p className="text-[#6B7280] text-[12px]">AI 분석이 완료됐습니다</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-[#4F46E5] bg-white border border-[#C7D2FE] px-2 py-0.5 rounded-full shrink-0">NEW</span>
+                    </div>
 
+                    {/* AI 분석 요약 카드 */}
+                    {topCategories.length > 0 && (
+                      <div className="bg-gradient-to-r from-[#4F46E5] to-[#6366F1] rounded-2xl p-4">
+                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1.5">AI 오답 분석 요약</p>
+                        <p className="text-white font-bold text-[15px] leading-snug">
+                          <span className="font-black">{topCategories[0][0]}</span> 유형이 가장 취약해요
+                        </p>
+                        <p className="text-white/70 text-[12px] mt-1 leading-relaxed">
+                          {topCategories[0][1].length}회 반복 오답{partGroups[0] ? ` · ${partGroups[0][0]} 집중 필요` : ''}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {topCategories.slice(0, 3).map(([cat, items]) => (
+                            <span key={cat} className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-lg">
+                              {cat} {items.length}회
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 요약 지표 3개 */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
+                        <p className="text-[#4F46E5] font-black text-[22px] leading-none">{wrongAnswers.length}</p>
+                        <p className="text-[#9CA3AF] text-[11px] mt-1.5">누적 오답</p>
+                      </div>
+                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
+                        <p className="text-[#4F46E5] font-black text-[22px] leading-none">{categoryGroups.length}</p>
+                        <p className="text-[#9CA3AF] text-[11px] mt-1.5">반복 유형</p>
+                      </div>
+                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
+                        <p className="text-[#059669] font-black text-[22px] leading-none">0</p>
+                        <p className="text-[#9CA3AF] text-[11px] mt-1.5">복습 완료</p>
+                      </div>
+                    </div>
+
+                    {/* Primary CTA */}
+                    <button
+                      onClick={() => setWrongSubTab('AI 추천')}
+                      className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                      AI 추천 순서대로 복습하기
+                    </button>
+
+                    {/* 서브 탭 */}
+                    <div className="flex border-b border-[#ECEAF5]">
+                      {(['유형별', '파트별', 'AI 추천'] as const).map((t) => (
+                        <button key={t} onClick={() => setWrongSubTab(t)}
+                          className={`px-4 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${wrongSubTab === t ? 'text-[#4F46E5] border-[#4F46E5] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* 유형별 — 패턴 카드 */}
+                    {wrongSubTab === '유형별' && (
+                      <div className="space-y-3">
+                        {categoryGroups.length === 0 ? (
+                          <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 없습니다</p>
+                        ) : categoryGroups.map(([cat, items]) => (
+                          <div key={cat} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)] hover:border-[#C7D2FE] transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                  <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <p className="text-[#1C1B33] font-bold text-[14px]">{cat}</p>
+                                  <span className="text-[10px] font-bold text-[#DC2626] bg-[#FEF2F2] px-2 py-0.5 rounded-md">{items.length}회 오답</span>
+                                </div>
+                                <div className="h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
+                                  <div className="h-full bg-[#4F46E5] rounded-full transition-all" style={{ width: `${Math.min(items.length / 5 * 100, 100)}%` }} />
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/my-learning/part/${items[0]?.partId ?? 'p5'}`)}
+                                className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
+                              >
+                                집중 복습
+                              </button>
+                            </div>
+                            <p className="text-[#6B7280] text-[12px] mt-3 leading-relaxed pl-[52px]">
+                              {SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 파트별 — 파트 요약 카드 */}
+                    {wrongSubTab === '파트별' && (
+                      <div className="space-y-3">
+                        {partGroups.map(([part, items]) => (
+                          <div key={part} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)] hover:border-[#C7D2FE] transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                                <span className="text-[#4F46E5] font-black text-[12px]">{part.replace('Part ', 'P')}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <p className="text-[#1C1B33] font-bold text-[14px]">{part}</p>
+                                  <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">{items.length}개</span>
+                                </div>
+                                <div className="h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
+                                  <div className="h-full bg-[#4F46E5] rounded-full transition-all" style={{ width: `${Math.min(items.length / 5 * 100, 100)}%` }} />
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/my-learning/part/${items[0]?.partId ?? 'p5'}`)}
+                                className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
+                              >
+                                복습하기
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI 추천 */}
+                    {wrongSubTab === 'AI 추천' && (
+                      <div className="space-y-3">
+                        {topCategories.length === 0 ? (
+                          <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 부족합니다</p>
+                        ) : topCategories.map(([cat, items], idx) => (
+                          <div key={cat} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.05)]">
+                            <div className="flex items-start gap-3 mb-2">
+                              <span className="w-6 h-6 rounded-full bg-[#4F46E5] text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">AI 추천 {idx + 1}순위</span>
+                                  <span className="text-[10px] text-[#9CA3AF]">{items.length}개 오답</span>
+                                </div>
+                                <p className="text-[14px] font-bold text-[#1C1B33]">{cat} 집중 복습</p>
+                              </div>
+                            </div>
+                            <p className="text-[12px] text-[#6B7280] leading-relaxed pl-9">{SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}</p>
+                            <div className="mt-3 pl-9">
+                              <Link href={`/my-learning/part/${items[0]?.partId ?? 'p5'}`}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors">
+                                이 유형부터 복습
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
