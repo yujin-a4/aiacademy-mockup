@@ -36,6 +36,7 @@ const INSTRUCTORS = [
   {
     id: 'jang',
     image: '', 
+    video: '',
     name: '장연지',
     badge: '꼼꼼 관리형',
     desc: '친근하고 꼼꼼한 코칭으로 기초 개념부터 탄탄하게 다져주는 파트너입니다.',
@@ -64,6 +65,7 @@ const INSTRUCTORS = [
   {
     id: 'kim',
     image: '',
+    video: '',
     name: '김토익',
     badge: '균형 코칭형',
     desc: '바쁜 일상 속에서도 현실적인 목표와 가장 효율적인 가성비 전략을 제공합니다.',
