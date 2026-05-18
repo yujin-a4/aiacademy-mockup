@@ -52,6 +52,8 @@ interface InputBarProps {
   onReadyToListen?: (startFn: () => void, stopFn: () => void) => void
   /** STT 최종 결과 텍스트를 부모에게 전달 (submit 없이) */
   onSpeechResult?: (text: string) => void
+  /** 마이크 listening 상태 변경 시 부모에게 알림 */
+  onListeningChange?: (listening: boolean) => void
 }
 
 /* ── 파형 프로파일 (deterministic, 36개 바) ── */
@@ -70,6 +72,7 @@ export default function InputBar({
   clearTrigger,
   onReadyToListen,
   onSpeechResult,
+  onListeningChange,
 }: InputBarProps) {
   const [value, setValue]               = useState('')
   const [interimText, setInterim]       = useState('')
@@ -90,6 +93,7 @@ export default function InputBar({
   }, [clearTrigger])
 
   useEffect(() => { onValueChange?.(value) }, [value, onValueChange])
+  useEffect(() => { onListeningChange?.(isListening) }, [isListening, onListeningChange])
 
   useEffect(() => {
     const ok =
