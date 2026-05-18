@@ -3,6 +3,14 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState } from 'react'
 
+function AccountAvatar({ userName }: { userName: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-black text-[13px] shrink-0 cursor-pointer select-none">
+      {userName ? userName[0].toUpperCase() : 'U'}
+    </div>
+  )
+}
+
 /* ── 데이터 ── */
 
 const SCORE_HISTORY = [
@@ -310,11 +318,15 @@ export default function StatusPage() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#ECEAF5] sticky top-0 z-20">
-          <p className="text-[#1C1B33] text-[20px] font-bold">현황</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[#1C1B33] text-[20px] font-bold">현황</p>
+            <AccountAvatar userName={userName ?? ''} />
+          </div>
         </header>
         {/* 데스크탑 헤더 */}
-        <header className="hidden md:flex px-8 py-4 items-center bg-white border-b border-[#ECEAF5] sticky top-0 z-20">
+        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#ECEAF5] sticky top-0 z-20">
           <p className="text-[#1C1B33] font-bold text-[20px]">현황</p>
+          <AccountAvatar userName={userName ?? ''} />
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">

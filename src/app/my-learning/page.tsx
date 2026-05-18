@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useBookmarkStore } from '@/store/bookmarkStore'
 import { useVocaStore } from '@/store/vocaStore'
-import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
+import { useWrongAnswerStore, WrongAnswer, SCAFFOLDING } from '@/store/wrongAnswerStore'
 import { useState, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
@@ -19,17 +19,15 @@ const PARTS = [
 ]
 
 const VOCA_BOOKS_STATIC = [
-  { name: '비즈니스 핵심 어휘', total: 350, done: 212, color: '#4F46E5', bg: '#EEF2FF', tc: '#4F46E5', recommended: true,  href: null },
-  { name: 'TOEIC 빈출 1000',   total: 1000, done: 312, color: '#06B6D4', bg: '#ECFEFF', tc: '#0891B2', recommended: false, href: null },
+  { name: '비즈니스 핵심 어휘', total: 350, done: 212, color: '#4F46E5', bg: '#EEF2FF', tc: '#4F46E5', recommended: true },
+  { name: 'TOEIC 빈출 1000',   total: 1000, done: 312, color: '#06B6D4', bg: '#ECFEFF', tc: '#0891B2', recommended: false },
 ]
-
 
 /* ── 원형 진행 SVG ── */
 function Ring({ current, total }: { current: number; total: number }) {
   const r = 26
   const circ = 2 * Math.PI * r
-  const pct = Math.min(current / total, 1)
-  const offset = circ * (1 - pct)
+  const offset = circ * (1 - Math.min(current / total, 1))
   return (
     <div className="relative w-16 h-16 shrink-0">
       <svg width="64" height="64" viewBox="0 0 64 64" className="absolute inset-0">
@@ -46,12 +44,56 @@ function Ring({ current, total }: { current: number; total: number }) {
   )
 }
 
+/* ── 계정 아바타 ── */
+function AccountAvatar({ userName }: { userName: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-black text-[13px] shrink-0 cursor-pointer select-none">
+      {userName ? userName[0].toUpperCase() : 'U'}
+    </div>
+  )
+}
+
+/* ── 오답 카드 ── */
+function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }) {
+  const d = new Date(item.timestamp)
+  const isToday = d.toDateString() === new Date().toDateString()
+  const dateLabel = isToday ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}`
+  return (
+    <Link
+      href={`/my-learning/wrong/${item.id}`}
+      className="flex bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3 items-center gap-3 hover:border-[#C7D2FE] transition-all"
+    >
+      {showDate && (
+        <div className="text-center shrink-0 w-8">
+          <p className="text-[10px] text-[#9CA3AF] leading-snug">{dateLabel}</p>
+          <p className="text-[10px] text-[#9CA3AF] leading-snug">{item.partLabel}</p>
+        </div>
+      )}
+      <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[#1C1B33] text-[13px] font-medium truncate mb-1.5">{item.questionText}</p>
+        <div className="flex gap-1.5 flex-wrap">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#EEF2FF] text-[#4F46E5]">{item.partLabel}</span>
+          {item.category && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#FEF2F2] text-[#DC2626]">{item.category}</span>
+          )}
+        </div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+    </Link>
+  )
+}
+
 /* ── 사이드바 ── */
 const NAV = [
-  { label: '홈',        href: '/dashboard', active: false },
-  { label: '내 학습',   href: '/my-learning', active: true },
-  { label: '현황',      href: '/status', active: false },
-  { label: '알림',      href: '#', active: false },
+  { label: '홈',      href: '/dashboard',  active: false },
+  { label: '내 학습', href: '/my-learning', active: true },
+  { label: '현황',    href: '/status',     active: false },
+  { label: '알림',    href: '#',           active: false },
 ]
 
 const NAV_ICONS = [
@@ -65,7 +107,6 @@ function Sidebar({ userName, targetScore }: { userName: string; targetScore: str
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#ECEAF5] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
-      {/* 로고 + 토글 */}
       <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
@@ -80,7 +121,6 @@ function Sidebar({ userName, targetScore }: { userName: string; targetScore: str
         </button>
       </div>
 
-      {/* 프로필 */}
       <div className={`${open ? 'px-4 pb-4' : 'pb-3 flex flex-col items-center'}`}>
         {open ? (
           <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 animate-fade-in">
@@ -174,6 +214,7 @@ function MyLearningInner() {
     (searchParams.get('tab') as 'part' | 'wrong' | 'voca') || 'part'
   )
   const [filter, setFilter] = useState<'전체' | 'LC' | 'RC'>('전체')
+  const [wrongSubTab, setWrongSubTab] = useState<'유형별' | '파트별' | '최근 오답' | 'AI 추천'>('최근 오답')
 
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
@@ -185,6 +226,27 @@ function MyLearningInner() {
 
   const router = useRouter()
   const filteredParts = filter === '전체' ? PARTS : PARTS.filter((p) => p.type === filter)
+
+  const categoryGroups = useMemo(() => {
+    const groups: Record<string, WrongAnswer[]> = {}
+    wrongAnswers.forEach(w => {
+      const cat = w.category ?? '미분류'
+      if (!groups[cat]) groups[cat] = []
+      groups[cat].push(w)
+    })
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length)
+  }, [wrongAnswers])
+
+  const partGroups = useMemo(() => {
+    const groups: Record<string, WrongAnswer[]> = {}
+    wrongAnswers.forEach(w => {
+      if (!groups[w.partLabel]) groups[w.partLabel] = []
+      groups[w.partLabel].push(w)
+    })
+    return Object.entries(groups)
+  }, [wrongAnswers])
+
+  const topCategories = categoryGroups.slice(0, 2)
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
@@ -207,6 +269,7 @@ function MyLearningInner() {
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
                 12일 연속
               </span>
+              <AccountAvatar userName={userName ?? ''} />
             </div>
           </div>
         </header>
@@ -225,6 +288,7 @@ function MyLearningInner() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
               12일 연속
             </span>
+            <AccountAvatar userName={userName ?? ''} />
           </div>
         </header>
 
@@ -233,31 +297,28 @@ function MyLearningInner() {
 
             {/* AI 넛지 배너 */}
             {wrongAnswers.length > 0 && (
-            <div className="bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#ECEAF5] rounded-r-xl rounded-l-none flex items-center gap-3 px-4 py-3 mb-5 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <div className="flex-1 min-w-0">
-                <p className="text-[#1C1B33] text-[13px] font-semibold">틀린 문제가 {wrongAnswers.length}개 쌓여있어요</p>
-                <p className="text-[#6B7280] text-[12px] mt-0.5">AI 강사가 스캐폴딩 힌트를 준비해뒀어요</p>
+              <div className="bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#ECEAF5] rounded-r-xl rounded-l-none flex items-center gap-3 px-4 py-3 mb-5 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#1C1B33] text-[13px] font-semibold">틀린 문제가 {wrongAnswers.length}개 쌓여있어요</p>
+                  <p className="text-[#6B7280] text-[12px] mt-0.5">AI 강사가 스캐폴딩 힌트를 준비해뒀어요</p>
+                </div>
+                <button
+                  onClick={() => setTab('wrong')}
+                  className="shrink-0 text-[11px] font-bold text-[#0891B2] bg-[#ECFEFF] border border-[#A5F3FC] px-3 py-1.5 rounded-lg hover:bg-[#CFFAFE] transition-colors whitespace-nowrap"
+                >
+                  오답노트 보기
+                </button>
               </div>
-              <button
-                onClick={() => setTab('wrong')}
-                className="shrink-0 text-[11px] font-bold text-[#0891B2] bg-[#ECFEFF] border border-[#A5F3FC] px-3 py-1.5 rounded-lg hover:bg-[#CFFAFE] transition-colors whitespace-nowrap"
-              >
-                오답노트 보기
-              </button>
-            </div>
             )}
 
-            {/* 탭 */}
+            {/* 메인 탭 */}
             <div className="flex border-b border-[#ECEAF5] mb-5">
               {([['part', '파트별 연습'], ['wrong', 'AI 오답노트'], ['voca', '보카런']] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setTab(key)}
-                  className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${tab === key ? 'text-[#4F46E5] border-[#4F46E5] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}
-                >
+                <button key={key} onClick={() => setTab(key)}
+                  className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${tab === key ? 'text-[#4F46E5] border-[#4F46E5] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
                   {label}
                 </button>
               ))}
@@ -269,29 +330,18 @@ function MyLearningInner() {
                 <p className="text-[#6B7280] text-[13px] leading-relaxed mb-4">
                   오늘 과외에서 다룬 파트를 더 연습하거나, 약한 파트를 골라 추가 문제를 풀어보세요.
                 </p>
-                {/* 필터 */}
                 <div className="flex gap-2 mb-4">
                   {(['전체', 'LC', 'RC'] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setFilter(f)}
-                      className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${filter === f ? 'border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]' : 'border-[#ECEAF5] bg-white text-[#6B7280] hover:border-[#C7D2FE]'}`}
-                    >
+                    <button key={f} onClick={() => setFilter(f)}
+                      className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${filter === f ? 'border-[#4F46E5] bg-[#EEF2FF] text-[#4F46E5]' : 'border-[#ECEAF5] bg-white text-[#6B7280] hover:border-[#C7D2FE]'}`}>
                       {f}
                     </button>
                   ))}
                 </div>
-                {/* 파트 그리드 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {filteredParts.map((p) => (
-                    <div
-                      key={p.id}
-                      className={`bg-white rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md ${
-                        p.status === 'recommended'
-                          ? 'border border-[#06B6D4] shadow-[0_1px_8px_rgba(6,182,212,0.10)]'
-                          : 'border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)]'
-                      }`}
-                    >
+                    <div key={p.id}
+                      className={`bg-white rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md ${p.status === 'recommended' ? 'border border-[#06B6D4] shadow-[0_1px_8px_rgba(6,182,212,0.10)]' : 'border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)]'}`}>
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-[12px] font-black shrink-0 ${p.status === 'done' ? 'bg-[#F0FDF4] text-[#059669]' : 'bg-[#EEF2FF] text-[#4F46E5]'}`}>
                           {p.id}
@@ -300,19 +350,14 @@ function MyLearningInner() {
                           <p className="text-[#1C1B33] text-[13px] font-semibold">{p.name}</p>
                           <p className="text-[#9CA3AF] text-[11px]">{p.type}</p>
                         </div>
-                        {p.status === 'done' && (
-                          <span className="text-[10px] font-bold bg-[#F0FDF4] text-[#059669] px-2 py-0.5 rounded-md">자신있음</span>
-                        )}
-                        {p.status === 'recommended' && (
-                          <span className="text-[10px] font-bold bg-[#ECFEFF] text-[#0891B2] px-2 py-0.5 rounded-md">AI 추천</span>
-                        )}
+                        {p.status === 'done' && <span className="text-[10px] font-bold bg-[#F0FDF4] text-[#059669] px-2 py-0.5 rounded-md">자신있음</span>}
+                        {p.status === 'recommended' && <span className="text-[10px] font-bold bg-[#ECFEFF] text-[#0891B2] px-2 py-0.5 rounded-md">AI 추천</span>}
                       </div>
                       <p className="text-[#374151] text-[12px] leading-relaxed mb-3 line-clamp-2">{p.desc}</p>
                       <div className="flex items-center justify-between">
                         <button
                           onClick={() => p.type === 'RC' && router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
-                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : p.type === 'RC' ? 'bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]' : 'bg-[#EEF2FF] text-[#9CA3AF] cursor-not-allowed'}`}
-                        >
+                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : p.type === 'RC' ? 'bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]' : 'bg-[#EEF2FF] text-[#9CA3AF] cursor-not-allowed'}`}>
                           {p.status === 'recommended' ? 'AI 맞춤 문제' : '문제 풀기'}
                         </button>
                         <span className={`text-[11px] font-semibold ${p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#9CA3AF]' : 'text-[#DC2626]'}`}>
@@ -327,7 +372,7 @@ function MyLearningInner() {
 
             {/* ── AI 오답노트 ── */}
             {tab === 'wrong' && (
-              <div className="animate-fade-in space-y-3">
+              <div className="animate-fade-in space-y-4">
                 {wrongAnswers.length === 0 ? (
                   <div className="text-center py-16">
                     <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
@@ -341,60 +386,134 @@ function MyLearningInner() {
                 ) : (
                   <>
                     {/* AI 패턴 분석 배너 */}
-                    {(() => {
-                      const categoryCounts: Record<string, number> = {}
-                      wrongAnswers.forEach(w => { if (w.category) categoryCounts[w.category] = (categoryCounts[w.category] ?? 0) + 1 })
-                      const topCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]
-                      return topCategory ? (
-                        <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4 flex items-start gap-3">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                          </svg>
-                          <div>
-                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">AI 오답 패턴 분석</p>
-                            <p className="text-white font-semibold text-[13px] leading-snug">
-                              <span className="font-black">{topCategory[0]}</span> 유형에서 {topCategory[1]}회 틀렸어요.
-                            </p>
-                            <p className="text-white/70 text-[12px] mt-0.5">이 유형을 집중 연습하면 점수 향상에 효과적입니다.</p>
-                          </div>
+                    {topCategories.length > 0 && (
+                      <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4 flex items-start gap-3">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                        <div>
+                          <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">AI 오답 패턴 분석</p>
+                          <p className="text-white font-semibold text-[13px] leading-snug">
+                            <span className="font-black">{topCategories[0][0]}</span> 유형에서 {topCategories[0][1].length}회 틀렸어요.
+                          </p>
+                          <p className="text-white/70 text-[12px] mt-0.5">이 유형을 집중 연습하면 점수 향상에 효과적입니다.</p>
                         </div>
-                      ) : null
-                    })()}
+                      </div>
+                    )}
 
-                    {/* 오답 리스트 */}
-                    {wrongAnswers.map((item) => {
-                      const d = new Date(item.timestamp)
-                      const today = new Date()
-                      const isToday = d.toDateString() === today.toDateString()
-                      const dateLabel = isToday ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}`
-                      return (
-                        <Link
-                          key={item.id}
-                          href={`/my-learning/wrong/${item.id}`}
-                          className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3 flex items-center gap-3 hover:border-[#C7D2FE] transition-all"
-                        >
-                          <div className="text-center shrink-0 w-8">
-                            <p className="text-[10px] text-[#9CA3AF] leading-snug">{dateLabel}</p>
-                            <p className="text-[10px] text-[#9CA3AF] leading-snug">{item.partLabel}</p>
+                    {/* 복습 루틴 추천하기 */}
+                    <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <p className="text-[#1C1B33] font-bold text-[14px]">복습 루틴 추천하기</p>
+                      </div>
+                      <div>
+                        {topCategories.slice(0, 2).map(([cat, items], idx) => (
+                          <div key={cat} className={`flex items-center gap-3 py-2.5 ${idx > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
+                            <span className="w-6 h-6 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                            <div className="flex-1">
+                              <p className="text-[13px] font-semibold text-[#1C1B33]">{idx === 0 ? '오늘' : '내일'}: {cat} 집중 복습</p>
+                              <p className="text-[11px] text-[#9CA3AF]">{items.length}문제 오답 · 약 {items.length * 3}분 예상</p>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md shrink-0">{items.length}개</span>
                           </div>
-                          <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                            </svg>
+                        ))}
+                        {partGroups.length > 0 && (
+                          <div className={`flex items-center gap-3 py-2.5 ${topCategories.length > 0 ? 'border-t border-[#F3F4F6]' : ''}`}>
+                            <span className="w-6 h-6 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[11px] font-black flex items-center justify-center shrink-0">{topCategories.slice(0, 2).length + 1}</span>
+                            <div className="flex-1">
+                              <p className="text-[13px] font-semibold text-[#1C1B33]">이번 주: {partGroups[0][0]} 재도전</p>
+                              <p className="text-[11px] text-[#9CA3AF]">{partGroups[0][1].length}문제 재시도</p>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md shrink-0">{partGroups[0][1].length}개</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[#1C1B33] text-[13px] font-medium truncate mb-1.5">{item.questionText}</p>
-                            <div className="flex gap-1.5 flex-wrap">
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#EEF2FF] text-[#4F46E5]">{item.partLabel}</span>
-                              {item.category && (
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#FEF2F2] text-[#DC2626]">{item.category}</span>
-                              )}
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setWrongSubTab('최근 오답')}
+                        className="mt-3 w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-2.5 rounded-xl font-bold text-[13px] transition-colors"
+                      >
+                        복습 시작하기
+                      </button>
+                    </div>
+
+                    {/* 서브 탭 */}
+                    <div className="flex border-b border-[#ECEAF5]">
+                      {(['유형별', '파트별', '최근 오답', 'AI 추천'] as const).map((t) => (
+                        <button key={t} onClick={() => setWrongSubTab(t)}
+                          className={`px-4 py-2.5 text-[13px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${wrongSubTab === t ? 'text-[#4F46E5] border-[#4F46E5] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* 유형별 */}
+                    {wrongSubTab === '유형별' && (
+                      <div className="space-y-5">
+                        {categoryGroups.map(([cat, items]) => (
+                          <div key={cat}>
+                            <div className="flex items-center justify-between mb-2 px-1">
+                              <span className="text-[13px] font-bold text-[#1C1B33]">{cat}</span>
+                              <span className="text-[11px] font-semibold text-[#DC2626] bg-[#FEF2F2] px-2 py-0.5 rounded-md">{items.length}회 틀림</span>
+                            </div>
+                            <div className="space-y-2">
+                              {items.map(item => <WrongItem key={item.id} item={item} />)}
                             </div>
                           </div>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
-                        </Link>
-                      )
-                    })}
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 파트별 */}
+                    {wrongSubTab === '파트별' && (
+                      <div className="space-y-5">
+                        {partGroups.map(([part, items]) => (
+                          <div key={part}>
+                            <div className="flex items-center justify-between mb-2 px-1">
+                              <span className="text-[13px] font-bold text-[#1C1B33]">{part}</span>
+                              <span className="text-[11px] font-semibold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">{items.length}개</span>
+                            </div>
+                            <div className="space-y-2">
+                              {items.map(item => <WrongItem key={item.id} item={item} />)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 최근 오답 */}
+                    {wrongSubTab === '최근 오답' && (
+                      <div className="space-y-2">
+                        {wrongAnswers.map(item => <WrongItem key={item.id} item={item} showDate />)}
+                      </div>
+                    )}
+
+                    {/* AI 추천 */}
+                    {wrongSubTab === 'AI 추천' && (
+                      <div className="space-y-3">
+                        {topCategories.map(([cat, items]) => (
+                          <div key={cat} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[10px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md">AI 추천</span>
+                              <p className="text-[13px] font-bold text-[#1C1B33]">{cat} 집중 복습</p>
+                            </div>
+                            <p className="text-[12px] text-[#6B7280] leading-relaxed">{SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}</p>
+                            <div className="mt-3 flex items-center justify-between">
+                              <span className="text-[11px] text-[#9CA3AF]">오답 {items.length}개</span>
+                              <Link href={`/my-learning/part/${items[0]?.partId ?? 'p5'}`}
+                                className="text-[12px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-3 py-1.5 rounded-lg hover:bg-[#E0E7FF] transition-colors">
+                                문제 다시 풀기
+                              </Link>
+                            </div>
+                          </div>
+                        ))}
+                        {topCategories.length === 0 && (
+                          <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 부족합니다</p>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -403,7 +522,6 @@ function MyLearningInner() {
             {/* ── 보카런 ── */}
             {tab === 'voca' && (
               <div className="animate-fade-in space-y-3">
-                {/* 오늘의 단어 목표 */}
                 <div className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl p-5">
                   <div className="flex items-start gap-4">
                     <Ring current={18} total={50} />
@@ -416,11 +534,9 @@ function MyLearningInner() {
                           { label: '퀴즈', color: 'indigo', href: '/my-learning/voca/quiz' },
                           { label: '받아쓰기', color: 'cyan', href: '/my-learning/voca/dictation' },
                         ].map((m) => (
-                          <button
-                            key={m.label}
+                          <button key={m.label}
                             onClick={() => { initTodayWords(); router.push(m.href) }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}
-                          >
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}>
                             {m.label === '플래시카드' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
                             {m.label === '퀴즈' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
                             {m.label === '받아쓰기' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>}
@@ -432,7 +548,6 @@ function MyLearningInner() {
                   </div>
                 </div>
 
-                {/* 단어장 목록 */}
                 <p className="text-[#374151] text-[13px] font-semibold px-1">단어장</p>
                 {VOCA_BOOKS_STATIC.map((book) => (
                   <div key={book.name} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3">
@@ -444,9 +559,7 @@ function MyLearningInner() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <p className="text-[#1C1B33] text-[13px] font-semibold">{book.name}</p>
-                        {book.recommended && (
-                          <span className="text-[9px] font-bold bg-[#ECFEFF] text-[#0891B2] px-1.5 py-0.5 rounded-md">AI 추천</span>
-                        )}
+                        {book.recommended && <span className="text-[9px] font-bold bg-[#ECFEFF] text-[#0891B2] px-1.5 py-0.5 rounded-md">AI 추천</span>}
                       </div>
                       <p className="text-[#9CA3AF] text-[11px] mb-1.5">{book.total}개 · {book.done}개 완료</p>
                       <div className="h-1 bg-[#ECEAF5] rounded-full overflow-hidden">
@@ -456,7 +569,6 @@ function MyLearningInner() {
                   </div>
                 ))}
 
-                {/* 내가 저장한 단어 */}
                 <button
                   onClick={() => router.push('/my-learning/voca/saved')}
                   className="w-full bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-[#FDE68A] hover:shadow-md transition-all text-left"
