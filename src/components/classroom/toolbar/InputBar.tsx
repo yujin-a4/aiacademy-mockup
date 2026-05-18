@@ -2,6 +2,34 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 
+/* Web Speech API — TypeScript DOM lib 버전에 따라 누락될 수 있어 로컬 타입 선언 */
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean
+  readonly length: number
+  [index: number]: { readonly transcript: string; readonly confidence: number }
+}
+interface SpeechRecognitionResultList {
+  readonly length: number
+  [index: number]: SpeechRecognitionResult
+}
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number
+  readonly results: SpeechRecognitionResultList
+}
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onstart:  ((ev: Event) => void) | null
+  onend:    ((ev: Event) => void) | null
+  onerror:  ((ev: Event) => void) | null
+  onresult: ((ev: SpeechRecognitionEvent) => void) | null
+  start(): void
+  stop(): void
+  abort(): void
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance
+
 export interface ToolbarAction {
   label: string
   onClick: (value: string) => void
@@ -48,7 +76,7 @@ export default function InputBar({
   const [sttSupported, setSttSupported] = useState(true)
 
   const inputRef     = useRef<HTMLInputElement>(null)
-  const recognRef    = useRef<SpeechRecognition | null>(null)
+  const recognRef    = useRef<SpeechRecognitionInstance | null>(null)
   /* 항상 최신 handleMic을 가리키는 stable ref (클로저 stale 방지) */
   const handleMicRef = useRef<() => void>(() => {})
 
@@ -80,10 +108,10 @@ export default function InputBar({
       alert('이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome 권장)')
       return
     }
-    const Ctor =
-      (window as Window & { webkitSpeechRecognition?: typeof SpeechRecognition })
+    const Ctor: SpeechRecognitionCtor | undefined =
+      (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
         .SpeechRecognition ??
-      (window as Window & { webkitSpeechRecognition?: typeof SpeechRecognition })
+      (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
         .webkitSpeechRecognition
     if (!Ctor) return
 
