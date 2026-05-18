@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useBookmarkStore } from '@/store/bookmarkStore'
 import { useVocaStore } from '@/store/vocaStore'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 /* ── 데이터 ── */
@@ -175,7 +175,7 @@ function BottomNav() {
 }
 
 /* ── 메인 페이지 ── */
-export default function MyLearning() {
+function MyLearningInner() {
   const { userName, targetScore, examDate } = useOnboardingStore()
   const { bookmarkedIds } = useBookmarkStore()
   const { initTodayWords } = useVocaStore()
@@ -461,5 +461,13 @@ export default function MyLearning() {
 
       <BottomNav />
     </div>
+  )
+}
+
+export default function MyLearning() {
+  return (
+    <Suspense>
+      <MyLearningInner />
+    </Suspense>
   )
 }
