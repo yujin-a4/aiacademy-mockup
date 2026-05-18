@@ -191,13 +191,17 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
 
 /* ── 모바일 하단 네비 ── */
 function BottomNav() {
+  const items = [
+    ...NAV.slice(0, 4),
+    { label: '설정', active: false, href: '#', icon: SETTINGS_ICON },
+  ]
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#ECEAF5] flex items-center justify-around px-2 pt-2 pb-6 z-50">
-      {[...NAV.slice(0, 4), { label: '설정', active: false, icon: SETTINGS_ICON }].map((item) => (
-        <button key={item.label} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>
+      {items.map((item) => (
+        <Link key={item.label} href={item.href ?? '#'} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>
           {item.icon(item.active)}
           <span className="text-[10px] font-medium">{item.label}</span>
-        </button>
+        </Link>
       ))}
     </nav>
   )
