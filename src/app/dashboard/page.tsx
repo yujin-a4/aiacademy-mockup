@@ -3,6 +3,14 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo } from 'react'
 
+function AccountAvatar({ userName }: { userName: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-black text-[13px] shrink-0 cursor-pointer select-none">
+      {userName ? userName[0].toUpperCase() : 'U'}
+    </div>
+  )
+}
+
 const MISSIONS = [
   { id: 1, text: 'Part 5 이하 10문제 풀기', done: true,  tag: null },
   { id: 2, text: '첫 분사구문 마스터하기 확인', done: false, tag: 'AI 분석' },
@@ -216,6 +224,7 @@ export default function Dashboard() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
               </button>
+              <AccountAvatar userName={userName ?? ''} />
             </div>
           </div>
         </header>
@@ -235,10 +244,13 @@ export default function Dashboard() {
                   </span>
                 )}
               </div>
-              <button className="flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-bold px-4 py-2 rounded-full transition-colors shadow-md shadow-[#4F46E5]/20">
-                토익 시험 접수하기
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-bold px-4 py-2 rounded-full transition-colors shadow-md shadow-[#4F46E5]/20">
+                  토익 시험 접수하기
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                </button>
+                <AccountAvatar userName={userName ?? ''} />
+              </div>
             </div>
 
             {/* ── 히어로 카드 ── */}
