@@ -236,7 +236,7 @@ export default function Dashboard() {
                 )}
               </div>
               <button className="flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-bold px-4 py-2 rounded-full transition-colors shadow-md shadow-[#4F46E5]/20">
-                YBM 토익 시험 접수하기
+                토익 시험 접수하기
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>
@@ -273,11 +273,11 @@ export default function Dashboard() {
                   {INST_MESSAGES[selectedInstructor ?? 'park']}
                 </p>
                 <Link
-                  href="/my-learning"
+                  href="/classroom"
                   className="mt-5 inline-flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98]"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  1:1 라이브 과외 세션 시작하기
+                  오늘 수업 시작하기
                 </Link>
               </div>
             </div>
@@ -353,7 +353,7 @@ export default function Dashboard() {
               <div className="bg-white rounded-2xl border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] p-5 flex flex-col">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-[#FEF9C3] flex items-center justify-center text-[20px] shrink-0">🏆</div>
-                  <h3 className="text-[#1C1B33] font-bold text-[14px]">오늘의 소셜 챌린저</h3>
+                  <h3 className="text-[#1C1B33] font-bold text-[14px]">오늘의 데일리 챌린지</h3>
                 </div>
 
                 <div className="mb-3">
@@ -372,7 +372,7 @@ export default function Dashboard() {
                 <p className="text-[#9CA3AF] text-[12px] mt-0.5 mb-auto">지금 <span className="font-semibold text-[#374151]">923명</span>이 도전 중입니다.</p>
 
                 <button className="mt-4 w-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white py-3 rounded-xl font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#4F46E5]/20 active:scale-[0.98]">
-                  ⚡ 10% 성능 챌린지 도전
+                  ⚡ 오늘의 데일리 문제 풀기
                 </button>
               </div>
 
