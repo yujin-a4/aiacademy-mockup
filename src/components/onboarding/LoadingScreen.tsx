@@ -1,12 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const LINES = [
-  { emoji: '🔥', name: '박혜원', action: '제안서를 작성 중입니다...' },
-  { emoji: '🤝', name: '장연지', action: '목표 기간을 검토 중입니다...' },
-  { emoji: '💼', name: '김토익', action: '학습 성향을 분석하고 있습니다...' },
+  { name: '박혜원', action: '제안서를 작성 중입니다...' },
+  { name: '장연지', action: '목표 기간을 검토 중입니다...' },
+  { name: '김토익', action: '학습 성향을 분석하고 있습니다...' },
 ]
 
 export default function LoadingScreen({ onNext }: { onNext: () => void }) {
@@ -26,54 +25,41 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
   }, [])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-ybm-onboarding px-6 relative overflow-hidden">
-      {/* 배경 장식 */}
-      <div className="absolute top-[-80px] right-[-60px] w-72 h-72 rounded-full bg-ybm-blue/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-60px] left-[-40px] w-52 h-52 rounded-full bg-ybm-blue/10 blur-2xl pointer-events-none" />
-
-      <div className="w-full max-w-sm space-y-8 z-10">
-        <div className="text-center space-y-6">
-          <div className="relative w-24 h-24 mx-auto flex items-center justify-center animate-float">
-            <div className="absolute inset-0 bg-slate-100 rounded-full animate-pulse blur-xl" />
-            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-lg">
-              <span className="text-3xl">📊</span>
-            </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#F3F4F6] px-4">
+      <div className="w-full max-w-[390px] space-y-6">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary rounded-2xl animate-bounce-in">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M18.4 9.4L11 16.8l-3.5-3.5L4 16.8"/></svg>
           </div>
-
-          <div className="space-y-2">
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">맞춤 분석 중</p>
-            <h2 className="text-slate-900 text-xl font-bold">제안서를 생성하고 있어요</h2>
+          <div className="space-y-1">
+            <p className="text-[#6B7280] text-xs font-semibold uppercase tracking-[0.15em]">맞춤 분석 중</p>
+            <h2 className="text-[#111318] text-[22px] font-bold">제안서를 생성하고 있어요</h2>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
+        <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5 space-y-3">
           {visible >= 1 && (
-            <p className="text-slate-500 text-sm animate-fade-in flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-ybm-blue shrink-0" />
-              <span><span className="text-slate-900 font-bold">{userName}님</span>의 프로필 전달 완료</span>
-            </p>
+            <div className="flex items-center gap-2.5 animate-fade-in">
+              <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+              <p className="text-[#374151] text-sm">
+                <span className="text-[#111318] font-semibold">{userName}님</span>의 프로필 전달 완료
+              </p>
+            </div>
           )}
-
           {LINES.map((line, i) =>
             visible >= i + 2 ? (
-              <div key={line.name} className="flex items-center gap-3 animate-fade-in">
-                <span className="text-xl shrink-0">{line.emoji}</span>
-                <p className="text-slate-500 text-sm">
-                  <span className="text-slate-900 font-bold">{line.name} 쌤</span>이 {line.action}
+              <div key={line.name} className="flex items-center gap-2.5 animate-fade-in">
+                <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                <p className="text-[#374151] text-sm">
+                  <span className="text-[#111318] font-semibold">{line.name} 쌤</span>이 {line.action}
                 </p>
               </div>
             ) : null
           )}
-
-          {/* 진행 중 점 애니메이션 */}
           {!showCTA && (
             <div className="flex gap-1.5 pt-1">
               {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }}
-                />
+                <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#D1D5DB] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
               ))}
             </div>
           )}
@@ -82,7 +68,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
         {showCTA && (
           <button
             onClick={onNext}
-            className="w-full bg-ybm-blue text-white rounded-2xl h-[56px] font-bold text-lg animate-fade-in shadow-lg transition-all active:scale-95 hover:opacity-90"
+            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] animate-fade-in transition-colors active:scale-[0.98]"
           >
             제안서 확인하기
           </button>
