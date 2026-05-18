@@ -50,7 +50,7 @@ function Sparkline() {
 
 const NAV = [
   {
-    label: '홈', active: true,
+    label: '홈', active: true, href: '/dashboard',
     icon: (a: boolean) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill={a ? '#4F46E5' : 'none'} stroke={a ? '#4F46E5' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
@@ -58,18 +58,10 @@ const NAV = [
     ),
   },
   {
-    label: '내 학습', active: false,
+    label: '내 학습', active: false, href: '/my-learning',
     icon: (a: boolean) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a ? '#4F46E5' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-      </svg>
-    ),
-  },
-  {
-    label: '오늘의 미션', active: false,
-    icon: (a: boolean) => (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a ? '#4F46E5' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     ),
   },
@@ -162,13 +154,14 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
       {/* 네비 */}
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item) => (
-          <button
+          <Link
             key={item.label}
+            href={item.href ?? '#'}
             className={`w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-[#6B7280] hover:bg-[#EEF2FF] hover:text-[#4F46E5]'}`}
           >
             <span className="shrink-0">{item.icon(item.active)}</span>
             {open && <span className="animate-fade-in">{item.label}</span>}
-          </button>
+          </Link>
         ))}
       </nav>
 
