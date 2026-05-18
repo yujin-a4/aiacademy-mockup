@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e6]: YBM
+      - generic [ref=e7]:
+        - heading "YBM AI COURSE" [level=1] [ref=e8]
+        - paragraph [ref=e9]:
+          - text: AI와 스타 강사가 함께 설계한
+          - text: 초개인화 1:1 토익 코칭
+      - generic [ref=e10]:
+        - link "START LEARNING" [ref=e11] [cursor=pointer]:
+          - /url: /onboarding
+        - paragraph [ref=e12]: 이미 계정이 있으신가요? 로그인
+  - alert [ref=e13]

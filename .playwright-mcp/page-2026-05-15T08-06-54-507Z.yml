@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e17]:
+      - generic [ref=e22]:
+        - generic [ref=e24]: ❓
+        - generic [ref=e25]: Q2. 공부하기 정말 싫은 날, 나를 책상에 앉게 만드는 원동력은?
+      - generic [ref=e27]:
+        - button "눈으로 확인하는 내 점수 상승 그래프" [ref=e30] [cursor=pointer]
+        - button "나를 챙겨주는 선생님의 진심 어린 응원" [ref=e31] [cursor=pointer]
+  - alert [ref=e14]

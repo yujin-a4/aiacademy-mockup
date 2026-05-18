@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /* ── 강사 페르소나별 TTS 파라미터 ── */
 const TTS_PARAMS: Record<string, { speakingRate: number; pitch: number; voiceName: string }> = {
-  park: { speakingRate: 1.25, pitch: -1.0, voiceName: 'ko-KR-Wavenet-C' }, // 박혜원: 빠르고 카리스마 (남성 보이스 활용 혹은 중성적 느낌)
-  jang: { speakingRate: 1.05, pitch:  1.5, voiceName: 'ko-KR-Wavenet-D' }, // 장연지: 친근하고 명랑함 (여성 보이스)
-  kim:  { speakingRate: 1.00, pitch:  0.0, voiceName: 'ko-KR-Wavenet-A' }, // 김토익: 정석적이고 신뢰감 (여성 보이스)
+  park: { speakingRate: 1.45, pitch: -2.5, voiceName: 'ko-KR-Wavenet-C' }, // 박혜원: 랩하듯 아주 빠르고 시크한 톤
+  jang: { speakingRate: 1.10, pitch:  4.5, voiceName: 'ko-KR-Wavenet-A' }, // 장연지: 애교 있고 활발하며 톤이 높음
+  kim:  { speakingRate: 1.05, pitch:  0.0, voiceName: 'ko-KR-Standard-C' }, // 김토익: 정석적이고 신뢰감 있는 표준어
 }
 
 const TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize'

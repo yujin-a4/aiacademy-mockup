@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: ⏰
+          - heading "하루에 얼마나 공부할 수 있어요?" [level=2] [ref=e147]:
+            - text: 하루에 얼마나
+            - text: 공부할 수 있어요?
+          - paragraph [ref=e148]: 무리하지 않아도 괜찮아요. 솔직하게 알려 주세요.
+        - generic [ref=e149]:
+          - button "15분" [ref=e150] [cursor=pointer]
+          - button "30분" [ref=e151] [cursor=pointer]
+          - button "1시간" [ref=e152] [cursor=pointer]
+          - button "1시간 이상" [ref=e153] [cursor=pointer]
+      - generic [ref=e57]:
+        - button "커리큘럼 생성하기" [disabled] [ref=e154]
+        - button "이전" [ref=e59] [cursor=pointer]
+  - alert [ref=e14]

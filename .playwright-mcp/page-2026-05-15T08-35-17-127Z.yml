@@ -1,0 +1,114 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]: YBM
+        - paragraph [ref=e9]: Course
+      - button [ref=e10] [cursor=pointer]:
+        - img [ref=e11]
+    - generic [ref=e14]:
+      - generic [ref=e15]: U
+      - generic [ref=e16]:
+        - paragraph [ref=e17]: 학습자님
+        - text: Level 5
+    - navigation [ref=e20]:
+      - button "🏠 홈" [ref=e21] [cursor=pointer]:
+        - generic [ref=e22]: 🏠
+        - generic [ref=e23]: 홈
+      - button "📚 내 학습" [ref=e24] [cursor=pointer]:
+        - generic [ref=e25]: 📚
+        - generic [ref=e26]: 내 학습
+      - button "📊 학습 현황" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: 📊
+        - generic [ref=e29]: 학습 현황
+    - button "⚙️ 설정" [ref=e31] [cursor=pointer]:
+      - generic [ref=e32]: ⚙️
+      - generic [ref=e33]: 설정
+  - main [ref=e34]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - heading "아카데미 대시보드" [level=1] [ref=e37]
+        - paragraph [ref=e39]:
+          - generic [ref=e40]: 💧
+          - text: 12일 연속 학습 중
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - paragraph [ref=e43]: 목표 점수
+          - paragraph [ref=e44]: 990점
+        - button "🕒" [ref=e45] [cursor=pointer]:
+          - generic [ref=e46]: 🕒
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - paragraph [ref=e52]: 다시 오신 것을 환영합니다, 학습자님
+            - heading "목표 990점을 향한 여정이 65% 완료되었습니다." [level=2] [ref=e53]:
+              - text: 목표 990점을 향한 여정이
+              - text: 65% 완료되었습니다.
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - paragraph [ref=e56]: 학습 효율
+              - paragraph [ref=e57]: A+
+            - generic [ref=e58]:
+              - paragraph [ref=e59]: 총 학습 시간
+              - paragraph [ref=e60]: 42.5시간
+            - generic [ref=e61]:
+              - paragraph [ref=e62]: 어휘 마스터
+              - paragraph [ref=e63]: Lv. 14
+        - generic [ref=e64]:
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: 📖
+              - generic [ref=e69]: 진행 중인 커리큘럼
+            - generic [ref=e70]:
+              - 'heading "Part 5 집중 공략: 문법 공식 정복" [level=3] [ref=e71]':
+                - text: "Part 5 집중 공략:"
+                - text: 문법 공식 정복
+              - paragraph [ref=e72]: "멘토 튜터가 당신의 다음 1:1 세션을 기다리고 있습니다. 오늘의 주제: 복합 절에서의 동사 식별."
+          - link "1:1 세션 시작하기 ›" [ref=e73] [cursor=pointer]:
+            - /url: /classroom
+            - text: 1:1 세션 시작하기
+            - generic [ref=e74]: ›
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - heading "🎯 오늘의 미션" [level=3] [ref=e78]:
+              - generic [ref=e79]: 🎯
+              - text: 오늘의 미션
+            - generic [ref=e80]: 60% Completed
+          - generic [ref=e81]:
+            - generic [ref=e82] [cursor=pointer]:
+              - generic [ref=e84]: ✓
+              - paragraph [ref=e85]: 단어 50개 암기
+            - paragraph [ref=e88] [cursor=pointer]: 문법 기초 2강 수강
+            - paragraph [ref=e91] [cursor=pointer]: Part 5 실전 문제 10개
+            - paragraph [ref=e94] [cursor=pointer]: 오늘의 단어 테스트
+            - paragraph [ref=e97] [cursor=pointer]: 복습 퀴즈 완료
+        - generic [ref=e98]:
+          - heading "습관 트래커" [level=3] [ref=e99]
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - generic [ref=e102]: 월
+              - generic [ref=e104]: "11"
+            - generic [ref=e105]:
+              - generic [ref=e106]: 화
+              - generic [ref=e108]: "12"
+            - generic [ref=e109]:
+              - generic [ref=e110]: 수
+              - generic [ref=e112]: "13"
+            - generic [ref=e113]:
+              - generic [ref=e114]: 목
+              - generic [ref=e116]: "14"
+            - generic [ref=e117]:
+              - generic [ref=e118]: 금
+              - generic [ref=e120]: "15"
+            - generic [ref=e121]:
+              - generic [ref=e122]: 토
+              - generic [ref=e124]: "16"
+            - generic [ref=e125]:
+              - generic [ref=e126]: 일
+              - generic [ref=e128]: "17"
+          - paragraph [ref=e130]: 현재까지 12일 연속 학습 성공!
+    - generic [ref=e131]:
+      - paragraph [ref=e132]: YBM AI Language Institute
+      - paragraph [ref=e133]: © 2026. Empowered by AI Analysis.

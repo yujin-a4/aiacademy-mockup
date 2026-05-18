@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e17]:
+      - generic [ref=e22]:
+        - generic [ref=e24]: ❓
+        - generic [ref=e25]: Q1. 아는 문제를 또 틀렸다! 이때 나를 움직이게 하는 선생님의 한마디는?
+      - generic [ref=e27]:
+        - button "“정신 차려!” 뼈 때리는 팩폭으로 정신 번쩍 들게 하기" [ref=e28] [cursor=pointer]
+        - button "“괜찮아!” 따뜻한 격려로 다시 멘탈 잡아주기" [ref=e29] [cursor=pointer]
+  - alert [ref=e14]

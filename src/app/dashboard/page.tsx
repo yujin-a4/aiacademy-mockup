@@ -173,18 +173,7 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
         </button>
       </div>
 
-      {/* AI 튜터 CTA */}
-      {open && (
-        <div className="px-3 pb-5 animate-fade-in">
-          <div className="bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4">
-            <p className="text-white/60 text-[10px] font-semibold uppercase tracking-wider">AI 튜터</p>
-            <p className="text-white font-bold text-[13px] mt-0.5 leading-snug">궁금한 점이 있으신가요?</p>
-            <button className="mt-3 w-full bg-white/20 hover:bg-white/30 text-white text-[12px] font-semibold rounded-xl py-2 transition-all">
-              바로 질문하기
-            </button>
-          </div>
-        </div>
-      )}
+
     </aside>
   )
 }
@@ -494,19 +483,7 @@ export default function Dashboard() {
 
             </div>
 
-            {/* ── 하단 CTA 배너 ── */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1C1B33] via-[#2D2A52] to-[#1C1B33] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="absolute right-48 top-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-[#4F46E5]/20 blur-2xl pointer-events-none" />
-              <div className="absolute right-16 -bottom-6 w-32 h-32 rounded-full bg-[#7C3AED]/20 blur-xl pointer-events-none" />
-              <div className="relative z-10">
-                <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider">AI 튜터 상담</p>
-                <p className="text-white font-bold text-[18px] mt-0.5">잠깐, 공부에 지쳐 있나요?</p>
-                <p className="text-white/60 text-[13px] mt-1">지금 바로 AI 튜터와 1:1 무료 상담을 시작하세요.</p>
-              </div>
-              <button className="relative z-10 shrink-0 bg-white text-[#1C1B33] font-bold text-[13px] px-5 py-3 rounded-xl hover:bg-[#EEF2FF] transition-colors whitespace-nowrap">
-                강사와 무료 상담 시작하기 →
-              </button>
-            </div>
+
 
           </div>
         </main>
