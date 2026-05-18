@@ -17,6 +17,28 @@ export default function OnboardingPage() {
 
   const next = () => setStep((s) => s + 1)
 
+  const handleSkip = () => {
+    store.setUserName('토익초보')
+    store.setTargetScore(750)
+    store.setLearningStyle('꼼꼼')
+    store.setManagementStyle('스스로')
+    store.setMotivationType('성취감')
+    store.setDailyTime('1시간')
+    
+    // 기본 시험일 설정 (약 3개월 후)
+    const threeMonthsLater = new Date()
+    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3)
+    const examDate = threeMonthsLater.toISOString().split('T')[0]
+    store.setExamDate(examDate)
+    store.setStudyPeriod('3개월')
+    store.setSelectedInstructor('park')
+    
+    // 프로필 저장
+    store.saveCurrentProfile()
+    
+    router.push('/dashboard')
+  }
+
   const handleSkipToInstructor = () => {
     store.setUserName('토익초보')
     store.setTargetScore(750)
