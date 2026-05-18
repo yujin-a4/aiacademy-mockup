@@ -25,7 +25,7 @@ export default function ResultPage() {
 
   const handleFinish = () => {
     resetProgress()
-    router.push('/my-learning')
+    router.push('/my-learning?tab=voca')
   }
 
   return (

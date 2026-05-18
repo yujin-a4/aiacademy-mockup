@@ -1,11 +1,13 @@
 'use client'
 import { useVocaStore } from '@/store/vocaStore'
+import { useBookmarkStore } from '@/store/bookmarkStore'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import ExitConfirmModal from '@/components/ExitConfirmModal'
 
 export default function FlashcardPage() {
   const { todayWords, currentIndex, setFlashcardResult, initTodayWords } = useVocaStore()
+  const { isBookmarked, toggleBookmark } = useBookmarkStore()
   const router = useRouter()
   const [isFlipped, setIsFlipped] = useState(false)
   const [showExitModal, setShowExitModal] = useState(false)
@@ -41,14 +43,21 @@ export default function FlashcardPage() {
       <ExitConfirmModal
         isOpen={showExitModal}
         onContinue={() => setShowExitModal(false)}
-        onExit={() => router.push('/my-learning')}
+        onExit={() => router.push('/my-learning?tab=voca')}
       />
       <header className="px-6 py-4 flex items-center justify-between">
         <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div className="font-bold text-[#1C1B33] text-[15px]">플래시카드 학습</div>
-        <div className="w-8" />
+        <button
+          onClick={() => word && toggleBookmark(word.id)}
+          className="p-2 -mr-2 transition-transform active:scale-90"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill={word && isBookmarked(word.id) ? '#F59E0B' : 'none'} stroke={word && isBookmarked(word.id) ? '#F59E0B' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </button>
       </header>
 
       <div className="px-6 max-w-[600px] mx-auto w-full">

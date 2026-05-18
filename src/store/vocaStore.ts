@@ -14,6 +14,7 @@ interface VocaState {
 
   // Actions
   initTodayWords: () => void;
+  initBookmarkedWords: (ids: number[]) => void;
   nextWord: () => void;
   setFlashcardResult: (wordId: number, status: FlashcardStatus) => void;
   setQuizResult: (wordId: number, isCorrect: boolean) => void;
@@ -29,15 +30,13 @@ export const useVocaStore = create<VocaState>((set, get) => ({
   dictationResults: {},
 
   initTodayWords: () => {
-    // 300개 중 30개 추출 (데모 목적상 첫 30개로 고정)
     const words = VOCA_DATA.slice(0, 30);
-    set({
-      todayWords: words,
-      currentIndex: 0,
-      flashcardResults: {},
-      quizResults: {},
-      dictationResults: {},
-    });
+    set({ todayWords: words, currentIndex: 0, flashcardResults: {}, quizResults: {}, dictationResults: {} });
+  },
+
+  initBookmarkedWords: (ids: number[]) => {
+    const words = VOCA_DATA.filter((w) => ids.includes(w.id));
+    set({ todayWords: words, currentIndex: 0, flashcardResults: {}, quizResults: {}, dictationResults: {} });
   },
 
   nextWord: () => {
