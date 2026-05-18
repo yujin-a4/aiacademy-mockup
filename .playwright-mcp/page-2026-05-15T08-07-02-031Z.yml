@@ -1,0 +1,10 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e17]:
+      - generic [ref=e22]:
+        - generic [ref=e24]: ❓
+        - generic [ref=e25]: Q3. 나에게 딱 맞는 트레이닝 페이스는?
+      - generic [ref=e27]:
+        - button "짧고 밀도 있게, 빡세게 몰아치기" [ref=e32] [cursor=pointer]
+        - button "지치지 않게, 내 컨디션에 맞춘 꾸준한 루틴" [ref=e33] [cursor=pointer]
+  - alert [ref=e14]

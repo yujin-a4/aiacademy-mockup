@@ -21,8 +21,8 @@ export default function NameInput({ onNext }: Props) {
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#F3F4F6] px-4 relative">
       <div className="w-full max-w-[390px] space-y-8 animate-fade-in">
         <div className="text-center space-y-5">
-          <div className="w-20 h-20 mx-auto flex items-center justify-center bg-primary rounded-2xl animate-bounce-in">
-            <span className="text-white font-black text-2xl tracking-tighter">YBM</span>
+          <div className="w-20 h-20 mx-auto flex items-center justify-center animate-bounce-in">
+            <img src="/favicon.png" alt="YBM Logo" className="w-full h-full object-contain" />
           </div>
 
           <div className="bg-white border border-[#D1D5DB] rounded-2xl px-5 py-4 text-[#111318] text-[15px] font-medium leading-relaxed relative">
