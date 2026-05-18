@@ -2,7 +2,10 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState, useMemo } from 'react'
+import { useBookmarkStore } from '@/store/bookmarkStore'
+import { useVocaStore } from '@/store/vocaStore'
+import { useState, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 /* ── 데이터 ── */
 const PARTS = [
@@ -21,10 +24,9 @@ const WRONG_ITEMS = [
   { date: ['5/17', '과외'], q: 'The manager asked that all employees ___ on time.', icon: 'RC', tags: [{ label: 'Part 5', color: 'blue' }, { label: '시제 일치', color: 'amber' }] },
 ]
 
-const VOCA_BOOKS = [
-  { name: '비즈니스 핵심 어휘', total: 350, done: 212, color: '#4F46E5', bg: '#EEF2FF', tc: '#4F46E5', recommended: true },
-  { name: 'TOEIC 빈출 1000',   total: 1000, done: 312, color: '#06B6D4', bg: '#ECFEFF', tc: '#0891B2', recommended: false },
-  { name: '내가 저장한 단어',   total: 47,   done: 0,   color: '#F59E0B', bg: '#FEF9C3', tc: '#B45309', recommended: false },
+const VOCA_BOOKS_STATIC = [
+  { name: '비즈니스 핵심 어휘', total: 350, done: 212, color: '#4F46E5', bg: '#EEF2FF', tc: '#4F46E5', recommended: true,  href: null },
+  { name: 'TOEIC 빈출 1000',   total: 1000, done: 312, color: '#06B6D4', bg: '#ECFEFF', tc: '#0891B2', recommended: false, href: null },
 ]
 
 const TAG_STYLE: Record<string, string> = {
@@ -59,7 +61,7 @@ function Ring({ current, total }: { current: number; total: number }) {
 const NAV = [
   { label: '홈',        href: '/dashboard', active: false },
   { label: '내 학습',   href: '/my-learning', active: true },
-  { label: '현황',      href: '#', active: false },
+  { label: '현황',      href: '/status', active: false },
   { label: '알림',      href: '#', active: false },
 ]
 
@@ -173,9 +175,14 @@ function BottomNav() {
 }
 
 /* ── 메인 페이지 ── */
-export default function MyLearning() {
+function MyLearningInner() {
   const { userName, targetScore, examDate } = useOnboardingStore()
-  const [tab, setTab] = useState<'part' | 'wrong' | 'voca'>('part')
+  const { bookmarkedIds } = useBookmarkStore()
+  const { initTodayWords } = useVocaStore()
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<'part' | 'wrong' | 'voca'>(
+    (searchParams.get('tab') as 'part' | 'wrong' | 'voca') || 'part'
+  )
   const [filter, setFilter] = useState<'전체' | 'LC' | 'RC'>('전체')
 
   const ddayLabel = useMemo(() => {
@@ -386,12 +393,16 @@ export default function MyLearning() {
                           { label: '퀴즈', color: 'indigo', href: '/my-learning/voca/quiz' },
                           { label: '받아쓰기', color: 'cyan', href: '/my-learning/voca/dictation' },
                         ].map((m) => (
-                          <Link key={m.label} href={m.href} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}>
+                          <button
+                            key={m.label}
+                            onClick={() => { initTodayWords(); router.push(m.href) }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}
+                          >
                             {m.label === '플래시카드' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
                             {m.label === '퀴즈' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
                             {m.label === '받아쓰기' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>}
                             {m.label}
-                          </Link>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -400,8 +411,8 @@ export default function MyLearning() {
 
                 {/* 단어장 목록 */}
                 <p className="text-[#374151] text-[13px] font-semibold px-1">단어장</p>
-                {VOCA_BOOKS.map((book) => (
-                  <div key={book.name} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 border-transparent">
+                {VOCA_BOOKS_STATIC.map((book) => (
+                  <div key={book.name} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: book.bg }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={book.tc} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
@@ -421,6 +432,26 @@ export default function MyLearning() {
                     </div>
                   </div>
                 ))}
+
+                {/* 내가 저장한 단어 */}
+                <button
+                  onClick={() => router.push('/my-learning/voca/saved')}
+                  className="w-full bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-[#FDE68A] hover:shadow-md transition-all text-left"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#1C1B33] text-[13px] font-semibold">내가 저장한 단어</p>
+                    <p className="text-[#9CA3AF] text-[11px] mb-1.5">{bookmarkedIds.length}개 저장됨</p>
+                    <div className="h-1 bg-[#ECEAF5] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#F59E0B] rounded-full" style={{ width: bookmarkedIds.length > 0 ? '100%' : '0%' }}/>
+                    </div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
               </div>
             )}
 
@@ -430,5 +461,13 @@ export default function MyLearning() {
 
       <BottomNav />
     </div>
+  )
+}
+
+export default function MyLearning() {
+  return (
+    <Suspense>
+      <MyLearningInner />
+    </Suspense>
   )
 }
