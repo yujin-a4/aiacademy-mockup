@@ -9,36 +9,43 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ── 온보딩 화면 전용 토큰 (개발자 B) ──────────────────────────
-        'dark-navy':       '#0D1B4B',
-        'navy-mid':        '#1B3EAF',
-        'waong-lavender':  '#8B8FC8',
-        'lavender-light':  '#C4C6E8',
-        'off-white':       '#F7F8FC',
-        'light-gray':      '#EAECF4',
-        'mid-gray':        '#9499B7',
-        'charcoal':        '#2C2F4A',
-        'success':         '#1DB97A',
-        'error-red':       '#E8193C',
-        // ── 공통 YBM AI 어학원 블루 디자인 토큰 (개발자 A 기준) ────────
-        "ybm-blue":        "#2277F0", // 주요 강조색 (제목, 아이콘)
-        "ybm-blue-mid":    "#5BA8F5", // 아이콘 내부, 버튼
-        "ybm-blue-light":  "#D6EAFF", // 아이콘 배경, 뱃지
-        "ybm-bg":          "#F0F5FF", // 전체 페이지 배경
-        "ybm-card":        "#FFFFFF", // 카드 배경
-        "ybm-text":        "#1A2B4B", // 본문 텍스트
-        "ybm-text-sub":    "#6B7A99", // 서브 텍스트
-        "ybm-border":      "#E2EAF4", // 카드 테두리
+        // ── 디자인 시스템 v2 Primary ───────────────────────────────────
+        primary: {
+          DEFAULT: '#1A3FD4',
+          50:      '#EEF2FF',
+          100:     '#D6E0FD',
+          300:     '#8AA4F6',
+          400:     '#5578F0',
+          500:     '#3459E6',
+        },
+        // ── Accent (AI 기능 강조) ──────────────────────────────────────
+        accent: {
+          DEFAULT: '#06B6D4',
+          light:   '#CFFAFE',
+        },
+        // ── Semantic ──────────────────────────────────────────────────
+        success: '#10B981',
+        error:   '#EF4444',
+        warning: '#F59E0B',
+        // ── 레거시 (classroom 등 기존 화면용) ──────────────────────────
+        "ybm-blue":        "#1A3FD4",
+        "ybm-blue-mid":    "#5578F0",
+        "ybm-blue-light":  "#EEF2FF",
+        "ybm-bg":          "#F3F4F6",
+        "ybm-card":        "#FFFFFF",
+        "ybm-text":        "#111318",
+        "ybm-text-sub":    "#6B7280",
+        "ybm-border":      "#D1D5DB",
         // ── 수업 화면(classroom) 전용 토큰 ─────────────────────────────
         "cr-nav":          "#12203A",
         "cr-panel":        "#EAF2FF",
-        "cr-accent":       "#2277F0",
-        "cr-accent-light": "#D6EAFF",
+        "cr-accent":       "#1A3FD4",
+        "cr-accent-light": "#EEF2FF",
       },
       fontFamily: {
-        sans:    ['-apple-system', 'BlinkMacSystemFont', '"Apple SD Gothic Neo"', 'Pretendard', 'system-ui', 'sans-serif'],
+        sans:    ['Noto Sans KR', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
-        display: ['Barlow Condensed', 'sans-serif'],
+        display: ['Noto Sans KR', 'sans-serif'],
       },
       borderRadius: {
         'sharp':   '6px',
