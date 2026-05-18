@@ -377,16 +377,16 @@ export default function MyLearning() {
                       <p className="text-[#6B7280] text-[12px] mt-0.5 mb-3">32개 남았어요 · 12일 연속 달성 중</p>
                       <div className="flex flex-wrap gap-2">
                         {[
-                          { label: '플래시카드', color: 'indigo' },
-                          { label: '퀴즈', color: 'indigo' },
-                          { label: '받아쓰기', color: 'cyan' },
+                          { label: '플래시카드', color: 'indigo', href: '/my-learning/voca/flashcard' },
+                          { label: '퀴즈', color: 'indigo', href: '/my-learning/voca/quiz' },
+                          { label: '받아쓰기', color: 'cyan', href: '/my-learning/voca/dictation' },
                         ].map((m) => (
-                          <button key={m.label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}>
+                          <Link key={m.label} href={m.href} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}>
                             {m.label === '플래시카드' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
                             {m.label === '퀴즈' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
                             {m.label === '받아쓰기' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>}
                             {m.label}
-                          </button>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -396,7 +396,7 @@ export default function MyLearning() {
                 {/* 단어장 목록 */}
                 <p className="text-[#374151] text-[13px] font-semibold px-1">단어장</p>
                 {VOCA_BOOKS.map((book) => (
-                  <div key={book.name} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 cursor-pointer hover:border-[#C7D2FE] transition-all">
+                  <div key={book.name} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 border-transparent">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: book.bg }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={book.tc} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
@@ -414,7 +414,6 @@ export default function MyLearning() {
                         <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(book.done / book.total * 100)}%`, background: book.color }}/>
                       </div>
                     </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
                   </div>
                 ))}
               </div>
