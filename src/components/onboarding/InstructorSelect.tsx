@@ -14,17 +14,29 @@ const INSTRUCTORS = [
     quote: '"이거 또 틀렸네. 패턴 외워."',
     badgeCls: 'bg-[#FEF9C3] text-[#B45309]',
     accentLeft: '#D97706',
+    stats: {
+      satisfaction: '4.9/5',
+      students: '8,200+',
+      avgIncrease: '+145점'
+    },
+    matching: '92%',
+    matchingDesc: '계획적인 학습 습관과 빠른 피드백을 선호하는 성향이 잘 맞아요.',
+    recommendations: [
+      '단기간에 점수를 올리고 싶은 분',
+      '문법과 어휘에서 자주 틀리는 분',
+      '반복 훈련으로 확실히 잡고 싶은 분'
+    ],
     proposal: {
       plan: '4주 초집중 스피드 팩',
       target: 'Part 5 정답률 95% 달성',
-      comment: '토익은 기세입니다. 저와 함께 숨 쉬듯 문제를 풀어내면 점수는 저절로 따라옵니다.',
-      tags: ['#스파르타', '#패턴암기', '#단기완성'],
+      comment: '빠르고 집중적인 반복 훈련으로 Part 5 문법 약점과 빈출 어휘를 단기간에 잡아주는 튜터예요.',
+      tags: ['#스파르타', '#연어', '#문법패턴', '#고득점전략', '#파트5전문'],
     },
     curriculum: [
-      { week: '1주차', title: '핵심 빈출 어휘 정복', detail: '가장 많이 출제되는 Part 5 어휘와 연어(collocation)를 집중 암기합니다.' },
-      { week: '2주차', title: '문법 패턴 훈련', detail: '자주 틀리는 문법 패턴을 공식화하여 기계적으로 풀어내는 연습을 합니다.' },
-      { week: '3주차', title: '오답 소거법 마스터', detail: '오답의 함정을 피하고 빠르게 소거하는 실전 노하우를 습득합니다.' },
-      { week: '4주차', title: '실전 모의고사 3회', detail: '시간 제한 내에 풀이하는 강도 높은 실전 훈련으로 마무리합니다.' },
+      { week: '1주차', title: '핵심 빈출 어휘 정복', detail: '가장 많이 출제되는 Part 5 어휘와 연어(collocation)를 집중 암기합니다.', part: 'Part 5 어휘', goal: '정답률 65%+' },
+      { week: '2주차', title: '문법 패턴 훈련', detail: '자주 틀리는 문법 패턴을 공식화하여 기계적으로 풀어내는 연습을 합니다.', part: 'Part 5 문법', goal: '정답률 70%+' },
+      { week: '3주차', title: '오답 소거법 마스터', detail: '오답의 함정을 피하고 빠르게 소거하는 실전 노하우를 습득합니다.', part: 'Part 6/7 독해', goal: '정답률 75%+' },
+      { week: '4주차', title: '실전 모의고사 3회', detail: '시간 제한 내에 풀이하는 강도 높은 실전 훈련으로 마무리합니다.', part: '실전 전 파트', goal: '750점 도달' },
     ],
     guideQuestions: [
       "선생님만의 단기 점수 상승 비결이 뭔가요?",
@@ -271,11 +283,11 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
     )
   }
 
-  /* ── 제안서 / 탭 뷰 ── */
+  /* ── 제안서 / 탭 뷰 (plan.png 기반 리뉴얼) ── */
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFF] animate-fade-in font-sans pb-32">
+    <div className="flex flex-col min-h-screen bg-[#F8FAFF] animate-fade-in font-sans">
       {/* 헤더 */}
-      <header className="flex items-center justify-between px-4 py-3.5 bg-white border-b border-[#ECEAF5] sticky top-0 z-30 shadow-sm">
+      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#ECEAF5] sticky top-0 z-30 shadow-sm">
         <button
           onClick={() => { setView('list'); setChatHistory([]); window.speechSynthesis.cancel() }}
           className="p-2 -ml-2 text-[#6B7280] hover:text-[#111318] transition-colors"
@@ -288,192 +300,275 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
         <div className="w-10" />
       </header>
 
-      {/* 강사 기본 정보 헤더 영역 */}
-      <div className="bg-white px-6 py-6 border-b border-[#ECEAF5]">
-        <div className="max-w-[600px] mx-auto flex flex-col items-center text-center">
-          <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-4 border-[#EEF2FF] shadow-sm mb-3 bg-[#F3F4F6]">
-            <MovingPortrait src={selectedInst.video} fallback={selectedInst.image} alt={selectedInst.name} />
-          </div>
-          <h2 className="text-[24px] font-black text-[#1C1B33]">{selectedInst.name}</h2>
-          <span className={`inline-block mt-1.5 text-[12px] px-2.5 py-0.5 rounded-full font-bold ${selectedInst.badgeCls}`}>{selectedInst.badge}</span>
-        </div>
-      </div>
-
-      {/* 탭 네비게이션 */}
-      <div className="sticky top-[58px] z-20 bg-white/90 backdrop-blur-md border-b border-[#ECEAF5]">
-        <div className="max-w-[600px] mx-auto flex">
-          {[
-            { id: 'proposal', label: '제안서' },
-            { id: 'curriculum', label: '맞춤 커리큘럼' },
-            { id: 'chat', label: '1분 대화' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id as any)}
-              className={`flex-1 py-3.5 text-[14px] font-bold transition-all relative ${
-                activeTab === tab.id ? 'text-[#4F46E5]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#4F46E5] rounded-t-full" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 탭 콘텐츠 */}
-      <div className="flex-1 px-4 py-6">
-        <div className="max-w-[600px] mx-auto w-full">
-
-          {/* ── 1. 제안서 뷰 ── */}
-          {activeTab === 'proposal' && (
-            <div className="space-y-5 animate-fade-in">
-              <div className="flex flex-wrap gap-2">
-                {selectedInst.proposal.tags.map((tag: string) => (
-                  <span key={tag} className="text-[12px] px-2.5 py-1 bg-white text-[#4F46E5] rounded-full font-bold border border-[#C7D2FE] shadow-sm">{tag}</span>
-                ))}
-              </div>
-
-              <div className="bg-white rounded-[20px] p-5 shadow-sm border border-[#ECEAF5]">
-                <div>
-                  <label className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest mb-1 block">추천 플랜</label>
-                  <p className="text-[#1C1B33] text-[20px] font-black">{selectedInst.proposal.plan}</p>
-                </div>
-                <div className="h-px bg-[#ECEAF5] my-5" />
-                <div>
-                  <label className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest mb-1 block">목표 달성</label>
-                  <p className="text-[#4F46E5] text-[20px] font-black">{selectedInst.proposal.target}</p>
+      <div className="flex-1 overflow-y-auto pb-20">
+        <div className="max-w-[1000px] mx-auto w-full px-6 py-8">
+          
+          {/* ── 강사 프로필 상단 영역 (plan.png 레이아웃) ── */}
+          <div className="bg-white rounded-[24px] border border-[#ECEAF5] p-8 shadow-sm mb-8">
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* 왼쪽: 이미지 */}
+              <div className="w-full md:w-[240px] shrink-0">
+                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#ECEAF5]">
+                  <MovingPortrait src={selectedInst.video} fallback={selectedInst.image} alt={selectedInst.name} />
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF] rounded-[20px] p-5 shadow-sm border border-[#C7D2FE]">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <span className="text-[18px]">💬</span>
-                  <span className="text-[#4F46E5] font-bold text-[13px]">선생님의 코멘트</span>
+              {/* 중앙: 정보 영역 */}
+              <div className="flex-1 space-y-6">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-[28px] font-black text-[#1C1B33]">{selectedInst.name}</h2>
+                  <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold ${selectedInst.badgeCls}`}>{selectedInst.badge}</span>
                 </div>
-                <p className="text-[#1C1B33] leading-relaxed font-medium text-[15px]">
-                  "{selectedInst.proposal.comment}"
+
+                <div className="flex flex-wrap gap-2">
+                  {selectedInst.proposal.tags.map((tag: string) => (
+                    <span key={tag} className="text-[13px] px-3 py-1 bg-[#F8FAFF] text-[#4F46E5] rounded-lg font-bold border border-[#EEF2FF]">{tag}</span>
+                  ))}
+                </div>
+
+                {/* 매칭률 안내 */}
+                <div className="bg-[#F5F3FF] rounded-2xl p-5 border border-[#EDE9FE]">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[#4F46E5] font-black text-[16px]">{userName}님의 성향과 {selectedInst.matching} 매칭</span>
+                    <span className="text-[16px]">💙</span>
+                  </div>
+                  <p className="text-[#5B5A72] text-[14px] leading-relaxed">
+                    {selectedInst.matchingDesc}
+                  </p>
+                </div>
+
+                <p className="text-[#1C1B33] text-[15px] leading-relaxed font-medium">
+                  {selectedInst.proposal.comment}
                 </p>
+
+                {/* 지표 (Stats) */}
+                <div className="flex flex-wrap items-center gap-6 pt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center text-[#4F46E5]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    </div>
+                    <div className="text-[13px]">
+                      <span className="text-[#9CA3AF] mr-1.5">강의 만족도</span>
+                      <span className="text-[#1C1B33] font-bold">{selectedInst.stats?.satisfaction}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center text-[#4F46E5]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div className="text-[13px]">
+                      <span className="text-[#9CA3AF] mr-1.5">누적 수강생</span>
+                      <span className="text-[#1C1B33] font-bold">{selectedInst.stats?.students}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center text-[#4F46E5]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    </div>
+                    <div className="text-[13px]">
+                      <span className="text-[#9CA3AF] mr-1.5">평균 점수 상승</span>
+                      <span className="text-[#1C1B33] font-bold">{selectedInst.stats?.avgIncrease}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 오른쪽: 추천 및 CTA */}
+              <div className="w-full md:w-[280px] shrink-0 space-y-4">
+                <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#ECEAF5]">
+                  <h4 className="text-[#1C1B33] font-bold text-[14px] mb-4">이런 분께 추천해요</h4>
+                  <ul className="space-y-3">
+                    {selectedInst.recommendations?.map((rec: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <div className="mt-1 w-4 h-4 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg>
+                        </div>
+                        <span className="text-[#5B5A72] text-[13px] leading-tight font-medium">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div className="space-y-2.5">
+                  <button 
+                    onClick={() => handleConfirm(selectedInst.id)}
+                    className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#4F46E5]/20"
+                  >
+                    샘플 수업 시작하기
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  </button>
+                  <button 
+                    onClick={() => handleTabChange('chat')}
+                    className="w-full bg-white border border-[#ECEAF5] text-[#4F46E5] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    1분 대화하기
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ── 2. 맞춤 커리큘럼 뷰 ── */}
-          {activeTab === 'curriculum' && (
-            <div className="space-y-3 animate-fade-in">
-              <h4 className="text-[#1C1B33] font-bold text-[16px] mb-3">맞춤 로드맵</h4>
-              {selectedInst.curriculum.map((item: any, idx: number) => (
-                <div key={idx} className="bg-white rounded-xl p-4 shadow-sm border border-[#ECEAF5] flex gap-3">
-                  <div className="shrink-0 flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] font-black text-[12px]">
-                      {idx + 1}
+          {/* ── 탭 메뉴 ── */}
+          <div className="flex border-b border-[#ECEAF5] mb-8">
+            {[
+              { id: 'proposal', label: '제안서' },
+              { id: 'curriculum', label: '맞춤 커리큘럼' },
+              { id: 'chat', label: '1분 대화' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id as any)}
+                className={`px-10 py-4 text-[15px] font-bold transition-all relative ${
+                  activeTab === tab.id ? 'text-[#4F46E5]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-[#4F46E5] rounded-t-full" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* ── 탭 콘텐츠 영역 ── */}
+          <div className="animate-fade-in">
+            {activeTab === 'proposal' && (
+              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10">
+                <div className="max-w-[720px] space-y-10">
+                  <section>
+                    <h4 className="text-[#1C1B33] font-black text-[20px] mb-4">학습 제안 배경</h4>
+                    <p className="text-[#5B5A72] text-[16px] leading-relaxed">
+                      {userName}님의 학습 패턴은 단기간에 집중하여 성과를 내는 것에 최적화되어 있습니다. 
+                      따라서 불필요한 이론 설명보다는 실전에서 바로 활용 가능한 패턴 위주의 학습을 제안합니다.
+                    </p>
+                  </section>
+                  <section className="grid grid-cols-2 gap-8">
+                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EEF2FF]">
+                      <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">추천 플랜</span>
+                      <p className="text-[#1C1B33] text-[18px] font-black">{selectedInst.proposal.plan}</p>
                     </div>
-                    {idx !== selectedInst.curriculum.length - 1 && (
-                      <div className="w-[1.5px] h-full bg-[#E0E7FF] mt-1.5" />
+                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EEF2FF]">
+                      <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">목표 달성</span>
+                      <p className="text-[#4F46E5] text-[18px] font-black">{selectedInst.proposal.target}</p>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'curriculum' && (
+              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10">
+                <div className="mb-8">
+                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">맞춤 로드맵</h4>
+                  <p className="text-[#9CA3AF] text-[14px]">4주 동안 단계별로 실력을 확실히 끌어올리는 커리큘럼이에요.</p>
+                </div>
+                
+                <div className="overflow-hidden border border-[#ECEAF5] rounded-2xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#F8FAFF] border-b border-[#ECEAF5]">
+                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-20 text-center">주차</th>
+                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF]">커리큘럼 명</th>
+                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">집중 파트</th>
+                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">목표</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#ECEAF5]">
+                      {selectedInst.curriculum.map((item: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
+                          <td className="px-6 py-6 text-center">
+                            <div className="w-8 h-8 rounded-full bg-[#EEF2FF] text-[#4F46E5] font-black text-[13px] flex items-center justify-center mx-auto">
+                              {idx + 1}
+                            </div>
+                            <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>
+                          </td>
+                          <td className="px-6 py-6">
+                            <h5 className="text-[#1C1B33] font-bold text-[16px] mb-1">{item.title}</h5>
+                            <p className="text-[#9CA3AF] text-[13px] leading-relaxed">{item.detail}</p>
+                          </td>
+                          <td className="px-6 py-6">
+                            <span className="inline-block px-3 py-1 bg-[#F5F3FF] text-[#4F46E5] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
+                              {item.part || '-'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-6">
+                            <div className="flex items-center justify-between group-hover:pr-2 transition-all">
+                              <span className="text-[#1C1B33] text-[14px] font-bold">{item.goal || '-'}</span>
+                              <svg className="text-[#D1D5DB] group-hover:text-[#4F46E5] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="mt-8 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EEF2FF]">
+                  <div className="w-5 h-5 rounded-full bg-[#4F46E5] flex items-center justify-center text-white text-[10px]">ℹ</div>
+                  <p className="text-[#6B7280] text-[13px] font-medium">매주 학습 진행 상황을 분석하여 커리큘럼을 유연하게 조정해 드려요.</p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'chat' && (
+              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10 pb-20">
+                <div className="max-w-[600px] mx-auto space-y-8">
+                  <div className="text-center space-y-4">
+                    <div className="relative w-24 h-24 mx-auto">
+                      {isRecording && <div className="absolute inset-[-6px] rounded-full border-2 border-[#4F46E5] animate-ping opacity-50" />}
+                      {isTalking && <div className="absolute inset-[-3px] rounded-full border-[3px] border-[#4F46E5] animate-pulse opacity-20" />}
+                      <div className={`relative w-full h-full rounded-full overflow-hidden border-2 border-[#EEF2FF] transition-transform duration-500 ${isRecording ? 'scale-105' : 'scale-100'} bg-[#F3F4F6]`}>
+                        <MovingPortrait src={selectedInst.video} fallback={selectedInst.image} alt={selectedInst.name} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${isTalking ? 'bg-[#4F46E5] animate-pulse' : 'bg-[#10B981]'}`} />
+                        <span className="text-[#6B7280] text-[13px] font-bold">
+                          {isTalking ? '선생님이 말씀하시는 중...' : isRecording ? '듣고 있어요...' : 'AI 온라인 대화 중'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 min-h-[200px]">
+                    {chatHistory.slice(-4).map((c, i) => (
+                      <div key={i} className={`flex ${c.role === 'instructor' ? 'justify-start' : 'justify-end'} animate-fade-in`}>
+                        <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium leading-relaxed shadow-sm ${
+                          c.role === 'instructor' ? 'bg-[#F8FAFF] border border-[#EEF2FF] text-[#1C1B33]' : 'bg-[#4F46E5] text-white'
+                        }`}>
+                          {c.text}
+                        </div>
+                      </div>
+                    ))}
+                    {sttText && (
+                      <div className="flex justify-end animate-fade-in">
+                        <div className="max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium bg-[#F3F4F6] text-[#6B7280] border border-[#D1D5DB]">
+                          {sttText}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="pb-1">
-                    <span className="text-[#6B7280] font-bold text-[11px] uppercase">{item.week}</span>
-                    <h5 className="text-[#1C1B33] font-bold text-[15px] mt-0.5">{item.title}</h5>
-                    <p className="text-[#6B7280] text-[13px] mt-1.5 leading-relaxed">{item.detail || item.상}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
-          {/* ── 3. 1분 대화 뷰 ── */}
-          {activeTab === 'chat' && (
-            <div className="space-y-5 animate-fade-in pb-20">
-              <div className="bg-white rounded-[20px] p-5 shadow-sm border border-[#ECEAF5] text-center space-y-3">
-                <div className="relative w-20 h-20 mx-auto">
-                  {isRecording && <div className="absolute inset-[-6px] rounded-full border-2 border-[#4F46E5] animate-ping opacity-50" />}
-                  {isTalking && <div className="absolute inset-[-3px] rounded-full border-[3px] border-[#4F46E5] animate-pulse opacity-20" />}
-                  <div className={`relative w-full h-full rounded-full overflow-hidden border-2 border-[#EEF2FF] transition-transform duration-500 ${isRecording ? 'scale-105' : 'scale-100'} bg-[#F3F4F6]`}>
-                    <MovingPortrait src={selectedInst.video} fallback={selectedInst.image} alt={selectedInst.name} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${isTalking ? 'bg-[#4F46E5] animate-pulse' : 'bg-[#10B981]'}`} />
-                    <span className="text-[#6B7280] text-[13px] font-bold">
-                      {isTalking ? '선생님이 말씀하시는 중...' : isRecording ? '듣고 있어요...' : 'AI 온라인 대화 중'}
-                    </span>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest text-center mb-2">선생님께 물어보세요</p>
+                    {selectedInst.guideQuestions.map((q: string, i: number) => (
+                      <button key={i} onClick={() => processConversation(q)} disabled={isTalking || isRecording}
+                        className="w-full bg-white border border-[#ECEAF5] text-[#374151] px-5 py-4 rounded-2xl text-[14px] font-bold text-left hover:border-[#4F46E5] hover:text-[#4F46E5] transition-all active:scale-[0.98] disabled:opacity-50">
+                        "{q}"
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="space-y-3 min-h-[140px]">
-                {chatHistory.slice(-2).map((c, i) => (
-                  <div key={i} className={`flex ${c.role === 'instructor' ? 'justify-start' : 'justify-end'} animate-fade-in`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[14px] font-medium leading-relaxed shadow-sm ${
-                      c.role === 'instructor' ? 'bg-white border border-[#ECEAF5] text-[#1C1B33]' : 'bg-[#4F46E5] text-white'
-                    }`}>
-                      {c.text}
-                    </div>
-                  </div>
-                ))}
-                {sttText && (
-                  <div className="flex justify-end animate-fade-in">
-                    <div className="max-w-[85%] rounded-2xl px-4 py-3 text-[14px] font-medium bg-[#F3F4F6] text-[#6B7280] border border-[#D1D5DB]">
-                      {sttText}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 mt-6">
-                <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest text-center mb-3">어떤 내용이 궁금하신가요?</p>
-                {selectedInst.guideQuestions.map((q: string, i: number) => (
-                  <button key={i} onClick={() => processConversation(q)} disabled={isTalking || isRecording}
-                    className="w-full bg-white border border-[#ECEAF5] text-[#374151] px-4 py-3.5 rounded-xl text-[13px] font-bold text-left hover:border-[#4F46E5] hover:text-[#4F46E5] transition-all active:scale-[0.98] disabled:opacity-50 shadow-sm">
-                    "{q}"
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* 하단 CTA 영역 */}
-      <div className="p-4 bg-white/95 backdrop-blur-md border-t border-[#ECEAF5] fixed bottom-0 left-0 w-full z-40">
-        <div className="max-w-[600px] mx-auto flex items-center gap-2.5">
-          
-          {/* 마이크 버튼 (채팅 탭에서만 활성화) */}
-          {activeTab === 'chat' && (
-            <button
-              onMouseDown={startRecording} onMouseUp={stopRecording}
-              onTouchStart={startRecording} onTouchEnd={stopRecording}
-              disabled={isTalking}
-              className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 shadow-sm ${
-                isRecording ? 'bg-[#EF4444] animate-pulse' : 'bg-white border border-[#ECEAF5] hover:border-[#4F46E5]'
-              }`}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isRecording ? 'white' : '#4F46E5'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {isRecording ? (
-                  <rect x="6" y="6" width="12" height="12" rx="2" fill="white" />
-                ) : (
-                  <>
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" />
-                  </>
-                )}
-              </svg>
-            </button>
-          )}
-
-          <button 
-            onClick={() => handleConfirm(selectedInst.id)} 
-            className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-xl h-12 font-bold text-[15px] transition-colors active:scale-[0.98] shadow-md shadow-[#4F46E5]/20 flex items-center justify-center gap-1.5"
-          >
-            샘플 수업 시작하기
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-          </button>
-        </div>
-      </div>
+      {/* 모바일 하단 CTA는 숨김 (데스크탑 레이아웃 우선) */}
     </div>
   )
 }
