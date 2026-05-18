@@ -65,8 +65,20 @@ const config: Config = {
         'float':     'float 3s ease-in-out infinite',
         'bounce-in': 'bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
         'slide-up':  'slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'logo-appear': 'logoAppear 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'fade-out':  'fadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
       },
       keyframes: {
+        logoAppear: {
+          '0%':   { opacity: '0', transform: 'scale(0)' },
+          '40%':  { opacity: '1', transform: 'scale(1)' },
+          '80%':  { opacity: '1', transform: 'scale(1)' },
+          '100%': { opacity: '0', transform: 'scale(1.02)' },
+        },
+        fadeOut: {
+          '0%':   { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
         fadeIn: {
           '0%':   { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },

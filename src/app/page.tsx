@@ -1,8 +1,18 @@
 'use client'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
+
+function SplashScreen() {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ybm-blue">
+      <div className="relative w-32 h-32 animate-logo-appear">
+        <img src="/logo.png" alt="YBM Logo" className="w-full h-full object-contain brightness-0 invert" />
+      </div>
+    </div>
+  )
+}
 
 function LoginSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter()
@@ -73,12 +83,22 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
 }
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
   const { savedProfiles } = useOnboardingStore()
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-ybm-bg px-6 text-center overflow-hidden">
-      <div className="relative space-y-12 animate-fade-in z-10">
+      {showSplash && <SplashScreen />}
+      
+      <div className={`relative space-y-12 z-10 ${showSplash ? 'opacity-0' : 'animate-fade-in'}`}>
         {/* 심플 로고 아이콘 */}
         <div className="relative w-40 h-40 mx-auto flex items-center justify-center bg-white rounded-[40px] border border-slate-200 shadow-xl animate-float">
           <img src="/favicon.png" alt="YBM Logo" className="w-24 h-24 object-contain" />
@@ -119,3 +139,4 @@ export default function Home() {
     </main>
   )
 }
+
