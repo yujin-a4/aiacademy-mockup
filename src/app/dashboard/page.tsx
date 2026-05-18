@@ -15,17 +15,17 @@ const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지'
 
 const NAV_ITEMS = [
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? '#1A3FD4' : 'none'} stroke={active ? '#1A3FD4' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? '#3459E6' : 'none'} stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   ), label: '홈', active: true },
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#1A3FD4' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
     </svg>
   ), label: '내 학습', active: false },
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#1A3FD4' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
     </svg>
   ), label: '현황', active: false },
@@ -37,7 +37,7 @@ function Sidebar({ open, setOpen, userName, targetScore, selectedInstructor }: {
   userName: string; targetScore: string; selectedInstructor: string | null
 }) {
   return (
-    <aside className={`hidden md:flex flex-col bg-primary h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[220px]' : 'w-[68px]'}`}>
+    <aside className={`hidden md:flex flex-col bg-[#111827] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[220px]' : 'w-[68px]'}`}>
       {/* 로고 + 토글 */}
       <div className="px-4 py-5 flex items-center justify-between min-h-[64px]">
         <div className="flex items-center gap-2.5">
@@ -87,7 +87,7 @@ function Sidebar({ open, setOpen, userName, targetScore, selectedInstructor }: {
       {/* 네비 */}
       <nav className="flex-1 px-2.5 space-y-0.5">
         {NAV_ITEMS.map((item) => (
-          <button key={item.label} className={`w-full flex items-center gap-3 rounded-xl text-sm transition-all ${open ? 'px-3 py-2.5' : 'py-2.5 justify-center'} ${item.active ? 'bg-white text-primary font-bold' : 'text-white/60 font-medium hover:bg-white/10 hover:text-white'}`}>
+          <button key={item.label} className={`w-full flex items-center gap-3 rounded-xl text-sm transition-all ${open ? 'px-3 py-2.5' : 'py-2.5 justify-center'} ${item.active ? 'bg-white text-[#3459E6] font-bold' : 'text-white/60 font-medium hover:bg-white/10 hover:text-white'}`}>
             <span className="shrink-0">{item.icon(item.active)}</span>
             {open && <span className="animate-fade-in">{item.label}</span>}
           </button>
@@ -111,7 +111,7 @@ function BottomNav() {
       {[...NAV_ITEMS, { icon: (_: boolean) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       ), label: '설정', active: false }].map((item) => (
-        <button key={item.label} className={`flex flex-col items-center gap-1 min-w-[56px] py-1 ${item.active ? 'text-primary' : 'text-[#6B7280]'}`}>
+        <button key={item.label} className={`flex flex-col items-center gap-1 min-w-[56px] py-1 ${item.active ? 'text-[#3459E6]' : 'text-[#6B7280]'}`}>
           {item.icon(item.active)}
           <span className="text-[10px] font-medium">{item.label}</span>
         </button>
@@ -157,21 +157,21 @@ export default function Dashboard() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* ── 모바일 헤더 (Primary Blue) ── */}
-        <header className="md:hidden px-4 pt-12 pb-4 bg-primary sticky top-0 z-20">
+        {/* ── 모바일 헤더 (흰색) ── */}
+        <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#F3F4F6] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/75 text-[13px] font-normal">안녕하세요</p>
-              <p className="text-white text-[22px] font-bold leading-snug">{userName || '학습자'}님 👋</p>
+              <p className="text-[#6B7280] text-[13px] font-normal">안녕하세요</p>
+              <p className="text-[#111318] text-[20px] font-bold leading-snug">{userName || '학습자'}님 👋</p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-                <span className="text-white text-xs font-semibold">12일 연속</span>
+              <div className="flex items-center gap-1.5 bg-[#F3F4F6] rounded-lg px-3 py-1.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+                <span className="text-[#10B981] text-xs font-semibold">12일 연속</span>
               </div>
-              <button className="relative w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
+              <button className="relative w-9 h-9 rounded-full bg-[#F3F4F6] flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#EF4444] rounded-full" />
               </button>
             </div>
           </div>
@@ -203,54 +203,53 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
           <div className="max-w-[390px] md:max-w-3xl mx-auto w-full space-y-3">
 
-            {/* Hero 카드 — Primary Blue */}
-            <div className="bg-primary rounded-2xl p-6 text-white">
-              <p className="text-white/75 text-[13px] font-normal">안녕하세요, {userName || '학습자'}님</p>
-              <h2 className="text-white text-[28px] font-black leading-[1.2] mt-1">
-                목표 {targetScore || '990'}점을 향한 여정이<br />
-                <span>65% 완료되었습니다.</span>
-              </h2>
-              <div className="mt-5">
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-white/75 font-normal">현재 예상 점수</span>
-                  <span className="text-white font-semibold">643점 / {targetScore || '990'}점</span>
+            {/* ★ 히어로 — 오늘의 학습 카드 */}
+            <div className="bg-white border border-[#D1D5DB] rounded-[14px] overflow-hidden">
+              {/* 상단 컬러 스트립 */}
+              <div className="h-1 bg-[#3459E6]" />
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-semibold bg-accent-light text-accent px-2 py-1 rounded-[4px] tracking-wide">AI 추천</span>
+                  <span className="text-[#6B7280] text-xs">{instName} 튜터 · 오늘 40분</span>
                 </div>
-                <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-white h-full rounded-full w-[65%]" />
-                </div>
+                <p className="text-[#6B7280] text-[13px] font-normal mb-1">진행 중인 커리큘럼</p>
+                <h2 className="text-[#111318] text-[22px] font-bold leading-snug">
+                  Part 5 집중 공략:<br />문법 공식 정복
+                </h2>
+                <p className="text-[#374151] text-[14px] leading-relaxed mt-2">
+                  {instName} 튜터가 기다리고 있습니다. 오늘의 주제: 복합 절에서의 동사 식별.
+                </p>
+                <Link
+                  href="/classroom"
+                  className="mt-5 flex items-center justify-center gap-1.5 w-full bg-[#3459E6] hover:bg-[#5578F0] text-white h-12 rounded-[10px] font-semibold text-[15px] transition-colors active:scale-[0.98]"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  1:1 세션 시작하기
+                </Link>
               </div>
             </div>
 
-            {/* 통계 카드 3개 */}
-            <div className="grid grid-cols-3 gap-2.5">
+            {/* 진행률 + 통계 — 보조 위젯 */}
+            <div className="grid grid-cols-4 gap-2.5">
+              {/* 진행률 */}
+              <div className="col-span-2 bg-white border border-[#D1D5DB] rounded-xl p-4">
+                <p className="text-[#6B7280] text-[11px] font-medium mb-1">목표 달성률</p>
+                <p className="text-[#111318] text-[20px] font-bold leading-none">65%</p>
+                <div className="mt-2.5 w-full bg-[#F3F4F6] h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-[#3459E6] h-full rounded-full w-[65%]" />
+                </div>
+                <p className="text-[#6B7280] text-[11px] mt-1.5">643 / {targetScore || '990'}점</p>
+              </div>
+              {/* 통계 2개 */}
               {[
-                { value: 'A+', label: '학습 효율' },
                 { value: '42.5h', label: '학습 시간' },
-                { value: 'Lv. 14', label: '어휘 마스터' },
+                { value: 'Lv.14', label: '어휘 레벨' },
               ].map((stat) => (
-                <div key={stat.label} className="bg-white border border-[#D1D5DB] rounded-xl p-4 flex flex-col items-center gap-1.5">
-                  <span className="text-primary font-bold text-[20px] leading-none">{stat.value}</span>
-                  <span className="text-[#6B7280] text-[11px] font-medium text-center">{stat.label}</span>
+                <div key={stat.label} className="bg-white border border-[#D1D5DB] rounded-xl p-4 flex flex-col justify-between">
+                  <span className="text-[#6B7280] text-[11px] font-medium">{stat.label}</span>
+                  <span className="text-[#3459E6] font-bold text-[18px] leading-none mt-1">{stat.value}</span>
                 </div>
               ))}
-            </div>
-
-            {/* 오늘의 학습 / 커리큘럼 카드 */}
-            <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-semibold bg-accent-light text-accent px-2 py-1 rounded-[4px] tracking-wide">AI 추천</span>
-                <span className="text-[#6B7280] text-xs font-normal">{instName} 튜터 · 오늘 40분</span>
-              </div>
-              <h3 className="text-[#111318] text-[17px] font-bold leading-snug">Part 5 집중 공략: 문법 공식 정복</h3>
-              <p className="text-[#374151] text-sm leading-relaxed mt-2">
-                {instName} 튜터가 기다리고 있습니다. 오늘의 주제: 복합 절에서의 동사 식별.
-              </p>
-              <Link
-                href="/classroom"
-                className="mt-4 flex items-center justify-center w-full bg-primary-500 hover:bg-primary-400 text-white h-11 rounded-[10px] font-semibold text-[15px] transition-colors active:scale-[0.98]"
-              >
-                이어서 학습하기 →
-              </Link>
             </div>
 
             {/* 현황 + 미션 */}
@@ -264,8 +263,8 @@ export default function Dashboard() {
                     <div key={d.date} className="flex flex-col items-center gap-1.5">
                       <span className="text-[10px] font-medium text-[#6B7280] uppercase">{d.day}</span>
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all
-                        ${d.status === 'complete' ? 'bg-primary text-white' :
-                          d.status === 'current' ? 'bg-primary-50 text-primary border border-[#1A3FD4]' :
+                        ${d.status === 'complete' ? 'bg-[#EEF2FF] text-[#3459E6]' :
+                          d.status === 'current' ? 'bg-[#3459E6] text-white' :
                           'bg-[#F3F4F6] text-[#6B7280]'}`}>
                         {d.date}
                       </div>
@@ -282,13 +281,13 @@ export default function Dashboard() {
               {/* 오늘의 미션 */}
               <div className="bg-white border border-[#D1D5DB] rounded-[14px] md:col-span-3 overflow-hidden">
                 {/* 진행률 바 */}
-                <div className="h-1.5 bg-[#F3F4F6]">
-                  <div className="bg-primary h-full transition-all duration-500" style={{ width: `${completedPct}%` }} />
+                <div className="h-1 bg-[#F3F4F6]">
+                  <div className="bg-[#3459E6] h-full transition-all duration-500" style={{ width: `${completedPct}%` }} />
                 </div>
                 <div className="p-5 space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-[#111318] font-bold text-[17px]">오늘의 미션</h3>
-                    <span className="text-primary font-semibold text-[11px] bg-primary-50 px-2.5 py-1 rounded-full">
+                    <span className="text-[#3459E6] font-semibold text-[11px] bg-[#EEF2FF] px-2.5 py-1 rounded-full">
                       {completedPct}% 완료
                     </span>
                   </div>
@@ -297,7 +296,7 @@ export default function Dashboard() {
                       <div
                         key={m.id}
                         onClick={() => toggleMission(m.id)}
-                        className="cursor-pointer flex items-center gap-3 p-3.5 rounded-xl border border-[#D1D5DB] hover:border-[#8AA4F6] transition-colors active:scale-[0.98]"
+                        className="cursor-pointer flex items-center gap-3 p-3.5 rounded-xl border border-[#D1D5DB] hover:border-[#3459E6]/30 transition-colors active:scale-[0.98]"
                       >
                         {/* 체크박스 */}
                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all
