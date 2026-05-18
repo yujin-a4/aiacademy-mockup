@@ -67,8 +67,19 @@ const config: Config = {
         'slide-up':  'slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'logo-appear': 'logoAppear 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'fade-out':  'fadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'svg-draw': 'svgDraw 3s ease-in-out forwards',
+        'fill-in': 'fillIn 0.8s ease-in-out forwards 2s',
       },
       keyframes: {
+        svgDraw: {
+          '0%': { 'stroke-dashoffset': '1000', opacity: '0' },
+          '10%': { opacity: '1' },
+          '100%': { 'stroke-dashoffset': '0', opacity: '1' },
+        },
+        fillIn: {
+          '0%': { 'fill-opacity': '0' },
+          '100%': { 'fill-opacity': '1' },
+        },
         logoAppear: {
           '0%':   { opacity: '0', transform: 'scale(0)' },
           '40%':  { opacity: '1', transform: 'scale(1)' },
