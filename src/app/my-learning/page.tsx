@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useBookmarkStore } from '@/store/bookmarkStore'
 import { useVocaStore } from '@/store/vocaStore'
+import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
 import { useState, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
@@ -17,23 +18,11 @@ const PARTS = [
   { id: 'P7', name: '장문 독해',  type: 'RC', accuracy: 48, desc: '단일 지문과 복수 지문 읽기 이해력 훈련', status: 'normal' },
 ]
 
-const WRONG_ITEMS = [
-  { date: ['오늘', '과외'], q: 'The report ___ by the team yesterday.', icon: 'RC', tags: [{ label: 'Part 5', color: 'blue' }, { label: '수동태', color: 'red' }] },
-  { date: ['오늘', '과외'], q: 'These findings ___ that further review is required.', icon: 'RC', tags: [{ label: 'Part 5', color: 'blue' }, { label: '수동태', color: 'red' }] },
-  { date: ['오늘', '과외'], q: 'What does the man suggest the woman do?', icon: 'LC', tags: [{ label: 'Part 3', color: 'blue' }, { label: '의도 파악', color: 'amber' }] },
-  { date: ['5/17', '과외'], q: 'The manager asked that all employees ___ on time.', icon: 'RC', tags: [{ label: 'Part 5', color: 'blue' }, { label: '시제 일치', color: 'amber' }] },
-]
-
 const VOCA_BOOKS_STATIC = [
   { name: '비즈니스 핵심 어휘', total: 350, done: 212, color: '#4F46E5', bg: '#EEF2FF', tc: '#4F46E5', recommended: true,  href: null },
   { name: 'TOEIC 빈출 1000',   total: 1000, done: 312, color: '#06B6D4', bg: '#ECFEFF', tc: '#0891B2', recommended: false, href: null },
 ]
 
-const TAG_STYLE: Record<string, string> = {
-  blue:  'bg-[#EEF2FF] text-[#4F46E5]',
-  red:   'bg-[#FEF2F2] text-[#DC2626]',
-  amber: 'bg-[#FEF9C3] text-[#B45309]',
-}
 
 /* ── 원형 진행 SVG ── */
 function Ring({ current, total }: { current: number; total: number }) {
@@ -179,6 +168,7 @@ function MyLearningInner() {
   const { userName, targetScore, examDate } = useOnboardingStore()
   const { bookmarkedIds } = useBookmarkStore()
   const { initTodayWords } = useVocaStore()
+  const { wrongAnswers } = useWrongAnswerStore()
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<'part' | 'wrong' | 'voca'>(
     (searchParams.get('tab') as 'part' | 'wrong' | 'voca') || 'part'
@@ -242,13 +232,14 @@ function MyLearningInner() {
           <div className="max-w-[680px] mx-auto w-full">
 
             {/* AI 넛지 배너 */}
+            {wrongAnswers.length > 0 && (
             <div className="bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#ECEAF5] rounded-r-xl rounded-l-none flex items-center gap-3 px-4 py-3 mb-5 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
               <div className="flex-1 min-w-0">
-                <p className="text-[#1C1B33] text-[13px] font-semibold">오늘 과외에서 틀린 문제가 3개 있어요</p>
-                <p className="text-[#6B7280] text-[12px] mt-0.5">Part 5 수동태 2개 · Part 3 의도 파악 1개 — AI가 정리해뒀어요</p>
+                <p className="text-[#1C1B33] text-[13px] font-semibold">틀린 문제가 {wrongAnswers.length}개 쌓여있어요</p>
+                <p className="text-[#6B7280] text-[12px] mt-0.5">AI 강사가 스캐폴딩 힌트를 준비해뒀어요</p>
               </div>
               <button
                 onClick={() => setTab('wrong')}
@@ -257,6 +248,7 @@ function MyLearningInner() {
                 오답노트 보기
               </button>
             </div>
+            )}
 
             {/* 탭 */}
             <div className="flex border-b border-[#ECEAF5] mb-5">
@@ -336,44 +328,75 @@ function MyLearningInner() {
             {/* ── AI 오답노트 ── */}
             {tab === 'wrong' && (
               <div className="animate-fade-in space-y-3">
-                {/* AI 분석 배너 */}
-                <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4 flex items-start gap-3">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                  </svg>
-                  <div>
-                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">AI 오답 패턴 분석</p>
-                    <p className="text-white font-semibold text-[13px] leading-snug">수동태 문제가 최근 3회 연속 틀렸어요.</p>
-                    <p className="text-white/70 text-[12px] mt-0.5">이 유형만 집중하면 예상 점수 +15점 가능합니다.</p>
+                {wrongAnswers.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                    </div>
+                    <p className="text-[#6B7280] text-[14px] font-medium">아직 오답이 없어요</p>
+                    <p className="text-[#9CA3AF] text-[12px] mt-1">파트별 연습을 풀면 틀린 문제가 자동으로 모입니다</p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* AI 패턴 분석 배너 */}
+                    {(() => {
+                      const categoryCounts: Record<string, number> = {}
+                      wrongAnswers.forEach(w => { if (w.category) categoryCounts[w.category] = (categoryCounts[w.category] ?? 0) + 1 })
+                      const topCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]
+                      return topCategory ? (
+                        <div className="bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4 flex items-start gap-3">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                          </svg>
+                          <div>
+                            <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">AI 오답 패턴 분석</p>
+                            <p className="text-white font-semibold text-[13px] leading-snug">
+                              <span className="font-black">{topCategory[0]}</span> 유형에서 {topCategory[1]}회 틀렸어요.
+                            </p>
+                            <p className="text-white/70 text-[12px] mt-0.5">이 유형을 집중 연습하면 점수 향상에 효과적입니다.</p>
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
 
-                {/* 오답 리스트 */}
-                {WRONG_ITEMS.map((item, i) => (
-                  <div key={i} className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer hover:border-[#C7D2FE] transition-all">
-                    <div className="text-center shrink-0 w-8">
-                      {item.date.map((d, j) => (
-                        <p key={j} className="text-[10px] text-[#9CA3AF] leading-snug">{d}</p>
-                      ))}
-                    </div>
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${item.icon === 'RC' ? 'bg-[#EEF2FF]' : 'bg-[#ECFEFF]'}`}>
-                      {item.icon === 'RC' ? (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2" strokeLinecap="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[#1C1B33] text-[13px] font-medium truncate mb-1.5">{item.q}</p>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {item.tags.map((tag) => (
-                          <span key={tag.label} className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${TAG_STYLE[tag.color]}`}>{tag.label}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
-                  </div>
-                ))}
+                    {/* 오답 리스트 */}
+                    {wrongAnswers.map((item) => {
+                      const d = new Date(item.timestamp)
+                      const today = new Date()
+                      const isToday = d.toDateString() === today.toDateString()
+                      const dateLabel = isToday ? '오늘' : `${d.getMonth() + 1}/${d.getDate()}`
+                      return (
+                        <Link
+                          key={item.id}
+                          href={`/my-learning/wrong/${item.id}`}
+                          className="bg-white border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] rounded-2xl px-4 py-3 flex items-center gap-3 hover:border-[#C7D2FE] transition-all"
+                        >
+                          <div className="text-center shrink-0 w-8">
+                            <p className="text-[10px] text-[#9CA3AF] leading-snug">{dateLabel}</p>
+                            <p className="text-[10px] text-[#9CA3AF] leading-snug">{item.partLabel}</p>
+                          </div>
+                          <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[#1C1B33] text-[13px] font-medium truncate mb-1.5">{item.questionText}</p>
+                            <div className="flex gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#EEF2FF] text-[#4F46E5]">{item.partLabel}</span>
+                              {item.category && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#FEF2F2] text-[#DC2626]">{item.category}</span>
+                              )}
+                            </div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+                        </Link>
+                      )
+                    })}
+                  </>
+                )}
               </div>
             )}
 
