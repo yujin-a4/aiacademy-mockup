@@ -9,43 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ── 디자인 시스템 v2 Primary ───────────────────────────────────
-        primary: {
-          DEFAULT: '#1A3FD4',
-          50:      '#EEF2FF',
-          100:     '#D6E0FD',
-          300:     '#8AA4F6',
-          400:     '#5578F0',
-          500:     '#3459E6',
-        },
-        // ── Accent (AI 기능 강조) ──────────────────────────────────────
-        accent: {
-          DEFAULT: '#06B6D4',
-          light:   '#CFFAFE',
-        },
-        // ── Semantic ──────────────────────────────────────────────────
-        success: '#10B981',
-        error:   '#EF4444',
-        warning: '#F59E0B',
-        // ── 레거시 (classroom 등 기존 화면용) ──────────────────────────
-        "ybm-blue":        "#1A3FD4",
-        "ybm-blue-mid":    "#5578F0",
-        "ybm-blue-light":  "#EEF2FF",
-        "ybm-bg":          "#F3F4F6",
-        "ybm-card":        "#FFFFFF",
-        "ybm-text":        "#111318",
-        "ybm-text-sub":    "#6B7280",
-        "ybm-border":      "#D1D5DB",
+        // ── 온보딩 화면 전용 토큰 (개발자 B) ──────────────────────────
+        'dark-navy':       '#0D1B4B',
+        'navy-mid':        '#1B3EAF',
+        'waong-lavender':  '#8B8FC8',
+        'lavender-light':  '#C4C6E8',
+        'off-white':       '#F7F8FC',
+        'light-gray':      '#EAECF4',
+        'mid-gray':        '#9499B7',
+        'charcoal':        '#2C2F4A',
+        'success':         '#1DB97A',
+        'error-red':       '#E8193C',
+        // ── 공통 YBM AI 어학원 블루 디자인 토큰 (개발자 A 기준) ────────
+        "ybm-blue":        "#2277F0", // 주요 강조색 (제목, 아이콘)
+        "ybm-blue-mid":    "#5BA8F5", // 아이콘 내부, 버튼
+        "ybm-blue-light":  "#D6EAFF", // 아이콘 배경, 뱃지
+        "ybm-bg":          "#F0F5FF", // 전체 페이지 배경
+        "ybm-card":        "#FFFFFF", // 카드 배경
+        "ybm-text":        "#1A2B4B", // 본문 텍스트
+        "ybm-text-sub":    "#6B7A99", // 서브 텍스트
+        "ybm-border":      "#E2EAF4", // 카드 테두리
         // ── 수업 화면(classroom) 전용 토큰 ─────────────────────────────
         "cr-nav":          "#12203A",
         "cr-panel":        "#EAF2FF",
-        "cr-accent":       "#1A3FD4",
-        "cr-accent-light": "#EEF2FF",
+        "cr-accent":       "#2277F0",
+        "cr-accent-light": "#D6EAFF",
       },
       fontFamily: {
-        sans:    ['Noto Sans KR', 'sans-serif'],
+        sans:    ['Pretendard', 'Inter', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
-        display: ['Noto Sans KR', 'sans-serif'],
+        display: ['Barlow Condensed', 'sans-serif'],
       },
       borderRadius: {
         'sharp':   '6px',
@@ -64,32 +57,8 @@ const config: Config = {
         'fade-in':   'fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'float':     'float 3s ease-in-out infinite',
         'bounce-in': 'bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-        'slide-up':  'slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-        'logo-appear': 'logoAppear 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-        'fade-out':  'fadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
-        'svg-draw': 'svgDraw 3s ease-in-out forwards',
-        'fill-in': 'fillIn 0.8s ease-in-out forwards 2s',
       },
       keyframes: {
-        svgDraw: {
-          '0%': { 'stroke-dashoffset': '1000', opacity: '0' },
-          '10%': { opacity: '1' },
-          '100%': { 'stroke-dashoffset': '0', opacity: '1' },
-        },
-        fillIn: {
-          '0%': { 'fill-opacity': '0' },
-          '100%': { 'fill-opacity': '1' },
-        },
-        logoAppear: {
-          '0%':   { opacity: '0', transform: 'scale(0)' },
-          '40%':  { opacity: '1', transform: 'scale(1)' },
-          '80%':  { opacity: '1', transform: 'scale(1)' },
-          '100%': { opacity: '0', transform: 'scale(1.02)' },
-        },
-        fadeOut: {
-          '0%':   { opacity: '1' },
-          '100%': { opacity: '0' },
-        },
         fadeIn: {
           '0%':   { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -101,10 +70,6 @@ const config: Config = {
         bounceIn: {
           '0%':   { transform: 'scale(0.3)', opacity: '0' },
           '100%': { transform: 'scale(1)',   opacity: '1' },
-        },
-        slideUp: {
-          '0%':   { transform: 'translateY(100%)' },
-          '100%': { transform: 'translateY(0)' },
         },
       },
     },

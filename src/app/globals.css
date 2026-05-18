@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,53 +10,34 @@
 }
 
 :root {
-  /* ── YBM AI 디자인 시스템 v2 ─────────────────────────── */
-  /* Primary */
-  --color-primary:     #1A3FD4;
-  --color-primary-500: #3459E6;
-  --color-primary-400: #5578F0;
-  --color-primary-300: #8AA4F6;
-  --color-primary-100: #D6E0FD;
-  --color-primary-50:  #EEF2FF;
+  /* 기존 다크 네이비 계열 (홈화면 등 공유) */
+  --dark-navy: #0D1B4B;
+  --navy-mid: #1B3EAF;
+  --waong-lavender: #8B8FC8;
+  --lavender-light: #C4C6E8;
+  --off-white: #F7F8FC;
+  --light-gray: #EAECF4;
+  --mid-gray: #9499B7;
+  --charcoal: #2C2F4A;
+  --success: #1DB97A;
+  --error: #E8193C;
 
-  /* Accent (AI) */
-  --color-accent:       #06B6D4;
-  --color-accent-light: #CFFAFE;
-
-  /* Neutral */
-  --color-gray-900: #111318;
-  --color-gray-700: #374151;
-  --color-gray-500: #6B7280;
-  --color-gray-300: #D1D5DB;
-  --color-gray-100: #F3F4F6;
-  --color-white:    #FFFFFF;
-
-  /* Semantic */
-  --color-success: #10B981;
-  --color-error:   #EF4444;
-  --color-warning: #F59E0B;
-
-  /* Typography */
-  --font-base: 'Noto Sans KR', sans-serif;
-
-  /* ── 레거시 토큰 (classroom 등 기존 화면용) ─────────── */
-  --ybm-blue:      #1A3FD4;
-  --ybm-blue-mid:  #5578F0;
-  --ybm-blue-light:#EEF2FF;
-  --ybm-bg:        #F3F4F6;
-  --ybm-card:      #FFFFFF;
-  --ybm-text:      #111318;
-  --ybm-text-sub:  #6B7280;
-  --ybm-border:    #D1D5DB;
+  /* YBM AI 어학원 디자인 토큰 (브랜드 블루 포인트 적용) */
+  --ybm-blue: #2277F0;
+  --ybm-blue-mid: #5BA8F5;
+  --ybm-blue-light: #F1F5F9;
+  --ybm-bg: #F8FAFC;
+  --ybm-card: #FFFFFF;
+  --ybm-text: #0F172A;
+  --ybm-text-sub: #64748B;
+  --ybm-border: #E2E8F0;
 }
 
 body {
-  background-color: var(--color-gray-100);
-  color: var(--color-gray-900);
-  font-family: 'Noto Sans KR', sans-serif;
+  background-color: var(--ybm-bg);
+  color: var(--ybm-text);
+  font-family: 'Pretendard', 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 /* 홈화면 전용 다크 배경 */
@@ -128,43 +107,3 @@ body {
   background: #E2E8F0;
 }
 
-/* 3D Flip Card Utilities */
-.perspective-1000 {
-  perspective: 1000px;
-}
-.preserve-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-/* Logo Scale Animation Only */
-@keyframes logo-scale-in {
-  0% {
-    transform: scale(0.8);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-logo-scale-in {
-  animation: logo-scale-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* Logo Shine/Glow Effect */
-@keyframes logo-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
-  }
-  50% {
-    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
-  }
-}
-
-.animate-logo-glow {
-  animation: logo-glow 3s ease-in-out infinite;
-}
