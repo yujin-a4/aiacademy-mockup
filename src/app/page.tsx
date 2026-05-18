@@ -6,9 +6,22 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 
 function SplashScreen() {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ybm-blue">
-      <div className="relative w-32 h-32 animate-logo-appear">
-        <img src="/logo.png" alt="YBM Logo" className="w-full h-full object-contain brightness-0 invert" />
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-ybm-blue overflow-hidden">
+      {/* 배경 은은한 빛 효과 */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/5 rounded-full blur-[100px] pointer-events-none" />
+      
+      <div className="relative w-32 h-10 md:w-40 md:h-12 flex items-center justify-center">
+        {/* 닦아내기 + 확대 애니메이션이 적용된 로고 */}
+        <div className="animate-logo-wipe-scale">
+          <img 
+            src="/logo.svg" 
+            alt="YBM Logo" 
+            className="w-full h-full object-contain brightness-0 invert" 
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/logo.png'
+            }}
+          />
+        </div>
       </div>
     </div>
   )

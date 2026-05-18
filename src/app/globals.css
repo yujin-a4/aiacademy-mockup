@@ -139,6 +139,34 @@ body {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-.rotate-y-180 {
-  transform: rotateY(180deg);
+/* Logo Wipe + Scale Animation */
+@keyframes logo-wipe-scale {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-logo-wipe-scale {
+  animation: logo-wipe-scale 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Logo Shine/Glow Effect */
+@keyframes logo-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
+  }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 3s ease-in-out infinite;
 }
