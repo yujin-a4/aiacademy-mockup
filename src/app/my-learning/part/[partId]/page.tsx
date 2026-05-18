@@ -140,7 +140,7 @@ export default function PartPracticePage() {
     return (
       <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-10">
         <header className="px-6 py-4 flex items-center justify-between shrink-0">
-          <button onClick={() => router.push('/my-learning')} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
+          <button onClick={() => router.push('/my-learning?tab=part')} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
           <div className="font-bold text-[#1C1B33] text-[15px]">{partInfo.label} · {partInfo.name} · 결과</div>
           <div className="w-8" />
         </header>
@@ -169,7 +169,7 @@ export default function PartPracticePage() {
               <button onClick={handleRestart} className="flex-1 border-2 border-[#4F46E5] text-[#4F46E5] py-3 rounded-2xl font-bold text-[14px] hover:bg-[#EEF2FF] transition-colors">
                 다시 풀기
               </button>
-              <button onClick={() => router.push('/my-learning')} className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-2xl font-bold text-[14px] transition-colors shadow-lg shadow-[#4F46E5]/20">
+              <button onClick={() => router.push('/my-learning?tab=part')} className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-2xl font-bold text-[14px] transition-colors shadow-lg shadow-[#4F46E5]/20">
                 돌아가기
               </button>
             </div>
@@ -256,7 +256,7 @@ export default function PartPracticePage() {
       <ExitConfirmModal
         isOpen={showExitModal}
         onContinue={() => setShowExitModal(false)}
-        onExit={() => router.push('/my-learning')}
+        onExit={() => router.push('/my-learning?tab=part')}
       />
 
       <header className="px-6 py-4 flex items-center justify-between shrink-0 bg-[#F8FAFF]">

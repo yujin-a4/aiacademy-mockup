@@ -62,7 +62,7 @@ export default function QuizPage() {
       <ExitConfirmModal
         isOpen={showExitModal}
         onContinue={() => setShowExitModal(false)}
-        onExit={() => router.push('/my-learning')}
+        onExit={() => router.push('/my-learning?tab=voca')}
       />
       <header className="px-6 py-4 flex items-center justify-between">
         <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">
