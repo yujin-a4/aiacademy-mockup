@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { P5_QUESTIONS, P6_PASSAGES, P7_PASSAGES } from '@/data/rcData'
 import type { RCChoices } from '@/data/rcData'
 import ExitConfirmModal from '@/components/ExitConfirmModal'
+import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
 
 const PART_INFO: Record<string, { name: string; label: string }> = {
   p5: { name: '단문 공란', label: 'Part 5' },
@@ -75,6 +76,8 @@ export default function PartPracticePage() {
   const partId = ((params?.partId as string) || '').toLowerCase()
   const router = useRouter()
 
+  const { addWrongAnswer } = useWrongAnswerStore()
+
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const [evaluated, setEvaluated] = useState(false)
@@ -119,8 +122,32 @@ export default function PartPracticePage() {
   const handleSelect = (idx: number) => { if (!evaluated) setSelected(idx) }
   const handleSubmit = () => {
     if (selected === null) return
-    setResults(prev => [...prev, selected === current.answer])
+    const isCorrect = selected === current.answer
+    setResults(prev => [...prev, isCorrect])
     setEvaluated(true)
+
+    if (!isCorrect) {
+      const questionText =
+        current.sentence
+          ? current.sentence
+          : current.question
+            ? current.question
+            : `빈칸 (${current.blankNum}) 에 들어갈 알맞은 것은?`
+
+      addWrongAnswer({
+        partId,
+        partLabel: PART_INFO[partId]?.label ?? partId.toUpperCase(),
+        questionText,
+        choices: Array.from(current.choices),
+        chosenAnswer: selected,
+        correctAnswer: current.answer,
+        category: current.category,
+        explanation: current.explanation,
+        passageTitle:
+          partId === 'p6' ? P6_PASSAGES[0].title :
+          partId === 'p7' ? P7_PASSAGES[0].title : undefined,
+      })
+    }
   }
   const handleNext = () => { setSelected(null); setEvaluated(false); setCurrentIndex(p => p + 1) }
   const handleRestart = () => { setCurrentIndex(0); setSelected(null); setEvaluated(false); setResults([]) }
