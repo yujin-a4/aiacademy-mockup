@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: 📅
+          - generic [ref=e48]:
+            - heading "시험 예정일을 알려 주세요." [level=2] [ref=e49]:
+              - text: 시험 예정일을
+              - text: 알려 주세요.
+            - paragraph [ref=e50]: 오늘 기준 3개월 뒤 시험일이 선택되어 있어요.
+        - button "시험일 2026년 8월 23일 (일)" [ref=e51] [cursor=pointer]:
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: 시험일
+            - paragraph [ref=e54]: 2026년 8월 23일 (일)
+          - img [ref=e55]
+      - generic [ref=e57]:
+        - button "다음" [ref=e58] [cursor=pointer]
+        - button "이전" [ref=e59] [cursor=pointer]
+  - alert [ref=e14]

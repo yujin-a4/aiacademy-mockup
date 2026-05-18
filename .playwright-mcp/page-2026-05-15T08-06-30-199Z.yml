@@ -1,0 +1,11 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]: 👋
+        - generic [ref=e8]: 안녕하세요! YBM AI 코스에 오신 것을 환영합니다.
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: 먼저 이름을 알려주세요
+        - textbox "이름 입력" [active] [ref=e12]
+        - button "확인" [disabled] [ref=e13]
+  - alert [ref=e14]

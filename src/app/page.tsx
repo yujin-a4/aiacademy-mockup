@@ -81,9 +81,7 @@ export default function Home() {
       <div className="relative space-y-12 animate-fade-in z-10">
         {/* 심플 로고 아이콘 */}
         <div className="relative w-40 h-40 mx-auto flex items-center justify-center bg-white rounded-[40px] border border-slate-200 shadow-xl animate-float">
-          <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center shadow-inner">
-            <span className="text-slate-800 font-black text-2xl tracking-tighter">YBM</span>
-          </div>
+          <img src="/favicon.png" alt="YBM Logo" className="w-24 h-24 object-contain" />
         </div>
 
         {/* 타이틀 및 설명 */}

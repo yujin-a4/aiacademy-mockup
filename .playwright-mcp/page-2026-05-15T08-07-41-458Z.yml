@@ -1,0 +1,68 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: 📅
+          - generic [ref=e48]:
+            - heading "시험 예정일을 알려 주세요." [level=2] [ref=e49]:
+              - text: 시험 예정일을
+              - text: 알려 주세요.
+            - paragraph [ref=e50]: 오늘 기준 3개월 뒤 시험일이 선택되어 있어요.
+        - button "시험일 2026년 8월 23일 (일)" [active] [ref=e51] [cursor=pointer]:
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: 시험일
+            - paragraph [ref=e54]: 2026년 8월 23일 (일)
+          - img [ref=e55]
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - button [ref=e62] [cursor=pointer]:
+              - img [ref=e63]
+            - generic [ref=e65]: 2026년 8월
+            - button [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+          - generic [ref=e69]:
+            - generic [ref=e70]: 일
+            - generic [ref=e71]: 월
+            - generic [ref=e72]: 화
+            - generic [ref=e73]: 수
+            - generic [ref=e74]: 목
+            - generic [ref=e75]: 금
+            - generic [ref=e76]: 토
+          - generic [ref=e77]:
+            - button "1" [disabled] [ref=e85]
+            - button "2" [disabled] [ref=e87]
+            - button "3" [disabled] [ref=e89]
+            - button "4" [disabled] [ref=e91]
+            - button "5" [disabled] [ref=e93]
+            - button "6" [disabled] [ref=e95]
+            - button "7" [disabled] [ref=e97]
+            - button "8" [disabled] [ref=e99]
+            - button "9" [ref=e101] [cursor=pointer]
+            - button "10" [disabled] [ref=e103]
+            - button "11" [disabled] [ref=e105]
+            - button "12" [disabled] [ref=e107]
+            - button "13" [disabled] [ref=e109]
+            - button "14" [disabled] [ref=e111]
+            - button "15" [disabled] [ref=e113]
+            - button "16" [disabled] [ref=e115]
+            - button "17" [disabled] [ref=e117]
+            - button "18" [disabled] [ref=e119]
+            - button "19" [disabled] [ref=e121]
+            - button "20" [disabled] [ref=e123]
+            - button "21" [disabled] [ref=e125]
+            - button "22" [disabled] [ref=e127]
+            - button "23" [ref=e129] [cursor=pointer]
+            - button "24" [disabled] [ref=e131]
+            - button "25" [disabled] [ref=e133]
+            - button "26" [disabled] [ref=e135]
+            - button "27" [disabled] [ref=e137]
+            - button "28" [disabled] [ref=e139]
+            - button "29" [disabled] [ref=e141]
+            - button "30" [disabled] [ref=e143]
+            - button "31" [disabled] [ref=e145]
+          - paragraph [ref=e146]: 파란색 날짜만 정기 토익 시험일로 선택 가능해요
+      - generic [ref=e57]:
+        - button "다음" [ref=e58] [cursor=pointer]
+        - button "이전" [ref=e59] [cursor=pointer]
+  - alert [ref=e14]
