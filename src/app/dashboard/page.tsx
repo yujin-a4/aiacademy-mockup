@@ -15,17 +15,17 @@ const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지'
 
 const NAV_ITEMS = [
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? '#3459E6' : 'none'} stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={active ? '#3459E6' : 'none'} stroke={active ? '#3459E6' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
   ), label: '홈', active: true },
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
     </svg>
   ), label: '내 학습', active: false },
   { icon: (active: boolean) => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : '#6B7280'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#3459E6' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
     </svg>
   ), label: '현황', active: false },
@@ -38,28 +38,31 @@ function Sidebar({ open, setOpen, userName, targetScore, selectedInstructor }: {
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#111827] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[220px]' : 'w-[48px]'}`}>
+
       {/* 로고 + 토글 */}
-      <div className="px-4 py-5 flex items-center justify-between min-h-[64px]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0">
-            <span className="text-primary font-black text-[10px] tracking-tighter">YBM</span>
+      <div className={`flex items-center min-h-[56px] ${open ? 'px-4 justify-between' : 'justify-center'}`}>
+        {open && (
+          <div className="flex items-center gap-2 animate-fade-in">
+            <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shrink-0">
+              <span className="text-primary font-black text-[9px] tracking-tighter">YBM</span>
+            </div>
+            <p className="text-white font-bold text-sm tracking-tight">AI Course</p>
           </div>
-          {open && <p className="text-white font-bold text-sm tracking-tight animate-fade-in">AI Course</p>}
-        </div>
+        )}
         <button
           onClick={() => setOpen(!open)}
-          className={`w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all ${!open ? 'absolute left-1/2 -translate-x-1/2' : ''}`}
+          className="w-6 h-6 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all shrink-0"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className={`transition-transform duration-300 ${!open ? 'rotate-180' : ''}`}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className={`transition-transform duration-300 ${!open ? 'rotate-180' : ''}`}>
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
       </div>
 
       {/* 프로필 */}
-      <div className={`px-4 py-3 ${open ? '' : 'flex flex-col items-center'}`}>
-        <div className={`flex items-center gap-3 ${open ? '' : 'flex-col'}`}>
-          <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-white font-bold text-base shrink-0">
+      <div className={`py-3 ${open ? 'px-4' : 'flex flex-col items-center px-0'}`}>
+        <div className={`flex items-center ${open ? 'gap-3' : 'justify-center'}`}>
+          <div className={`rounded-lg bg-white/15 border border-white/20 flex items-center justify-center text-white font-bold shrink-0 ${open ? 'w-8 h-8 text-sm' : 'w-7 h-7 text-xs'}`}>
             {userName ? userName.slice(0, 1) : 'U'}
           </div>
           {open && (
@@ -82,21 +85,21 @@ function Sidebar({ open, setOpen, userName, targetScore, selectedInstructor }: {
         )}
       </div>
 
-      <div className="px-4 my-2"><div className="h-px bg-white/10" /></div>
+      <div className={`my-1 ${open ? 'px-4' : 'px-2'}`}><div className="h-px bg-white/10" /></div>
 
       {/* 네비 */}
-      <nav className="flex-1 px-2.5 space-y-0.5">
+      <nav className={`flex-1 space-y-0.5 ${open ? 'px-2' : 'px-1'}`}>
         {NAV_ITEMS.map((item) => (
-          <button key={item.label} className={`w-full flex items-center gap-3 rounded-xl text-sm transition-all ${open ? 'px-3 py-2.5' : 'py-2.5 justify-center'} ${item.active ? 'bg-white text-[#3459E6] font-bold' : 'text-white/60 font-medium hover:bg-white/10 hover:text-white'}`}>
+          <button key={item.label} className={`w-full flex items-center rounded-lg text-sm transition-all ${open ? 'gap-3 px-3 py-2' : 'justify-center py-2'} ${item.active ? 'bg-white text-[#3459E6] font-bold' : 'text-white/60 font-medium hover:bg-white/10 hover:text-white'}`}>
             <span className="shrink-0">{item.icon(item.active)}</span>
             {open && <span className="animate-fade-in">{item.label}</span>}
           </button>
         ))}
       </nav>
 
-      <div className="px-2.5 pb-6">
-        <button className={`w-full flex items-center gap-3 rounded-xl text-white/40 text-sm font-medium hover:bg-white/10 hover:text-white transition-all ${open ? 'px-3 py-2.5' : 'py-2.5 justify-center'}`}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <div className={`pb-5 ${open ? 'px-2' : 'px-1'}`}>
+        <button className={`w-full flex items-center rounded-lg text-white/40 text-sm font-medium hover:bg-white/10 hover:text-white transition-all ${open ? 'gap-3 px-3 py-2' : 'justify-center py-2'}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           {open && <span className="animate-fade-in">설정</span>}
         </button>
       </div>
