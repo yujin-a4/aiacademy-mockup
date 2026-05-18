@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo } from 'react'
 
@@ -185,6 +186,7 @@ export default function MyLearning() {
     return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : `D+${Math.abs(diff)}`
   }, [examDate])
 
+  const router = useRouter()
   const filteredParts = filter === '전체' ? PARTS : PARTS.filter((p) => p.type === filter)
 
   return (
@@ -308,7 +310,10 @@ export default function MyLearning() {
                       </div>
                       <p className="text-[#374151] text-[12px] leading-relaxed mb-3 line-clamp-2">{p.desc}</p>
                       <div className="flex items-center justify-between">
-                        <button className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]'}`}>
+                        <button
+                          onClick={() => p.type === 'RC' && router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
+                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : p.type === 'RC' ? 'bg-[#EEF2FF] text-[#4F46E5] hover:bg-[#E0E7FF]' : 'bg-[#EEF2FF] text-[#9CA3AF] cursor-not-allowed'}`}
+                        >
                           {p.status === 'recommended' ? 'AI 맞춤 문제' : '문제 풀기'}
                         </button>
                         <span className={`text-[11px] font-semibold ${p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#9CA3AF]' : 'text-[#DC2626]'}`}>

@@ -2,11 +2,13 @@
 import { useVocaStore } from '@/store/vocaStore'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import ExitConfirmModal from '@/components/ExitConfirmModal'
 
 export default function FlashcardPage() {
   const { todayWords, currentIndex, setFlashcardResult, initTodayWords } = useVocaStore()
   const router = useRouter()
   const [isFlipped, setIsFlipped] = useState(false)
+  const [showExitModal, setShowExitModal] = useState(false)
 
   useEffect(() => {
     if (todayWords.length === 0) {
@@ -36,8 +38,13 @@ export default function FlashcardPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans">
+      <ExitConfirmModal
+        isOpen={showExitModal}
+        onContinue={() => setShowExitModal(false)}
+        onExit={() => router.push('/my-learning')}
+      />
       <header className="px-6 py-4 flex items-center justify-between">
-        <button onClick={() => router.push('/my-learning')} className="p-2 -ml-2 text-[#6B7280]">
+        <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div className="font-bold text-[#1C1B33] text-[15px]">플래시카드 학습</div>
