@@ -3,11 +3,13 @@ import { useVocaStore } from '@/store/vocaStore'
 import { VOCA_DATA } from '@/data/vocaData'
 import { useRouter } from 'next/navigation'
 import { useState, useMemo, useEffect } from 'react'
+import ExitConfirmModal from '@/components/ExitConfirmModal'
 
 export default function QuizPage() {
   const { todayWords, currentIndex, setQuizResult, initTodayWords } = useVocaStore()
   const router = useRouter()
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  const [showExitModal, setShowExitModal] = useState(false)
 
   useEffect(() => {
     if (todayWords.length === 0) {
@@ -57,8 +59,13 @@ export default function QuizPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-10">
+      <ExitConfirmModal
+        isOpen={showExitModal}
+        onContinue={() => setShowExitModal(false)}
+        onExit={() => router.push('/my-learning')}
+      />
       <header className="px-6 py-4 flex items-center justify-between">
-        <button onClick={() => router.push('/my-learning')} className="p-2 -ml-2 text-[#6B7280]">
+        <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div className="font-bold text-[#1C1B33] text-[15px]">단어 퀴즈</div>

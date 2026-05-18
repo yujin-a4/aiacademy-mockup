@@ -2,6 +2,7 @@
 import { useVocaStore } from '@/store/vocaStore'
 import { useRouter } from 'next/navigation'
 import { useState, useMemo, useRef, useEffect } from 'react'
+import ExitConfirmModal from '@/components/ExitConfirmModal'
 
 function getCharDimensions(wordLength: number) {
   if (wordLength <= 5) return { boxW: 52, boxH: 60, fontSize: 24, gap: 8 }
@@ -17,6 +18,7 @@ export default function DictationPage() {
 
   const [inputVals, setInputVals] = useState<Record<number, string>>({})
   const [isEvaluated, setIsEvaluated] = useState(false)
+  const [showExitModal, setShowExitModal] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
@@ -102,8 +104,13 @@ export default function DictationPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-10">
+      <ExitConfirmModal
+        isOpen={showExitModal}
+        onContinue={() => setShowExitModal(false)}
+        onExit={() => router.push('/my-learning')}
+      />
       <header className="px-6 py-4 flex items-center justify-between">
-        <button onClick={() => router.push('/my-learning')} className="p-2 -ml-2 text-[#6B7280]">
+        <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <div className="font-bold text-[#1C1B33] text-[15px]">받아쓰기</div>
