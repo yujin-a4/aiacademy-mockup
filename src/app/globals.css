@@ -139,22 +139,20 @@ body {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-/* Logo Wipe + Scale Animation */
-@keyframes logo-wipe-scale {
+/* Logo Scale Animation Only */
+@keyframes logo-scale-in {
   0% {
-    clip-path: inset(0 100% 0 0);
-    transform: scale(0.85);
+    transform: scale(0.8);
     opacity: 0;
   }
   100% {
-    clip-path: inset(0 0 0 0);
     transform: scale(1);
     opacity: 1;
   }
 }
 
-.animate-logo-wipe-scale {
-  animation: logo-wipe-scale 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.animate-logo-scale-in {
+  animation: logo-scale-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Logo Shine/Glow Effect */
