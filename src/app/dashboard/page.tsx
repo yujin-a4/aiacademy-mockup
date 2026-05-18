@@ -217,9 +217,21 @@ export default function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1.5 rounded-full">
+              <span className="flex items-center gap-1 text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1.5 rounded-full shrink-0">
                 🔥 12일 연속
               </span>
+              <a 
+                href="https://exam.toeic.co.kr/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                title="토익 시험 접수하기" 
+                className="w-9 h-9 rounded-full bg-white border border-[#EBEBF0] flex items-center justify-center text-[#6B7280] hover:text-[#4F46E5] hover:border-[#4F46E5] transition-all"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                </svg>
+              </a>
               <button className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
@@ -245,10 +257,15 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-bold px-4 py-2 rounded-full transition-colors shadow-md shadow-[#4F46E5]/20">
+                <a 
+                  href="https://exam.toeic.co.kr/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-white border border-[#EBEBF0] text-[#5B5A72] hover:text-[#4F46E5] hover:border-[#4F46E5] text-[12px] font-bold px-4 py-2 rounded-full transition-all"
+                >
                   토익 시험 접수하기
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                </button>
+                </a>
                 <AccountAvatar userName={userName ?? ''} />
               </div>
             </div>
