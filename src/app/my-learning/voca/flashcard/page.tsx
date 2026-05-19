@@ -13,9 +13,7 @@ export default function FlashcardPage() {
   const [showExitModal, setShowExitModal] = useState(false)
 
   useEffect(() => {
-    if (todayWords.length === 0) {
-      initTodayWords()
-    }
+    if (todayWords.length === 0) initTodayWords()
   }, [todayWords, initTodayWords])
 
   if (!todayWords || todayWords.length === 0) {
@@ -23,19 +21,17 @@ export default function FlashcardPage() {
   }
 
   const word = todayWords[currentIndex]
-  const isFinished = currentIndex >= todayWords.length
 
-  if (isFinished) {
+  if (currentIndex >= todayWords.length) {
     router.push('/my-learning/voca/result')
     return null
   }
 
   const handleResult = (status: 'know' | 'confused' | 'unknown') => {
+    const isLast = currentIndex >= todayWords.length - 1
     setIsFlipped(false)
     setFlashcardResult(word.id, status)
-    if (currentIndex >= todayWords.length - 1) {
-      router.push('/my-learning/voca/result')
-    }
+    if (isLast) router.push('/my-learning/voca/result')
   }
 
   return (
@@ -68,13 +64,14 @@ export default function FlashcardPage() {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-20 mt-4">
-        <div 
+        {/* key로 카드 교체 시 DOM 새로 마운트 → flip 잔상 없이 즉시 전환 */}
+        <div
+          key={currentIndex}
           onClick={() => setIsFlipped(!isFlipped)}
-          className="relative w-full max-w-[340px] aspect-[3/4] cursor-pointer group perspective-1000"
+          className="relative w-full max-w-[340px] aspect-[3/4] cursor-pointer perspective-1000"
         >
-          {/* Card Container */}
           <div className={`relative w-full h-full transition-transform duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-            
+
             {/* Front */}
             <div className="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl border border-[#ECEAF5] flex flex-col items-center justify-center p-8">
               <h2 className="text-[28px] sm:text-[32px] font-black text-[#1C1B33] break-keep text-center leading-tight">{word.word}</h2>

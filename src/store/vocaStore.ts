@@ -30,7 +30,8 @@ export const useVocaStore = create<VocaState>((set, get) => ({
   dictationResults: {},
 
   initTodayWords: () => {
-    const words = VOCA_DATA.slice(0, 30);
+    const shuffled = [...VOCA_DATA].sort(() => Math.random() - 0.5);
+    const words = shuffled.slice(0, 30);
     set({ todayWords: words, currentIndex: 0, flashcardResults: {}, quizResults: {}, dictationResults: {} });
   },
 

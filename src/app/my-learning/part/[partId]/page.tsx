@@ -87,20 +87,24 @@ export default function PartPracticePage() {
   const partInfo = PART_INFO[partId]
 
   const items: PracticeItem[] = useMemo(() => {
+    const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5)
+
     if (partId === 'p5') {
-      return P5_QUESTIONS.map(q => ({
+      return shuffle(P5_QUESTIONS).map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         category: q.category, sentence: q.sentence,
       }))
     }
     if (partId === 'p6') {
-      return P6_PASSAGES[0].questions.map(q => ({
+      const passage = P6_PASSAGES[Math.floor(Math.random() * P6_PASSAGES.length)]
+      return passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         category: q.category, blankNum: q.blankNum,
       }))
     }
     if (partId === 'p7') {
-      return P7_PASSAGES[0].questions.map(q => ({
+      const passage = P7_PASSAGES[Math.floor(Math.random() * P7_PASSAGES.length)]
+      return passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         question: q.question,
       }))
