@@ -323,7 +323,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
   const handleConfirm = (id: string) => {
     setSelectedInstructor(id)
-    window.location.href = 'https://aiacademy-classroom.vercel.app/'
+    window.location.href = '/dashboard'
   }
 
   const goToDetail = (inst: (typeof INSTRUCTORS)[0]) => {
@@ -471,7 +471,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                 onClick={() => { if (!isActive) setFocusedIndex(i) }}
               >
                 <div
-                  className={`w-full h-full rounded-[22px] overflow-hidden relative ${
+                  className={`w-full h-full rounded-[22px] overflow-hidden relative group ${
                     isActive
                       ? 'ring-[3px] ring-[#4F46E5] shadow-2xl shadow-[#4F46E5]/30'
                       : 'ring-1 ring-[#E5E7EB]'
@@ -495,15 +495,30 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   )}
-                  {/* Bottom gradient on active card */}
+
+                  {/* hover overlay + 버튼 (active 카드만) */}
                   {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex flex-col justify-end p-3 gap-2">
+                      <button
+                        onClick={e => { e.stopPropagation(); goToDetail(inst) }}
+                        className="w-full bg-white text-[#1C1B33] rounded-xl h-10 font-semibold text-[13px] hover:bg-[#EEF2FF] hover:text-[#4F46E5] transition-colors active:scale-[0.98]"
+                      >
+                        {inst.name} 강사 자세히 보기
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleConfirm(inst.id) }}
+                        className="w-full bg-[#4F46E5] text-white rounded-xl h-10 font-semibold text-[13px] hover:bg-[#4338CA] transition-colors active:scale-[0.98]"
+                      >
+                        바로 선택하기
+                      </button>
+                    </div>
                   )}
+
                   {/* 음소거 토글 버튼 */}
                   {isActive && showVideo && (
                     <button
                       onClick={e => { e.stopPropagation(); setIsMuted(m => !m) }}
-                      className="absolute bottom-3 right-3 z-20 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:bg-black/70"
+                      className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:bg-black/70"
                     >
                       {isMuted ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -549,7 +564,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
         </div>
 
         {/* Indicator dots */}
-        <div className="flex justify-center gap-1.5 mt-3">
+        <div className="flex justify-center gap-1.5 mt-3 mb-10">
           {visibleInstructors.map((_, i) => (
             <button
               key={i}
@@ -559,22 +574,6 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
               }`}
             />
           ))}
-        </div>
-
-        {/* CTA */}
-        <div className="mt-6 mb-10 px-6 space-y-2.5 w-full max-w-[400px] mx-auto">
-          <button
-            onClick={() => goToDetail(focused)}
-            className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-[12px] h-11 font-semibold text-[14px] transition-all active:scale-[0.98]"
-          >
-            {focused.name} 강사 자세히 보기
-          </button>
-          <button
-            onClick={() => handleConfirm(focused.id)}
-            className="w-full bg-white border border-[#E5E7EB] hover:border-[#4F46E5] hover:text-[#4F46E5] text-[#374151] rounded-[12px] h-11 font-semibold text-[14px] transition-all active:scale-[0.98]"
-          >
-            바로 선택하기
-          </button>
         </div>
       </div>
     )
@@ -682,22 +681,19 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
                 <div className="space-y-2.5">
                   <button
-                    onClick={() => handleConfirm(selectedInst.id)}
+                    onClick={() => { setSelectedInstructor(selectedInst.id); window.location.href = 'https://aiacademy-classroom.vercel.app/' }}
                     className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#4F46E5]/20"
                   >
                     샘플 수업 시작하기
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleTabChange('chat')}
+                    onClick={() => handleConfirm(selectedInst.id)}
                     className="w-full bg-white border border-[#ECEAF5] text-[#4F46E5] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                    </svg>
-                    1분 대화하기
+                    이 강사 선택하기
                   </button>
                 </div>
               </div>
@@ -707,8 +703,8 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
           {/* 탭 메뉴 */}
           <div className="flex border-b border-[#ECEAF5] mb-8">
             {[
-              { id: 'proposal', label: '제안서' },
-              { id: 'curriculum', label: '맞춤 커리큘럼' },
+              { id: 'proposal', label: 'Study Plan' },
+              { id: 'curriculum', label: '맞춤 교재' },
               { id: 'chat', label: '1분 대화' },
             ].map((tab) => (
               <button
