@@ -301,13 +301,13 @@ export default function Dashboard() {
                 <p className="mt-2 text-[#5B5A72] text-[12px] md:text-[13px] leading-relaxed">
                   {INST_MESSAGES[selectedInstructor ?? 'park']}
                 </p>
-                <Link
-                  href="/courses"
+                <a
+                  href="https://aiacademy-classroom.vercel.app/"
                   className="mt-5 inline-flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98]"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   오늘 수업 시작하기
-                </Link>
+                </a>
               </div>
             </div>
 

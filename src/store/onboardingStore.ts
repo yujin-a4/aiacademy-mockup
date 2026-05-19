@@ -11,6 +11,7 @@ export interface UserProfile {
   examDate: string | null;
   dailyTime: string | null;
   selectedInstructor: string | null;
+  studyRange: 'LC+RC' | 'LC' | 'RC' | null;
 }
 
 interface OnboardingState extends UserProfile {
@@ -25,6 +26,7 @@ interface OnboardingState extends UserProfile {
   setExamDate: (date: string) => void;
   setDailyTime: (time: string) => void;
   setSelectedInstructor: (instructor: string) => void;
+  setStudyRange: (range: 'LC+RC' | 'LC' | 'RC') => void;
 
   saveCurrentProfile: () => void;
   loadProfile: (name: string) => void;
@@ -42,6 +44,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       examDate: null,
       dailyTime: null,
       selectedInstructor: null,
+      studyRange: null,
       savedProfiles: [],
 
       setUserName: (name) => set({ userName: name }),
@@ -53,11 +56,12 @@ export const useOnboardingStore = create<OnboardingState>()(
       setExamDate: (date) => set({ examDate: date }),
       setDailyTime: (time) => set({ dailyTime: time }),
       setSelectedInstructor: (instructor) => set({ selectedInstructor: instructor }),
+      setStudyRange: (range) => set({ studyRange: range }),
 
       saveCurrentProfile: () => {
-        const { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, savedProfiles } = get();
+        const { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, savedProfiles } = get();
         if (!userName) return;
-        const profile: UserProfile = { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor };
+        const profile: UserProfile = { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange };
         const idx = savedProfiles.findIndex((p) => p.userName === userName);
         if (idx >= 0) {
           const updated = [...savedProfiles];

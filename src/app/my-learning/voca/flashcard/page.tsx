@@ -73,7 +73,7 @@ export default function FlashcardPage() {
           className="relative w-full max-w-[340px] aspect-[3/4] cursor-pointer group perspective-1000"
         >
           {/* Card Container */}
-          <div className={`relative w-full h-full transition-all duration-300 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+          <div className={`relative w-full h-full transition-transform duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
             
             {/* Front */}
             <div className="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl border border-[#ECEAF5] flex flex-col items-center justify-center p-8">

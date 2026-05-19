@@ -139,6 +139,9 @@ body {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
 /* Logo Scale Animation Only */
 @keyframes logo-scale-in {
   0% {

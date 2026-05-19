@@ -36,7 +36,10 @@
       "Bash(findstr zustand *)",
       "Bash(git stash *)",
       "Bash(git commit *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Skill(superpowers:systematic-debugging)",
+      "Bash(node -e \"const resolveConfig = require\\('tailwindcss/resolveConfig'\\); const config = require\\('./tailwind.config.ts'\\); const fullConfig = resolveConfig\\(config\\); const t = fullConfig.theme; console.log\\(JSON.stringify\\(Object.keys\\(t || {}\\)\\)\\)\")",
+      "Bash(node -e \"const tw = require\\('tailwindcss/plugin'\\); console.log\\(typeof tw\\)\")"
     ]
   }
 }

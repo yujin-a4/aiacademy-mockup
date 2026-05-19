@@ -145,7 +145,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
   const handleConfirm = (id: string) => {
     setSelectedInstructor(id)
-    router.push('/classroom')
+    window.location.href = 'https://aiacademy-classroom.vercel.app/'
   }
 
   const goToDetail = (inst: any) => {

@@ -39,7 +39,13 @@ function getTodayStr(): string {
   return toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
 }
 
-type SubStep = 'score' | 'date' | 'time'
+type SubStep = 'score' | 'range' | 'date' | 'time'
+
+const RANGE_OPTIONS: { value: 'LC+RC' | 'LC' | 'RC'; label: string; sub: string }[] = [
+  { value: 'LC+RC', label: 'LC + RC', sub: '듣기 + 읽기 전체' },
+  { value: 'LC',    label: 'LC만',    sub: '듣기 집중' },
+  { value: 'RC',    label: 'RC만',    sub: '읽기 집중' },
+]
 
 /* 공통 레이아웃 래퍼 */
 function StepLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +75,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const store = useOnboardingStore()
   const [subStep, setSubStep] = useState<SubStep>('score')
   const [score, setScore] = useState<number | null>(store.targetScore)
+  const [range, setRange] = useState<'LC+RC' | 'LC' | 'RC' | null>(store.studyRange)
   const [examDate, setExamDate] = useState<string>(() => store.examDate ?? getDefaultExamDate())
   const [time, setTime] = useState<string | null>(store.dailyTime)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -95,8 +102,9 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   }
 
   const handleComplete = () => {
-    if (!score || !examDate || !time) return
+    if (!score || !range || !examDate || !time) return
     store.setTargetScore(score)
+    store.setStudyRange(range)
     store.setExamDate(examDate)
     store.setDailyTime(time)
     const diff = new Date(examDate).getTime() - Date.now()
@@ -128,7 +136,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           </div>
         </div>
         <button
-          onClick={() => setSubStep('date')}
+          onClick={() => setSubStep('range')}
           disabled={!score}
           className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98] mt-6"
         >
@@ -138,7 +146,38 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     )
   }
 
-  /* ─── Step 2: 시험 예정일 ─── */
+  /* ─── Step 2: 학습 영역 ─── */
+  if (subStep === 'range') {
+    return (
+      <StepLayout>
+        <div className="flex-1 flex flex-col justify-center">
+          <StepHeader icon="📚" title="학습할 영역을 선택해 주세요." subtitle="선택한 영역에 맞춰 커리큘럼이 구성돼요." />
+          <div className="flex flex-col gap-3">
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setRange(opt.value)}
+                className={`w-full rounded-[10px] px-5 py-4 flex items-center justify-between transition-all border ${
+                  range === opt.value
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
+                }`}
+              >
+                <span className="text-[16px] font-semibold">{opt.label}</span>
+                <span className={`text-[13px] ${range === opt.value ? 'text-white/80' : 'text-[#9CA3AF]'}`}>{opt.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2 pb-2">
+          <button onClick={() => setSubStep('date')} disabled={!range} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98]">다음</button>
+          <button onClick={() => setSubStep('score')} className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors">이전</button>
+        </div>
+      </StepLayout>
+    )
+  }
+
+  /* ─── Step 3: 시험 예정일 ─── */
   if (subStep === 'date') {
     return (
       <StepLayout>
