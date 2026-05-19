@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 
 const MISSIONS = [
@@ -12,11 +12,20 @@ const MISSIONS = [
   { id: 5, text: '오늘의 일일 단어 문제 풀기', done: false, tag: null },
 ]
 
-const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익' }
+const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익', jeong: '정은순', lee: '이인호' }
 const INST_MESSAGES: Record<string, string> = {
-  park: '오늘 하루도 완벽하게! 작은 실수도 그냥 넘기지 않는 것이 실력입니다.',
-  jang: '괜찮아요, 틀려도 돼요. 꾸준히만 나아가면 반드시 도달할 수 있어요.',
-  kim: '오늘 학습한 단어 하나가 시험장에서 당신을 구할 수 있습니다!',
+  park: '오늘 Part 5 딱 10문제만 해. 그거면 충분해. 작은 게 쌓이는 거야.',
+  jang: '오늘 못 풀어도 괜찮아요 😊 한번 읽기만 해도 오늘은 성공이에요.',
+  kim: '바쁘면 5분만요. Part 5 한 섹션만 봐도 오늘 학습은 진짜 성공이에요.',
+  jeong: '틀려도 괜찮아요 💜 오늘 한 단어만 기억해도 충분해요. 응원해요!',
+  lee: '데이터 보니까 분사구문이 약점이야. 딱 이거 하나만 잡자. 빠르게.',
+}
+const INST_THUMBS: Record<string, string> = {
+  park: '/image_reference/park-2.jpg',
+  jang: '/image_reference/jang.png',
+  kim: '/image_reference/kim.png',
+  jeong: '/image_reference/jung.png',
+  lee: '/image_reference/lee.png',
 }
 
 const NAV = [
@@ -129,6 +138,25 @@ export default function Dashboard() {
   const completedCount = missions.filter((m) => m.done).length
   const completedPct = Math.round((completedCount / missions.length) * 100)
 
+  const [typedMsg, setTypedMsg] = useState('')
+  const [typingDone, setTypingDone] = useState(false)
+
+  useEffect(() => {
+    const msg = INST_MESSAGES[selectedInstructor ?? 'park'] ?? ''
+    setTypedMsg('')
+    setTypingDone(false)
+    let intervalId: ReturnType<typeof setInterval>
+    const timeoutId = setTimeout(() => {
+      let i = 0
+      intervalId = setInterval(() => {
+        i++
+        setTypedMsg(msg.slice(0, i))
+        if (i >= msg.length) { setTypingDone(true); clearInterval(intervalId) }
+      }, 36)
+    }, 900)
+    return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
+  }, [selectedInstructor])
+
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
     const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -231,21 +259,24 @@ export default function Dashboard() {
             </div>
 
             {/* ── 히어로 카드 ── */}
-            <div className="relative overflow-hidden rounded-2xl min-h-[160px] md:min-h-[190px]"
+            <div className="relative overflow-hidden rounded-2xl min-h-[180px] md:min-h-[220px]"
               style={{ background: 'linear-gradient(135deg, #EAE8FF 0%, #D5CEFF 50%, #C7D2FE 100%)' }}>
               {/* 장식 블롭 */}
               <div className="absolute right-0 top-0 w-72 h-72 rounded-full bg-[#818CF8]/20 blur-3xl pointer-events-none" />
               <div className="absolute right-20 bottom-0 w-40 h-40 rounded-full bg-[#A5B4FC]/25 blur-2xl pointer-events-none" />
 
-              {/* 강사 이미지 */}
-              <div className="absolute right-0 bottom-0 hidden sm:block h-full">
-                <img
-                  src={`/instructor/${selectedInstructor ?? 'park'}.png`}
-                  alt={instName}
-                  className="h-full object-contain object-bottom drop-shadow-xl"
-                  style={{ maxWidth: '220px' }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
+              {/* D-Day + 연속 스탯 카드 */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex flex-col gap-2.5 z-10">
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-4 py-3 text-center shadow-md min-w-[120px]">
+                  <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wide mb-0.5">토익 시험</p>
+                  <p className="text-[28px] font-black text-[#4F46E5] leading-none">{ddayLabel ?? 'D-?'}</p>
+                  <p className="text-[10px] text-[#9CA3AF] mt-0.5">남은 날</p>
+                </div>
+                <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-4 py-3 text-center shadow-md">
+                  <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wide mb-0.5">연속 학습</p>
+                  <p className="text-[28px] font-black text-[#F59E0B] leading-none">12</p>
+                  <p className="text-[10px] text-[#9CA3AF] mt-0.5">일째 🔥</p>
+                </div>
               </div>
 
               {/* 텍스트 */}
@@ -255,12 +286,36 @@ export default function Dashboard() {
                   {instName} 선생님의 오늘의 처방
                 </span>
                 <h2 className="text-[#1C1B33] text-[17px] md:text-[20px] font-bold leading-snug">
-                  {userName || '학습자'}님, 오늘 준비된 맞춤 처방은<br />
-                  <span className="text-[#4F46E5]">{missions.length}개의 미션</span>입니다.
+                  {userName || '학습자'}님, 오늘은<br />
+                  <span className="text-[#4F46E5]">{missions.length}개 미션</span>으로 충분해요.
                 </h2>
-                <p className="mt-2 text-[#5B5A72] text-[12px] md:text-[13px] leading-relaxed">
-                  {INST_MESSAGES[selectedInstructor ?? 'park']}
-                </p>
+
+                {/* 카카오톡 말풍선 */}
+                <div className="mt-4 flex items-end gap-2">
+                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-[#EEF2FF]">
+                    <img
+                      src={INST_THUMBS[selectedInstructor ?? 'park']}
+                      alt={instName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </div>
+                  <div className="relative bg-white rounded-2xl rounded-bl-none px-3.5 py-2.5 shadow-md max-w-[240px]">
+                    <p className="text-[#1C1B33] text-[12px] leading-relaxed">
+                      {typedMsg}
+                      {!typingDone && (
+                        <span className="inline-block w-[2px] h-3 bg-[#4F46E5] animate-pulse ml-0.5 align-middle rounded-full" />
+                      )}
+                    </p>
+                    {/* 말풍선 꼬리 */}
+                    <div className="absolute -bottom-[6px] left-0 w-0 h-0"
+                      style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
+                  </div>
+                  {typingDone && (
+                    <span className="text-[10px] text-[#9CA3AF] self-end mb-0.5 shrink-0">방금</span>
+                  )}
+                </div>
+
                 <a
                   href="https://aiacademy-classroom.vercel.app/"
                   className="mt-5 inline-flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98]"
@@ -274,46 +329,61 @@ export default function Dashboard() {
             {/* ── 3열 섹션 ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* 주간 학습 리듬 */}
+              {/* 이번 주 루틴 — 습관 트래커 */}
               <div className="bg-white rounded-2xl border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] p-5 flex flex-col gap-4">
-                {/* 헤더 */}
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[#1C1B33] font-bold text-[14px]">주간 학습 리듬</h3>
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-[#6366F1] bg-[#EEF2FF] px-2.5 py-1 rounded-full">
-                    🔥 12일 연속
-                  </span>
+                  <h3 className="text-[#1C1B33] font-bold text-[14px]">이번 주 루틴</h3>
+                  <span className="text-[11px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1 rounded-full">🔥 12일 연속</span>
                 </div>
 
-                {/* 요일 점 트래커 */}
-                <div className="flex items-center justify-between px-0.5">
+                {/* 마일스톤 */}
+                {(() => {
+                  const doneCount = WEEK.filter(d => d.status === 'complete').length
+                  const remaining = 7 - doneCount
+                  return (
+                    <div className="bg-[#F5F3FF] rounded-xl px-3 py-2 text-center">
+                      <p className="text-[12px] font-bold text-[#4F46E5]">
+                        {remaining > 0
+                          ? <>🎁 7일 연속 달성까지 <span className="text-[15px]">{remaining}</span>일!</>
+                          : <>🎉 이번 주 완주 성공!</>}
+                      </p>
+                    </div>
+                  )
+                })()}
+
+                {/* 요일별 원형 체크 */}
+                <div className="flex items-center justify-between">
                   {WEEK.map((d) => (
-                    <div key={d.date} className="flex flex-col items-center gap-2">
-                      <span className={`text-[10px] font-medium ${d.status === 'current' ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>{d.day}</span>
-                      {d.status === 'complete' ? (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#4F46E5]" />
-                      ) : d.status === 'current' ? (
-                        <div className="w-3 h-3 rounded-full border-[2.5px] border-[#4F46E5] bg-[#EEF2FF]" />
-                      ) : (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#E5E7EB]" />
-                      )}
+                    <div key={d.date} className="flex flex-col items-center gap-1.5">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold transition-all ${
+                        d.status === 'complete'
+                          ? 'bg-[#4F46E5] text-white shadow-sm shadow-[#4F46E5]/40'
+                          : d.status === 'current'
+                          ? 'bg-white border-[2.5px] border-[#4F46E5] text-[#4F46E5] shadow-sm'
+                          : 'bg-[#F3F4F6] text-[#D1D5DB]'
+                      }`}>
+                        {d.status === 'complete' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        ) : (
+                          <span className="text-[11px]">{d.date}</span>
+                        )}
+                      </div>
+                      <span className={`text-[9px] font-medium ${d.status === 'current' ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>{d.day}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* 오늘 미션 진행률 */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] text-[#9CA3AF]">오늘 미션</span>
-                    <span className="text-[11px] font-semibold text-[#1C1B33]">{completedCount} / {missions.length} 완료</span>
-                  </div>
-                  <div className="w-full h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
-                    <div className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] h-full rounded-full transition-all duration-500" style={{ width: `${completedPct}%` }} />
-                  </div>
+                {/* 세그먼트 바 */}
+                <div className="flex gap-1">
+                  {WEEK.map((d, i) => (
+                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
+                      d.status === 'complete' ? 'bg-[#4F46E5]' : d.status === 'current' ? 'bg-[#C7D2FE]' : 'bg-[#F3F4F6]'
+                    }`} />
+                  ))}
                 </div>
 
-                {/* 알림 메시지 */}
                 <p className="text-[11px] text-[#9CA3AF] leading-[1.6]">
-                  오늘 {missions.length - completedCount > 0 ? `${missions.length - completedCount}개` : '모든'} 미션만 더 완료하면 좋은 흐름을 이어갈 수 있어요.
+                  오늘 미션 {completedCount} / {missions.length} 완료 · 흐름을 이어가고 있어요 👍
                 </p>
               </div>
 
