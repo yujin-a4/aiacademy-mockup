@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E0E7FF"/>
+      <stop offset="100%" stop-color="#A5B4FC"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FAD7B5"/>
+      <stop offset="100%" stop-color="#F0B990"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg)"/>
+
+  <!-- Shoulder / body -->
+  <path d="M 20 500 L 50 420 Q 100 390 200 382 Q 300 390 350 420 L 380 500 Z" fill="#4F46E5"/>
+  <!-- Collar detail -->
+  <path d="M 175 330 L 200 370 L 225 330" fill="white" opacity="0.9"/>
+
+  <!-- Neck -->
+  <rect x="183" y="288" width="34" height="58" rx="12" fill="url(#skin)"/>
+
+  <!-- Hair back layer (long) -->
+  <path d="M 118 195 C 108 255 110 330 122 380" stroke="#1E0F08" stroke-width="42" fill="none" stroke-linecap="round"/>
+  <path d="M 282 195 C 292 255 290 330 278 380" stroke="#1E0F08" stroke-width="42" fill="none" stroke-linecap="round"/>
+
+  <!-- Head -->
+  <ellipse cx="200" cy="232" rx="84" ry="92" fill="url(#skin)"/>
+
+  <!-- Hair top -->
+  <path d="M 116 215 Q 130 145 200 138 Q 270 145 284 215 Q 265 168 200 162 Q 135 168 116 215 Z" fill="#1E0F08"/>
+  <!-- Hair volume top -->
+  <ellipse cx="200" cy="158" rx="86" ry="38" fill="#1E0F08"/>
+  <!-- Side part highlight -->
+  <path d="M 200 138 C 195 150 193 165 195 178" stroke="#3D2010" stroke-width="2" fill="none" opacity="0.5"/>
+
+  <!-- Ears -->
+  <ellipse cx="116" cy="235" rx="10" ry="13" fill="#EAA882"/>
+  <ellipse cx="284" cy="235" rx="10" ry="13" fill="#EAA882"/>
+
+  <!-- Eyes -->
+  <ellipse cx="171" cy="228" rx="12" ry="13" fill="#1E0F08"/>
+  <ellipse cx="229" cy="228" rx="12" ry="13" fill="#1E0F08"/>
+  <!-- Eye shine -->
+  <circle cx="174" cy="224" r="4" fill="white"/>
+  <circle cx="232" cy="224" r="4" fill="white"/>
+  <circle cx="175" cy="225" r="1.5" fill="#1E0F08"/>
+  <circle cx="233" cy="225" r="1.5" fill="#1E0F08"/>
+
+  <!-- Eyelashes top -->
+  <path d="M 159 218 Q 171 213 183 217" stroke="#1E0F08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 217 217 Q 229 213 241 218" stroke="#1E0F08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Eyebrows -->
+  <path d="M 157 210 Q 171 203 185 208" stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 215 208 Q 229 203 243 210" stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <path d="M 195 250 Q 200 260 205 250" stroke="#C88A60" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="194" cy="258" r="2.5" fill="#C88A60" opacity="0.4"/>
+  <circle cx="206" cy="258" r="2.5" fill="#C88A60" opacity="0.4"/>
+
+  <!-- Mouth -->
+  <path d="M 180 276 Q 200 294 220 276" stroke="#C06855" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 180 276 Q 190 281 200 280 Q 210 281 220 276" fill="#E8967A" opacity="0.6"/>
+
+  <!-- Subtle blush -->
+  <ellipse cx="155" cy="255" rx="18" ry="10" fill="#F4A0A0" opacity="0.25"/>
+  <ellipse cx="245" cy="255" rx="18" ry="10" fill="#F4A0A0" opacity="0.25"/>
+</svg>

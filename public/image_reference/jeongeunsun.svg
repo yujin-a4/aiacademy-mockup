@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="400" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF7ED"/>
+      <stop offset="100%" stop-color="#FED7AA"/>
+    </linearGradient>
+    <linearGradient id="skin3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FAD7B5"/>
+      <stop offset="100%" stop-color="#F0B990"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg3)"/>
+
+  <!-- Body / top (warm coral) -->
+  <path d="M 20 500 L 52 422 Q 105 392 200 383 Q 295 392 348 422 L 380 500 Z" fill="#EA580C"/>
+  <!-- Cardigan/collar detail -->
+  <path d="M 175 335 L 165 390 L 200 400 L 235 390 L 225 335" fill="#C2410C" opacity="0.5"/>
+  <path d="M 200 340 L 194 390 L 200 400 L 206 390 Z" fill="white" opacity="0.8"/>
+
+  <!-- Neck -->
+  <rect x="183" y="288" width="34" height="58" rx="12" fill="url(#skin3)"/>
+
+  <!-- Hair back (medium length, warm brown) -->
+  <path d="M 116 200 C 108 255 110 325 120 370" stroke="#5C2E0A" stroke-width="44" fill="none" stroke-linecap="round"/>
+  <path d="M 284 200 C 292 255 290 325 280 370" stroke="#5C2E0A" stroke-width="44" fill="none" stroke-linecap="round"/>
+
+  <!-- Head -->
+  <ellipse cx="200" cy="232" rx="83" ry="90" fill="url(#skin3)"/>
+
+  <!-- Hair top (warm dark brown with reddish tone) -->
+  <ellipse cx="200" cy="160" rx="87" ry="40" fill="#5C2E0A"/>
+  <path d="M 116 210 C 118 158 158 132 200 130 C 242 132 282 158 284 210 C 266 165 238 147 200 145 C 162 147 134 165 116 210 Z" fill="#5C2E0A"/>
+  <!-- Hair highlight (reddish) -->
+  <path d="M 185 135 C 190 148 192 163 191 176" stroke="#A04010" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Ears -->
+  <ellipse cx="117" cy="235" rx="10" ry="13" fill="#EAA882"/>
+  <ellipse cx="283" cy="235" rx="10" ry="13" fill="#EAA882"/>
+  <!-- Small earrings -->
+  <circle cx="117" cy="248" r="4" fill="#F59E0B"/>
+  <circle cx="283" cy="248" r="4" fill="#F59E0B"/>
+
+  <!-- Eyes (warm, kind) -->
+  <ellipse cx="171" cy="228" rx="12" ry="13" fill="#3B1F0A"/>
+  <ellipse cx="229" cy="228" rx="12" ry="13" fill="#3B1F0A"/>
+  <!-- Eye shine -->
+  <circle cx="174" cy="224" r="4" fill="white"/>
+  <circle cx="232" cy="224" r="4" fill="white"/>
+  <circle cx="175" cy="225" r="1.5" fill="#3B1F0A"/>
+  <circle cx="233" cy="225" r="1.5" fill="#3B1F0A"/>
+
+  <!-- Eyebrows (soft arch) -->
+  <path d="M 157 210 Q 171 203 185 208" stroke="#3B1F0A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 215 208 Q 229 203 243 210" stroke="#3B1F0A" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <path d="M 195 250 Q 200 260 205 250" stroke="#C88A60" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="194" cy="258" r="2.5" fill="#C88A60" opacity="0.4"/>
+  <circle cx="206" cy="258" r="2.5" fill="#C88A60" opacity="0.4"/>
+
+  <!-- Wide warm smile -->
+  <path d="M 177 274 Q 200 297 223 274" stroke="#C06040" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 177 274 Q 200 290 223 274" fill="#E8967A" opacity="0.55"/>
+
+  <!-- Cheek blush (more pronounced = warm character) -->
+  <ellipse cx="150" cy="255" rx="22" ry="12" fill="#F87171" opacity="0.22"/>
+  <ellipse cx="250" cy="255" rx="22" ry="12" fill="#F87171" opacity="0.22"/>
+</svg>
