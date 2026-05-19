@@ -7,7 +7,7 @@ const INSTRUCTORS = [
     id: 'park',
     name: '박혜원',
     tag: '#단기집중형',
-    video: '/videos/hyewon.mp4',
+    video: '/video/video-park.mp4',
     thumbnail: '/image_reference/park-2.jpg',
     badge: '단기 목표 전문',
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
@@ -44,8 +44,8 @@ const INSTRUCTORS = [
     id: 'jang',
     name: '장연지',
     tag: '#꼼꼼관리형',
-    video: '/videos/yeonji.mp4',
-    thumbnail: '/image_reference/yeonji.svg',
+    video: '/video/video-jang.mp4',
+    thumbnail: '/image_reference/jang.png',
     badge: '꼼꼼 관리형',
     desc: '친근하고 꼼꼼한 코칭으로 기초 개념부터 탄탄하게 다져주는 파트너입니다.',
     quote: '"헷갈릴 수 있어, 같이 보자."',
@@ -81,8 +81,8 @@ const INSTRUCTORS = [
     id: 'kim',
     name: '김토익',
     tag: '#균형코칭형',
-    video: '/videos/kimtoeic.mp4',
-    thumbnail: '/image_reference/kimtoeic.svg',
+    video: '/video/video-kim.mp4',
+    thumbnail: '/image_reference/kim.png',
     badge: '균형 코칭형',
     desc: '바쁜 일상 속에서도 현실적인 목표와 가장 효율적인 가성비 전략을 제공합니다.',
     quote: '"틀렸어, 근데 이건 잘하고 있어."',
@@ -118,8 +118,8 @@ const INSTRUCTORS = [
     id: 'jeong',
     name: '정은순',
     tag: '#감성멘토형',
-    video: '/videos/jeongeunsun.mp4',
-    thumbnail: '/image_reference/jeongeunsun.svg',
+    video: '/video/video-jung.mp4',
+    thumbnail: '/image_reference/jung.png',
     badge: '감성 멘토형',
     desc: '공감과 격려로 학습 동기를 꾸준히 유지시켜주는 따뜻한 멘토입니다.',
     quote: '"틀려도 괜찮아. 같이 다시 해보자."',
@@ -155,8 +155,8 @@ const INSTRUCTORS = [
     id: 'lee',
     name: '이인호',
     tag: '#데이터기반형',
-    video: '/videos/leeinho.mp4',
-    thumbnail: '/image_reference/leeinho.svg',
+    video: '/video/video-lee.mp4',
+    thumbnail: '/image_reference/lee.png',
     badge: '데이터 기반형',
     desc: '출제 패턴 분석과 통계 기반 전략으로 최단 경로를 설계하는 전략가입니다.',
     quote: '"패턴이 보이면 점수가 보인다."',
@@ -193,7 +193,7 @@ const INSTRUCTORS = [
     name: '오정자',
     tag: '#시니어맞춤형',
     video: '/video/video-6.mp4',
-    thumbnail: '/image_reference/ojungja.svg',
+    thumbnail: '/image_reference/ojungja.jpg',
     badge: '시니어 전용 👵',
     desc: '30년 경력 국어 교사 출신. 절대 서두르지 않고, 절대 포기시키지 않는 토익계의 할머니.',
     quote: '"급하면 체해요. 천천히, 같이 봐요."',
@@ -229,11 +229,15 @@ const INSTRUCTORS = [
 
 
 export default function InstructorSelect({ onNext }: { onNext: () => void }) {
-  const { userName, setSelectedInstructor } = useOnboardingStore()
+  const { userName, setSelectedInstructor, targetScore, studyRange, examDate } = useOnboardingStore()
+
+  const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
+  const visibleInstructors = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh')
+
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({})
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>(new Array(INSTRUCTORS.length).fill(null))
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>(new Array(INSTRUCTORS.length).fill(null)) // 최대 크기로 고정
   const touchStartX = useRef(0)
 
   const [activeTab, setActiveTab] = useState<'proposal' | 'chat' | 'curriculum'>('proposal')
@@ -242,6 +246,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
   const [isRecording, setIsRecording] = useState(false)
   const [chatHistory, setChatHistory] = useState<{ role: 'instructor' | 'user'; text: string }[]>([])
   const [sttText, setSttText] = useState('')
+  const [isMuted, setIsMuted] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const recognitionRef = useRef<any>(null)
 
@@ -250,13 +255,35 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
     videoRefs.current.forEach((v, i) => {
       if (!v) return
       if (i === focusedIndex) {
+        v.muted = isMuted
         v.currentTime = 0
-        v.play().catch(() => {})
+        v.play().catch(() => {
+          v.muted = true
+          v.play().catch(() => {})
+        })
       } else {
         v.pause()
       }
     })
   }, [focusedIndex])
+
+  /* ── mute 토글 시 현재 영상에 즉시 반영 ── */
+  useEffect(() => {
+    const v = videoRefs.current[focusedIndex]
+    if (v) v.muted = isMuted
+  }, [isMuted])
+
+  /* ── 키보드 좌우 화살표 ── */
+  useEffect(() => {
+    if (view !== 'list') return
+    const len = visibleInstructors.length
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setFocusedIndex(prev => (prev - 1 + len) % len)
+      else if (e.key === 'ArrowRight') setFocusedIndex(prev => (prev + 1) % len)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [view, visibleInstructors.length])
 
   useEffect(() => {
     return () => {
@@ -266,8 +293,8 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
     }
   }, [])
 
-  const goPrev = () => setFocusedIndex(prev => (prev - 1 + INSTRUCTORS.length) % INSTRUCTORS.length)
-  const goNext = () => setFocusedIndex(prev => (prev + 1) % INSTRUCTORS.length)
+  const goPrev = () => setFocusedIndex(prev => (prev - 1 + visibleInstructors.length) % visibleInstructors.length)
+  const goNext = () => setFocusedIndex(prev => (prev + 1) % visibleInstructors.length)
 
   function wrappedOffset(i: number, focused: number, total: number): number {
     let offset = i - focused
@@ -383,7 +410,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
      LIST VIEW — 카드 슬라이드
   ═══════════════════════════════════════ */
   if (view === 'list') {
-    const focused = INSTRUCTORS[focusedIndex]
+    const focused = visibleInstructors[focusedIndex]
     return (
       <div className="flex flex-col min-h-screen bg-[#F3F4F6] overflow-hidden select-none">
         {/* Header */}
@@ -401,8 +428,8 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {INSTRUCTORS.map((inst, i) => {
-            const offset = wrappedOffset(i, focusedIndex, INSTRUCTORS.length)
+          {visibleInstructors.map((inst, i) => {
+            const offset = wrappedOffset(i, focusedIndex, visibleInstructors.length)
             const isActive = offset === 0
             const isVisible = Math.abs(offset) <= 1
             const showVideo = !!inst.video && !videoErrors[inst.id]
@@ -437,7 +464,6 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                     <video
                       ref={el => { videoRefs.current[i] = el }}
                       src={inst.video}
-                      muted
                       playsInline
                       loop
                       className="absolute inset-0 w-full h-full object-cover"
@@ -453,6 +479,23 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                   {/* Bottom gradient on active card */}
                   {isActive && (
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15 pointer-events-none" />
+                  )}
+                  {/* 음소거 토글 버튼 */}
+                  {isActive && showVideo && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setIsMuted(m => !m) }}
+                      className="absolute bottom-3 right-3 z-20 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:bg-black/70"
+                    >
+                      {isMuted ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
@@ -488,7 +531,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
 
         {/* Indicator dots */}
         <div className="flex justify-center gap-1.5 mt-3">
-          {INSTRUCTORS.map((_, i) => (
+          {visibleInstructors.map((_, i) => (
             <button
               key={i}
               onClick={() => setFocusedIndex(i)}
