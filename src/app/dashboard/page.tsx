@@ -274,32 +274,47 @@ export default function Dashboard() {
             {/* ── 3열 섹션 ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* 이번 주 학습 현황 */}
-              <div className="bg-white rounded-2xl border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] p-5">
-                <h3 className="text-[#1C1B33] font-bold text-[14px] mb-4">이번 주 학습 현황</h3>
-                <div className="flex justify-between items-end">
+              {/* 주간 학습 리듬 */}
+              <div className="bg-white rounded-2xl border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] p-5 flex flex-col gap-4">
+                {/* 헤더 */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[#1C1B33] font-bold text-[14px]">주간 학습 리듬</h3>
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-[#6366F1] bg-[#EEF2FF] px-2.5 py-1 rounded-full">
+                    🔥 12일 연속
+                  </span>
+                </div>
+
+                {/* 요일 점 트래커 */}
+                <div className="flex items-center justify-between px-0.5">
                   {WEEK.map((d) => (
-                    <div key={d.date} className="flex flex-col items-center gap-1.5">
-                      <span className="text-[10px] text-[#9CA3AF] font-medium">{d.day}</span>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-[12px] font-bold transition-all ${
-                        d.status === 'complete' ? 'bg-[#EEF2FF] text-[#4F46E5]' :
-                        d.status === 'current'  ? 'bg-[#4F46E5] text-white shadow-lg shadow-[#4F46E5]/30' :
-                        'bg-[#FAFAFA] text-[#D1D5DB]'
-                      }`}>
-                        {d.date}
-                      </div>
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        d.status === 'complete' ? 'bg-[#10B981]' :
-                        d.status === 'current'  ? 'bg-[#4F46E5]' :
-                        'bg-[#ECEAF5]'
-                      }`} />
+                    <div key={d.date} className="flex flex-col items-center gap-2">
+                      <span className={`text-[10px] font-medium ${d.status === 'current' ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>{d.day}</span>
+                      {d.status === 'complete' ? (
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#4F46E5]" />
+                      ) : d.status === 'current' ? (
+                        <div className="w-3 h-3 rounded-full border-[2.5px] border-[#4F46E5] bg-[#EEF2FF]" />
+                      ) : (
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#E5E7EB]" />
+                      )}
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 bg-[#F0FDF4] rounded-xl py-2.5 px-3 flex items-center gap-2">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-                  <p className="text-[#059669] text-[12px] font-semibold">12일 연속 학습 중!</p>
+
+                {/* 오늘 미션 진행률 */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] text-[#9CA3AF]">오늘 미션</span>
+                    <span className="text-[11px] font-semibold text-[#1C1B33]">{completedCount} / {missions.length} 완료</span>
+                  </div>
+                  <div className="w-full h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#6366F1] to-[#4F46E5] h-full rounded-full transition-all duration-500" style={{ width: `${completedPct}%` }} />
+                  </div>
                 </div>
+
+                {/* 알림 메시지 */}
+                <p className="text-[11px] text-[#9CA3AF] leading-[1.6]">
+                  오늘 {missions.length - completedCount > 0 ? `${missions.length - completedCount}개` : '모든'} 미션만 더 완료하면 좋은 흐름을 이어갈 수 있어요.
+                </p>
               </div>
 
               {/* 오늘의 미션 리스트 */}
