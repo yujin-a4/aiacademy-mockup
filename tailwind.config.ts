@@ -69,6 +69,7 @@ const config: Config = {
         'fade-out':  'fadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'svg-draw': 'svgDraw 3s ease-in-out forwards',
         'fill-in': 'fillIn 0.8s ease-in-out forwards 2s',
+        'cta-pulse': 'ctaPulse 1.8s ease-in-out infinite',
       },
       keyframes: {
         svgDraw: {
@@ -105,6 +106,10 @@ const config: Config = {
         slideUp: {
           '0%':   { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' },
+        },
+        ctaPulse: {
+          '0%, 100%': { transform: 'scale(1)',    opacity: '1' },
+          '50%':      { transform: 'scale(1.05)', opacity: '0.88' },
         },
       },
     },

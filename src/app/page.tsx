@@ -7,19 +7,14 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 function SplashScreen() {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-ybm-blue overflow-hidden">
-      {/* 배경 은은한 빛 효과 */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/5 rounded-full blur-[100px] pointer-events-none" />
-      
       <div className="relative w-32 h-10 md:w-40 md:h-12 flex items-center justify-center">
-        {/* 확대 애니메이션이 적용된 로고 */}
         <div className="animate-logo-scale-in">
-          <img 
-            src="/logo.svg" 
-            alt="YBM Logo" 
-            className="w-full h-full object-contain brightness-0 invert" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/logo.png'
-            }}
+          <img
+            src="/logo.svg"
+            alt="YBM Logo"
+            className="w-full h-full object-contain brightness-0 invert"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png' }}
           />
         </div>
       </div>
@@ -37,24 +32,15 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={onClose}
-    >
-      {/* 배경 딤 */}
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-
-      {/* 바텀 시트 */}
       <div
         className="relative w-full max-w-sm bg-white rounded-t-3xl pb-10 pt-5 px-6 shadow-2xl animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 핸들 */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-6" />
-
         <h2 className="text-slate-900 font-bold text-xl mb-1">계정 선택</h2>
         <p className="text-slate-400 text-sm mb-6">학습을 이어갈 이름을 선택해주세요</p>
-
         {savedProfiles.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-8">등록된 계정이 없습니다.</p>
         ) : (
@@ -63,12 +49,10 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
               <button
                 key={profile.userName}
                 onClick={() => handleSelect(profile.userName)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-ybm-blue/5 hover:border-ybm-blue/20 active:scale-[0.98] transition-all text-left"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/20 active:scale-[0.98] transition-all text-left"
               >
-                <div className="w-11 h-11 rounded-xl bg-ybm-blue/10 flex items-center justify-center shrink-0">
-                  <span className="text-ybm-blue font-black text-lg">
-                    {profile.userName.slice(0, 1)}
-                  </span>
+                <div className="w-11 h-11 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
+                  <span className="text-[#4F46E5] font-black text-lg">{profile.userName.slice(0, 1)}</span>
                 </div>
                 <div>
                   <p className="text-slate-900 font-bold text-base">{profile.userName}</p>
@@ -83,7 +67,6 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
             ))}
           </div>
         )}
-
         <button
           onClick={onClose}
           className="w-full mt-4 h-11 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors"
@@ -95,61 +78,99 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
   )
 }
 
+const FEATURES = ['AI 진단', '오답 루틴', '1:1 코칭', '보카런']
+
+const TRUST = [
+  { icon: '🎓', text: 'YBM 강사 콘텐츠 기반' },
+  { icon: '🎯', text: '목표 점수 맞춤 루틴' },
+  { icon: '📊', text: '오답 패턴 자동 분석' },
+]
+
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
-  const { savedProfiles } = useOnboardingStore()
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false)
-    }, 3000)
+    const timer = setTimeout(() => setShowSplash(false), 3000)
     return () => clearTimeout(timer)
   }, [])
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-ybm-bg px-6 text-center overflow-hidden">
+    <main className="min-h-screen bg-ybm-bg font-sans overflow-x-hidden">
       {showSplash && <SplashScreen />}
-      
-      <div className={`relative space-y-12 z-10 ${showSplash ? 'opacity-0' : 'animate-fade-in'}`}>
-        {/* 심플 로고 아이콘 */}
-        <div className="relative w-40 h-40 mx-auto flex items-center justify-center bg-white rounded-[40px] border border-slate-200 shadow-xl animate-float">
-          <img src="/favicon.png" alt="YBM Logo" className="w-24 h-24 object-contain" />
-        </div>
 
-        {/* 타이틀 및 설명 */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight uppercase font-display">
-            YBM AI COURSE
-          </h1>
-          <p className="text-slate-500 text-lg font-medium leading-relaxed">
-            AI와 스타 강사가 함께 설계한<br />
-            <span className="text-ybm-blue font-bold">초개인화 1:1 토익 코칭</span>
-          </p>
-        </div>
+      <div className={showSplash ? 'opacity-0' : 'animate-fade-in'}>
 
-        {/* 시작하기 버튼 */}
-        <div className="pt-4 space-y-6">
-          <Link
-            href="/onboarding"
-            className="inline-block w-full max-w-xs bg-ybm-blue text-white text-lg font-bold h-[52px] leading-[52px] rounded-xl shadow-blue hover:opacity-90 transition-all active:scale-95"
-          >
-            START LEARNING
-          </Link>
-          <p className="text-slate-400 text-sm font-medium">
-            이미 계정이 있으신가요?{' '}
-            <button
-              onClick={() => setShowLogin(true)}
-              className="text-ybm-blue font-bold underline cursor-pointer"
-            >
-              로그인
-            </button>
-          </p>
-        </div>
+        {/* ── 메인 섹션 ── */}
+        <section className="max-w-[640px] mx-auto px-6 md:px-12 pt-16 md:pt-28 pb-16 text-center">
+
+          {/* 카피 + CTA */}
+          <div className="space-y-7">
+            {/* 배지 */}
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#4F46E5] bg-[#EEF2FF] px-3 py-1.5 rounded-full border border-[#C7D2FE]">
+              ✨ YBM 강사 × AI 맞춤 코칭
+            </span>
+
+            {/* 헤드라인 */}
+            <h1 className="text-[34px] md:text-[46px] font-black text-[#1C1B33] leading-[1.2] tracking-tight">
+              토익 공부,<br />오늘 뭐 할지<br />
+              <span className="text-[#4F46E5]">고민하지 마세요</span>
+            </h1>
+
+            {/* 서브타이틀 */}
+            <p className="text-[15px] md:text-[16px] text-[#6B7280] leading-relaxed font-normal">
+              AI가 약점을 분석하고 YBM 강사 스타일로<br />
+              맞춤 루틴을 제안합니다.
+            </p>
+
+            {/* 기능 pill */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {FEATURES.map((f) => (
+                <span
+                  key={f}
+                  className="text-[12px] font-normal text-[#374151] bg-white border border-[#ECEAF5] px-3.5 py-1.5 rounded-full shadow-sm"
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <div className="pt-1 w-full md:w-[260px] mx-auto flex flex-col items-center gap-4">
+              <Link
+                href="/onboarding"
+                className="inline-flex items-center justify-center gap-2 w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-[15px] h-[52px] px-8 rounded-xl animate-cta-pulse transition-colors active:scale-[0.98]"
+              >
+                AI 진단 시작하기
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </Link>
+              <p className="text-[13px] text-[#9CA3AF] font-normal text-center">
+                이미 계정이 있나요?{' '}
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className="text-[#4F46E5] font-bold hover:underline"
+                >
+                  로그인
+                </button>
+              </p>
+            </div>
+          </div>
+
+          {/* 신뢰 요소 */}
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            {TRUST.map((item) => (
+              <div key={item.text} className="bg-white rounded-xl border border-[#ECEAF5] p-3 text-center shadow-sm">
+                <span className="text-[18px] block mb-1">{item.icon}</span>
+                <p className="text-[10px] font-semibold text-[#6B7280] leading-tight">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
       {showLogin && <LoginSheet onClose={() => setShowLogin(false)} />}
     </main>
   )
 }
-
