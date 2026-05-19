@@ -237,6 +237,7 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({})
+  const [isTablet, setIsTablet] = useState(false)
   const videoRefs = useRef<(HTMLVideoElement | null)[]>(new Array(INSTRUCTORS.length).fill(null)) // 최대 크기로 고정
   const touchStartX = useRef(0)
 
@@ -272,6 +273,14 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
     const v = videoRefs.current[focusedIndex]
     if (v) v.muted = isMuted
   }, [isMuted])
+
+  /* ── 태블릿 감지 ── */
+  useEffect(() => {
+    const check = () => setIsTablet(window.innerWidth >= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   /* ── 키보드 좌우 화살표 ── */
   useEffect(() => {
@@ -424,14 +433,22 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
         {/* Card Slider */}
         <div
           className="relative flex-shrink-0"
-          style={{ height: '340px' }}
+          style={{ height: isTablet ? '420px' : '340px' }}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {visibleInstructors.map((inst, i) => {
             const offset = wrappedOffset(i, focusedIndex, visibleInstructors.length)
+            const absOffset = Math.abs(offset)
             const isActive = offset === 0
-            const isVisible = Math.abs(offset) <= 1
+            const isVisible = isTablet ? absOffset <= 2 : absOffset <= 1
+
+            const cardW = isTablet ? 220 : 220
+            const cardH = isTablet ? 360 : 300
+            const spacing = isTablet ? 215 : 200
+            const scale = isActive ? 1 : absOffset === 1 ? 0.85 : 0.70
+            const opacity = isActive ? 1 : absOffset === 1 ? 0.65 : 0.40
+            const blur = isActive ? 'none' : absOffset === 1 ? 'blur(1.5px)' : 'blur(2.5px)'
             const showVideo = !!inst.video && !videoErrors[inst.id]
 
             return (
@@ -439,15 +456,15 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                 key={inst.id}
                 className="absolute"
                 style={{
-                  width: '220px',
-                  height: '300px',
+                  width: `${cardW}px`,
+                  height: `${cardH}px`,
                   top: '50%',
                   left: '50%',
-                  transform: `translateX(calc(-50% + ${offset * 200}px)) translateY(-50%) scale(${isActive ? 1 : 0.85})`,
-                  opacity: isActive ? 1 : isVisible ? 0.6 : 0,
-                  filter: isActive ? 'none' : 'blur(1.5px)',
+                  transform: `translateX(calc(-50% + ${offset * spacing}px)) translateY(-50%) scale(${scale})`,
+                  opacity: isVisible ? opacity : 0,
+                  filter: blur,
                   transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                  zIndex: isActive ? 10 : 5,
+                  zIndex: isActive ? 10 : absOffset === 1 ? 6 : 3,
                   cursor: isActive ? 'default' : 'pointer',
                   pointerEvents: isVisible ? 'auto' : 'none',
                 }}
