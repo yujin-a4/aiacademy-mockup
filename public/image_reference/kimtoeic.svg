@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="400" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ECFDF5"/>
+      <stop offset="100%" stop-color="#6EE7B7"/>
+    </linearGradient>
+    <linearGradient id="skin2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FAD7B5"/>
+      <stop offset="100%" stop-color="#F0B990"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg2)"/>
+
+  <!-- Jacket (charcoal) -->
+  <path d="M 20 500 L 55 425 Q 105 395 200 385 Q 295 395 345 425 L 380 500 Z" fill="#1F2937"/>
+  <!-- Jacket lapels -->
+  <path d="M 200 385 L 170 430 L 155 500 L 200 500 Z" fill="#111827"/>
+  <path d="M 200 385 L 230 430 L 245 500 L 200 500 Z" fill="#111827"/>
+  <!-- White shirt -->
+  <path d="M 175 340 L 175 390 L 225 390 L 225 340" fill="white"/>
+  <!-- Tie (green) -->
+  <path d="M 196 335 L 190 375 L 200 390 L 210 375 L 204 335 Z" fill="#059669"/>
+  <path d="M 196 335 L 204 335 L 205 345 L 200 348 L 195 345 Z" fill="#047857"/>
+
+  <!-- Neck -->
+  <rect x="183" y="285" width="34" height="58" rx="12" fill="url(#skin2)"/>
+
+  <!-- Head -->
+  <ellipse cx="200" cy="228" rx="84" ry="90" fill="url(#skin2)"/>
+
+  <!-- Hair (short, dark) -->
+  <path d="M 116 210 C 118 155 158 130 200 128 C 242 130 282 155 284 210 C 268 162 238 145 200 143 C 162 145 132 162 116 210 Z" fill="#1A0D06"/>
+  <!-- Hair texture/volume -->
+  <ellipse cx="200" cy="153" rx="84" ry="35" fill="#1A0D06"/>
+  <!-- Short side hair -->
+  <path d="M 116 195 C 114 210 115 225 118 240" stroke="#1A0D06" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M 284 195 C 286 210 285 225 282 240" stroke="#1A0D06" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+  <!-- Ears -->
+  <ellipse cx="116" cy="230" rx="10" ry="13" fill="#EAA882"/>
+  <ellipse cx="284" cy="230" rx="10" ry="13" fill="#EAA882"/>
+
+  <!-- Glasses frame -->
+  <rect x="152" y="215" width="38" height="27" rx="8" fill="none" stroke="#374151" stroke-width="2.5"/>
+  <rect x="210" y="215" width="38" height="27" rx="8" fill="none" stroke="#374151" stroke-width="2.5"/>
+  <!-- Bridge -->
+  <path d="M 190 228 L 210 228" stroke="#374151" stroke-width="2.5"/>
+  <!-- Temples -->
+  <path d="M 148 228 L 152 228" stroke="#374151" stroke-width="2"/>
+  <path d="M 248 228 L 252 228" stroke="#374151" stroke-width="2"/>
+  <!-- Lens subtle tint -->
+  <rect x="152" y="215" width="38" height="27" rx="8" fill="#F0FDF4" opacity="0.3"/>
+  <rect x="210" y="215" width="38" height="27" rx="8" fill="#F0FDF4" opacity="0.3"/>
+
+  <!-- Eyes (behind glasses) -->
+  <ellipse cx="171" cy="229" rx="10" ry="10" fill="#1A0D06"/>
+  <ellipse cx="229" cy="229" rx="10" ry="10" fill="#1A0D06"/>
+  <circle cx="174" cy="226" r="3" fill="white"/>
+  <circle cx="232" cy="226" r="3" fill="white"/>
+  <circle cx="175" cy="227" r="1.2" fill="#1A0D06"/>
+  <circle cx="233" cy="227" r="1.2" fill="#1A0D06"/>
+
+  <!-- Eyebrows -->
+  <path d="M 156 207 Q 171 200 186 205" stroke="#1A0D06" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M 214 205 Q 229 200 244 207" stroke="#1A0D06" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <path d="M 195 250 Q 200 260 205 250" stroke="#C88A60" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="194" cy="258" r="2.5" fill="#C88A60" opacity="0.35"/>
+  <circle cx="206" cy="258" r="2.5" fill="#C88A60" opacity="0.35"/>
+
+  <!-- Slight confident smile -->
+  <path d="M 182 272 Q 200 287 218 272" stroke="#C06855" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 182 272 Q 191 278 200 277 Q 209 278 218 272" fill="#E8967A" opacity="0.5"/>
+</svg>

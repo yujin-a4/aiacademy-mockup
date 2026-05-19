@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <defs>
+    <linearGradient id="bg5" x1="0" y1="0" x2="400" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FAF5FF"/>
+      <stop offset="100%" stop-color="#DDD6FE"/>
+    </linearGradient>
+    <linearGradient id="skin5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F5C9A0"/>
+      <stop offset="100%" stop-color="#E8A878"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#bg5)"/>
+
+  <!-- Cardigan (lavender/purple, classic style) -->
+  <path d="M 15 500 L 50 425 Q 105 393 200 384 Q 295 393 350 425 L 385 500 Z" fill="#7C3AED"/>
+  <!-- Cardigan collar -->
+  <path d="M 175 332 L 160 390 L 200 405 L 240 390 L 225 332" fill="#6D28D9" opacity="0.6"/>
+  <!-- Blouse underneath (cream) -->
+  <path d="M 185 332 L 182 390 L 200 398 L 218 390 L 215 332" fill="#FEF3C7"/>
+
+  <!-- Neck -->
+  <rect x="183" y="285" width="34" height="58" rx="12" fill="url(#skin5)"/>
+
+  <!-- Hair back (silver grey, permed style) -->
+  <path d="M 120 198 C 112 248 114 310 124 352" stroke="#B8B8C8" stroke-width="40" fill="none" stroke-linecap="round"/>
+  <path d="M 280 198 C 288 248 286 310 276 352" stroke="#B8B8C8" stroke-width="40" fill="none" stroke-linecap="round"/>
+
+  <!-- Head -->
+  <ellipse cx="200" cy="232" rx="82" ry="88" fill="url(#skin5)"/>
+
+  <!-- Silver permed hair -->
+  <ellipse cx="200" cy="162" rx="86" ry="44" fill="#C4C4D4"/>
+  <path d="M 118 205 C 120 155 158 132 200 130 C 242 132 280 155 282 205 C 265 162 238 145 200 143 C 162 145 135 162 118 205 Z" fill="#C4C4D4"/>
+  <!-- Perm texture bumps -->
+  <circle cx="155" cy="148" r="12" fill="#D4D4E4"/>
+  <circle cx="180" cy="138" r="14" fill="#C4C4D4"/>
+  <circle cx="205" cy="135" r="13" fill="#D4D4E4"/>
+  <circle cx="230" cy="138" r="14" fill="#C4C4D4"/>
+  <circle cx="252" cy="148" r="12" fill="#D4D4E4"/>
+  <circle cx="140" cy="162" r="11" fill="#C4C4D4"/>
+  <circle cx="265" cy="162" r="11" fill="#C4C4D4"/>
+  <!-- Grey highlights -->
+  <path d="M 190 138 C 188 152 187 166 188 178" stroke="#E8E8F0" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Ears -->
+  <ellipse cx="118" cy="235" rx="10" ry="12" fill="#D4A070"/>
+  <ellipse cx="282" cy="235" rx="10" ry="12" fill="#D4A070"/>
+  <!-- Pearl earrings -->
+  <circle cx="118" cy="248" r="5" fill="#F8F8F8" stroke="#D4D4D4" stroke-width="1"/>
+  <circle cx="282" cy="248" r="5" fill="#F8F8F8" stroke="#D4D4D4" stroke-width="1"/>
+
+  <!-- Reading glasses -->
+  <rect x="152" y="218" width="36" height="23" rx="7" fill="none" stroke="#7C3AED" stroke-width="2.5"/>
+  <rect x="212" y="218" width="36" height="23" rx="7" fill="none" stroke="#7C3AED" stroke-width="2.5"/>
+  <path d="M 188 229 L 212 229" stroke="#7C3AED" stroke-width="2.5"/>
+  <path d="M 148 229 L 152 229" stroke="#7C3AED" stroke-width="2"/>
+  <path d="M 248 229 L 252 229" stroke="#7C3AED" stroke-width="2"/>
+  <!-- Lens tint -->
+  <rect x="152" y="218" width="36" height="23" rx="7" fill="#EDE9FE" opacity="0.35"/>
+  <rect x="212" y="218" width="36" height="23" rx="7" fill="#EDE9FE" opacity="0.35"/>
+
+  <!-- Eyes (warm, wise, slightly squinted from smiling) -->
+  <ellipse cx="170" cy="230" rx="9" ry="8" fill="#2D1B0A"/>
+  <ellipse cx="230" cy="230" rx="9" ry="8" fill="#2D1B0A"/>
+  <circle cx="173" cy="227" r="2.8" fill="white"/>
+  <circle cx="233" cy="227" r="2.8" fill="white"/>
+  <circle cx="174" cy="228" r="1.1" fill="#2D1B0A"/>
+  <circle cx="234" cy="228" r="1.1" fill="#2D1B0A"/>
+  <!-- Smile wrinkles (crow's feet) -->
+  <path d="M 152 223 Q 148 228 150 234" stroke="#C89070" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 248 223 Q 252 228 250 234" stroke="#C89070" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Eyebrows (soft, slightly greying) -->
+  <path d="M 157 212 Q 170 207 184 211" stroke="#888898" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M 216 211 Q 230 207 243 212" stroke="#888898" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <path d="M 196 250 Q 200 259 204 250" stroke="#B88060" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="195" cy="257" r="2.5" fill="#B88060" opacity="0.35"/>
+  <circle cx="205" cy="257" r="2.5" fill="#B88060" opacity="0.35"/>
+
+  <!-- Warm wide smile (big grin) -->
+  <path d="M 174 273 Q 200 298 226 273" stroke="#B06050" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 174 273 Q 200 292 226 273" fill="#E09080" opacity="0.5"/>
+  <!-- Laugh lines -->
+  <path d="M 168 260 Q 163 270 166 280" stroke="#C89070" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+  <path d="M 232 260 Q 237 270 234 280" stroke="#C89070" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Cheek blush (rosy) -->
+  <ellipse cx="148" cy="258" rx="22" ry="12" fill="#F97316" opacity="0.18"/>
+  <ellipse cx="252" cy="258" rx="22" ry="12" fill="#F97316" opacity="0.18"/>
+</svg>

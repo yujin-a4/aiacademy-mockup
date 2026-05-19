@@ -7,20 +7,20 @@ const TIME_OPTIONS = ['15분', '30분', '1시간', '1시간 이상']
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
 const TOEIC_DATES = [
-  '2026-05-25', '2026-06-14', '2026-06-28',
+  '2026-05-31', '2026-06-13', '2026-06-28',
   '2026-07-12', '2026-07-26',
-  '2026-08-09', '2026-08-23',
-  '2026-09-13', '2026-09-27',
-  '2026-10-11', '2026-10-25',
-  '2026-11-08', '2026-11-22',
+  '2026-08-09', '2026-08-23', '2026-08-30',
+  '2026-09-06', '2026-09-20',
+  '2026-10-11', '2026-10-31',
+  '2026-11-15', '2026-11-29',
   '2026-12-13', '2026-12-27',
 ]
 
 function getDefaultExamDate(): string {
-  const threeMonthsLater = new Date()
-  threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3)
+  const twoMonthsLater = new Date()
+  twoMonthsLater.setMonth(twoMonthsLater.getMonth() + 2)
   return (
-    TOEIC_DATES.find((d) => new Date(d) >= threeMonthsLater) ??
+    TOEIC_DATES.find((d) => new Date(d) >= twoMonthsLater) ??
     TOEIC_DATES[TOEIC_DATES.length - 1]
   )
 }
@@ -182,7 +182,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     return (
       <StepLayout>
         <div className="flex-1 flex flex-col space-y-4 pb-4">
-          <StepHeader icon="📅" title={`시험 예정일을\n알려 주세요.`} subtitle="오늘 기준 3개월 뒤 시험일이 선택되어 있어요." />
+          <StepHeader icon="📅" title={`시험 예정일을\n알려 주세요.`} subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요." />
 
           <button
             onClick={() => setCalendarOpen(!calendarOpen)}
