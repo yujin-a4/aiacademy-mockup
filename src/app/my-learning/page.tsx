@@ -7,6 +7,7 @@ import { useVocaStore } from '@/store/vocaStore'
 import { useWrongAnswerStore, WrongAnswer, SCAFFOLDING } from '@/store/wrongAnswerStore'
 import { useState, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import AccountMenu from '@/components/AccountMenu'
 
 /* ── 데이터 ── */
 const PARTS = [
@@ -44,14 +45,6 @@ function Ring({ current, total }: { current: number; total: number }) {
   )
 }
 
-/* ── 계정 아바타 ── */
-function AccountAvatar({ userName }: { userName: string }) {
-  return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-black text-[13px] shrink-0 cursor-pointer select-none">
-      {userName ? userName[0].toUpperCase() : 'U'}
-    </div>
-  )
-}
 
 /* ── 오답 카드 ── */
 function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }) {
@@ -103,7 +96,7 @@ const NAV_ICONS = [
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#4F46E5':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
 ]
 
-function Sidebar({ userName, targetScore }: { userName: string; targetScore: string }) {
+function Sidebar() {
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#ECEAF5] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -121,39 +114,6 @@ function Sidebar({ userName, targetScore }: { userName: string; targetScore: str
         </button>
       </div>
 
-      <div className={`${open ? 'px-4 pb-4' : 'pb-3 flex flex-col items-center'}`}>
-        {open ? (
-          <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                {userName ? userName[0] : 'U'}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[#1C1B33] font-semibold text-sm truncate">{userName || '학습자'}님</p>
-                <span className="text-[#9CA3AF] text-[11px]">Level 5 · TOEIC 준비</span>
-              </div>
-            </div>
-            {targetScore && (
-              <div className="mt-3">
-                <div className="flex justify-between mb-1">
-                  <span className="text-[#9CA3AF] text-[10px]">목표까지</span>
-                  <span className="text-[#1C1B33] text-[10px] font-semibold">{targetScore}점</span>
-                </div>
-                <div className="w-full h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-[#818CF8] to-[#4F46E5] h-full rounded-full w-[65%]"/>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-bold text-sm">
-            {userName ? userName[0] : 'U'}
-          </div>
-        )}
-      </div>
-
-      <div className={`mb-2 ${open ? 'px-4' : 'px-3'}`}><div className="h-px bg-[#ECEAF5]"/></div>
-
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item, i) => (
           <Link key={item.label} href={item.href}
@@ -166,21 +126,12 @@ function Sidebar({ userName, targetScore }: { userName: string; targetScore: str
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
         <div className="mb-2 h-px bg-[#ECEAF5]"/>
-        <button className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#4F46E5] hover:bg-[#EEF2FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#4F46E5] hover:bg-[#EEF2FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           {open && <span className="animate-fade-in">설정</span>}
-        </button>
+        </Link>
       </div>
 
-      {open && (
-        <div className="px-3 pb-5 animate-fade-in">
-          <div className="bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-2xl p-4">
-            <p className="text-white/60 text-[10px] font-semibold uppercase tracking-wider">AI 튜터</p>
-            <p className="text-white font-bold text-[13px] mt-0.5 leading-snug">궁금한 점이 있으신가요?</p>
-            <button className="mt-3 w-full bg-white/20 hover:bg-white/30 text-white text-[12px] font-semibold rounded-xl py-2 transition-all">바로 질문하기</button>
-          </div>
-        </div>
-      )}
     </aside>
   )
 }
@@ -195,10 +146,10 @@ function BottomNav() {
           <span className="text-[10px] font-medium">{item.label}</span>
         </Link>
       ))}
-      <button className="flex flex-col items-center gap-1 min-w-[52px] py-1 text-[#9CA3AF]">
+      <Link href="/settings/account" className="flex flex-col items-center gap-1 min-w-[52px] py-1 text-[#9CA3AF]">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span className="text-[10px] font-medium">설정</span>
-      </button>
+      </Link>
     </nav>
   )
 }
@@ -250,7 +201,7 @@ function MyLearningInner() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar userName={userName ?? ''} targetScore={targetScore?.toString() ?? ''} />
+      <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
@@ -269,7 +220,7 @@ function MyLearningInner() {
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
                 12일 연속
               </span>
-              <AccountAvatar userName={userName ?? ''} />
+              <AccountMenu userName={userName ?? ''} />
             </div>
           </div>
         </header>
@@ -288,7 +239,7 @@ function MyLearningInner() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
               12일 연속
             </span>
-            <AccountAvatar userName={userName ?? ''} />
+            <AccountMenu userName={userName ?? ''} />
           </div>
         </header>
 
@@ -440,7 +391,7 @@ function MyLearningInner() {
 
                     {/* Primary CTA */}
                     <button
-                      onClick={() => setWrongSubTab('AI 추천')}
+                      onClick={() => router.push('/my-learning/wrong/review')}
                       className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -483,7 +434,7 @@ function MyLearningInner() {
                                 </div>
                               </div>
                               <button
-                                onClick={() => router.push(`/my-learning/part/${items[0]?.partId ?? 'p5'}`)}
+                                onClick={() => router.push(`/my-learning/wrong/review?category=${encodeURIComponent(cat)}`)}
                                 className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
                               >
                                 집중 복습
@@ -516,7 +467,7 @@ function MyLearningInner() {
                                 </div>
                               </div>
                               <button
-                                onClick={() => router.push(`/my-learning/part/${items[0]?.partId ?? 'p5'}`)}
+                                onClick={() => router.push(`/my-learning/wrong/review?partId=${items[0]?.partId ?? 'p5'}`)}
                                 className="text-[12px] font-semibold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors shrink-0"
                               >
                                 복습하기
@@ -546,7 +497,7 @@ function MyLearningInner() {
                             </div>
                             <p className="text-[12px] text-[#6B7280] leading-relaxed pl-9">{SCAFFOLDING[cat] ?? '이 유형의 핵심 패턴을 복습해보세요.'}</p>
                             <div className="mt-3 pl-9">
-                              <Link href={`/my-learning/part/${items[0]?.partId ?? 'p5'}`}
+                              <Link href={`/my-learning/wrong/review?category=${encodeURIComponent(cat)}`}
                                 className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4F46E5] border border-[#C7D2FE] px-3 py-1.5 rounded-lg hover:bg-[#EEF2FF] transition-colors">
                                 이 유형부터 복습
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>

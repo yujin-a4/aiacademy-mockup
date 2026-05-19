@@ -155,10 +155,10 @@ export default function WrongAnswerDetail() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#F8FAFF] via-[#F8FAFF] to-transparent">
         <div className="max-w-[600px] mx-auto">
           <Link
-            href={`/my-learning/part/${item.partId}`}
+            href={`/my-learning/wrong/review?partId=${item.partId}`}
             className="block w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#4F46E5]/20 text-center"
           >
-            {item.partLabel} 다시 풀기
+            {item.partLabel} 오답만 복습하기
           </Link>
         </div>
       </div>

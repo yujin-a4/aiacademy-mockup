@@ -2,14 +2,7 @@
 import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo } from 'react'
-
-function AccountAvatar({ userName }: { userName: string }) {
-  return (
-    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-black text-[13px] shrink-0 cursor-pointer select-none">
-      {userName ? userName[0].toUpperCase() : 'U'}
-    </div>
-  )
-}
+import AccountMenu from '@/components/AccountMenu'
 
 const MISSIONS = [
   { id: 1, text: 'Part 5 이하 10문제 풀기', done: true,  tag: null },
@@ -69,8 +62,8 @@ const SETTINGS_ICON = (a: boolean) => (
 )
 
 /* ── 사이드바 ── */
-function Sidebar({ open, setOpen, userName, targetScore }: {
-  open: boolean; setOpen: (v: boolean) => void; userName: string; targetScore: string
+function Sidebar({ open, setOpen }: {
+  open: boolean; setOpen: (v: boolean) => void
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#ECEAF5] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -90,39 +83,6 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
         </button>
       </div>
 
-      <div className={`${open ? 'px-4 pb-4' : 'pb-3 flex flex-col items-center'}`}>
-        {open ? (
-          <div className="bg-white border border-[#ECEAF5] rounded-2xl p-3 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                {userName ? userName.slice(0, 1) : 'U'}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[#1C1B33] font-semibold text-sm truncate">{userName || '학습자'}님</p>
-                <span className="text-[#9CA3AF] text-[11px]">Level 5 · TOEIC 준비</span>
-              </div>
-            </div>
-            {targetScore && (
-              <div className="mt-3">
-                <div className="flex justify-between mb-1">
-                  <span className="text-[#9CA3AF] text-[10px]">목표까지</span>
-                  <span className="text-[#1C1B33] text-[10px] font-semibold">{targetScore}점</span>
-                </div>
-                <div className="w-full h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-[#818CF8] to-[#4F46E5] h-full rounded-full w-[65%]" />
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center text-white font-bold text-sm">
-            {userName ? userName.slice(0, 1) : 'U'}
-          </div>
-        )}
-      </div>
-
-      <div className={`mb-2 ${open ? 'px-4' : 'px-3'}`}><div className="h-px bg-[#ECEAF5]" /></div>
-
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item) => (
           <Link key={item.label} href={item.href ?? '#'}
@@ -135,10 +95,10 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
         <div className="mb-2"><div className="h-px bg-[#ECEAF5]" /></div>
-        <button className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#4F46E5] hover:bg-[#EEF2FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#4F46E5] hover:bg-[#EEF2FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <span className="shrink-0">{SETTINGS_ICON(false)}</span>
           {open && <span className="animate-fade-in">설정</span>}
-        </button>
+        </Link>
       </div>
     </aside>
   )
@@ -146,7 +106,7 @@ function Sidebar({ open, setOpen, userName, targetScore }: {
 
 /* ── 모바일 하단 네비 ── */
 function BottomNav() {
-  const items = [...NAV.slice(0, 4), { label: '설정', active: false, href: '#', icon: SETTINGS_ICON }]
+  const items = [...NAV.slice(0, 4), { label: '설정', active: false, href: '/settings/account', icon: SETTINGS_ICON }]
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#ECEAF5] flex items-center justify-around px-2 pt-2 pb-6 z-50">
       {items.map((item) => (
@@ -201,7 +161,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} userName={userName ?? ''} targetScore={targetScore?.toString() ?? ''} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
@@ -236,7 +196,7 @@ export default function Dashboard() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
               </button>
-              <AccountAvatar userName={userName ?? ''} />
+              <AccountMenu userName={userName ?? ''} />
             </div>
           </div>
         </header>
@@ -266,7 +226,7 @@ export default function Dashboard() {
                   토익 시험 접수하기
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </a>
-                <AccountAvatar userName={userName ?? ''} />
+                <AccountMenu userName={userName ?? ''} />
               </div>
             </div>
 
@@ -400,9 +360,9 @@ export default function Dashboard() {
                 </p>
                 <p className="text-[#9CA3AF] text-[12px] mt-0.5 mb-auto">지금 <span className="font-semibold text-[#374151]">923명</span>이 도전 중입니다.</p>
 
-                <button className="mt-4 w-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white py-3 rounded-xl font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#4F46E5]/20 active:scale-[0.98]">
+                <Link href="/daily" className="mt-4 w-full bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white py-3 rounded-xl font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#4F46E5]/20 active:scale-[0.98]">
                   ⚡ 오늘의 데일리 문제 풀기
-                </button>
+                </Link>
               </div>
 
             </div>
