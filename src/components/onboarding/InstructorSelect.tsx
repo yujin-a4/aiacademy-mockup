@@ -464,8 +464,10 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
                     <video
                       ref={el => { videoRefs.current[i] = el }}
                       src={inst.video}
+                      poster={inst.thumbnail}
                       playsInline
                       loop
+                      preload="metadata"
                       className="absolute inset-0 w-full h-full object-cover"
                       onError={() => setVideoErrors(prev => ({ ...prev, [inst.id]: true }))}
                     />
