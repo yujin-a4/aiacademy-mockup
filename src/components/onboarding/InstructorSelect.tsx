@@ -562,16 +562,16 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
         </div>
 
         {/* CTA */}
-        <div className="flex-1 flex flex-col justify-end px-6 pb-10 space-y-2.5 mt-6">
+        <div className="mt-6 mb-10 px-6 space-y-2.5 w-full max-w-[400px] mx-auto">
           <button
             onClick={() => goToDetail(focused)}
-            className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-[12px] h-12 font-semibold text-[15px] transition-all active:scale-[0.98]"
+            className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-[12px] h-11 font-semibold text-[14px] transition-all active:scale-[0.98]"
           >
             {focused.name} 강사 자세히 보기
           </button>
           <button
             onClick={() => handleConfirm(focused.id)}
-            className="w-full bg-white border border-[#E5E7EB] hover:border-[#4F46E5] hover:text-[#4F46E5] text-[#374151] rounded-[12px] h-12 font-semibold text-[15px] transition-all active:scale-[0.98]"
+            className="w-full bg-white border border-[#E5E7EB] hover:border-[#4F46E5] hover:text-[#4F46E5] text-[#374151] rounded-[12px] h-11 font-semibold text-[14px] transition-all active:scale-[0.98]"
           >
             바로 선택하기
           </button>
