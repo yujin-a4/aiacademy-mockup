@@ -13,7 +13,7 @@ const INSTRUCTORS = [
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
     quote: '"이거 또 틀렸네. 패턴 외워."',
     badgeCls: 'bg-[#FEF9C3] text-[#B45309]',
-    matching: '92%',
+    matching: '99%',
     matchingDesc: '계획적인 학습 습관과 빠른 피드백을 선호하는 성향이 잘 맞아요.',
     recommendations: [
       '단기간에 점수를 올리고 싶은 분',
@@ -524,6 +524,15 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       </button>
                     </div>
                   )}
+
+                  {/* Match 배지 */}
+                  <div className={`absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-bold pointer-events-none ${
+                    inst.id === 'park'
+                      ? 'bg-[#4F46E5] text-white px-3 py-1 shadow-lg shadow-[#4F46E5]/50'
+                      : 'bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px] font-medium'
+                  }`}>
+                    {inst.id === 'park' ? `✦ ${inst.matching} Match` : `${inst.matching} Match`}
+                  </div>
 
                   {/* 음소거 토글 버튼 */}
                   {isActive && showVideo && (

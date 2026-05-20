@@ -6,22 +6,6 @@ import AccountMenu from '@/components/AccountMenu'
 
 /* ── 데이터 ── */
 
-const SCORE_HISTORY = [
-  { label: '3/1',  score: 615 },
-  { label: '3/15', score: 628 },
-  { label: '4/1',  score: 638 },
-  { label: '4/15', score: 652 },
-  { label: '5/1',  score: 647 },
-  { label: '5/18', score: 668 },
-]
-
-const OVERVIEW_STATS = [
-  { label: '총 학습일',  value: '48일',   color: '#4F46E5', bg: '#EEF2FF' },
-  { label: '총 문제 수', value: '1,240',  color: '#0891B2', bg: '#ECFEFF' },
-  { label: '평균 정답률', value: '68%',   color: '#059669', bg: '#F0FDF4' },
-  { label: '연속 학습',  value: '12일',   color: '#D97706', bg: '#FEF9C3' },
-]
-
 const PART_STATS = [
   { id: 'P1', name: '사진 묘사',  type: 'LC', accuracy: 91 },
   { id: 'P2', name: '질문 응답',  type: 'LC', accuracy: 83 },
@@ -29,6 +13,14 @@ const PART_STATS = [
   { id: 'P5', name: '단문 공란',  type: 'RC', accuracy: 61 },
   { id: 'P6', name: '장문 공란',  type: 'RC', accuracy: 52 },
   { id: 'P7', name: '장문 독해',  type: 'RC', accuracy: 48 },
+]
+
+const RADAR_DATA = [
+  { label: '분사구문', value: 85 },
+  { label: '시제',    value: 72 },
+  { label: '어휘',    value: 42 },
+  { label: '전치사',  value: 58 },
+  { label: '관계사',  value: 55 },
 ]
 
 const BADGES = [
@@ -89,6 +81,27 @@ const TIPS: { id: number; category: string; color: TipColor; points: string[] }[
   },
 ]
 
+const RANKING_DATA = [
+  { rank: 1,   name: '토익마스터',   score: 895, streak: 64, target: 900  },
+  { rank: 2,   name: '영어의신',     score: 867, streak: 52, target: 900  },
+  { rank: 3,   name: '9시간공부',    score: 851, streak: 47, target: 850  },
+  { rank: 4,   name: '외국계취준',   score: 830, streak: 38, target: 850  },
+  { rank: 5,   name: '대학원준비',   score: 812, streak: 35, target: 850  },
+  { rank: 340, name: '취업준비생',   score: 672, streak: 13, target: 750  },
+  { rank: 341, name: '직장인파이팅', score: 670, streak: 11, target: 700  },
+  { rank: 342, name: '토익초보',     score: 668, streak: 12, target: 750, isMe: true },
+  { rank: 343, name: '주부토익러',   score: 665, streak: 9,  target: 700  },
+  { rank: 344, name: '편입도전',     score: 661, streak: 8,  target: 750  },
+]
+
+const REPORT_SESSIONS = [
+  { date: '5월 18일', part: 'Part 5 · 수동태', duration: '50분', score: '+4점' },
+  { date: '5월 15일', part: 'Part 5·6 · 시제', duration: '55분', score: '+3점' },
+  { date: '5월 12일', part: 'Part 5 · 전치사', duration: '45분', score: '+2점' },
+  { date: '5월 8일',  part: 'Part 7 · 독해',  duration: '60분', score: '+7점' },
+  { date: '4월 28일', part: 'Part 6 · 어휘',  duration: '50분', score: '+5점' },
+]
+
 const MATERIALS = [
   {
     date: '2026-05-18', label: '오늘',
@@ -119,46 +132,83 @@ const MATERIALS = [
   },
 ]
 
-/* ── SVG 점수 차트 ── */
-function ScoreChart({ data, target }: { data: { label: string; score: number }[]; target: number }) {
-  const MIN = 580, MAX = 800
-  const W = 300, H = 120, PX = 8, PT = 20, PB = 18
-  const innerW = W - PX * 2
-  const innerH = H - PT - PB
-  const tx = (i: number) => PX + (i / (data.length - 1)) * innerW
-  const ty = (s: number) => PT + innerH - ((s - MIN) / (MAX - MIN)) * innerH
-  const linePath = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${ty(d.score).toFixed(1)}`).join(' ')
-  const areaPath = `${linePath} L${tx(data.length - 1).toFixed(1)},${(PT + innerH).toFixed(1)} L${PX},${(PT + innerH).toFixed(1)}Z`
-  const tgtY = ty(target)
+/* ── 랭킹 행 ── */
+const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
 
+function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
+  const isMe = item.isMe === true
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-      <defs>
-        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.01" />
-        </linearGradient>
-      </defs>
-      {/* 목표선 */}
-      <line x1={PX} y1={tgtY} x2={W - PX} y2={tgtY} stroke="#EF4444" strokeWidth="1.2" strokeDasharray="4,3" />
-      <text x={W - PX - 2} y={tgtY - 4} textAnchor="end" fill="#EF4444" fontSize="8.5" fontWeight="600">목표 {target}</text>
-      {/* 면적 */}
-      <path d={areaPath} fill="url(#sg)" />
-      {/* 선 */}
-      <path d={linePath} fill="none" stroke="#4F46E5" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      {/* 점 */}
-      {data.map((d, i) => (
-        <g key={i}>
-          <circle cx={tx(i)} cy={ty(d.score)} r="3.5" fill="#4F46E5" stroke="white" strokeWidth="1.5" />
-          {i === data.length - 1 && (
-            <text x={tx(i)} y={ty(d.score) - 8} textAnchor="middle" fill="#4F46E5" fontSize="9.5" fontWeight="700">{d.score}</text>
-          )}
-        </g>
+    <div className={`px-4 py-3 flex items-center gap-3 border-t border-[#F3F4F6] first:border-t-0 ${isMe ? 'bg-[#EEF2FF]' : ''}`}>
+      <span className={`w-8 text-center shrink-0 ${item.rank <= 3 ? 'text-[18px]' : 'text-[13px] font-bold text-[#9CA3AF]'}`}>
+        {item.rank <= 3 ? MEDAL[item.rank] : item.rank}
+      </span>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[13px] font-bold ${isMe ? 'bg-[#4F46E5] text-white' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
+        {item.name[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className={`text-[13px] font-semibold truncate ${isMe ? 'text-[#4F46E5]' : 'text-[#1C1B33]'}`}>{item.name}</p>
+          {isMe && <span className="text-[9px] font-bold bg-[#4F46E5] text-white px-1.5 py-0.5 rounded-full shrink-0">나</span>}
+        </div>
+        <p className="text-[10px] text-[#9CA3AF] mt-0.5">🔥 {item.streak}일 연속 · 목표 {item.target}점</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-[15px] font-bold ${isMe ? 'text-[#4F46E5]' : 'text-[#1C1B33]'}`}>
+          {item.score}<span className="text-[10px] font-normal text-[#9CA3AF] ml-0.5">점</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* ── SVG 레이더 차트 ── */
+function RadarChart() {
+  const CX = 100, CY = 108, R = 65, N = RADAR_DATA.length
+  const angles = RADAR_DATA.map((_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N)
+  const pt = (angle: number, val: number): [number, number] => [
+    CX + R * (val / 100) * Math.cos(angle),
+    CY + R * (val / 100) * Math.sin(angle),
+  ]
+  const axisPt = (angle: number): [number, number] => [
+    CX + R * Math.cos(angle),
+    CY + R * Math.sin(angle),
+  ]
+  const dataPath = RADAR_DATA.map((d, i) => {
+    const [x, y] = pt(angles[i], d.value)
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ') + 'Z'
+  const gridPaths = [0.25, 0.5, 0.75, 1.0].map(lv =>
+    RADAR_DATA.map((_, i) => {
+      const [x, y] = pt(angles[i], lv * 100)
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+    }).join(' ') + 'Z'
+  )
+  return (
+    <svg viewBox="0 0 200 210" className="w-full max-w-[220px] mx-auto">
+      {gridPaths.map((path, gi) => (
+        <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 1 : 0.6}/>
       ))}
-      {/* x 레이블 */}
-      {data.map((d, i) => (
-        <text key={i} x={tx(i)} y={H - 2} textAnchor="middle" fill="#9CA3AF" fontSize="8.5">{d.label}</text>
-      ))}
+      {angles.map((angle, i) => {
+        const [x, y] = axisPt(angle)
+        return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.8"/>
+      })}
+      <path d={dataPath} fill="#4F46E5" fillOpacity="0.12" stroke="#4F46E5" strokeWidth="1.5" strokeLinejoin="round"/>
+      {RADAR_DATA.map((d, i) => {
+        const [x, y] = pt(angles[i], d.value)
+        const isStrong = d.value >= 70
+        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="3.5" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="1.5"/>
+      })}
+      {RADAR_DATA.map((d, i) => {
+        const lx = CX + (R + 22) * Math.cos(angles[i])
+        const ly = CY + (R + 22) * Math.sin(angles[i])
+        return (
+          <text key={i} x={lx.toFixed(1)} y={ly.toFixed(1)}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize="9" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
+            {d.label}
+          </text>
+        )
+      })}
     </svg>
   )
 }
@@ -256,11 +306,9 @@ function MaterialIcon({ type }: { type: string }) {
 
 /* ── 메인 ── */
 export default function StatusPage() {
-  const { userName, targetScore } = useOnboardingStore()
-  const [tab, setTab] = useState<'report' | 'badge' | 'tips' | 'materials'>('report')
+  const { userName } = useOnboardingStore()
+  const [tab, setTab] = useState<'report' | 'badge' | 'tips' | 'materials' | 'ranking'>('report')
   const [openTip, setOpenTip] = useState<number | null>(null)
-
-  const target = targetScore ?? 750
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
@@ -280,8 +328,8 @@ export default function StatusPage() {
           <AccountMenu userName={userName ?? ''} />
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
-          <div className="max-w-[680px] mx-auto w-full">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-10">
+          <div className="max-w-[1200px] mx-auto w-full">
 
             {/* 탭 */}
             <div className="flex border-b border-[#ECEAF5] mb-5 overflow-x-auto">
@@ -290,6 +338,7 @@ export default function StatusPage() {
                 ['badge',     '배지'],
                 ['tips',      '비법노트'],
                 ['materials', '학습자료'],
+                ['ranking',   '랭킹'],
               ] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setTab(key)}
                   className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${
@@ -304,71 +353,152 @@ export default function StatusPage() {
 
             {/* ── 리포트 ── */}
             {tab === 'report' && (
-              <div className="animate-fade-in space-y-4">
-                {/* 개요 카드 */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {OVERVIEW_STATS.map(s => (
-                    <div key={s.label} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 text-center shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
-                      <p className="text-[22px] font-black" style={{ color: s.color }}>{s.value}</p>
-                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="animate-fade-in space-y-5">
 
-                {/* 점수 추이 */}
-                <div className="bg-white border border-[#ECEAF5] rounded-2xl p-5 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="text-[14px] font-bold text-[#1C1B33]">점수 추이</p>
-                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">최근 6회 과외 기준</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[24px] font-black text-[#4F46E5] leading-none">668</p>
-                      <p className="text-[11px] text-[#9CA3AF] mt-1">현재 예상 점수</p>
+                {/* 예측 점수 배너 */}
+                <div className="bg-gradient-to-r from-[#4338CA] to-[#6366F1] rounded-2xl px-6 py-5 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-white/60 text-[11px] tracking-widest uppercase mb-1">AI 예측 점수</p>
+                    <p className="text-white/80 text-[13px] font-medium mb-1">{userName ?? '정연'}님의 현재 예측 점수</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white text-[48px] font-bold leading-none">745</span>
+                      <span className="text-white/80 text-[22px] font-semibold">점</span>
                     </div>
                   </div>
-                  <ScoreChart data={SCORE_HISTORY} target={target} />
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-0.5 bg-[#4F46E5] rounded-full" />
-                      <span className="text-[10px] text-[#9CA3AF]">점수 추이</span>
+                  <div className="shrink-0 text-right">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-5 py-3 mb-2">
+                      <p className="text-white text-[22px] font-bold">+45점 🚀</p>
+                      <p className="text-white/75 text-[12px]">상승 중!</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-0 border-t border-dashed border-[#EF4444]" />
-                      <span className="text-[10px] text-[#9CA3AF]">목표 점수</span>
-                    </div>
+                    <p className="text-white/45 text-[10px]">목표 750점까지 5점 남음</p>
+                    <p className="text-white/35 text-[10px] mt-0.5">2026.05.12 ~ 2026.05.18 기준</p>
                   </div>
                 </div>
 
-                {/* 파트별 정답률 */}
-                <div className="bg-white border border-[#ECEAF5] rounded-2xl p-5 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
-                  <p className="text-[14px] font-bold text-[#1C1B33] mb-4">파트별 정답률</p>
-                  <div className="space-y-3.5">
-                    {PART_STATS.map(p => (
-                      <div key={p.id} className="flex items-center gap-3">
-                        <span className="w-7 text-[11px] font-bold text-[#9CA3AF] shrink-0">{p.id}</span>
-                        <span className="w-[58px] text-[12px] text-[#374151] shrink-0 truncate">{p.name}</span>
-                        <div className="flex-1 h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{
-                            width: `${p.accuracy}%`,
-                            background: p.accuracy >= 80 ? '#10B981' : p.accuracy >= 65 ? '#4F46E5' : '#EF4444',
-                          }} />
+                {/* 2-col */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+
+                  {/* LEFT: AI 강사 피드백 + 행동 분석 */}
+                  <div className="space-y-4">
+
+                    {/* AI 강사의 한마디 */}
+                    <section>
+                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">AI 강사의 한마디</p>
+                      <div className="flex gap-3 items-start">
+                        <img
+                          src="/image_reference/park-report.png"
+                          alt="박혜원"
+                          className="w-[96px] h-[136px] object-cover object-top rounded-2xl shrink-0 shadow-md"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(79,70,229,0.06)]">
+                            <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #ECEAF5' }}/>
+                            <div className="absolute -left-[7px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #fff' }}/>
+                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">박혜원 강사</p>
+                            <p className="text-[10px] text-[#9CA3AF] mb-3">AI 코치</p>
+                            <div className="bg-[#F5F3FF] rounded-xl px-3.5 py-3">
+                              <p className="text-[12.5px] text-[#374151] leading-relaxed">
+                                토익초보야, 분사구문은 이제 도사 다 됐네! 😊<br/>
+                                근데 <span className="text-[#DC2626] font-semibold">어휘(Part 5)</span>에서 3초 만에 풀 수 있는 문제를 자꾸 흘려. 틀린 문제 필기 보니까 보기부터 읽는 나쁜 습관 또 나왔더라?
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <span className={`w-9 text-right text-[12px] font-bold shrink-0 ${
-                          p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#4F46E5]' : 'text-[#DC2626]'
-                        }`}>{p.accuracy}%</span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-4 mt-4 pt-3 border-t border-[#F3F4F6]">
-                    {[['#10B981', '80% 이상'], ['#4F46E5', '65–79%'], ['#EF4444', '65% 미만']].map(([color, label]) => (
-                      <div key={label} className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                        <span className="text-[10px] text-[#9CA3AF]">{label}</span>
+                    </section>
+
+                    {/* 음성/필기 행동 분석 */}
+                    <section>
+                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">음성·필기 행동 분석</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                          <p className="text-[10px] text-[#9CA3AF] mb-0.5">필기 습관</p>
+                          <p className="text-[10px] text-[#D97706] font-medium mb-2.5">보기 선행 리딩</p>
+                          <p className="text-[28px] font-semibold text-[#D97706] leading-none">72<span className="text-[14px]">%</span></p>
+                          <div className="flex items-center gap-1 mt-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"/>
+                            <p className="text-[10px] text-[#D97706]">주의 필요</p>
+                          </div>
+                        </div>
+                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                          <p className="text-[10px] text-[#9CA3AF] mb-0.5">대화 지체 시간</p>
+                          <p className="text-[10px] text-[#059669] font-medium mb-2.5">평균 응답 속도</p>
+                          <p className="text-[28px] font-semibold text-[#1C1B33] leading-none">4.1<span className="text-[14px] text-[#6B7280] ml-0.5">초</span></p>
+                          <div className="flex items-center gap-1 mt-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]"/>
+                            <p className="text-[10px] text-[#059669]">양호</p>
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                    </section>
+
                   </div>
+
+                  {/* RIGHT: 레이더 차트 + 실전 정답률 */}
+                  <div className="space-y-4">
+
+                    {/* 약점 저격 레이더 */}
+                    <section>
+                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
+                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                        <RadarChart />
+                        <div className="flex items-center justify-center gap-5 mt-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[#10B981]"/>
+                            <span className="text-[10px] text-[#6B7280]">강점 70%+</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[#EF4444]"/>
+                            <span className="text-[10px] text-[#6B7280]">약점 70%-</span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* 실전문제 정답률 */}
+                    <section>
+                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">실전문제 정답률</p>
+                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                        <div className="grid grid-cols-3 gap-2 mb-4 pb-4 border-b border-[#F3F4F6]">
+                          {[
+                            { label: '오늘 문제', value: '35', unit: '문제' },
+                            { label: '평균 정답률', value: '78', unit: '%' },
+                            { label: '누적 학습', value: '12:40', unit: 'h' },
+                          ].map(s => (
+                            <div key={s.label} className="text-center">
+                              <p className="text-[10px] text-[#9CA3AF] mb-1">{s.label}</p>
+                              <p className="text-[20px] font-semibold text-[#1C1B33] leading-none">
+                                {s.value}<span className="text-[11px] text-[#4F46E5] ml-0.5">{s.unit}</span>
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="space-y-3">
+                          {PART_STATS.filter(p => ['P5','P6','P7'].includes(p.id)).map(p => (
+                            <div key={p.id} className="flex items-center gap-3">
+                              <span className="text-[11px] text-[#9CA3AF] w-[28px] shrink-0">{p.id}</span>
+                              <span className="text-[12px] text-[#374151] w-[56px] shrink-0 truncate">{p.name}</span>
+                              <div className="flex-1 h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-700"
+                                  style={{
+                                    width: `${p.accuracy}%`,
+                                    background: p.accuracy >= 70 ? '#10B981' : p.accuracy >= 55 ? '#F59E0B' : '#EF4444',
+                                  }}/>
+                              </div>
+                              <span className="text-[12px] w-8 text-right shrink-0 font-medium"
+                                style={{ color: p.accuracy >= 70 ? '#10B981' : p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }}>
+                                {p.accuracy}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+
+                  </div>
+
                 </div>
+
               </div>
             )}
 
@@ -487,6 +617,95 @@ export default function StatusPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ── 랭킹 ── */}
+            {tab === 'ranking' && (
+              <div className="animate-fade-in space-y-4">
+
+                {/* 소속감 배너 */}
+                <div className="bg-gradient-to-br from-[#1C1B33] to-[#312E81] rounded-2xl px-6 py-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"/>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]"/>
+                    </span>
+                    <span className="text-white/60 text-[11px] tracking-wider uppercase">LIVE · 실시간</span>
+                  </div>
+                  <p className="text-white text-[26px] font-bold leading-snug">
+                    지금 <span className="text-[#A5B4FC]">2,847명</span>이<br/>
+                    함께 달리고 있어요 🏃
+                  </p>
+                  <p className="text-white/50 text-[12px] mt-2 leading-relaxed">
+                    혼자 패드 붙잡고 공부하는 게 아니에요.<br/>
+                    지금 이 순간에도 수천 명이 토익을 향해 달리고 있어요.
+                  </p>
+                </div>
+
+                {/* 나의 위치 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                    <p className="text-[11px] text-[#9CA3AF] mb-2">전체 순위</p>
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-[30px] font-bold text-[#1C1B33]">342</span>
+                      <span className="text-[13px] text-[#9CA3AF]">위</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: '88%' }}/>
+                      </div>
+                      <span className="text-[11px] text-[#4F46E5] font-semibold shrink-0">상위 12%</span>
+                    </div>
+                    <p className="text-[10px] text-[#9CA3AF]">전체 2,847명 중</p>
+                  </div>
+                  <div className="bg-[#F5F3FF] border border-[#DDD9F7] rounded-2xl p-4">
+                    <p className="text-[11px] text-[#7C6FBF] mb-2">750점 목표 그룹</p>
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-[30px] font-bold text-[#4F46E5]">38</span>
+                      <span className="text-[13px] text-[#7C6FBF]">위</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex-1 h-1 bg-[#DDD9F7] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: '92%' }}/>
+                      </div>
+                      <span className="text-[11px] text-[#4F46E5] font-semibold shrink-0">상위 8%</span>
+                    </div>
+                    <p className="text-[10px] text-[#7C6FBF]">456명 중 · 같은 목표</p>
+                  </div>
+                </div>
+
+                {/* 리더보드 */}
+                <section>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest">전체 랭킹</p>
+                    <p className="text-[11px] text-[#9CA3AF]">AI 예측 점수 기준</p>
+                  </div>
+                  <div className="bg-white border border-[#ECEAF5] rounded-2xl overflow-hidden shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+
+                    {/* Top 5 */}
+                    {RANKING_DATA.filter(r => r.rank <= 5).map(r => (
+                      <RankRow key={r.rank} item={r} />
+                    ))}
+
+                    {/* 갭 */}
+                    <div className="px-4 py-3 border-t border-[#F3F4F6] flex items-center justify-between bg-[#FAFAFA]">
+                      <div className="flex flex-col gap-1">
+                        {[70, 50, 35].map((w, i) => (
+                          <div key={i} className="h-[3px] rounded-full bg-[#ECEAF5]" style={{ width: `${w}px` }}/>
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-[#9CA3AF]">336명 더 있음</span>
+                    </div>
+
+                    {/* 내 주변 */}
+                    {RANKING_DATA.filter(r => r.rank >= 340).map(r => (
+                      <RankRow key={r.rank} item={r} />
+                    ))}
+
+                  </div>
+                </section>
+
               </div>
             )}
 
