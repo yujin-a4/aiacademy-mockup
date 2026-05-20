@@ -4,6 +4,10 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
+import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
+import type { CallEntry } from '@/components/CallScreen'
+
+type CallState = 'idle' | 'ringing' | 'active' | 'log'
 
 const notoSerifKR = Noto_Serif_KR({
   subsets: ['latin'],
@@ -53,6 +57,25 @@ function OjjDashboard() {
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [quoteVisible, setQuoteVisible] = useState(true)
   const [apiQuote, setApiQuote] = useState<AdviceQuote | null>(null)
+
+  const [callState, setCallState] = useState<CallState>('idle')
+  const [callLog, setCallLog] = useState<CallEntry[]>([])
+  const ojjName = INST_NAME['oh']
+  const ojjThumb = INST_THUMBS['oh']
+  const handlePhoneClick = () => setCallState('ringing')
+  const handleAnswer = () => setCallState('idle')
+  const handleReject = () => {
+    setCallLog((prev) => [...prev, {
+      id: Date.now().toString(),
+      instructorKey: 'oh',
+      instructorName: ojjName,
+      instructorThumb: ojjThumb,
+      time: new Date(),
+      status: 'rejected' as const,
+    }])
+    setCallState('log')
+  }
+  const handleCloseLog = () => setCallState('idle')
 
   const fetchAdvice = () =>
     fetch('/api/advice', { cache: 'no-store' })
@@ -118,7 +141,7 @@ function OjjDashboard() {
 
   return (
     <div className={`${notoSerifKR.variable} ${diphylleia.variable} flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]`}>
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onPhoneClick={handlePhoneClick} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
@@ -128,7 +151,20 @@ function OjjDashboard() {
               <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 👵</p>
               {ddayLabel && <span className="inline-block mt-1 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-full">토익 시험 {ddayLabel}</span>}
             </div>
-            <AccountMenu userName={userName ?? ''} />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePhoneClick}
+                className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                {callLog.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />
+                )}
+              </button>
+              <AccountMenu userName={userName ?? ''} />
+            </div>
           </div>
         </header>
 
@@ -396,7 +432,19 @@ function OjjDashboard() {
         </main>
       </div>
 
-      <BottomNav />
+      <BottomNav onPhoneClick={handlePhoneClick} />
+
+      {callState === 'ringing' && (
+        <IncomingCallScreen
+          instructorName={ojjName}
+          instructorThumb={ojjThumb}
+          onAnswer={handleAnswer}
+          onReject={handleReject}
+        />
+      )}
+      {callState === 'log' && (
+        <CallLogSheet entries={callLog} onClose={handleCloseLog} />
+      )}
     </div>
   )
 }
@@ -543,10 +591,10 @@ const NAV = [
     ),
   },
   {
-    label: '알림', active: false, href: '#',
+    label: '전화', active: false, href: '#',
     icon: (a: boolean) => (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a ? '#2563EB' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill={a ? '#2563EB' : 'none'} stroke={a ? '#2563EB' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
       </svg>
     ),
   },
@@ -560,8 +608,8 @@ const SETTINGS_ICON = (a: boolean) => (
 )
 
 /* ── 사이드바 ── */
-function Sidebar({ open, setOpen }: {
-  open: boolean; setOpen: (v: boolean) => void
+function Sidebar({ open, setOpen, onPhoneClick }: {
+  open: boolean; setOpen: (v: boolean) => void; onPhoneClick?: () => void
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -582,13 +630,21 @@ function Sidebar({ open, setOpen }: {
       </div>
 
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
-        {NAV.map((item) => (
-          <Link key={item.label} href={item.href ?? '#'}
-            className={`w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`}>
-            <span className="shrink-0">{item.icon(item.active)}</span>
-            {open && <span className="animate-fade-in">{item.label}</span>}
-          </Link>
-        ))}
+        {NAV.map((item) => {
+          const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
+          if (item.label === '전화') return (
+            <button key={item.label} onClick={onPhoneClick} className={cls}>
+              <span className="shrink-0">{item.icon(item.active)}</span>
+              {open && <span className="animate-fade-in">{item.label}</span>}
+            </button>
+          )
+          return (
+            <Link key={item.label} href={item.href ?? '#'} className={cls}>
+              <span className="shrink-0">{item.icon(item.active)}</span>
+              {open && <span className="animate-fade-in">{item.label}</span>}
+            </Link>
+          )
+        })}
       </nav>
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
@@ -603,16 +659,25 @@ function Sidebar({ open, setOpen }: {
 }
 
 /* ── 모바일 하단 네비 ── */
-function BottomNav() {
+function BottomNav({ onPhoneClick }: { onPhoneClick?: () => void }) {
   const items = [...NAV.slice(0, 4), { label: '설정', active: false, href: '/settings/account', icon: SETTINGS_ICON }]
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DBEAFE] flex items-center justify-around px-2 pt-2 pb-6 z-50">
-      {items.map((item) => (
-        <Link key={item.label} href={item.href ?? '#'} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
-          {item.icon(item.active)}
-          <span className="text-[10px] font-medium">{item.label}</span>
-        </Link>
-      ))}
+      {items.map((item) => {
+        const cls = `flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`
+        if (item.label === '전화') return (
+          <button key={item.label} onClick={onPhoneClick} className={cls}>
+            {item.icon(item.active)}
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </button>
+        )
+        return (
+          <Link key={item.label} href={item.href ?? '#'} className={cls}>
+            {item.icon(item.active)}
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </Link>
+        )
+      })}
     </nav>
   )
 }
@@ -624,8 +689,27 @@ function RegularDashboard() {
   const [missions, setMissions] = useState(MISSIONS)
 
   const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
+  const instThumb = INST_THUMBS[selectedInstructor ?? 'park'] ?? ''
   const completedCount = missions.filter((m) => m.done).length
   const completedPct = Math.round((completedCount / missions.length) * 100)
+
+  const [callState, setCallState] = useState<CallState>('idle')
+  const [callLog, setCallLog] = useState<CallEntry[]>([])
+
+  const handlePhoneClick = () => setCallState('ringing')
+  const handleAnswer = () => setCallState('idle')
+  const handleReject = () => {
+    setCallLog((prev) => [...prev, {
+      id: Date.now().toString(),
+      instructorKey: selectedInstructor ?? 'park',
+      instructorName: instName,
+      instructorThumb: instThumb,
+      time: new Date(),
+      status: 'rejected' as const,
+    }])
+    setCallState('log')
+  }
+  const handleCloseLog = () => setCallState('idle')
 
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
@@ -701,7 +785,7 @@ function RegularDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onPhoneClick={handlePhoneClick} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
@@ -732,9 +816,16 @@ function RegularDashboard() {
                   <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
                 </svg>
               </a>
-              <button className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+              <button
+                onClick={handlePhoneClick}
+                className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+                {callLog.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />
+                )}
               </button>
               <AccountMenu userName={userName ?? ''} />
             </div>
@@ -990,7 +1081,19 @@ function RegularDashboard() {
         </main>
       </div>
 
-      <BottomNav />
+      <BottomNav onPhoneClick={handlePhoneClick} />
+
+      {callState === 'ringing' && (
+        <IncomingCallScreen
+          instructorName={instName}
+          instructorThumb={instThumb}
+          onAnswer={handleAnswer}
+          onReject={handleReject}
+        />
+      )}
+      {callState === 'log' && (
+        <CallLogSheet entries={callLog} onClose={handleCloseLog} />
+      )}
     </div>
   )
 }
