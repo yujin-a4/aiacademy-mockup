@@ -16,11 +16,12 @@ const PART_STATS = [
 ]
 
 const RADAR_DATA = [
-  { label: '분사구문', value: 85 },
-  { label: '시제',    value: 72 },
-  { label: '어휘',    value: 42 },
-  { label: '전치사',  value: 58 },
-  { label: '관계사',  value: 55 },
+  { label: 'Part 1', value: 91 },
+  { label: 'Part 2', value: 83 },
+  { label: 'Part 3', value: 74 },
+  { label: 'Part 5', value: 61 },
+  { label: 'Part 6', value: 52 },
+  { label: 'Part 7', value: 48 },
 ]
 
 const BADGES = [
@@ -163,7 +164,7 @@ function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
 
 /* ── SVG 레이더 차트 ── */
 function RadarChart() {
-  const CX = 100, CY = 108, R = 65, N = RADAR_DATA.length
+  const CX = 100, CY = 112, R = 62, N = RADAR_DATA.length
   const angles = RADAR_DATA.map((_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N)
   const pt = (angle: number, val: number): [number, number] => [
     CX + R * (val / 100) * Math.cos(angle),
@@ -173,10 +174,29 @@ function RadarChart() {
     CX + R * Math.cos(angle),
     CY + R * Math.sin(angle),
   ]
-  const dataPath = RADAR_DATA.map((d, i) => {
-    const [x, y] = pt(angles[i], d.value)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ') + 'Z'
+  const dataPoints = RADAR_DATA.map((d, i) => pt(angles[i], d.value))
+
+  // 꼭짓점만 살짝 둥글게 — 직선 유지, corner만 softening
+  const smoothPath = (() => {
+    const n = dataPoints.length
+    const t = 0.18 // 꼭짓점 rounding 비율 (0=직선, 0.5=완전곡선)
+    const segs = dataPoints.map((p, i) => {
+      const prev = dataPoints[(i - 1 + n) % n]
+      const next = dataPoints[(i + 1) % n]
+      const before: [number, number] = [p[0] * (1 - t) + prev[0] * t, p[1] * (1 - t) + prev[1] * t]
+      const after: [number, number]  = [p[0] * (1 - t) + next[0] * t, p[1] * (1 - t) + next[1] * t]
+      return { p, before, after }
+    })
+    let d = `M${segs[0].before[0].toFixed(1)},${segs[0].before[1].toFixed(1)}`
+    for (let i = 0; i < n; i++) {
+      const { p, after } = segs[i]
+      const nextBefore = segs[(i + 1) % n].before
+      d += ` Q${p[0].toFixed(1)},${p[1].toFixed(1)} ${after[0].toFixed(1)},${after[1].toFixed(1)}`
+      d += ` L${nextBefore[0].toFixed(1)},${nextBefore[1].toFixed(1)}`
+    }
+    return d + 'Z'
+  })()
+
   const gridPaths = [0.25, 0.5, 0.75, 1.0].map(lv =>
     RADAR_DATA.map((_, i) => {
       const [x, y] = pt(angles[i], lv * 100)
@@ -184,27 +204,26 @@ function RadarChart() {
     }).join(' ') + 'Z'
   )
   return (
-    <svg viewBox="0 0 200 210" className="w-full max-w-[220px] mx-auto">
+    <svg viewBox="0 0 200 220" className="w-full max-w-[230px] mx-auto">
       {gridPaths.map((path, gi) => (
-        <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 1 : 0.6}/>
+        <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 0.8 : 0.5}/>
       ))}
       {angles.map((angle, i) => {
         const [x, y] = axisPt(angle)
-        return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.8"/>
+        return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.5"/>
       })}
-      <path d={dataPath} fill="#2563EB" fillOpacity="0.12" stroke="#2563EB" strokeWidth="1.5" strokeLinejoin="round"/>
-      {RADAR_DATA.map((d, i) => {
-        const [x, y] = pt(angles[i], d.value)
-        const isStrong = d.value >= 70
-        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="3.5" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="1.5"/>
+      <path d={smoothPath} fill="#2563EB" fillOpacity="0.1" stroke="#2563EB" strokeWidth="1" strokeLinejoin="round"/>
+      {dataPoints.map(([x, y], i) => {
+        const isStrong = RADAR_DATA[i].value >= 70
+        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2.8" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="1.2"/>
       })}
       {RADAR_DATA.map((d, i) => {
-        const lx = CX + (R + 22) * Math.cos(angles[i])
-        const ly = CY + (R + 22) * Math.sin(angles[i])
+        const lx = CX + (R + 20) * Math.cos(angles[i])
+        const ly = CY + (R + 20) * Math.sin(angles[i])
         return (
           <text key={i} x={lx.toFixed(1)} y={ly.toFixed(1)}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize="9" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
+            fontSize="8.5" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
             {d.label}
           </text>
         )
@@ -373,6 +392,28 @@ export default function StatusPage() {
                     <p className="text-white/45 text-[10px]">목표 750점까지 5점 남음</p>
                     <p className="text-white/35 text-[10px] mt-0.5">2026.05.12 ~ 2026.05.18 기준</p>
                   </div>
+                </div>
+
+                {/* 학습 상태 요약 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: '총 학습일',    value: '12',  unit: '일',   icon: '📅', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: '총 풀이 문제', value: '247', unit: '문제', icon: '✏️', color: '#059669', bg: '#F0FDF4' },
+                    { label: 'LC 정답률',    value: '83',  unit: '%',    icon: '🎧', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: 'RC 정답률',    value: '54',  unit: '%',    icon: '📖', color: '#D97706', bg: '#FEF9C3' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 flex items-center gap-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0" style={{ background: s.bg }}>
+                        {s.icon}
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[#9CA3AF] mb-0.5">{s.label}</p>
+                        <p className="text-[20px] font-bold leading-tight" style={{ color: s.color }}>
+                          {s.value}<span className="text-[11px] font-normal ml-0.5 text-[#9CA3AF]">{s.unit}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* 2-col */}
