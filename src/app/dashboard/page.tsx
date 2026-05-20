@@ -640,14 +640,22 @@ function RegularDashboard() {
 
             {/* ── 데스크탑 상단 상태 바 ── */}
             <div className="hidden md:flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
-                  🔥 12일 연속 학습 중
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 bg-[#FEF9C3] border border-[#FDE68A] px-4 py-2.5 rounded-2xl">
+                  <span className="text-[22px] leading-none">🔥</span>
+                  <div>
+                    <p className="text-[22px] font-black text-[#D97706] leading-none">12일</p>
+                    <p className="text-[10px] text-[#92400E] font-semibold">연속 학습 중</p>
+                  </div>
+                </div>
                 {ddayLabel && (
-                  <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-3 py-1.5 rounded-full">
-                    📅 토익 시험 {ddayLabel}
-                  </span>
+                  <div className="flex items-center gap-2.5 bg-[#EFF6FF] border border-[#BFDBFE] px-4 py-2.5 rounded-2xl">
+                    <span className="text-[22px] leading-none">📅</span>
+                    <div>
+                      <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
+                      <p className="text-[10px] text-[#3B82F6] font-semibold">토익 시험</p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -664,130 +672,142 @@ function RegularDashboard() {
               </div>
             </div>
 
-            {/* ── 히어로 카드 ── */}
-            <div className="relative overflow-hidden rounded-2xl"
-              style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
-              {/* 장식 블롭 */}
-              <div className="absolute -right-8 -top-8 w-64 h-64 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
-              <div className="absolute right-12 -bottom-8 w-40 h-40 rounded-full bg-[#93C5FD]/20 blur-2xl pointer-events-none" />
+            {/* ── 히어로 2-카드 ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div className="relative z-10 p-5 md:p-6 flex flex-col gap-4">
-
-                {/* 라벨 */}
-                <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                  {instName} 선생님의 오늘의 처방
-                </span>
-
-                {/* 1. 동기부여 영역 */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm rounded-full px-3.5 py-2 shadow-sm">
-                    <span className="text-[16px] font-black text-[#2563EB] leading-none">{ddayLabel ?? 'D-?'}</span>
-                    <span className="text-[11px] text-[#6B7280]">토익 시험</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-3.5 py-2 shadow-sm">
-                    <span className="text-[13px]">🔥</span>
-                    <span className="text-[16px] font-black text-[#F59E0B] leading-none">12일</span>
-                    <span className="text-[11px] text-[#6B7280]">연속 학습</span>
-                  </div>
-                </div>
-
-                {/* 2. 강사 멘트 영역 */}
-                <div className="flex gap-3 items-end">
-                  {/* 강사 사진 — 크게 */}
-                  <div className="w-[84px] h-[116px] rounded-2xl overflow-hidden shrink-0 shadow-md border-2 border-white/70">
-                    <img
-                      src={INST_THUMBS[selectedInstructor ?? 'park']}
-                      alt={instName}
-                      className="w-full h-full object-cover object-top"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                  </div>
-                  {/* 말풍선 */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-[#6B7280] font-medium mb-1.5">{instName} 선생님</p>
-                    <div className="relative bg-white rounded-2xl rounded-bl-none px-4 py-3.5 shadow-md">
-                      {/* 고정 높이 — 3줄 기준 (13px × 1.625 × 3 ≈ 63px) */}
-                      <div className="h-[66px] overflow-hidden">
-                        <p className="text-[13px] text-[#1C1B33] leading-relaxed">
-                          {typedMsg}
-                          {!typingDone && (
-                            <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
-                          )}
-                        </p>
+              {/* 왼쪽: 강사 한마디 */}
+              <div className="relative overflow-hidden rounded-2xl"
+                style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 55%, #BFDBFE 100%)' }}>
+                <div className="absolute -right-6 -top-6 w-48 h-48 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
+                <div className="relative z-10 p-5 flex flex-col gap-3">
+                  <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+                    {instName} 선생님의 오늘의 처방
+                  </span>
+                  <div className="flex gap-4 items-center">
+                    {/* 강사 사진 */}
+                    {(selectedInstructor ?? 'park') === 'park' ? (
+                      <div className="w-[108px] h-[152px] shrink-0 drop-shadow-md">
+                        <img
+                          src="/image_reference/park-report.png"
+                          alt={instName}
+                          className="w-full h-full object-contain object-bottom"
+                        />
                       </div>
-                      <div className="absolute -bottom-[6px] left-0 w-0 h-0"
-                        style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
+                    ) : (
+                      <div className="w-[80px] h-[108px] rounded-2xl overflow-hidden shrink-0 shadow-md border-2 border-white/70">
+                        <img
+                          src={INST_THUMBS[selectedInstructor ?? 'park']}
+                          alt={instName}
+                          className="w-full h-full object-cover object-top"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      </div>
+                    )}
+                    {/* 말풍선 */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-[#6B7280] font-medium mb-1.5">{instName} 선생님</p>
+                      <div className="relative bg-white rounded-2xl px-4 py-3.5 shadow-md">
+                        <div className="h-[66px] overflow-hidden">
+                          <p className="text-[13px] text-[#1C1B33] leading-relaxed">
+                            {typedMsg}
+                            {!typingDone && (
+                              <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                            )}
+                          </p>
+                        </div>
+                        {/* 말풍선 꼬리 — 왼쪽 방향 */}
+                        <div className="absolute -left-[7px] top-[18px] w-0 h-0"
+                          style={{ borderTop: '7px solid transparent', borderBottom: '7px solid transparent', borderRight: '7px solid white' }} />
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* 3. CTA 영역 */}
-                <a
-                  href="https://aiacademy-classroom.vercel.app/"
-                  className="flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#2563EB]/30 active:scale-[0.98]"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  오늘 수업 시작하기
-                </a>
-
               </div>
+
+              {/* 오른쪽: 수업 시작하기 */}
+              <div className="rounded-2xl p-5 flex flex-col justify-between"
+                style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 60%, #3B82F6 100%)' }}>
+                <div>
+                  <p className="text-white/60 text-[11px] font-semibold tracking-wide uppercase mb-2">오늘의 학습</p>
+                  <p className="text-white text-[17px] font-bold leading-snug mb-1">Part 5 문법 + 단어 5개</p>
+                  <p className="text-white/70 text-[12px]">예상 시간 약 15분 · 놓친 복습 2개</p>
+                </div>
+                <div className="mt-4 space-y-2.5">
+                  <a
+                    href="https://aiacademy-classroom.vercel.app/"
+                    className="w-full bg-white text-[#2563EB] py-3 rounded-xl font-black text-[14px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors shadow-lg active:scale-[0.98]"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#2563EB"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    오늘 수업 시작하기
+                  </a>
+                  <p className="text-center text-white/50 text-[11px]">토익 초보야, 오늘도 화이팅 💪</p>
+                </div>
+              </div>
+
             </div>
 
             {/* ── 3열 섹션 ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* 이번 주 루틴 — 습관 트래커 */}
-              <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-4">
+              {/* 66일 해빗 트래커 */}
+              <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[#1C1B33] font-bold text-[14px]">이번 주 루틴</h3>
+                  <h3 className="text-[#1C1B33] font-bold text-[14px]">66일 챌린지</h3>
                   <span className="text-[11px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1 rounded-full">🔥 12일 연속</span>
                 </div>
 
-                {/* 마일스톤 */}
-                {(() => {
-                  const doneCount = WEEK.filter(d => d.status === 'complete').length
-                  const remaining = 7 - doneCount
-                  return (
-                    <div className="bg-[#EFF6FF] rounded-xl px-3 py-2 text-center">
-                      <p className="text-[12px] font-bold text-[#2563EB]">
-                        {remaining > 0
-                          ? <>🎁 7일 연속 달성까지 <span className="text-[15px]">{remaining}</span>일!</>
-                          : <>🎉 이번 주 완주 성공!</>}
-                      </p>
-                    </div>
-                  )
-                })()}
-
-                {/* 요일별 원형 체크 */}
-                <div className="flex items-center justify-between">
-                  {WEEK.map((d) => (
-                    <div key={d.date} className="flex flex-col items-center gap-1.5">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold transition-all ${
-                        d.status === 'complete'
-                          ? 'bg-[#2563EB] text-white shadow-sm shadow-[#2563EB]/40'
-                          : d.status === 'current'
-                          ? 'bg-white border-[2.5px] border-[#2563EB] text-[#2563EB] shadow-sm'
-                          : 'bg-[#F3F4F6] text-[#D1D5DB]'
-                      }`}>
-                        {d.status === 'complete' ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                        ) : (
-                          <span className="text-[11px]">{d.date}</span>
-                        )}
-                      </div>
-                      <span className={`text-[9px] font-medium ${d.status === 'current' ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{d.day}</span>
-                    </div>
-                  ))}
+                {/* 격자 그리드 */}
+                <div className="relative">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(11, 1fr)', gap: '3px' }}>
+                    {Array.from({ length: 66 }, (_, i) => {
+                      const day = i + 1
+                      const isDone = day < 12
+                      const isToday = day === 12
+                      const isMilestone = day === 30 || day === 66
+                      return (
+                        <div
+                          key={day}
+                          title={day === 30 ? '30일 마일스톤' : day === 66 ? '66일 완주!' : undefined}
+                          className={`aspect-square rounded-[3px] ${
+                            isDone
+                              ? 'bg-[#2563EB] opacity-75'
+                              : isToday
+                              ? 'bg-[#2563EB] animate-pulse ring-2 ring-[#2563EB] ring-offset-1'
+                              : isMilestone
+                              ? 'bg-[#FCD34D]/50 border border-[#F59E0B]/60'
+                              : 'bg-[#F3F4F6]'
+                          }`}
+                        />
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[9px] text-[#9CA3AF]">1일</span>
+                    <span className="text-[9px] font-bold text-[#2563EB]">12일차 🔥 오늘</span>
+                    <span className="text-[9px] text-[#9CA3AF]">66일</span>
+                  </div>
                 </div>
 
-                {/* 세그먼트 바 */}
-                <div className="flex gap-1">
-                  {WEEK.map((d, i) => (
-                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${
-                      d.status === 'complete' ? 'bg-[#2563EB]' : d.status === 'current' ? 'bg-[#BFDBFE]' : 'bg-[#F3F4F6]'
-                    }`} />
-                  ))}
+                {/* 마일스톤 보상 */}
+                <div className="flex items-stretch gap-1.5">
+                  <div className="flex-1 flex flex-col items-center gap-1 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-1.5 py-2">
+                    <span className="text-[15px]">☕</span>
+                    <p className="text-[9px] font-black text-[#2563EB]">12일 ✅</p>
+                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">아메리카노<br/>쿠폰</p>
+                  </div>
+                  <div className="flex items-center text-[#D1D5DB] text-[10px]">›</div>
+                  <div className="flex-1 flex flex-col items-center gap-1 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-1.5 py-2">
+                    <span className="text-[15px]">📖</span>
+                    <p className="text-[9px] font-black text-[#D97706]">30일</p>
+                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">교재<br/>20% 할인</p>
+                  </div>
+                  <div className="flex items-center text-[#D1D5DB] text-[10px]">›</div>
+                  <div className="flex-1 flex flex-col items-center gap-1 bg-[#FEF3C7] border border-[#F59E0B] rounded-xl px-1.5 py-2">
+                    <span className="text-[15px]">🏆</span>
+                    <p className="text-[9px] font-black text-[#B45309]">66일</p>
+                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">수료증 +<br/>특별 선물</p>
+                  </div>
                 </div>
 
                 <p className="text-[11px] text-[#9CA3AF] leading-[1.6]">
