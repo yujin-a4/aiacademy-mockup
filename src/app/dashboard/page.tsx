@@ -3,11 +3,31 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
+import { Noto_Serif_KR } from 'next/font/google'
+
+const notoSerifKR = Noto_Serif_KR({
+  subsets: ['latin'],
+  weight: ['400', '700', '900'],
+  variable: '--font-noto-serif-kr',
+})
 
 /* ══════════════════════════════════════════════
    오정자 선생님 전용 대시보드
 ══════════════════════════════════════════════ */
 const OJJ_NUDGE = '자, 앉아요. 화장실은 미리 다녀오셨죠? 오늘도 천천히 같이 봐요.'
+
+const OJJ_QUOTES = [
+  '천재는 노력하는 자를 이길 수 없고,\n노력하는 자는 즐기는 자를 이길 수 없다.',
+  '배움에는 왕도가 없다.\n그저 앉아서 하는 것이다.',
+  '오늘 할 수 있는 일을\n내일로 미루지 마라.',
+  '공부는 엉덩이로 하는 것이다.',
+  '세 번 읽으면 모르는 것이 없고,\n열 번 쓰면 못 쓰는 것이 없다.',
+]
+
+type AdviceQuote = {
+  message: string
+  author: string
+}
 
 const OJJ_SCHEDULE = [
   { time: '오전 10:00', title: '화장실 먼저 다녀오기', done: true,  icon: '🚽' },
@@ -23,6 +43,35 @@ function OjjDashboard() {
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
   const [missions, setMissions] = useState(OJJ_SCHEDULE)
+  const [clickedMilestones, setClickedMilestones] = useState<number[]>([])
+  const [quoteIdx, setQuoteIdx] = useState(0)
+  const [quoteVisible, setQuoteVisible] = useState(true)
+  const [apiQuote, setApiQuote] = useState<AdviceQuote | null>(null)
+
+  const fetchAdvice = () =>
+    fetch('/api/advice', { cache: 'no-store' })
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to fetch advice')
+        return r.json() as Promise<AdviceQuote>
+      })
+      .then(d => setApiQuote({ message: d.message, author: d.author }))
+      .catch(() => {})
+
+  const currentQuote = apiQuote
+    ? `${apiQuote.message}\n- ${apiQuote.author}`
+    : OJJ_QUOTES[quoteIdx]
+
+  useEffect(() => {
+    fetchAdvice()
+    const id = setInterval(() => {
+      setQuoteVisible(false)
+      setTimeout(() => {
+        setQuoteIdx(i => (i + 1) % OJJ_QUOTES.length)
+        fetchAdvice().finally(() => setQuoteVisible(true))
+      }, 500)
+    }, 5000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     setTypedMsg(''); setTypingDone(false)
@@ -62,16 +111,16 @@ function OjjDashboard() {
   const doneCount = missions.filter(m => m.done).length
 
   return (
-    <div className="flex min-h-screen font-sans text-[#1C1B33]" style={{ background: '#FBF5E6' }}>
+    <div className={`${notoSerifKR.variable} flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]`}>
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
-        <header className="md:hidden px-4 pt-12 pb-3 sticky top-0 z-20" style={{ background: '#12203A' }}>
+        <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white text-[20px] font-bold">{userName || '학습자'}님 👵</p>
-              {ddayLabel && <span className="text-[11px] font-bold text-[#FDE68A] mt-1 block">토익 시험 {ddayLabel}</span>}
+              <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 👵</p>
+              {ddayLabel && <span className="inline-block mt-1 text-[11px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-full">토익 시험 {ddayLabel}</span>}
             </div>
             <AccountMenu userName={userName ?? ''} />
           </div>
@@ -83,149 +132,199 @@ function OjjDashboard() {
             {/* 데스크탑 상단 바 */}
             <div className="hidden md:flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#B45309] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
+                <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
                   🔥 12일 연속 학습 중
                 </span>
                 {ddayLabel && (
-                  <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#1A3FD4] bg-[#EEF2FF] border border-[#C7D2FE] px-3 py-1.5 rounded-full">
+                  <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#4F46E5] bg-[#EEF2FF] border border-[#C7D2FE] px-3 py-1.5 rounded-full">
                     📅 토익 시험 {ddayLabel}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <a href="https://exam.toeic.co.kr/" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-white border border-[#D1D5DB] text-[#5B5A72] hover:text-[#1A3FD4] hover:border-[#1A3FD4] text-[12px] font-bold px-4 py-2 rounded-full transition-all">
+                  className="flex items-center gap-2 bg-white border border-[#EBEBF0] text-[#5B5A72] hover:text-[#4F46E5] hover:border-[#4F46E5] text-[12px] font-bold px-4 py-2 rounded-full transition-all">
                   토익 시험 접수하기
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </a>
                 <AccountMenu userName={userName ?? ''} />
               </div>
             </div>
 
             {/* ── 히어로 카드 ── */}
-            <div className="relative overflow-hidden rounded-2xl min-h-[220px] md:min-h-[260px]"
-              style={{ background: 'linear-gradient(135deg, #0D1B35 0%, #12203A 50%, #1A2E50 100%)' }}>
+            <div className="relative overflow-hidden rounded-2xl"
+              style={{ background: 'linear-gradient(135deg, #EAE8FF 0%, #D5CEFF 50%, #C7D2FE 100%)', minHeight: '200px' }}>
+              <div className="absolute right-0 top-0 w-72 h-72 rounded-full bg-[#818CF8]/20 blur-3xl pointer-events-none" />
 
-              {/* 배경 금빛 블롭 */}
-              <div className="absolute top-0 left-1/3 w-96 h-96 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(253,230,138,0.08) 0%, transparent 70%)' }} />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(26,63,212,0.15) 0%, transparent 70%)' }} />
-
-              {/* 오정자 선생님 이미지 */}
-              <div className="absolute right-0 bottom-0 hidden sm:block h-full" style={{ zIndex: 1 }}>
-                <img
-                  src="/image_reference/ojungja.jpg"
-                  alt="오정자 선생님"
-                  className="h-full object-cover object-top"
-                  style={{ maxWidth: '210px', opacity: 0.92 }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
-                <div className="absolute inset-y-0 left-0 w-24 pointer-events-none"
-                  style={{ background: 'linear-gradient(to right, #12203A, transparent)' }} />
+              {/* 족자 — 데스크탑 우측 상단 고정 */}
+              <div className="absolute top-5 right-6 z-20 hidden md:flex items-stretch" style={{ width: '300px' }}>
+                <div style={{ width: '15px', flexShrink: 0, borderRadius: '7px', background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
+                <div style={{ flex: 1, minHeight: '140px', background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '14px 20px 18px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'absolute', top: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
+                  <div style={{ position: 'absolute', bottom: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
+                  <p style={{
+                    fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif",
+                    fontSize: '15px', fontWeight: 'bold', textAlign: 'center',
+                    color: '#1C0A00', lineHeight: '1.7', letterSpacing: '0.01em',
+                    opacity: quoteVisible ? 1 : 0,
+                    transition: 'opacity 0.5s ease',
+                    whiteSpace: 'pre-line',
+                  }}>
+                    {currentQuote}
+                  </p>
+                  <div style={{ position: 'absolute', bottom: '10px', right: '12px', width: '26px', height: '26px', border: '2px solid #CC1111', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(204,17,17,0.06)' }}>
+                    <span style={{ fontSize: '6.5px', color: '#CC1111', fontWeight: 'bold', lineHeight: 1.2, textAlign: 'center', fontFamily: "'Gungsuh', serif" }}>오정<br/>자인</span>
+                  </div>
+                </div>
+                <div style={{ width: '15px', flexShrink: 0, borderRadius: '7px', background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '-3px 0 6px rgba(0,0,0,0.35)' }} />
               </div>
 
-              <div className="relative p-6 md:p-8 max-w-[420px] sm:max-w-[520px]" style={{ zIndex: 2 }}>
-                {/* 배지 */}
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 px-2.5 py-1 rounded-full mb-4" style={{ color: '#FDE68A' }}>
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#FDE68A' }} />
+              <div className="relative z-10 p-6 md:p-8 md:pr-[340px]">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#4F46E5] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4F46E5] animate-pulse" />
                   오정자 선생님의 오늘 처방전 📋
                 </span>
 
                 {/* D-Day */}
-                <div className="mb-1">
-                  <p className="text-[#9CA3AF] text-[12px]">토익 시험까지</p>
-                  <p className="text-white font-black leading-none tracking-tight" style={{ fontSize: '56px' }}>
+                <div className="mb-4">
+                  <p className="text-[#6B7280] text-[12px]">토익 시험까지</p>
+                  <p className="text-[#1C1B33] font-black leading-none" style={{ fontSize: '64px', fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif" }}>
                     {ddayLabel ?? 'D-?'}
                   </p>
-                  <p className="text-[#9CA3AF] text-[12px] mt-1">오늘의 첫 걸음이, 합격으로 만들겠습니다.</p>
+                  <p className="text-[#6B7280] text-[12px] mt-1">오늘의 첫 걸음이, 합격으로 만들겠습니다.</p>
                 </div>
 
-                {/* 족자 명언 */}
-                <div className="mt-4 mb-4 rounded-xl px-4 py-3 relative"
-                  style={{ background: '#FEF9C7', border: '1px solid rgba(253,230,138,0.7)' }}>
-                  <span className="absolute left-2.5 top-1.5 font-black text-[20px]" style={{ color: 'rgba(180,83,9,0.3)' }}>「</span>
-                  <span className="absolute right-2.5 bottom-1.5 font-black text-[20px]" style={{ color: 'rgba(180,83,9,0.3)' }}>」</span>
-                  <p className="text-[11px] font-bold text-center leading-relaxed px-4" style={{ color: '#78350F' }}>
-                    천재는 노력하는 자를 이길 수 없고,<br />노력하는 자는 즐기는 자를 이길 수 없다.
-                  </p>
-                </div>
-
-                {/* 카카오톡 말풍선 */}
-                <div className="flex items-end gap-2 mb-5">
-                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 border-white/20 bg-[#FEF3C7]">
-                    <img src="/image_reference/ojungja.jpg" alt="오정자"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                {/* 카카오톡 말풍선 + CTA */}
+                <div className="flex items-end gap-4 flex-wrap">
+                  <div className="flex items-end gap-2">
+                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-[#EEF2FF]">
+                      <img src="/image_reference/ojungja.jpg" alt="오정자" className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    </div>
+                    <div className="relative bg-white rounded-2xl rounded-bl-none px-3.5 py-2.5 shadow-md max-w-[280px]">
+                      <p className="text-[#1C1B33] text-[12px] leading-relaxed">
+                        {typedMsg}
+                        {!typingDone && <span className="inline-block w-[2px] h-3 bg-[#4F46E5] animate-pulse ml-0.5 align-middle rounded-full" />}
+                      </p>
+                      <div className="absolute -bottom-[6px] left-0 w-0 h-0"
+                        style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
+                    </div>
+                    {typingDone && <span className="text-[10px] text-[#9CA3AF] self-end mb-0.5 shrink-0">방금</span>}
                   </div>
-                  <div className="relative rounded-2xl rounded-bl-none px-3.5 py-2.5 shadow-md max-w-[260px]"
-                    style={{ background: '#FEF9C7' }}>
-                    <p className="text-[12px] leading-relaxed" style={{ color: '#78350F' }}>
-                      {typedMsg}
-                      {!typingDone && (
-                        <span className="inline-block w-[2px] h-3 animate-pulse ml-0.5 align-middle rounded-full" style={{ background: '#B45309' }} />
-                      )}
+                  <a href="https://aiacademy-classroom.vercel.app/"
+                    className="inline-flex items-center gap-2 bg-[#4F46E5] hover:bg-[#4338CA] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98]">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    1:1 학습 시작하기
+                  </a>
+                </div>
+
+                {/* 족자 — 모바일 인라인 */}
+                <div className="md:hidden mt-5 flex items-stretch rounded-xl overflow-hidden shadow-md">
+                  <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
+                  <div style={{ flex: 1, minHeight: '120px', background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '16px 20px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'absolute', top: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
+                    <div style={{ position: 'absolute', bottom: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
+                    <p style={{
+                      fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif",
+                      fontSize: '16px', fontWeight: 'bold', textAlign: 'center',
+                      color: '#1C0A00', lineHeight: '1.7', letterSpacing: '0.01em',
+                      opacity: quoteVisible ? 1 : 0,
+                      transition: 'opacity 0.5s ease',
+                      whiteSpace: 'pre-line',
+                    }}>
+                      {currentQuote}
                     </p>
-                    <div className="absolute -bottom-[6px] left-0 w-0 h-0"
-                      style={{ borderLeft: '7px solid #FEF9C7', borderRight: '7px solid transparent', borderTop: '7px solid #FEF9C7' }} />
+                    <div style={{ position: 'absolute', bottom: '8px', right: '10px', width: '24px', height: '24px', border: '2px solid #CC1111', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(204,17,17,0.06)' }}>
+                      <span style={{ fontSize: '6px', color: '#CC1111', fontWeight: 'bold', lineHeight: 1.2, textAlign: 'center', fontFamily: "'Gungsuh', serif" }}>오정<br/>자인</span>
+                    </div>
                   </div>
-                  {typingDone && <span className="text-[10px] text-[#9CA3AF] self-end mb-0.5 shrink-0">방금</span>}
+                  <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '-3px 0 6px rgba(0,0,0,0.35)' }} />
                 </div>
-
-                <a href="https://aiacademy-classroom.vercel.app/"
-                  className="inline-flex items-center gap-2 font-black text-[13px] px-5 py-2.5 rounded-xl transition-colors shadow-lg active:scale-[0.98]"
-                  style={{ background: '#FDE68A', color: '#78350F' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FCD34D' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#FDE68A' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="#78350F"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  1:1 학습 시작하기
-                </a>
               </div>
             </div>
 
-            {/* ── 3열 ── */}
+            {/* ── 2+1열 ── */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* 달성 캘린더 */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm" style={{ border: '1px solid #E5D9C3' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-[14px]">66일 연속 달성 🏅</h3>
-                  <span className="text-[11px] font-semibold bg-[#FEF9C3] px-2.5 py-1 rounded-full" style={{ color: '#B45309' }}>🔥 12일</span>
-                </div>
+              {/* 66일 달성 그리드 */}
+              {(() => {
+                const TODAY = 13
+                const MILESTONES: Record<number, string> = { 7: '🏆', 14: '⭐', 21: '🏆', 30: '🎯', 42: '⭐', 55: '🏆', 66: '👑' }
+                const COLS = 11
+                const TOTAL_CELLS = Math.ceil(66 / COLS) * COLS // 72
+                return (
+                  <div className="md:col-span-2 bg-white rounded-2xl border border-[#ECEAF5] shadow-[0_1px_8px_rgba(79,70,229,0.06)] p-5 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[#1C1B33] font-bold text-[14px]">66일 연속 달성 🏅</h3>
+                      <span className="text-[11px] font-semibold text-[#4F46E5] bg-[#EEF2FF] px-2.5 py-1 rounded-full">🔥 {TODAY - 1}일째</span>
+                    </div>
+                    <p className="text-[11px] text-[#9CA3AF] -mt-1">트로피·별표를 눌러서 미리 달성해봐요!</p>
 
-                <p className="text-[#9CA3AF] text-[11px] mb-2">{cal.year}년 {MONTH_KO[cal.month]}</p>
+                    <div className="grid gap-[5px]" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+                      {Array.from({ length: TOTAL_CELLS }, (_, i) => {
+                        const day = i + 1
+                        if (day > 66) return <div key={`empty-${i}`} />
+                        const isUserMarked = clickedMilestones.includes(day)
+                        const done = day < TODAY || isUserMarked
+                        const isToday = day === TODAY
+                        const milestone = MILESTONES[day]
+                        const clickable = !!milestone && day > TODAY
+                        return (
+                          <div
+                            key={day}
+                            title={`${day}일차${milestone ? ' ' + milestone : ''}`}
+                            onClick={() => {
+                              if (!clickable) return
+                              setClickedMilestones(p => isUserMarked ? p.filter(d => d !== day) : [...p, day])
+                            }}
+                            className="aspect-square rounded-[4px] flex items-center justify-center transition-all"
+                            style={{
+                              cursor: clickable ? 'pointer' : 'default',
+                              ...(isToday ? {
+                                background: '#EEF2FF',
+                                boxShadow: '0 0 0 2.5px #4F46E5',
+                              } : done ? {
+                                background: '#4F46E5',
+                              } : milestone ? {
+                                background: '#F5F3FF',
+                                border: '1.5px dashed #A5B4FC',
+                              } : {
+                                background: '#F3F4F6',
+                              }),
+                            }}
+                          >
+                            {isToday ? (
+                              <span style={{ fontSize: '7px', color: '#4F46E5', fontWeight: 900, lineHeight: 1 }}>TODAY</span>
+                            ) : done && milestone ? (
+                              <span style={{ fontSize: '10px', lineHeight: 1 }}>{milestone}</span>
+                            ) : !done && milestone ? (
+                              <span style={{ fontSize: '11px', lineHeight: 1, opacity: 0.7 }}>{milestone}</span>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
 
-                {/* 요일 헤더 */}
-                <div className="grid grid-cols-7 mb-1">
-                  {['일','월','화','수','목','금','토'].map((d, i) => (
-                    <div key={d} className={`text-center text-[9px] font-bold py-0.5 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[#9CA3AF]'}`}>{d}</div>
-                  ))}
-                </div>
-
-                {/* 날짜 */}
-                <div className="grid grid-cols-7 gap-0.5">
-                  {Array.from({ length: cal.firstDayOfWeek }, (_, i) => <div key={`e${i}`} />)}
-                  {Array.from({ length: cal.daysInMonth }, (_, i) => {
-                    const day = i + 1
-                    const isToday = day === cal.todayDate
-                    const isPast = day < cal.todayDate
-                    return (
-                      <div key={day} className="aspect-square flex items-center justify-center rounded-full text-[10px] font-bold transition-all"
-                        style={
-                          isToday ? { background: '#1A3FD4', color: 'white' } :
-                          isPast ? { background: '#FEF9C3', color: '#B45309' } :
-                          { color: '#D1D5DB' }
-                        }>
-                        {isPast ? '✓' : day}
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-[2px] bg-[#4F46E5]" />
+                        <span className="text-[10px] text-[#9CA3AF]">완료</span>
                       </div>
-                    )
-                  })}
-                </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-[2px] bg-[#EEF2FF]" style={{ boxShadow: '0 0 0 1.5px #4F46E5' }} />
+                        <span className="text-[10px] text-[#9CA3AF]">오늘</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 rounded-[2px] bg-[#F5F3FF]" style={{ border: '1.5px dashed #A5B4FC' }} />
+                        <span className="text-[10px] text-[#9CA3AF]">달성 미션</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
-                <p className="text-[11px] text-[#9CA3AF] mt-3 leading-relaxed">
-                  이번 달 <span className="font-bold" style={{ color: '#1A3FD4' }}>{cal.todayDate - 1}일</span> 출석 완료 · 잘하고 있어요 👵
-                </p>
-              </div>
+              {/* 우측 컬럼: 오늘의 일정 + 학습량 */}
+              <div className="md:col-span-1 flex flex-col gap-4">
 
               {/* 오늘의 일정 */}
               <div className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid #E5D9C3' }}>
@@ -298,6 +397,8 @@ function OjjDashboard() {
                   📜 오늘의 문제 풀기
                 </Link>
               </div>
+
+              </div>{/* /우측 컬럼 */}
 
             </div>
           </div>

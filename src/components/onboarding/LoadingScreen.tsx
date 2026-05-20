@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const LINES = [
-  { name: '박혜원', action: '제안서를 작성 중입니다...' },
+  { name: '박혜원', action: 'Study Plan을 작성 중입니다...' },
   { name: '장연지', action: '목표 기간을 검토 중입니다...' },
   { name: '김토익', action: '학습 성향을 분석하고 있습니다...' },
 ]
@@ -33,7 +33,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
           </div>
           <div className="space-y-1">
             <p className="text-[#6B7280] text-xs font-semibold uppercase tracking-[0.15em]">맞춤 분석 중</p>
-            <h2 className="text-[#111318] text-[22px] font-bold">제안서를 생성하고 있어요</h2>
+            <h2 className="text-[#111318] text-[22px] font-bold">Study Plan을 생성하고 있어요</h2>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
             onClick={onNext}
             className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] animate-fade-in transition-colors active:scale-[0.98]"
           >
-            제안서 확인하기
+            Study Plan 확인하기
           </button>
         )}
       </div>
