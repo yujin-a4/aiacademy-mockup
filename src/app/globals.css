@@ -14,12 +14,12 @@
 :root {
   /* ── YBM AI 디자인 시스템 v2 ─────────────────────────── */
   /* Primary */
-  --color-primary:     #1A3FD4;
+  --color-primary:     #2563EB;
   --color-primary-500: #3459E6;
   --color-primary-400: #5578F0;
   --color-primary-300: #8AA4F6;
   --color-primary-100: #D6E0FD;
-  --color-primary-50:  #EEF2FF;
+  --color-primary-50:  #EFF6FF;
 
   /* Accent (AI) */
   --color-accent:       #06B6D4;
@@ -42,9 +42,9 @@
   --font-base: 'Noto Sans KR', sans-serif;
 
   /* ── 레거시 토큰 (classroom 등 기존 화면용) ─────────── */
-  --ybm-blue:      #1A3FD4;
+  --ybm-blue:      #2563EB;
   --ybm-blue-mid:  #5578F0;
-  --ybm-blue-light:#EEF2FF;
+  --ybm-blue-light:#EFF6FF;
   --ybm-bg:        #F3F4F6;
   --ybm-card:      #FFFFFF;
   --ybm-text:      #111318;

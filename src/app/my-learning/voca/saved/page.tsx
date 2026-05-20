@@ -23,10 +23,10 @@ export default function SavedVocaPage() {
       label: '플래시카드',
       desc: '카드를 넘기며 뜻을 익혀요',
       href: '/my-learning/voca/flashcard',
-      color: '#4F46E5',
-      bg: '#EEF2FF',
+      color: '#2563EB',
+      bg: '#EFF6FF',
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
         </svg>
       ),
@@ -35,10 +35,10 @@ export default function SavedVocaPage() {
       label: '퀴즈',
       desc: '4지선다로 뜻을 맞혀요',
       href: '/my-learning/voca/quiz',
-      color: '#4F46E5',
-      bg: '#EEF2FF',
+      color: '#2563EB',
+      bg: '#EFF6FF',
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
         </svg>
       ),
@@ -71,7 +71,7 @@ export default function SavedVocaPage() {
 
       <div className="px-6 max-w-[480px] mx-auto w-full pt-4">
         {/* 단어 수 */}
-        <div className="bg-white rounded-3xl p-6 border border-[#ECEAF5] shadow-sm mb-6 flex items-center gap-4">
+        <div className="bg-white rounded-3xl p-6 border border-[#DBEAFE] shadow-sm mb-6 flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -101,7 +101,7 @@ export default function SavedVocaPage() {
                 <button
                   key={mode.label}
                   onClick={() => startMode(mode.href)}
-                  className="bg-white border border-[#ECEAF5] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] hover:shadow-md transition-all active:scale-[0.99] text-left"
+                  className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] hover:shadow-md transition-all active:scale-[0.99] text-left"
                 >
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: mode.bg }}>
                     {mode.icon}
@@ -119,7 +119,7 @@ export default function SavedVocaPage() {
             <p className="text-[#374151] text-[13px] font-semibold mt-6 mb-3 px-1">저장한 단어 목록</p>
             <div className="flex flex-col gap-2 pb-10">
               {savedWords.map((w) => (
-                <div key={w.id} className="bg-white border border-[#ECEAF5] rounded-xl px-4 py-3 flex items-center justify-between">
+                <div key={w.id} className="bg-white border border-[#DBEAFE] rounded-xl px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-[#1C1B33] font-semibold text-[14px]">{w.word}</p>
                     <p className="text-[#6B7280] text-[12px]">{w.meaning}</p>

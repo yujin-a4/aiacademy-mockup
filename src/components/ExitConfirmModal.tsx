@@ -42,7 +42,7 @@ export default function ExitConfirmModal({ isOpen, onContinue, onExit }: ExitCon
           </button>
           <button
             onClick={onContinue}
-            className="flex-[1.5] bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#4F46E5]/25"
+            className="flex-[1.5] bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/25"
           >
             계속 학습하기
           </button>

@@ -74,11 +74,11 @@ export default function QuizPage() {
 
       <div className="px-6 max-w-[600px] mx-auto w-full">
         <div className="w-full bg-[#E5E7EB] rounded-full h-1.5 overflow-hidden">
-          <div className="bg-[#4F46E5] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / todayWords.length) * 100}%` }} />
+          <div className="bg-[#2563EB] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / todayWords.length) * 100}%` }} />
         </div>
         <p className="text-center text-[#6B7280] text-[12px] mt-2 font-medium">Question {currentIndex + 1} of {todayWords.length}</p>
 
-        <div className="mt-12 bg-white rounded-3xl p-10 shadow-lg border border-[#ECEAF5] flex flex-col items-center text-center">
+        <div className="mt-12 bg-white rounded-3xl p-10 shadow-lg border border-[#DBEAFE] flex flex-col items-center text-center">
           <span className="text-[#9CA3AF] text-[13px] font-bold uppercase tracking-widest mb-3">Choose the correct meaning</span>
           <h2 className="text-[40px] font-black text-[#1C1B33] break-all">{word.word}</h2>
         </div>
@@ -90,7 +90,7 @@ export default function QuizPage() {
             const showCorrect = selectedOption !== null && isCorrectAnswer
             const showWrong = selectedOption !== null && isSelected && !isCorrectAnswer
             
-            let btnClass = "bg-white border-[#ECEAF5] text-[#1C1B33] hover:border-[#4F46E5] hover:bg-[#EEF2FF]"
+            let btnClass = "bg-white border-[#DBEAFE] text-[#1C1B33] hover:border-[#2563EB] hover:bg-[#EFF6FF]"
             if (showCorrect) btnClass = "bg-[#10B981] border-[#10B981] text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] z-10 relative"
             if (showWrong) btnClass = "bg-[#EF4444] border-[#EF4444] text-white shadow-[0_0_15px_rgba(239,68,68,0.3)] z-10 relative"
 

@@ -36,8 +36,8 @@ const BADGES = [
 
 type TipColor = 'blue' | 'purple' | 'green' | 'amber'
 const TIP_COLORS: Record<TipColor, { bg: string; text: string }> = {
-  blue:   { bg: '#EEF2FF', text: '#4F46E5' },
-  purple: { bg: '#F5F3FF', text: '#7C3AED' },
+  blue:   { bg: '#EFF6FF', text: '#2563EB' },
+  purple: { bg: '#EFF6FF', text: '#7C3AED' },
   green:  { bg: '#F0FDF4', text: '#059669' },
   amber:  { bg: '#FEF9C3', text: '#B45309' },
 }
@@ -138,22 +138,22 @@ const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
 function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
   const isMe = item.isMe === true
   return (
-    <div className={`px-4 py-3 flex items-center gap-3 border-t border-[#F3F4F6] first:border-t-0 ${isMe ? 'bg-[#EEF2FF]' : ''}`}>
+    <div className={`px-4 py-3 flex items-center gap-3 border-t border-[#F3F4F6] first:border-t-0 ${isMe ? 'bg-[#EFF6FF]' : ''}`}>
       <span className={`w-8 text-center shrink-0 ${item.rank <= 3 ? 'text-[18px]' : 'text-[13px] font-bold text-[#9CA3AF]'}`}>
         {item.rank <= 3 ? MEDAL[item.rank] : item.rank}
       </span>
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[13px] font-bold ${isMe ? 'bg-[#4F46E5] text-white' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[13px] font-bold ${isMe ? 'bg-[#2563EB] text-white' : 'bg-[#F3F4F6] text-[#6B7280]'}`}>
         {item.name[0]}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className={`text-[13px] font-semibold truncate ${isMe ? 'text-[#4F46E5]' : 'text-[#1C1B33]'}`}>{item.name}</p>
-          {isMe && <span className="text-[9px] font-bold bg-[#4F46E5] text-white px-1.5 py-0.5 rounded-full shrink-0">나</span>}
+          <p className={`text-[13px] font-semibold truncate ${isMe ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>{item.name}</p>
+          {isMe && <span className="text-[9px] font-bold bg-[#2563EB] text-white px-1.5 py-0.5 rounded-full shrink-0">나</span>}
         </div>
         <p className="text-[10px] text-[#9CA3AF] mt-0.5">🔥 {item.streak}일 연속 · 목표 {item.target}점</p>
       </div>
       <div className="text-right shrink-0">
-        <p className={`text-[15px] font-bold ${isMe ? 'text-[#4F46E5]' : 'text-[#1C1B33]'}`}>
+        <p className={`text-[15px] font-bold ${isMe ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
           {item.score}<span className="text-[10px] font-normal text-[#9CA3AF] ml-0.5">점</span>
         </p>
       </div>
@@ -192,7 +192,7 @@ function RadarChart() {
         const [x, y] = axisPt(angle)
         return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.8"/>
       })}
-      <path d={dataPath} fill="#4F46E5" fillOpacity="0.12" stroke="#4F46E5" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d={dataPath} fill="#2563EB" fillOpacity="0.12" stroke="#2563EB" strokeWidth="1.5" strokeLinejoin="round"/>
       {RADAR_DATA.map((d, i) => {
         const [x, y] = pt(angles[i], d.value)
         const isStrong = d.value >= 70
@@ -222,26 +222,26 @@ const NAV = [
 ]
 
 const NAV_ICONS = [
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#4F46E5':'none'} stroke={a?'#4F46E5':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#4F46E5':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#4F46E5':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#4F46E5':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#2563EB':'none'} stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
 ]
 
 function Sidebar() {
   const [open, setOpen] = useState(false)
   return (
-    <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#ECEAF5] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
+    <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
       <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
-            <div className="w-8 h-8 rounded-xl bg-[#4F46E5] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
               <span className="text-white font-black text-[10px] tracking-tight">YBM</span>
             </div>
             <span className="text-[#1C1B33] font-bold text-[15px]">AI Course</span>
           </Link>
         )}
-        <button onClick={() => setOpen(!open)} className="w-7 h-7 rounded-lg bg-[#ECEAF5] hover:bg-[#DDD9F7] flex items-center justify-center transition-all shrink-0">
+        <button onClick={() => setOpen(!open)} className="w-7 h-7 rounded-lg bg-[#DBEAFE] hover:bg-[#DBEAFE] flex items-center justify-center transition-all shrink-0">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" className={`transition-transform duration-300 ${!open ? 'rotate-180' : ''}`}><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       </div>
@@ -249,7 +249,7 @@ function Sidebar() {
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item, i) => (
           <Link key={item.label} href={item.href}
-            className={`w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'text-[#6B7280] hover:bg-[#EEF2FF] hover:text-[#4F46E5]'}`}>
+            className={`w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`}>
             <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
             {open && <span className="animate-fade-in">{item.label}</span>}
           </Link>
@@ -257,8 +257,8 @@ function Sidebar() {
       </nav>
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
-        <div className="mb-2 h-px bg-[#ECEAF5]" />
-        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#4F46E5] hover:bg-[#EEF2FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <div className="mb-2 h-px bg-[#DBEAFE]" />
+        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           {open && <span className="animate-fade-in">설정</span>}
         </Link>
@@ -270,9 +270,9 @@ function Sidebar() {
 
 function BottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#ECEAF5] flex items-center justify-around px-2 pt-2 pb-6 z-50">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DBEAFE] flex items-center justify-around px-2 pt-2 pb-6 z-50">
       {NAV.slice(0, 4).map((item, i) => (
-        <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#4F46E5]' : 'text-[#9CA3AF]'}`}>
+        <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
           {NAV_ICONS[i](item.active)}
           <span className="text-[10px] font-medium">{item.label}</span>
         </Link>
@@ -298,8 +298,8 @@ function MaterialIcon({ type }: { type: string }) {
     </div>
   )
   return (
-    <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
     </div>
   )
 }
@@ -316,14 +316,14 @@ export default function StatusPage() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
-        <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#ECEAF5] sticky top-0 z-20">
+        <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <p className="text-[#1C1B33] text-[20px] font-bold">현황</p>
             <AccountMenu userName={userName ?? ''} />
           </div>
         </header>
         {/* 데스크탑 헤더 */}
-        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#ECEAF5] sticky top-0 z-20">
+        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <p className="text-[#1C1B33] font-bold text-[20px]">현황</p>
           <AccountMenu userName={userName ?? ''} />
         </header>
@@ -332,7 +332,7 @@ export default function StatusPage() {
           <div className="max-w-[1200px] mx-auto w-full">
 
             {/* 탭 */}
-            <div className="flex border-b border-[#ECEAF5] mb-5 overflow-x-auto">
+            <div className="flex border-b border-[#DBEAFE] mb-5 overflow-x-auto">
               {([
                 ['report',    '리포트'],
                 ['badge',     '배지'],
@@ -343,7 +343,7 @@ export default function StatusPage() {
                 <button key={key} onClick={() => setTab(key)}
                   className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${
                     tab === key
-                      ? 'text-[#4F46E5] border-[#4F46E5] font-bold'
+                      ? 'text-[#2563EB] border-[#2563EB] font-bold'
                       : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'
                   }`}>
                   {label}
@@ -356,7 +356,7 @@ export default function StatusPage() {
               <div className="animate-fade-in space-y-5">
 
                 {/* 예측 점수 배너 */}
-                <div className="bg-gradient-to-r from-[#4338CA] to-[#6366F1] rounded-2xl px-6 py-5 flex items-center justify-between gap-4">
+                <div className="bg-gradient-to-r from-[#1D4ED8] to-[#3B82F6] rounded-2xl px-6 py-5 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-white/60 text-[11px] tracking-widest uppercase mb-1">AI 예측 점수</p>
                     <p className="text-white/80 text-[13px] font-medium mb-1">{userName ?? '정연'}님의 현재 예측 점수</p>
@@ -391,12 +391,12 @@ export default function StatusPage() {
                           className="w-[96px] h-[136px] object-cover object-top rounded-2xl shrink-0 shadow-md"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(79,70,229,0.06)]">
-                            <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #ECEAF5' }}/>
+                          <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
+                            <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #DBEAFE' }}/>
                             <div className="absolute -left-[7px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #fff' }}/>
                             <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">박혜원 강사</p>
                             <p className="text-[10px] text-[#9CA3AF] mb-3">AI 코치</p>
-                            <div className="bg-[#F5F3FF] rounded-xl px-3.5 py-3">
+                            <div className="bg-[#EFF6FF] rounded-xl px-3.5 py-3">
                               <p className="text-[12.5px] text-[#374151] leading-relaxed">
                                 토익초보야, 분사구문은 이제 도사 다 됐네! 😊<br/>
                                 근데 <span className="text-[#DC2626] font-semibold">어휘(Part 5)</span>에서 3초 만에 풀 수 있는 문제를 자꾸 흘려. 틀린 문제 필기 보니까 보기부터 읽는 나쁜 습관 또 나왔더라?
@@ -411,7 +411,7 @@ export default function StatusPage() {
                     <section>
                       <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">음성·필기 행동 분석</p>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                        <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
                           <p className="text-[10px] text-[#9CA3AF] mb-0.5">필기 습관</p>
                           <p className="text-[10px] text-[#D97706] font-medium mb-2.5">보기 선행 리딩</p>
                           <p className="text-[28px] font-semibold text-[#D97706] leading-none">72<span className="text-[14px]">%</span></p>
@@ -420,7 +420,7 @@ export default function StatusPage() {
                             <p className="text-[10px] text-[#D97706]">주의 필요</p>
                           </div>
                         </div>
-                        <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                        <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
                           <p className="text-[10px] text-[#9CA3AF] mb-0.5">대화 지체 시간</p>
                           <p className="text-[10px] text-[#059669] font-medium mb-2.5">평균 응답 속도</p>
                           <p className="text-[28px] font-semibold text-[#1C1B33] leading-none">4.1<span className="text-[14px] text-[#6B7280] ml-0.5">초</span></p>
@@ -440,7 +440,7 @@ export default function StatusPage() {
                     {/* 약점 저격 레이더 */}
                     <section>
                       <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
-                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                      <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
                         <RadarChart />
                         <div className="flex items-center justify-center gap-5 mt-1">
                           <div className="flex items-center gap-1.5">
@@ -458,7 +458,7 @@ export default function StatusPage() {
                     {/* 실전문제 정답률 */}
                     <section>
                       <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">실전문제 정답률</p>
-                      <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                      <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
                         <div className="grid grid-cols-3 gap-2 mb-4 pb-4 border-b border-[#F3F4F6]">
                           {[
                             { label: '오늘 문제', value: '35', unit: '문제' },
@@ -468,7 +468,7 @@ export default function StatusPage() {
                             <div key={s.label} className="text-center">
                               <p className="text-[10px] text-[#9CA3AF] mb-1">{s.label}</p>
                               <p className="text-[20px] font-semibold text-[#1C1B33] leading-none">
-                                {s.value}<span className="text-[11px] text-[#4F46E5] ml-0.5">{s.unit}</span>
+                                {s.value}<span className="text-[11px] text-[#2563EB] ml-0.5">{s.unit}</span>
                               </p>
                             </div>
                           ))}
@@ -508,11 +508,11 @@ export default function StatusPage() {
                 {/* 획득 배지 */}
                 <div>
                   <p className="text-[13px] font-semibold text-[#374151] px-1 mb-3">
-                    획득한 배지 <span className="text-[#4F46E5] font-bold ml-1">{BADGES.filter(b => b.earned).length}</span>
+                    획득한 배지 <span className="text-[#2563EB] font-bold ml-1">{BADGES.filter(b => b.earned).length}</span>
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     {BADGES.filter(b => b.earned).map(b => (
-                      <div key={b.id} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
+                      <div key={b.id} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
                         <div className="text-[34px] mb-2 leading-none">{b.icon}</div>
                         <p className="text-[13px] font-bold text-[#1C1B33]">{b.name}</p>
                         <p className="text-[11px] text-[#6B7280] mt-0.5 leading-snug">{b.desc}</p>
@@ -532,7 +532,7 @@ export default function StatusPage() {
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     {BADGES.filter(b => !b.earned).map(b => (
-                      <div key={b.id} className="bg-white border border-[#ECEAF5] rounded-2xl p-4 opacity-55">
+                      <div key={b.id} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 opacity-55">
                         <div className="text-[34px] mb-2 leading-none grayscale">{b.icon}</div>
                         <p className="text-[13px] font-bold text-[#9CA3AF]">{b.name}</p>
                         <p className="text-[11px] text-[#9CA3AF] mt-0.5 leading-snug">{b.desc}</p>
@@ -554,7 +554,7 @@ export default function StatusPage() {
                   const c = TIP_COLORS[tip.color]
                   const isOpen = openTip === tip.id
                   return (
-                    <div key={tip.id} className="bg-white border border-[#ECEAF5] rounded-2xl shadow-[0_1px_8px_rgba(79,70,229,0.06)] overflow-hidden">
+                    <div key={tip.id} className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_8px_rgba(37,99,235,0.06)] overflow-hidden">
                       <button
                         onClick={() => setOpenTip(isOpen ? null : tip.id)}
                         className="w-full flex items-center gap-3 px-4 py-4 text-left"
@@ -603,13 +603,13 @@ export default function StatusPage() {
                     </p>
                     <div className="space-y-2">
                       {group.items.map((item, i) => (
-                        <div key={i} className="bg-white border border-[#ECEAF5] rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-[0_1px_8px_rgba(79,70,229,0.06)]">
+                        <div key={i} className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
                           <MaterialIcon type={item.type} />
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-semibold text-[#1C1B33] truncate">{item.title}</p>
                             <p className="text-[11px] text-[#9CA3AF] mt-0.5">{item.type} · {item.meta}</p>
                           </div>
-                          <button className="shrink-0 text-[11px] font-bold text-[#4F46E5] bg-[#EEF2FF] px-3 py-1.5 rounded-lg hover:bg-[#E0E7FF] transition-colors whitespace-nowrap">
+                          <button className="shrink-0 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-lg hover:bg-[#E0E7FF] transition-colors whitespace-nowrap">
                             보기
                           </button>
                         </div>
@@ -625,7 +625,7 @@ export default function StatusPage() {
               <div className="animate-fade-in space-y-4">
 
                 {/* 소속감 배너 */}
-                <div className="bg-gradient-to-br from-[#1C1B33] to-[#312E81] rounded-2xl px-6 py-5">
+                <div className="bg-gradient-to-br from-[#1C1B33] to-[#1E3A8A] rounded-2xl px-6 py-5">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"/>
@@ -634,7 +634,7 @@ export default function StatusPage() {
                     <span className="text-white/60 text-[11px] tracking-wider uppercase">LIVE · 실시간</span>
                   </div>
                   <p className="text-white text-[26px] font-bold leading-snug">
-                    지금 <span className="text-[#A5B4FC]">2,847명</span>이<br/>
+                    지금 <span className="text-[#93C5FD]">2,847명</span>이<br/>
                     함께 달리고 있어요 🏃
                   </p>
                   <p className="text-white/50 text-[12px] mt-2 leading-relaxed">
@@ -645,7 +645,7 @@ export default function StatusPage() {
 
                 {/* 나의 위치 */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white border border-[#ECEAF5] rounded-2xl p-4 shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                  <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
                     <p className="text-[11px] text-[#9CA3AF] mb-2">전체 순위</p>
                     <div className="flex items-baseline gap-1 mb-2">
                       <span className="text-[30px] font-bold text-[#1C1B33]">342</span>
@@ -653,23 +653,23 @@ export default function StatusPage() {
                     </div>
                     <div className="flex items-center gap-1.5 mb-1">
                       <div className="flex-1 h-1 bg-[#F3F4F6] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: '88%' }}/>
+                        <div className="h-full bg-[#2563EB] rounded-full" style={{ width: '88%' }}/>
                       </div>
-                      <span className="text-[11px] text-[#4F46E5] font-semibold shrink-0">상위 12%</span>
+                      <span className="text-[11px] text-[#2563EB] font-semibold shrink-0">상위 12%</span>
                     </div>
                     <p className="text-[10px] text-[#9CA3AF]">전체 2,847명 중</p>
                   </div>
-                  <div className="bg-[#F5F3FF] border border-[#DDD9F7] rounded-2xl p-4">
+                  <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-2xl p-4">
                     <p className="text-[11px] text-[#7C6FBF] mb-2">750점 목표 그룹</p>
                     <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-[30px] font-bold text-[#4F46E5]">38</span>
+                      <span className="text-[30px] font-bold text-[#2563EB]">38</span>
                       <span className="text-[13px] text-[#7C6FBF]">위</span>
                     </div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <div className="flex-1 h-1 bg-[#DDD9F7] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: '92%' }}/>
+                      <div className="flex-1 h-1 bg-[#DBEAFE] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#2563EB] rounded-full" style={{ width: '92%' }}/>
                       </div>
-                      <span className="text-[11px] text-[#4F46E5] font-semibold shrink-0">상위 8%</span>
+                      <span className="text-[11px] text-[#2563EB] font-semibold shrink-0">상위 8%</span>
                     </div>
                     <p className="text-[10px] text-[#7C6FBF]">456명 중 · 같은 목표</p>
                   </div>
@@ -681,7 +681,7 @@ export default function StatusPage() {
                     <p className="text-[11px] text-[#9CA3AF] uppercase tracking-widest">전체 랭킹</p>
                     <p className="text-[11px] text-[#9CA3AF]">AI 예측 점수 기준</p>
                   </div>
-                  <div className="bg-white border border-[#ECEAF5] rounded-2xl overflow-hidden shadow-[0_1px_6px_rgba(79,70,229,0.04)]">
+                  <div className="bg-white border border-[#DBEAFE] rounded-2xl overflow-hidden shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
 
                     {/* Top 5 */}
                     {RANKING_DATA.filter(r => r.rank <= 5).map(r => (
@@ -692,7 +692,7 @@ export default function StatusPage() {
                     <div className="px-4 py-3 border-t border-[#F3F4F6] flex items-center justify-between bg-[#FAFAFA]">
                       <div className="flex flex-col gap-1">
                         {[70, 50, 35].map((w, i) => (
-                          <div key={i} className="h-[3px] rounded-full bg-[#ECEAF5]" style={{ width: `${w}px` }}/>
+                          <div key={i} className="h-[3px] rounded-full bg-[#DBEAFE]" style={{ width: `${w}px` }}/>
                         ))}
                       </div>
                       <span className="text-[11px] text-[#9CA3AF]">336명 더 있음</span>

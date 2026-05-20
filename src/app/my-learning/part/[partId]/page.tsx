@@ -30,7 +30,7 @@ function P5Sentence({ sentence, filledWord }: { sentence: string; filledWord?: s
     <p className="text-[15px] text-[#1C1B33] leading-[1.9] font-medium">
       {parts[0]}
       <span className={`inline-block border-b-2 min-w-[110px] text-center font-bold mx-1 px-2 py-0.5 rounded-sm transition-colors ${
-        filledWord ? 'border-[#4F46E5] text-[#4F46E5] bg-[#EEF2FF]' : 'border-[#D1D5DB] text-transparent'
+        filledWord ? 'border-[#2563EB] text-[#2563EB] bg-[#EFF6FF]' : 'border-[#D1D5DB] text-transparent'
       }`}>
         {filledWord || '　'}
       </span>
@@ -55,7 +55,7 @@ function P6PassageView({ passage, currentBlankNum }: { passage: string; currentB
               return (
                 <span key={j} className={`inline-block px-1.5 py-0.5 rounded text-[12px] font-bold mx-0.5 ${
                   num === currentBlankNum
-                    ? 'bg-[#EEF2FF] text-[#4F46E5] border-b-2 border-[#4F46E5]'
+                    ? 'bg-[#EFF6FF] text-[#2563EB] border-b-2 border-[#2563EB]'
                     : num < currentBlankNum
                       ? 'bg-[#F0FDF4] text-[#059669]'
                       : 'bg-[#F3F4F6] text-[#9CA3AF]'
@@ -176,7 +176,7 @@ export default function PartPracticePage() {
           <div className="w-8" />
         </header>
         <div className="px-6 max-w-[600px] mx-auto w-full mt-6">
-          <div className="bg-white rounded-3xl p-8 shadow-lg border border-[#ECEAF5] text-center">
+          <div className="bg-white rounded-3xl p-8 shadow-lg border border-[#DBEAFE] text-center">
             <div className="w-24 h-24 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: bgColor }}>
               <span className="text-[28px] font-black" style={{ color: accentColor }}>{pct}%</span>
             </div>
@@ -197,10 +197,10 @@ export default function PartPracticePage() {
               ))}
             </div>
             <div className="mt-6 flex gap-3">
-              <button onClick={handleRestart} className="flex-1 border-2 border-[#4F46E5] text-[#4F46E5] py-3 rounded-2xl font-bold text-[14px] hover:bg-[#EEF2FF] transition-colors">
+              <button onClick={handleRestart} className="flex-1 border-2 border-[#2563EB] text-[#2563EB] py-3 rounded-2xl font-bold text-[14px] hover:bg-[#EFF6FF] transition-colors">
                 다시 풀기
               </button>
-              <button onClick={() => router.push('/my-learning?tab=part')} className="flex-1 bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-2xl font-bold text-[14px] transition-colors shadow-lg shadow-[#4F46E5]/20">
+              <button onClick={() => router.push('/my-learning?tab=part')} className="flex-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-2xl font-bold text-[14px] transition-colors shadow-lg shadow-[#2563EB]/20">
                 돌아가기
               </button>
             </div>
@@ -228,14 +228,14 @@ export default function PartPracticePage() {
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
               showCorrect ? 'bg-[#D1FAE5] border-[#10B981]' :
               showWrong   ? 'bg-[#FEE2E2] border-[#EF4444]' :
-              isSelected  ? 'bg-[#EEF2FF] border-[#4F46E5]' :
-              'bg-white border-[#E5E7EB] hover:border-[#C7D2FE] hover:bg-[#F5F3FF]'
+              isSelected  ? 'bg-[#EFF6FF] border-[#2563EB]' :
+              'bg-white border-[#E5E7EB] hover:border-[#C7D2FE] hover:bg-[#EFF6FF]'
             }`}
           >
             <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
               showCorrect ? 'bg-[#10B981] text-white' :
               showWrong   ? 'bg-[#EF4444] text-white' :
-              isSelected  ? 'bg-[#4F46E5] text-white' :
+              isSelected  ? 'bg-[#2563EB] text-white' :
               'bg-[#F3F4F6] text-[#6B7280]'
             }`}>
               {LABELS[i]}
@@ -243,7 +243,7 @@ export default function PartPracticePage() {
             <span className={`text-[14px] font-medium ${
               showCorrect ? 'text-[#059669]' :
               showWrong   ? 'text-[#DC2626]' :
-              isSelected  ? 'text-[#4F46E5]' :
+              isSelected  ? 'text-[#2563EB]' :
               'text-[#374151]'
             }`}>
               {choice}
@@ -267,14 +267,14 @@ export default function PartPracticePage() {
     <button
       onClick={handleSubmit}
       disabled={selected === null}
-      className="w-full bg-[#4F46E5] hover:bg-[#4338CA] disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#4F46E5]/20"
+      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/20"
     >
       정답 확인
     </button>
   ) : (
     <button
       onClick={handleNext}
-      className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#4F46E5]/20"
+      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/20"
     >
       {currentIndex < items.length - 1 ? '다음 문제' : '결과 보기'}
     </button>
@@ -299,7 +299,7 @@ export default function PartPracticePage() {
       {/* 진행 바 */}
       <div className={`shrink-0 px-6 pb-3 mx-auto w-full ${isSplit ? 'md:px-8 md:max-w-none' : 'max-w-[600px]'}`}>
         <div className="w-full bg-[#E5E7EB] rounded-full h-1.5 overflow-hidden">
-          <div className="bg-[#4F46E5] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / items.length) * 100}%` }} />
+          <div className="bg-[#2563EB] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / items.length) * 100}%` }} />
         </div>
         <p className="text-center text-[#6B7280] text-[12px] mt-2 font-medium">
           {partId === 'p6' ? `빈칸 ${current.blankNum} / ${items.length}` : `Question ${currentIndex + 1} of ${items.length}`}
@@ -309,7 +309,7 @@ export default function PartPracticePage() {
       {/* ── P5: 세로 레이아웃 ── */}
       {partId === 'p5' && (
         <div className="px-6 max-w-[600px] mx-auto w-full pb-10 space-y-4">
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-[#ECEAF5]">
+          <div className="bg-white rounded-3xl p-6 shadow-lg border border-[#DBEAFE]">
             {current.sentence && (
               <P5Sentence
                 sentence={current.sentence}
@@ -329,7 +329,7 @@ export default function PartPracticePage() {
 
           {/* LEFT: 지문 영역 */}
           <div className="md:flex-1 md:min-w-0 flex flex-col min-h-0">
-            <div className="bg-white rounded-3xl p-5 md:p-6 shadow-lg border border-[#ECEAF5] max-h-[40vh] md:max-h-none md:flex-1 md:overflow-y-auto overflow-y-auto">
+            <div className="bg-white rounded-3xl p-5 md:p-6 shadow-lg border border-[#DBEAFE] max-h-[40vh] md:max-h-none md:flex-1 md:overflow-y-auto overflow-y-auto">
               <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-3">
                 {partId === 'p6' ? P6_PASSAGES[0].title : P7_PASSAGES[0].title}
               </p>
@@ -348,7 +348,7 @@ export default function PartPracticePage() {
           <div className="mt-4 md:mt-0 md:w-[380px] md:shrink-0 md:flex md:flex-col md:min-h-0">
             <div className="md:flex-1 md:overflow-y-auto md:flex md:flex-col">
               {/* 문제 카드 */}
-              <div className="bg-white rounded-3xl p-5 shadow-lg border border-[#ECEAF5] mb-3">
+              <div className="bg-white rounded-3xl p-5 shadow-lg border border-[#DBEAFE] mb-3">
                 {partId === 'p6' && current.blankNum !== undefined && (
                   <p className="text-[13px] font-semibold text-[#374151]">
                     빈칸 ({current.blankNum})에 들어갈 가장 적절한 것은?

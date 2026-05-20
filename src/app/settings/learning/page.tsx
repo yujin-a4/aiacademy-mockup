@@ -9,7 +9,7 @@ const ITEMS = [
 export default function LearningSettings() {
   return (
     <div className="min-h-screen bg-[#F8FAFF] font-sans">
-      <header className="px-6 py-4 flex items-center gap-3 bg-white border-b border-[#ECEAF5]">
+      <header className="px-6 py-4 flex items-center gap-3 bg-white border-b border-[#DBEAFE]">
         <Link href="/dashboard" className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
         </Link>
@@ -20,7 +20,7 @@ export default function LearningSettings() {
         {ITEMS.map((item) => (
           <button
             key={item.label}
-            className="w-full bg-white border border-[#ECEAF5] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm"
+            className="w-full bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm"
           >
             <span className="text-[22px] shrink-0">{item.icon}</span>
             <div className="flex-1 min-w-0">
