@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
+import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '../dashboard/page'
 
 /* ── 데이터 ── */
 
@@ -325,9 +326,52 @@ function MaterialIcon({ type }: { type: string }) {
 
 /* ── 메인 ── */
 export default function StatusPage() {
-  const { userName } = useOnboardingStore()
+  const { userName, selectedInstructor } = useOnboardingStore()
   const [tab, setTab] = useState<'report' | 'badge' | 'tips' | 'materials' | 'ranking'>('report')
   const [openTip, setOpenTip] = useState<number | null>(null)
+
+  const [typedMsg, setTypedMsg] = useState('')
+  const [typingDone, setTypingDone] = useState(false)
+  const [msgIdx, setMsgIdx] = useState(0)
+
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.status ?? []
+  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
+
+  // 30초마다 멘트 교체
+  useEffect(() => {
+    setMsgIdx(0)
+  }, [selectedInstructor])
+
+  useEffect(() => {
+    if (currentMessages.length <= 1) return
+    const interval = setInterval(() => {
+      setMsgIdx((prev) => (prev + 1) % currentMessages.length)
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [currentMessages])
+
+  // 타이핑 효과
+  useEffect(() => {
+    const msg = currentMessages[msgIdx] ?? ''
+    setTypedMsg('')
+    setTypingDone(false)
+    let intervalId: ReturnType<typeof setInterval>
+    const timeoutId = setTimeout(() => {
+      let i = 0
+      intervalId = setInterval(() => {
+        i++
+        setTypedMsg(msg.slice(0, i))
+        if (i >= msg.length) { 
+          setTypingDone(true)
+          clearInterval(intervalId) 
+        }
+      }, 36)
+    }, 900)
+    return () => { 
+      clearTimeout(timeoutId)
+      clearInterval(intervalId) 
+    }
+  }, [selectedInstructor, msgIdx, currentMessages])
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
@@ -427,21 +471,25 @@ export default function StatusPage() {
                       <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">AI 강사의 한마디</p>
                       <div className="flex gap-3 items-start">
                         <img
-                          src="/image_reference/park-report.png"
-                          alt="박혜원"
+                          src={(selectedInstructor ?? 'park') === 'park' ? '/image_reference/park-report.png' : INST_THUMBS[selectedInstructor ?? 'park']}
+                          alt={instName}
                           className="w-[96px] h-[136px] object-cover object-top rounded-2xl shrink-0 shadow-md"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
                             <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #DBEAFE' }}/>
                             <div className="absolute -left-[7px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #fff' }}/>
-                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">박혜원 강사</p>
+                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">{instName} 강사</p>
                             <p className="text-[10px] text-[#9CA3AF] mb-3">AI 코치</p>
                             <div className="bg-[#EFF6FF] rounded-xl px-3.5 py-3">
-                              <p className="text-[12.5px] text-[#374151] leading-relaxed">
-                                토익초보야, 분사구문은 이제 도사 다 됐네! 😊<br/>
-                                근데 <span className="text-[#DC2626] font-semibold">어휘(Part 5)</span>에서 3초 만에 풀 수 있는 문제를 자꾸 흘려. 틀린 문제 필기 보니까 보기부터 읽는 나쁜 습관 또 나왔더라?
-                              </p>
+                              <div className="min-h-[50px]">
+                                <p className="text-[12.5px] text-[#374151] leading-relaxed">
+                                  {typedMsg}
+                                  {!typingDone && (
+                                    <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                                  )}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>

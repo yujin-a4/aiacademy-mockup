@@ -409,15 +409,90 @@ const MISSIONS = [
   { id: 5, text: '오늘의 일일 단어 문제 풀기', done: false, tag: null },
 ]
 
-const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익', jeong: '정은순', lee: '이인호' }
-const INST_MESSAGES: Record<string, string> = {
-  park: '오늘 Part 5 딱 10문제만 해. 그거면 충분해. 작은 게 쌓이는 거야.',
-  jang: '오늘 못 풀어도 괜찮아요 😊 한번 읽기만 해도 오늘은 성공이에요.',
-  kim: '바쁘면 5분만요. Part 5 한 섹션만 봐도 오늘 학습은 진짜 성공이에요.',
-  jeong: '틀려도 괜찮아요 💜 오늘 한 단어만 기억해도 충분해요. 응원해요!',
-  lee: '데이터 보니까 분사구문이 약점이야. 딱 이거 하나만 잡자. 빠르게.',
+export const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익', jeong: '정은순', lee: '이인호' }
+export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string[] }> = {
+  park: {
+    dashboard: [
+      '오늘 Part 5 딱 10문제만 해. 그거면 충분해. 작은 게 쌓이는 거야.',
+      '지금 바로 켜. 고민하는 시간에 이미 한 문제 풀 수 있어.',
+      '어제보다 1%만 나으면 돼. 오늘 그 1% 채우러 가자.',
+      '목표 점수까지 77점 남았어. 지금 시작하면 이번 달 안에 닿아.',
+      '틀린 문제가 곧 보물이야. 오늘 오답 한 개라도 제대로 파고들어 봐.',
+    ],
+    status: [
+      '정답률은 좋은데 속도가 문제야. Part 5에서 시간 다 쓰면 Part 7은 구경도 못 해.',
+      '오답 패턴 보니까 전치사에서 자꾸 실수하네. 이건 개념 부족이 아니라 꼼꼼함 부족이야.',
+      '지금 수준에서는 아는 걸 안 틀리는 게 제일 중요해. 실수도 실력인 거 알지?',
+      '데이터가 거짓말하나? 공부 시간은 늘었는데 효율이 제자리야. 집중해서 풀어.',
+      '단어장만 넘기지 말고 문장 구조를 봐. 동사 자리인지 아닌지 그것부터 파악해.',
+    ],
+  },
+  jang: {
+    dashboard: [
+      '오늘 못 풀어도 괜찮아요 😊 한번 읽기만 해도 오늘은 성공이에요.',
+      '시작이 반이에요. 앱 켠 것만으로도 이미 훌륭해요 🌸',
+      '천천히 가도 괜찮아요. 포기만 안 하면 반드시 올라가요.',
+      '오늘 5분도 충분해요. 그 5분이 쌓여서 점수가 된답니다.',
+      '오늘 학습 후 뿌듯함을 미리 상상해봐요 ✨ 바로 시작해요!',
+    ],
+    status: [
+      '전체적으로 많이 안정됐어요! 다만 수동태 부분이 조금 흔들리니 오늘만 한 번 더 봐요 😊',
+      '꾸준함은 1등이에요! 이제는 정확도를 조금만 더 높여볼까요? 할 수 있어요 ✨',
+      '틀린 개수에 너무 상심 마요. 오답 노트 쓴 만큼 점수는 반드시 올라가니까요.',
+      '학습 리듬이 정말 좋아요. RC 독해 속도만 조금 더 붙으면 목표 점수 금방이에요!',
+      '어려운 문제도 포기 안 하고 끝까지 푼 거 봤어요. 그 끈기가 결국 결과를 만들 거예요.',
+    ],
+  },
+  kim: {
+    dashboard: [
+      '바쁘면 5분만요. Part 5 한 섹션만 봐도 오늘 학습은 진짜 성공이에요.',
+      '토익은 전략이에요. 빈칸 먼저 읽고 품사 확인 — 이것만 해도 5점 올라요.',
+      '자투리 10분, 단어 10개. 매일 하면 한 달에 300개예요.',
+      '오늘 목표: 어제 틀린 문제 3개 복습. 거기서 점수 올라와요.',
+      'Part 7은 시간 싸움이에요. 오늘 속독 1회분만 타이머 켜고 도전!',
+    ],
+    status: [
+      '데이터를 보면 Part 6 문맥 파악이 약점입니다. 문장 간 연결어 위주로 복습하세요.',
+      '현재 추세라면 다음 시험에서 700점 돌파 가능합니다. 오답 소거법 연습에 집중하세요.',
+      '정답률 60%대 정체기는 어휘량 부족 때문입니다. 하루 30개씩 더 외워야 합니다.',
+      'LC는 강점이지만 RC 시제 파트에서 감점이 큽니다. since/for 구분 확실히 하세요.',
+      '시간 배분 전략을 수정합시다. Part 5는 10분 컷을 목표로 훈련해야 합니다.',
+    ],
+  },
+  jeong: {
+    dashboard: [
+      '틀려도 괜찮아요 💜 오늘 한 단어만 기억해도 충분해요. 응원해요!',
+      '오늘도 화면 켜준 것만으로 대단해요! 같이 한 문제씩 가봐요 💪',
+      '조급해하지 마요. 당신은 분명히 할 수 있어요. 오늘도 믿어요.',
+      '작은 성공이 큰 자신감이 돼요. 오늘 한 파트만 완주해봐요!',
+      '지금 이 순간이 나중에 감사하게 될 선택이에요. 오늘도 함께해요 ☺️',
+    ],
+    status: [
+      '조금씩 성장하는 게 눈에 보여요 💜 오늘은 틀린 문제들 다시 읽어보는 것부터 시작해요.',
+      '기초가 탄탄해지고 있어요. 이제 스스로를 믿고 더 어려운 문제에도 도전해봐요!',
+      '어제보다 오답이 줄었어요! 대단해요. 이 기세를 몰아서 문법 한 파트만 더 볼까요?',
+      '컨디션에 따라 점수가 흔들릴 수 있어요. 흔들리지 않는 기본기를 같이 만들어가요.',
+      '당신의 노력을 AI는 다 알고 있어요. 오늘도 어제만큼만 하면 충분히 성공이에요.',
+    ],
+  },
+  lee: {
+    dashboard: [
+      '데이터 보니까 분사구문이 약점이야. 딱 이거 하나만 잡자. 빠르게.',
+      '3일 연속 학습하면 기억 정착률 47% 올라가. 오늘 빠지면 리셋이야.',
+      'Part 5 정답률 61%. 70%까지 딱 9% 남았어. 오늘 집중하면 닿아.',
+      '학습 효율 최상위권은 복습 비중이 60%야. 오늘 복습 먼저.',
+      '시제 오답 패턴이 반복돼. since/for 차이 오늘 완전히 정리하자.',
+    ],
+    status: [
+      '분사구문 정답률 40% 미만. 구조 분석부터 다시 해야 합니다. 원리를 이해하세요.',
+      '비즈니스 이메일 지문에서 오답이 집중됩니다. 상황별 빈출 어휘 리스트를 확인하세요.',
+      '학습 밀도가 낮습니다. 한 번 풀 때 타이머를 켜고 긴장감을 유지하며 푸는 연습이 필요합니다.',
+      '관계대명사 격 구분 실수가 반복됩니다. 주격/목적격 자리를 시각화해서 외우세요.',
+      '오답을 분석해보면 함정 보기에 잘 걸리는 타입입니다. 끝까지 읽는 습관을 들이세요.',
+    ],
+  },
 }
-const INST_THUMBS: Record<string, string> = {
+export const INST_THUMBS: Record<string, string> = {
   park: '/image_reference/park-2.jpg',
   jang: '/image_reference/jang.png',
   kim: '/image_reference/kim.png',
@@ -537,9 +612,26 @@ function RegularDashboard() {
 
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
+  const [msgIdx, setMsgIdx] = useState(0)
+
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.dashboard ?? []
+
+  // 30초마다 멘트 교체
+  useEffect(() => {
+    setMsgIdx(0)
+  }, [selectedInstructor])
 
   useEffect(() => {
-    const msg = INST_MESSAGES[selectedInstructor ?? 'park'] ?? ''
+    if (currentMessages.length <= 1) return
+    const interval = setInterval(() => {
+      setMsgIdx((prev) => (prev + 1) % currentMessages.length)
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [currentMessages])
+
+  // 타이핑 효과
+  useEffect(() => {
+    const msg = currentMessages[msgIdx] ?? ''
     setTypedMsg('')
     setTypingDone(false)
     let intervalId: ReturnType<typeof setInterval>
@@ -548,11 +640,17 @@ function RegularDashboard() {
       intervalId = setInterval(() => {
         i++
         setTypedMsg(msg.slice(0, i))
-        if (i >= msg.length) { setTypingDone(true); clearInterval(intervalId) }
+        if (i >= msg.length) { 
+          setTypingDone(true)
+          clearInterval(intervalId) 
+        }
       }, 36)
     }, 900)
-    return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
-  }, [selectedInstructor])
+    return () => { 
+      clearTimeout(timeoutId)
+      clearInterval(intervalId) 
+    }
+  }, [selectedInstructor, msgIdx, currentMessages])
 
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
