@@ -687,25 +687,9 @@ function RegularDashboard() {
             </div>
 
             {/* ── 히어로 영역: 좌우 완전 분리 패널 ── */}
-            <div className="flex gap-4" style={{ minHeight: '320px' }}>
+            <div className="flex gap-4" style={{ minHeight: '380px' }}>
 
-              {/* ── 왼쪽: 뱃지 2개 분리 패널 ── */}
-              <div className="shrink-0 flex flex-col gap-4" style={{ minWidth: '110px' }}>
-                <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                  <span className="text-[28px] leading-none">🔥</span>
-                  <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
-                  <p className="text-[11px] text-[#92400E] font-semibold">연속 학습 중</p>
-                </div>
-                {ddayLabel && (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                    <span className="text-[28px] leading-none">📅</span>
-                    <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
-                    <p className="text-[11px] text-[#3B82F6] font-semibold">토익 시험</p>
-                  </div>
-                )}
-              </div>
-
-              {/* ── 오른쪽 패널: 강사 사진 + 말풍선 + CTA ── */}
+              {/* ── 왼쪽 패널: 강사 사진 + 말풍선 + CTA ── */}
               <div
                 className="flex-1 rounded-2xl overflow-hidden flex"
                 style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)' }}
@@ -716,7 +700,7 @@ function RegularDashboard() {
                     <img
                       src="/image_reference/park-report.png"
                       alt={instName}
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 h-full max-w-none object-contain object-bottom drop-shadow-md"
+                      className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 h-full max-w-none object-contain object-bottom drop-shadow-md"
                     />
                   ) : (
                     <img
@@ -753,6 +737,22 @@ function RegularDashboard() {
                 </div>
               </div>
 
+              {/* ── 오른쪽: 뱃지 2개 분리 패널 ── */}
+              <div className="shrink-0 flex flex-col gap-4" style={{ minWidth: '110px' }}>
+                <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+                  <span className="text-[28px] leading-none">🔥</span>
+                  <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
+                  <p className="text-[11px] text-[#92400E] font-semibold">연속 학습 중</p>
+                </div>
+                {ddayLabel && (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+                    <span className="text-[28px] leading-none">📅</span>
+                    <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
+                    <p className="text-[11px] text-[#3B82F6] font-semibold">토익 시험</p>
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* ── 하단 2열 ── */}
@@ -782,8 +782,8 @@ function RegularDashboard() {
                             <div key={day}
                               title={isMilestone ? '30일 마일스톤' : undefined}
                               className={`aspect-square rounded-[3px] ${
-                                isDone ? 'bg-[#2563EB] opacity-75'
-                                : isToday ? 'bg-[#2563EB] animate-pulse ring-2 ring-[#2563EB] ring-offset-1'
+                                isDone ? 'bg-[#BFDBFE]'
+                                : isToday ? 'bg-[#2563EB] ring-2 ring-[#2563EB] ring-offset-1'
                                 : isMilestone ? 'bg-[#FCD34D]/50 border border-[#F59E0B]/60'
                                 : 'bg-[#F3F4F6]'
                               }`}
@@ -811,8 +811,8 @@ function RegularDashboard() {
                             <div key={day}
                               title={isMilestone ? '66일 완주!' : undefined}
                               className={`aspect-square rounded-[3px] ${
-                                isDone ? 'bg-[#2563EB] opacity-75'
-                                : isToday ? 'bg-[#2563EB] animate-pulse ring-2 ring-[#2563EB] ring-offset-1'
+                                isDone ? 'bg-[#BFDBFE]'
+                                : isToday ? 'bg-[#2563EB] ring-2 ring-[#2563EB] ring-offset-1'
                                 : isMilestone ? 'bg-[#FCD34D]/50 border border-[#F59E0B]/60'
                                 : 'bg-[#F3F4F6]'
                               }`}
@@ -837,25 +837,6 @@ function RegularDashboard() {
                   <button onClick={() => setGridPage(1)}
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${gridPage === 1 ? 'bg-[#2563EB]' : 'bg-[#D1D5DB]'}`} />
                 </div>
-                <div className="flex items-stretch gap-1.5">
-                  <div className="flex-1 flex flex-col items-center gap-0.5 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-1.5 py-1">
-                    <span className="text-[12px]">☕</span>
-                    <p className="text-[9px] font-black text-[#2563EB]">17일 ✅</p>
-                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">아메리카노<br/>쿠폰</p>
-                  </div>
-                  <div className="flex items-center text-[#D1D5DB] text-[10px]">›</div>
-                  <div className="flex-1 flex flex-col items-center gap-0.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-1.5 py-1">
-                    <span className="text-[12px]">📖</span>
-                    <p className="text-[9px] font-black text-[#D97706]">30일</p>
-                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">교재<br/>20% 할인</p>
-                  </div>
-                  <div className="flex items-center text-[#D1D5DB] text-[10px]">›</div>
-                  <div className="flex-1 flex flex-col items-center gap-0.5 bg-[#FEF3C7] border border-[#F59E0B] rounded-xl px-1.5 py-1">
-                    <span className="text-[12px]">🏆</span>
-                    <p className="text-[9px] font-black text-[#B45309]">66일</p>
-                    <p className="text-[9px] text-[#6B7280] text-center leading-tight">수료증 +<br/>특별 선물</p>
-                  </div>
-                </div>
               </div>
 
               {/* 오늘의 데일리 챌린지 */}
@@ -864,10 +845,10 @@ function RegularDashboard() {
                   <div className="w-7 h-7 rounded-xl bg-[#FEF9C3] flex items-center justify-center text-[14px] shrink-0">🏆</div>
                   <h3 className="text-[#1C1B33] font-bold text-[13px]">오늘의 데일리 챌린지</h3>
                 </div>
-                {/* 달성률 */}
+                {/* 평균 정답률 */}
                 <div>
                   <div className="flex justify-between mb-0.5">
-                    <span className="text-[11px] text-[#6B7280]">전체 유저 달성률</span>
+                    <span className="text-[11px] text-[#6B7280]">오늘의 평균 정답률</span>
                     <span className="text-[11px] font-bold text-[#2563EB]">75%</span>
                   </div>
                   <div className="h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
@@ -875,25 +856,12 @@ function RegularDashboard() {
                   </div>
                   <p className="text-[10px] text-[#9CA3AF] mt-0.5">지금 <span className="font-semibold text-[#374151]">923명</span>이 도전 중</p>
                 </div>
-                {/* 오늘의 구성 */}
-                <div className="bg-[#F8FAFF] rounded-xl p-2.5 flex flex-col gap-1.5">
-                  <p className="text-[10px] font-bold text-[#5B5A72]">오늘의 문제 구성</p>
-                  <div className="flex gap-1.5">
-                    <div className="flex-1 bg-white rounded-lg px-2 py-1.5 border border-[#DBEAFE] text-center">
-                      <p className="text-[10px] text-[#6B7280]">LC</p>
-                      <p className="text-[13px] font-black text-[#2563EB]">5문제</p>
-                      <p className="text-[9px] text-[#9CA3AF]">Part 1·2</p>
-                    </div>
-                    <div className="flex-1 bg-white rounded-lg px-2 py-1.5 border border-[#DBEAFE] text-center">
-                      <p className="text-[10px] text-[#6B7280]">RC</p>
-                      <p className="text-[13px] font-black text-[#2563EB]">5문제</p>
-                      <p className="text-[9px] text-[#9CA3AF]">Part 5·6</p>
-                    </div>
-                    <div className="flex-1 bg-white rounded-lg px-2 py-1.5 border border-[#DBEAFE] text-center">
-                      <p className="text-[10px] text-[#6B7280]">예상</p>
-                      <p className="text-[13px] font-black text-[#2563EB]">8분</p>
-                      <p className="text-[9px] text-[#9CA3AF]">소요시간</p>
-                    </div>
+                {/* 오늘의 학습 팁 */}
+                <div className="bg-[#F8FAFF] rounded-xl p-2.5 flex gap-2.5 items-start">
+                  <span className="text-[18px] leading-none shrink-0 mt-0.5">💡</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-[#2563EB] mb-0.5">오늘의 학습 팁</p>
+                    <p className="text-[11px] text-[#374151] leading-relaxed">Part 5는 시간이 생명! 모르는 문제는 과감히 넘기고 마지막에 돌아오세요. 속도가 곧 점수입니다.</p>
                   </div>
                 </div>
                 <Link href="/daily"
