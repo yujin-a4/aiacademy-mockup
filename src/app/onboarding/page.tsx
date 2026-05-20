@@ -82,7 +82,7 @@ export default function OnboardingPage() {
       {step === 2 && <QuizCard onComplete={next} />}
       {step === 3 && <GoalSetting onNext={next} />}
       {step === 4 && <LoadingScreen onNext={next} />}
-      {step === 5 && <InstructorSelect onNext={next} />}
+      {step === 5 && <InstructorSelect onNext={next} onBack={() => setStep(3)} />}
       {step === 6 && <CurriculumConfirm onComplete={() => router.push('/dashboard')} />}
     </main>
   )

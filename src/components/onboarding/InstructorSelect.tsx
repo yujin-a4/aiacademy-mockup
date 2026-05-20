@@ -228,7 +228,7 @@ const INSTRUCTORS = [
 ]
 
 
-export default function InstructorSelect({ onNext }: { onNext: () => void }) {
+export default function InstructorSelect({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
   const { userName, setSelectedInstructor, targetScore, studyRange, examDate } = useOnboardingStore()
 
   const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
@@ -421,7 +421,18 @@ export default function InstructorSelect({ onNext }: { onNext: () => void }) {
   if (view === 'list') {
     const focused = visibleInstructors[focusedIndex]
     return (
-      <div className="flex flex-col min-h-screen bg-[#F3F4F6] overflow-hidden select-none">
+      <div className="flex flex-col min-h-screen bg-[#F3F4F6] overflow-hidden select-none relative">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="absolute top-6 left-6 z-50 p-2 text-[#6B7280] hover:text-[#111318] transition-colors rounded-full bg-white/50 backdrop-blur-sm border border-[#E5E7EB] hover:bg-white active:scale-95"
+            aria-label="이전 단계로 이동"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
         {/* Header */}
         <div className="text-center pt-12 pb-5 px-6">
           <h1 className="text-[#111318] text-[20px] font-bold leading-snug">
