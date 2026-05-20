@@ -3,12 +3,18 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
-import { Noto_Serif_KR } from 'next/font/google'
+import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
 
 const notoSerifKR = Noto_Serif_KR({
   subsets: ['latin'],
   weight: ['400', '700', '900'],
   variable: '--font-noto-serif-kr',
+})
+
+const diphylleia = Diphylleia({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-diphylleia',
 })
 
 /* ══════════════════════════════════════════════
@@ -111,7 +117,7 @@ function OjjDashboard() {
   const doneCount = missions.filter(m => m.done).length
 
   return (
-    <div className={`${notoSerifKR.variable} flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]`}>
+    <div className={`${notoSerifKR.variable} ${diphylleia.variable} flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]`}>
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -151,21 +157,19 @@ function OjjDashboard() {
               </div>
             </div>
 
-            {/* ── 히어로 카드 ── */}
-            <div className="relative overflow-hidden rounded-2xl"
-              style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)', minHeight: '200px' }}>
-              <div className="absolute right-0 top-0 w-72 h-72 rounded-full bg-[#60A5FA]/20 blur-3xl pointer-events-none" />
+            {/* ── 히어로 3-카드 ── */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* 족자 — 데스크탑 우측 상단 고정 */}
-              <div className="absolute top-5 right-6 z-20 hidden md:flex items-stretch" style={{ width: '300px' }}>
-                <div style={{ width: '15px', flexShrink: 0, borderRadius: '7px', background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
-                <div style={{ flex: 1, minHeight: '140px', background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '14px 20px 18px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              {/* 1. 명언 족자 */}
+              <div className="flex items-stretch rounded-2xl overflow-hidden shadow-md" style={{ minHeight: '190px' }}>
+                <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
+                <div style={{ flex: 1, background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '20px 20px 30px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', top: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
                   <div style={{ position: 'absolute', bottom: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
                   <p style={{
-                    fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif",
-                    fontSize: '15px', fontWeight: 'bold', textAlign: 'center',
-                    color: '#1C0A00', lineHeight: '1.7', letterSpacing: '0.01em',
+                    fontFamily: "var(--font-diphylleia), 'Diphylleia', serif",
+                    fontSize: '15px', fontWeight: '400', textAlign: 'center',
+                    color: '#1C0A00', lineHeight: '1.9', letterSpacing: '0.02em',
                     opacity: quoteVisible ? 1 : 0,
                     transition: 'opacity 0.5s ease',
                     whiteSpace: 'pre-line',
@@ -176,84 +180,73 @@ function OjjDashboard() {
                     <span style={{ fontSize: '6.5px', color: '#CC1111', fontWeight: 'bold', lineHeight: 1.2, textAlign: 'center', fontFamily: "'Gungsuh', serif" }}>오정<br/>자인</span>
                   </div>
                 </div>
-                <div style={{ width: '15px', flexShrink: 0, borderRadius: '7px', background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '-3px 0 6px rgba(0,0,0,0.35)' }} />
+                <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '-3px 0 6px rgba(0,0,0,0.35)' }} />
               </div>
 
-              <div className="relative z-10 p-6 md:p-8 md:pr-[340px]">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full mb-4">
+              {/* 2. 선생님 응원 메시지 */}
+              <div className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
+                style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 55%, #BFDBFE 100%)' }}>
+                <div className="absolute -right-6 -top-6 w-40 h-40 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
+                <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
                   오정자 선생님의 오늘 처방전 📋
                 </span>
+                <div className="flex items-end gap-2 flex-1">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border-2 border-white shadow-md">
+                    <img src="/image_reference/ojungja.jpg" alt="오정자" className="w-full h-full object-cover object-top"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                  </div>
+                  <div className="relative bg-white rounded-2xl px-3.5 py-2.5 shadow-md flex-1">
+                    <p className="text-[#1C1B33] text-[12px] leading-relaxed">
+                      {typedMsg}
+                      {!typingDone && <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />}
+                    </p>
+                    <div className="absolute -left-[7px] top-[16px] w-0 h-0"
+                      style={{ borderTop: '7px solid transparent', borderBottom: '7px solid transparent', borderRight: '7px solid white' }} />
+                  </div>
+                </div>
+                <a href="https://aiacademy-classroom.vercel.app/"
+                  className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-md shadow-[#2563EB]/25 active:scale-[0.98]">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  1:1 학습 시작하기
+                </a>
+              </div>
 
-                {/* D-Day */}
-                <div className="mb-4">
-                  <p className="text-[#6B7280] text-[12px]">토익 시험까지</p>
-                  <p className="text-[#1C1B33] font-black leading-none" style={{ fontSize: '64px', fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif" }}>
+              {/* 3. 동기부여 — D-day + 연속학습 */}
+              <div className="rounded-2xl p-5 flex flex-col justify-between"
+                style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 60%, #3B82F6 100%)' }}>
+                <div>
+                  <p className="text-white/60 text-[11px] font-semibold mb-1">토익 시험까지</p>
+                  <p className="text-white font-black leading-none"
+                    style={{ fontSize: '64px', fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif" }}>
                     {ddayLabel ?? 'D-?'}
                   </p>
-                  <p className="text-[#6B7280] text-[12px] mt-1">오늘의 첫 걸음이, 합격으로 만들겠습니다.</p>
+                  <p className="text-white/70 text-[12px] mt-2">오늘의 첫 걸음이, 합격으로 만들겠습니다.</p>
                 </div>
-
-                {/* 카카오톡 말풍선 + CTA */}
-                <div className="flex items-end gap-4 flex-wrap">
-                  <div className="flex items-end gap-2">
-                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-[#EFF6FF]">
-                      <img src="/image_reference/ojungja.jpg" alt="오정자" className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    </div>
-                    <div className="relative bg-white rounded-2xl rounded-bl-none px-3.5 py-2.5 shadow-md max-w-[280px]">
-                      <p className="text-[#1C1B33] text-[12px] leading-relaxed">
-                        {typedMsg}
-                        {!typingDone && <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />}
-                      </p>
-                      <div className="absolute -bottom-[6px] left-0 w-0 h-0"
-                        style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
-                    </div>
-                    {typingDone && <span className="text-[10px] text-[#9CA3AF] self-end mb-0.5 shrink-0">방금</span>}
-                  </div>
-                  <a href="https://aiacademy-classroom.vercel.app/"
-                    className="inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#2563EB]/30 active:scale-[0.98]">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    1:1 학습 시작하기
-                  </a>
-                </div>
-
-                {/* 족자 — 모바일 인라인 */}
-                <div className="md:hidden mt-5 flex items-stretch rounded-xl overflow-hidden shadow-md">
-                  <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
-                  <div style={{ flex: 1, minHeight: '120px', background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '16px 20px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ position: 'absolute', top: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
-                    <div style={{ position: 'absolute', bottom: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
-                    <p style={{
-                      fontFamily: "var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif",
-                      fontSize: '16px', fontWeight: 'bold', textAlign: 'center',
-                      color: '#1C0A00', lineHeight: '1.7', letterSpacing: '0.01em',
-                      opacity: quoteVisible ? 1 : 0,
-                      transition: 'opacity 0.5s ease',
-                      whiteSpace: 'pre-line',
-                    }}>
-                      {currentQuote}
-                    </p>
-                    <div style={{ position: 'absolute', bottom: '8px', right: '10px', width: '24px', height: '24px', border: '2px solid #CC1111', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(204,17,17,0.06)' }}>
-                      <span style={{ fontSize: '6px', color: '#CC1111', fontWeight: 'bold', lineHeight: 1.2, textAlign: 'center', fontFamily: "'Gungsuh', serif" }}>오정<br/>자인</span>
+                <div className="mt-4">
+                  <div className="flex items-center gap-2.5 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
+                    <span className="text-[22px] leading-none">🔥</span>
+                    <div>
+                      <p className="text-[22px] font-black text-white leading-none">12일</p>
+                      <p className="text-[10px] text-white/70 font-semibold">연속 학습 중</p>
                     </div>
                   </div>
-                  <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '-3px 0 6px rgba(0,0,0,0.35)' }} />
                 </div>
               </div>
+
             </div>
 
-            {/* ── 2+1열 ── */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ── 하단 섹션 ── */}
+            <div className="space-y-4">
 
-              {/* 66일 달성 그리드 */}
+              {/* 66일 달성 그리드 — 전체 가로 */}
               {(() => {
                 const TODAY = 13
                 const MILESTONES: Record<number, string> = { 7: '🏆', 14: '⭐', 21: '🏆', 30: '🎯', 42: '⭐', 55: '🏆', 66: '👑' }
                 const COLS = 11
                 const TOTAL_CELLS = Math.ceil(66 / COLS) * COLS // 72
                 return (
-                  <div className="md:col-span-2 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-3">
+                  <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[#1C1B33] font-bold text-[14px]">66일 연속 달성 🏅</h3>
                       <span className="text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full">🔥 {TODAY - 1}일째</span>
@@ -323,14 +316,14 @@ function OjjDashboard() {
                 )
               })()}
 
-              {/* 우측 컬럼: 오늘의 일정 + 학습량 */}
-              <div className="md:col-span-1 flex flex-col gap-4">
+              {/* 오늘의 일정 + 학습량 — 2분할 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* 오늘의 일정 */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid #E5D9C3' }}>
-                <div className="h-1" style={{ background: '#FEF9C3' }}>
-                  <div className="h-full transition-all duration-500 rounded-r-full"
-                    style={{ width: `${Math.round((doneCount / missions.length) * 100)}%`, background: 'linear-gradient(to right, #B45309, #D97706)' }} />
+              <div className="bg-white rounded-2xl overflow-hidden shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
+                <div className="h-1 bg-[#EFF6FF]">
+                  <div className="h-full transition-all duration-500 rounded-r-full from-[#2563EB] to-[#1D4ED8] bg-gradient-to-r"
+                    style={{ width: `${Math.round((doneCount / missions.length) * 100)}%` }} />
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
@@ -342,20 +335,19 @@ function OjjDashboard() {
                       <div key={i} onClick={() => toggleMission(i)}
                         className="cursor-pointer flex items-start gap-2.5 p-2.5 rounded-xl border transition-all active:scale-[0.98]"
                         style={item.done
-                          ? { borderColor: '#FDE68A', background: '#FFFBEB' }
+                          ? { borderColor: '#BFDBFE', background: '#EFF6FF' }
                           : { borderColor: '#F3F4F6', background: '#FAFAFA' }}>
                         <span className="text-[15px] shrink-0 mt-0.5">{item.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-[12px] font-bold leading-snug ${item.done ? 'line-through' : ''}`}
-                            style={item.done ? { color: '#B45309' } : { color: '#1C1B33' }}>
+                          <p className={`text-[12px] font-bold leading-snug ${item.done ? 'text-[#9CA3AF] line-through' : 'text-[#1C1B33]'}`}>
                             {item.title}
                           </p>
                           <p className="text-[10px] text-[#9CA3AF] mt-0.5">{item.time}</p>
                         </div>
                         {item.done && (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: '#FDE68A' }}>
+                          <div className="w-5 h-5 rounded-full bg-[#10B981] flex items-center justify-center shrink-0 mt-0.5">
                             <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                              <path d="M2 6l3 3 5-5" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                           </div>
                         )}
@@ -366,7 +358,7 @@ function OjjDashboard() {
               </div>
 
               {/* 오늘의 학습량 */}
-              <div className="bg-white rounded-2xl p-5 flex flex-col shadow-sm" style={{ border: '1px solid #E5D9C3' }}>
+              <div className="bg-white rounded-2xl p-5 flex flex-col shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
                 <h3 className="font-bold text-[14px] mb-1">오늘의 학습량</h3>
                 <p className="text-[10px] text-[#9CA3AF] mb-4">선생님이 직접 확인했어요 👀</p>
 
@@ -385,15 +377,14 @@ function OjjDashboard() {
                 </div>
 
                 {/* 오정자 코멘트 */}
-                <div className="rounded-xl p-3 mt-auto" style={{ background: '#FFFBEB', border: '1px solid rgba(253,230,138,0.5)' }}>
-                  <p className="text-[11px] font-bold leading-relaxed" style={{ color: '#78350F' }}>
+                <div className="rounded-xl p-3 mt-auto bg-[#EFF6FF] border border-[#DBEAFE]">
+                  <p className="text-[11px] font-bold leading-relaxed text-[#1D4ED8]">
                     👵 "42분이요? 잘했어요. 내일은 45분 해봐요. 딱 3분만 더요."
                   </p>
                 </div>
 
                 <Link href="/daily"
-                  className="mt-3 w-full py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[0.98]"
-                  style={{ background: 'linear-gradient(to right, #B45309, #D97706)', color: 'white' }}>
+                  className="mt-3 w-full py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[0.98] bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white">
                   📜 오늘의 문제 풀기
                 </Link>
               </div>
