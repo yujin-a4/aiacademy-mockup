@@ -1,8 +1,9 @@
 'use client'
 import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
+import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '../dashboard/page'
 
 /* ── 데이터 ── */
 
@@ -16,11 +17,12 @@ const PART_STATS = [
 ]
 
 const RADAR_DATA = [
-  { label: '분사구문', value: 85 },
-  { label: '시제',    value: 72 },
-  { label: '어휘',    value: 42 },
-  { label: '전치사',  value: 58 },
-  { label: '관계사',  value: 55 },
+  { label: 'Part 1', value: 91 },
+  { label: 'Part 2', value: 83 },
+  { label: 'Part 3', value: 74 },
+  { label: 'Part 5', value: 61 },
+  { label: 'Part 6', value: 52 },
+  { label: 'Part 7', value: 48 },
 ]
 
 const BADGES = [
@@ -163,7 +165,7 @@ function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
 
 /* ── SVG 레이더 차트 ── */
 function RadarChart() {
-  const CX = 100, CY = 108, R = 65, N = RADAR_DATA.length
+  const CX = 100, CY = 112, R = 62, N = RADAR_DATA.length
   const angles = RADAR_DATA.map((_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N)
   const pt = (angle: number, val: number): [number, number] => [
     CX + R * (val / 100) * Math.cos(angle),
@@ -173,10 +175,29 @@ function RadarChart() {
     CX + R * Math.cos(angle),
     CY + R * Math.sin(angle),
   ]
-  const dataPath = RADAR_DATA.map((d, i) => {
-    const [x, y] = pt(angles[i], d.value)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ') + 'Z'
+  const dataPoints = RADAR_DATA.map((d, i) => pt(angles[i], d.value))
+
+  // 꼭짓점만 살짝 둥글게 — 직선 유지, corner만 softening
+  const smoothPath = (() => {
+    const n = dataPoints.length
+    const t = 0.18 // 꼭짓점 rounding 비율 (0=직선, 0.5=완전곡선)
+    const segs = dataPoints.map((p, i) => {
+      const prev = dataPoints[(i - 1 + n) % n]
+      const next = dataPoints[(i + 1) % n]
+      const before: [number, number] = [p[0] * (1 - t) + prev[0] * t, p[1] * (1 - t) + prev[1] * t]
+      const after: [number, number]  = [p[0] * (1 - t) + next[0] * t, p[1] * (1 - t) + next[1] * t]
+      return { p, before, after }
+    })
+    let d = `M${segs[0].before[0].toFixed(1)},${segs[0].before[1].toFixed(1)}`
+    for (let i = 0; i < n; i++) {
+      const { p, after } = segs[i]
+      const nextBefore = segs[(i + 1) % n].before
+      d += ` Q${p[0].toFixed(1)},${p[1].toFixed(1)} ${after[0].toFixed(1)},${after[1].toFixed(1)}`
+      d += ` L${nextBefore[0].toFixed(1)},${nextBefore[1].toFixed(1)}`
+    }
+    return d + 'Z'
+  })()
+
   const gridPaths = [0.25, 0.5, 0.75, 1.0].map(lv =>
     RADAR_DATA.map((_, i) => {
       const [x, y] = pt(angles[i], lv * 100)
@@ -184,27 +205,26 @@ function RadarChart() {
     }).join(' ') + 'Z'
   )
   return (
-    <svg viewBox="0 0 200 210" className="w-full max-w-[220px] mx-auto">
+    <svg viewBox="0 0 200 220" className="w-full max-w-[230px] mx-auto">
       {gridPaths.map((path, gi) => (
-        <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 1 : 0.6}/>
+        <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 0.8 : 0.5}/>
       ))}
       {angles.map((angle, i) => {
         const [x, y] = axisPt(angle)
-        return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.8"/>
+        return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.5"/>
       })}
-      <path d={dataPath} fill="#2563EB" fillOpacity="0.12" stroke="#2563EB" strokeWidth="1.5" strokeLinejoin="round"/>
-      {RADAR_DATA.map((d, i) => {
-        const [x, y] = pt(angles[i], d.value)
-        const isStrong = d.value >= 70
-        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="3.5" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="1.5"/>
+      <path d={smoothPath} fill="#2563EB" fillOpacity="0.1" stroke="#2563EB" strokeWidth="1" strokeLinejoin="round"/>
+      {dataPoints.map(([x, y], i) => {
+        const isStrong = RADAR_DATA[i].value >= 70
+        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2.8" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="1.2"/>
       })}
       {RADAR_DATA.map((d, i) => {
-        const lx = CX + (R + 22) * Math.cos(angles[i])
-        const ly = CY + (R + 22) * Math.sin(angles[i])
+        const lx = CX + (R + 20) * Math.cos(angles[i])
+        const ly = CY + (R + 20) * Math.sin(angles[i])
         return (
           <text key={i} x={lx.toFixed(1)} y={ly.toFixed(1)}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize="9" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
+            fontSize="8.5" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
             {d.label}
           </text>
         )
@@ -306,9 +326,52 @@ function MaterialIcon({ type }: { type: string }) {
 
 /* ── 메인 ── */
 export default function StatusPage() {
-  const { userName } = useOnboardingStore()
+  const { userName, selectedInstructor } = useOnboardingStore()
   const [tab, setTab] = useState<'report' | 'badge' | 'tips' | 'materials' | 'ranking'>('report')
   const [openTip, setOpenTip] = useState<number | null>(null)
+
+  const [typedMsg, setTypedMsg] = useState('')
+  const [typingDone, setTypingDone] = useState(false)
+  const [msgIdx, setMsgIdx] = useState(0)
+
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.status ?? []
+  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
+
+  // 30초마다 멘트 교체
+  useEffect(() => {
+    setMsgIdx(0)
+  }, [selectedInstructor])
+
+  useEffect(() => {
+    if (currentMessages.length <= 1) return
+    const interval = setInterval(() => {
+      setMsgIdx((prev) => (prev + 1) % currentMessages.length)
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [currentMessages])
+
+  // 타이핑 효과
+  useEffect(() => {
+    const msg = currentMessages[msgIdx] ?? ''
+    setTypedMsg('')
+    setTypingDone(false)
+    let intervalId: ReturnType<typeof setInterval>
+    const timeoutId = setTimeout(() => {
+      let i = 0
+      intervalId = setInterval(() => {
+        i++
+        setTypedMsg(msg.slice(0, i))
+        if (i >= msg.length) { 
+          setTypingDone(true)
+          clearInterval(intervalId) 
+        }
+      }, 36)
+    }, 900)
+    return () => { 
+      clearTimeout(timeoutId)
+      clearInterval(intervalId) 
+    }
+  }, [selectedInstructor, msgIdx, currentMessages])
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
@@ -375,6 +438,28 @@ export default function StatusPage() {
                   </div>
                 </div>
 
+                {/* 학습 상태 요약 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: '총 학습일',    value: '12',  unit: '일',   icon: '📅', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: '총 풀이 문제', value: '247', unit: '문제', icon: '✏️', color: '#059669', bg: '#F0FDF4' },
+                    { label: 'LC 정답률',    value: '83',  unit: '%',    icon: '🎧', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: 'RC 정답률',    value: '54',  unit: '%',    icon: '📖', color: '#D97706', bg: '#FEF9C3' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 flex items-center gap-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0" style={{ background: s.bg }}>
+                        {s.icon}
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[#9CA3AF] mb-0.5">{s.label}</p>
+                        <p className="text-[20px] font-bold leading-tight" style={{ color: s.color }}>
+                          {s.value}<span className="text-[11px] font-normal ml-0.5 text-[#9CA3AF]">{s.unit}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* 2-col */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
@@ -386,21 +471,25 @@ export default function StatusPage() {
                       <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">AI 강사의 한마디</p>
                       <div className="flex gap-3 items-start">
                         <img
-                          src="/image_reference/park-report.png"
-                          alt="박혜원"
+                          src={(selectedInstructor ?? 'park') === 'park' ? '/image_reference/park-report.png' : INST_THUMBS[selectedInstructor ?? 'park']}
+                          alt={instName}
                           className="w-[96px] h-[136px] object-cover object-top rounded-2xl shrink-0 shadow-md"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
                             <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #DBEAFE' }}/>
                             <div className="absolute -left-[7px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #fff' }}/>
-                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">박혜원 강사</p>
+                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">{instName} 강사</p>
                             <p className="text-[10px] text-[#9CA3AF] mb-3">AI 코치</p>
                             <div className="bg-[#EFF6FF] rounded-xl px-3.5 py-3">
-                              <p className="text-[12.5px] text-[#374151] leading-relaxed">
-                                토익초보야, 분사구문은 이제 도사 다 됐네! 😊<br/>
-                                근데 <span className="text-[#DC2626] font-semibold">어휘(Part 5)</span>에서 3초 만에 풀 수 있는 문제를 자꾸 흘려. 틀린 문제 필기 보니까 보기부터 읽는 나쁜 습관 또 나왔더라?
-                              </p>
+                              <div className="min-h-[50px]">
+                                <p className="text-[12.5px] text-[#374151] leading-relaxed">
+                                  {typedMsg}
+                                  {!typingDone && (
+                                    <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                                  )}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
