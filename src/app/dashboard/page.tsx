@@ -665,70 +665,72 @@ function RegularDashboard() {
             </div>
 
             {/* ── 히어로 카드 ── */}
-            <div className="relative overflow-hidden rounded-2xl min-h-[180px] md:min-h-[220px]"
+            <div className="relative overflow-hidden rounded-2xl"
               style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
               {/* 장식 블롭 */}
-              <div className="absolute right-0 top-0 w-72 h-72 rounded-full bg-[#60A5FA]/20 blur-3xl pointer-events-none" />
-              <div className="absolute right-20 bottom-0 w-40 h-40 rounded-full bg-[#93C5FD]/25 blur-2xl pointer-events-none" />
+              <div className="absolute -right-8 -top-8 w-64 h-64 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
+              <div className="absolute right-12 -bottom-8 w-40 h-40 rounded-full bg-[#93C5FD]/20 blur-2xl pointer-events-none" />
 
-              {/* D-Day + 연속 스탯 카드 */}
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex flex-col gap-2.5 z-10">
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-4 py-3 text-center shadow-md min-w-[120px]">
-                  <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wide mb-0.5">토익 시험</p>
-                  <p className="text-[28px] font-black text-[#2563EB] leading-none">{ddayLabel ?? 'D-?'}</p>
-                  <p className="text-[10px] text-[#9CA3AF] mt-0.5">남은 날</p>
-                </div>
-                <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-4 py-3 text-center shadow-md">
-                  <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wide mb-0.5">연속 학습</p>
-                  <p className="text-[28px] font-black text-[#F59E0B] leading-none">12</p>
-                  <p className="text-[10px] text-[#9CA3AF] mt-0.5">일째 🔥</p>
-                </div>
-              </div>
+              <div className="relative z-10 p-5 md:p-6 flex flex-col gap-4">
 
-              {/* 텍스트 */}
-              <div className="relative z-10 p-6 md:p-8 max-w-[420px] sm:max-w-[480px]">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full mb-3">
+                {/* 라벨 */}
+                <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
                   {instName} 선생님의 오늘의 처방
                 </span>
-                <h2 className="text-[#1C1B33] text-[17px] md:text-[20px] font-bold leading-snug">
-                  {userName || '학습자'}님, 오늘은<br />
-                  <span className="text-[#2563EB]">{missions.length}개 미션</span>으로 충분해요.
-                </h2>
 
-                {/* 카카오톡 말풍선 */}
-                <div className="mt-4 flex items-end gap-2">
-                  <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-[#EFF6FF]">
+                {/* 1. 동기부여 영역 */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm rounded-full px-3.5 py-2 shadow-sm">
+                    <span className="text-[16px] font-black text-[#2563EB] leading-none">{ddayLabel ?? 'D-?'}</span>
+                    <span className="text-[11px] text-[#6B7280]">토익 시험</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-3.5 py-2 shadow-sm">
+                    <span className="text-[13px]">🔥</span>
+                    <span className="text-[16px] font-black text-[#F59E0B] leading-none">12일</span>
+                    <span className="text-[11px] text-[#6B7280]">연속 학습</span>
+                  </div>
+                </div>
+
+                {/* 2. 강사 멘트 영역 */}
+                <div className="flex gap-3 items-end">
+                  {/* 강사 사진 — 크게 */}
+                  <div className="w-[84px] h-[116px] rounded-2xl overflow-hidden shrink-0 shadow-md border-2 border-white/70">
                     <img
                       src={INST_THUMBS[selectedInstructor ?? 'park']}
                       alt={instName}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   </div>
-                  <div className="relative bg-white rounded-2xl rounded-bl-none px-3.5 py-2.5 shadow-md max-w-[240px]">
-                    <p className="text-[#1C1B33] text-[12px] leading-relaxed">
-                      {typedMsg}
-                      {!typingDone && (
-                        <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
-                      )}
-                    </p>
-                    {/* 말풍선 꼬리 */}
-                    <div className="absolute -bottom-[6px] left-0 w-0 h-0"
-                      style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
+                  {/* 말풍선 */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-[#6B7280] font-medium mb-1.5">{instName} 선생님</p>
+                    <div className="relative bg-white rounded-2xl rounded-bl-none px-4 py-3.5 shadow-md">
+                      {/* 고정 높이 — 3줄 기준 (13px × 1.625 × 3 ≈ 63px) */}
+                      <div className="h-[66px] overflow-hidden">
+                        <p className="text-[13px] text-[#1C1B33] leading-relaxed">
+                          {typedMsg}
+                          {!typingDone && (
+                            <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                          )}
+                        </p>
+                      </div>
+                      <div className="absolute -bottom-[6px] left-0 w-0 h-0"
+                        style={{ borderLeft: '7px solid white', borderRight: '7px solid transparent', borderTop: '7px solid white' }} />
+                    </div>
                   </div>
-                  {typingDone && (
-                    <span className="text-[10px] text-[#9CA3AF] self-end mb-0.5 shrink-0">방금</span>
-                  )}
                 </div>
 
+                {/* 3. CTA 영역 */}
                 <a
                   href="https://aiacademy-classroom.vercel.app/"
-                  className="mt-5 inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#2563EB]/30 active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-xl font-bold text-[13px] transition-colors shadow-lg shadow-[#2563EB]/30 active:scale-[0.98]"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   오늘 수업 시작하기
                 </a>
+
               </div>
             </div>
 
