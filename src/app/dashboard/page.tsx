@@ -409,7 +409,7 @@ const MISSIONS = [
   { id: 5, text: '오늘의 일일 단어 문제 풀기', done: false, tag: null },
 ]
 
-export const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익', jeong: '정은순', lee: '이인호' }
+export const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익', jeong: '정은순', lee: '이인호', oh: '오정자' }
 export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string[] }> = {
   park: {
     dashboard: [
@@ -491,6 +491,22 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '오답을 분석해보면 함정 보기에 잘 걸리는 타입입니다. 끝까지 읽는 습관을 들이세요.',
     ],
   },
+  oh: {
+    dashboard: [
+      '오늘도 왔네요. 자, 화장실 먼저 다녀오고 시작해요.',
+      '서두르지 말아요. 천천히 한 문제씩 하면 돼요.',
+      '어제 틀린 거 오늘 다시 보면 돼요. 그게 공부예요.',
+      '오늘 30분만 해봐요. 딱 30분만. 그것만 해도 충분해요.',
+      '앉아있는 게 공부예요. 오늘도 잘 왔어요.',
+    ],
+    status: [
+      '이번 주 분석 보니까 전치사에서 자꾸 틀리네요. 천천히 by랑 until 구분 한 번 봐요.',
+      '틀린 게 많아도 괜찮아요. 중요한 건 오늘도 앉아서 한 거예요. 잘하고 있어요.',
+      '데이터 보니까 LC는 괜찮은데 RC가 조금 약해요. 독해 한 지문씩 천천히 읽어봐요.',
+      '정확도보다 꾸준함이 먼저예요. 오늘도 빠지지 않고 한 거, 선생님이 봤어요.',
+      '다음 시험까지 지금 페이스 유지하면 충분해요. 무리하지 말고 천천히 가요.',
+    ],
+  },
 }
 export const INST_THUMBS: Record<string, string> = {
   park: '/image_reference/park-2.jpg',
@@ -498,6 +514,7 @@ export const INST_THUMBS: Record<string, string> = {
   kim: '/image_reference/kim.png',
   jeong: '/image_reference/jung.png',
   lee: '/image_reference/lee.png',
+  oh: '/image_reference/ojungja.jpg',
 }
 
 const NAV = [
