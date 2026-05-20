@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
-import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '../dashboard/page'
+import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '@/data/instructorData'
 
 /* ── 데이터 ── */
 
