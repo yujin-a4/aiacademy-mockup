@@ -762,79 +762,60 @@ function RegularDashboard() {
               </div>
             </div>
 
-            {/* ── 히어로 2-카드 ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* ── 히어로 카드 ── */}
+            <div
+              className="relative overflow-hidden rounded-2xl"
+              style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)', minHeight: '300px' }}
+            >
+              <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full bg-[#60A5FA]/20 blur-3xl pointer-events-none" />
+              <div className="flex h-full min-h-[300px]">
 
-              {/* 왼쪽: 강사 한마디 */}
-              <div className="relative overflow-hidden rounded-2xl"
-                style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 55%, #BFDBFE 100%)' }}>
-                <div className="absolute -right-6 -top-6 w-48 h-48 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
-                <div className="relative z-10 p-5 flex flex-col gap-3">
-                  <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                {/* 왼쪽: 강사 사진 */}
+                <div className="relative w-[42%] md:w-[40%] shrink-0 self-stretch overflow-hidden">
+                  {(selectedInstructor ?? 'park') === 'park' ? (
+                    <img
+                      src="/image_reference/park-report.png"
+                      alt={instName}
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 h-full max-w-none object-contain object-bottom drop-shadow-md"
+                    />
+                  ) : (
+                    <img
+                      src={INST_THUMBS[selectedInstructor ?? 'park']}
+                      alt={instName}
+                      className="absolute inset-0 w-full h-full object-cover object-top"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  )}
+                </div>
+
+                {/* 오른쪽: 레이블 + 말풍선 + CTA */}
+                <div className="flex-1 px-5 py-6 md:px-8 md:py-8 flex flex-col justify-center gap-4 relative z-10">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full self-start">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                    {instName} 선생님의 오늘의 처방
+                    {instName} 선생님이 보내는 말
                   </span>
-                  <div className="flex gap-4 items-center">
-                    {/* 강사 사진 */}
-                    {(selectedInstructor ?? 'park') === 'park' ? (
-                      <div className="w-[108px] h-[152px] shrink-0 drop-shadow-md">
-                        <img
-                          src="/image_reference/park-report.png"
-                          alt={instName}
-                          className="w-full h-full object-contain object-bottom"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-[80px] h-[108px] rounded-2xl overflow-hidden shrink-0 shadow-md border-2 border-white/70">
-                        <img
-                          src={INST_THUMBS[selectedInstructor ?? 'park']}
-                          alt={instName}
-                          className="w-full h-full object-cover object-top"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                      </div>
-                    )}
-                    {/* 말풍선 */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-[#6B7280] font-medium mb-1.5">{instName} 선생님</p>
-                      <div className="relative bg-white rounded-2xl px-4 py-3.5 shadow-md">
-                        <div className="h-[66px] overflow-hidden">
-                          <p className="text-[13px] text-[#1C1B33] leading-relaxed">
-                            {typedMsg}
-                            {!typingDone && (
-                              <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
-                            )}
-                          </p>
-                        </div>
-                        {/* 말풍선 꼬리 — 왼쪽 방향 */}
-                        <div className="absolute -left-[7px] top-[18px] w-0 h-0"
-                          style={{ borderTop: '7px solid transparent', borderBottom: '7px solid transparent', borderRight: '7px solid white' }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* 오른쪽: 수업 시작하기 */}
-              <div className="rounded-2xl p-5 flex flex-col justify-between"
-                style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 60%, #3B82F6 100%)' }}>
-                <div>
-                  <p className="text-white/60 text-[11px] font-semibold tracking-wide uppercase mb-2">오늘의 학습</p>
-                  <p className="text-white text-[17px] font-bold leading-snug mb-1">Part 5 문법 + 단어 5개</p>
-                  <p className="text-white/70 text-[12px]">예상 시간 약 15분 · 놓친 복습 2개</p>
-                </div>
-                <div className="mt-4 space-y-2.5">
+                  <div className="relative bg-white rounded-2xl px-4 py-4 shadow-md">
+                    <div className="absolute -left-[8px] top-[20px] w-0 h-0"
+                      style={{ borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderRight: '8px solid white' }} />
+                    <p className="text-[14px] text-[#1C1B33] leading-relaxed">
+                      {typedMsg}
+                      {!typingDone && (
+                        <span className="inline-block w-[2px] h-3.5 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                      )}
+                    </p>
+                  </div>
+
                   <a
                     href="https://aiacademy-classroom.vercel.app/"
-                    className="w-full bg-white text-[#2563EB] py-3 rounded-xl font-black text-[14px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors shadow-lg active:scale-[0.98]"
+                    className="flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-xl font-black text-[14px] transition-colors shadow-lg shadow-[#2563EB]/25 active:scale-[0.98]"
                   >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#2563EB"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    오늘 수업 시작하기
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    1:1 학습 시작하기
                   </a>
-                  <p className="text-center text-white/50 text-[11px]">토익 초보야, 오늘도 화이팅 💪</p>
                 </div>
-              </div>
 
+              </div>
             </div>
 
             {/* ── 3열 섹션 ── */}
