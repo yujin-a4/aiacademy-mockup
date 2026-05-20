@@ -72,7 +72,7 @@ export default function DrawingToolbar({ onChange, onClearAll }: DrawingToolbarP
 function ToolBtn({ children, label, active, danger = false, onClick }: {
   children: React.ReactNode; label: string; active: boolean; danger?: boolean; onClick: () => void
 }) {
-  const bg    = danger ? '#FFF1F1' : active ? '#2277F0' : '#EEF2FF'
+  const bg    = danger ? '#FFF1F1' : active ? '#2277F0' : '#EFF6FF'
   const color = danger ? '#EF4444' : active ? '#ffffff' : '#2277F0'
   const shadow = active && !danger ? '0 2px 8px rgba(34,119,240,0.28)' : 'none'
 

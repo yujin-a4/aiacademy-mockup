@@ -9,7 +9,7 @@ const LABELS = ['A', 'B', 'C', 'D']
 const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익' }
 const INST_COLOR: Record<string, { bg: string; tc: string; border: string }> = {
   park:  { bg: '#FEF3C7', tc: '#B45309', border: '#FDE68A' },
-  jang:  { bg: '#EEF2FF', tc: '#4F46E5', border: '#C7D2FE' },
+  jang:  { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
   kim:   { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
 }
 
@@ -25,7 +25,7 @@ export default function WrongAnswerDetail() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-[#6B7280] font-sans">
         <p>오답 항목을 찾을 수 없습니다.</p>
-        <Link href="/my-learning?tab=wrong" className="text-[#4F46E5] font-semibold text-[14px]">돌아가기</Link>
+        <Link href="/my-learning?tab=wrong" className="text-[#2563EB] font-semibold text-[14px]">돌아가기</Link>
       </div>
     )
   }
@@ -51,7 +51,7 @@ export default function WrongAnswerDetail() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold bg-[#EEF2FF] text-[#4F46E5] px-2 py-0.5 rounded-md">{item.partLabel}</span>
+            <span className="text-[11px] font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-md">{item.partLabel}</span>
             {item.category && (
               <span className="text-[11px] font-bold bg-[#FEE2E2] text-[#DC2626] px-2 py-0.5 rounded-md">{item.category}</span>
             )}
@@ -69,14 +69,14 @@ export default function WrongAnswerDetail() {
 
         {/* 지문 제목 (P6/P7) */}
         {item.passageTitle && (
-          <div className="bg-white border border-[#ECEAF5] rounded-2xl px-4 py-3">
+          <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
             <p className="text-[#374151] text-[13px] font-medium">{item.passageTitle}</p>
           </div>
         )}
 
         {/* 문제 */}
-        <div className="bg-white border border-[#ECEAF5] rounded-2xl px-5 py-4 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-sm">
           <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-2">문제</p>
           <p className="text-[#1C1B33] text-[14px] leading-relaxed font-medium">{item.questionText}</p>
         </div>
@@ -156,7 +156,7 @@ export default function WrongAnswerDetail() {
         <div className="max-w-[600px] mx-auto">
           <Link
             href={`/my-learning/wrong/review?partId=${item.partId}`}
-            className="block w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#4F46E5]/20 text-center"
+            className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20 text-center"
           >
             {item.partLabel} 오답만 복습하기
           </Link>

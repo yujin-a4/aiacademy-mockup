@@ -58,7 +58,7 @@ export default function FlashcardPage() {
 
       <div className="px-6 max-w-[600px] mx-auto w-full">
         <div className="w-full bg-[#E5E7EB] rounded-full h-1.5 overflow-hidden">
-          <div className="bg-[#4F46E5] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / todayWords.length) * 100}%` }} />
+          <div className="bg-[#2563EB] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / todayWords.length) * 100}%` }} />
         </div>
         <p className="text-center text-[#6B7280] text-[12px] mt-2 font-medium">{currentIndex + 1} / {todayWords.length}</p>
       </div>
@@ -73,13 +73,13 @@ export default function FlashcardPage() {
           <div className={`relative w-full h-full transition-transform duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
 
             {/* Front */}
-            <div className="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl border border-[#ECEAF5] flex flex-col items-center justify-center p-8">
+            <div className="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl border border-[#DBEAFE] flex flex-col items-center justify-center p-8">
               <h2 className="text-[28px] sm:text-[32px] font-black text-[#1C1B33] break-keep text-center leading-tight">{word.word}</h2>
               <p className="absolute bottom-6 text-[#9CA3AF] text-[13px] font-semibold tracking-wider uppercase">Tap to flip</p>
             </div>
 
             {/* Back */}
-            <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 rotate-y-180 text-white">
+            <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-[#2563EB] to-[#7C3AED] rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 rotate-y-180 text-white">
               <h2 className="text-[28px] font-bold text-center leading-snug">{word.meaning}</h2>
               <div className="w-12 h-1 bg-white/20 rounded-full my-6 shrink-0" />
               <p className="text-center text-white/80 text-[15px] leading-relaxed italic overflow-y-auto">"{word.example}"</p>

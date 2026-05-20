@@ -10,7 +10,7 @@ const LABELS = ['A', 'B', 'C', 'D']
 const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익' }
 const INST_COLOR: Record<string, { bg: string; tc: string; border: string }> = {
   park:  { bg: '#FEF3C7', tc: '#B45309', border: '#FDE68A' },
-  jang:  { bg: '#EEF2FF', tc: '#4F46E5', border: '#C7D2FE' },
+  jang:  { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
   kim:   { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
 }
 
@@ -47,14 +47,14 @@ function ReviewInner() {
   if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-[#F8FAFF] flex flex-col items-center justify-center gap-4 font-sans text-[#6B7280] px-6">
-        <div className="w-16 h-16 rounded-2xl bg-[#EEF2FF] flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="w-16 h-16 rounded-2xl bg-[#EFF6FF] flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
         </div>
         <p className="text-[#1C1B33] font-bold text-[16px]">복습할 오답이 없어요</p>
         <p className="text-[13px] text-center">해당 유형의 오답이 없거나 이미 모두 삭제됐어요</p>
-        <Link href="/my-learning?tab=wrong" className="mt-2 bg-[#4F46E5] text-white px-6 py-2.5 rounded-xl font-semibold text-[14px]">
+        <Link href="/my-learning?tab=wrong" className="mt-2 bg-[#2563EB] text-white px-6 py-2.5 rounded-xl font-semibold text-[14px]">
           오답노트로 돌아가기
         </Link>
       </div>
@@ -65,24 +65,24 @@ function ReviewInner() {
     const accuracy = Math.round((correctCount / questions.length) * 100)
     return (
       <div className="min-h-screen bg-[#F8FAFF] flex flex-col items-center justify-center gap-5 font-sans px-6">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#818CF8] to-[#4F46E5] flex items-center justify-center shadow-lg shadow-[#4F46E5]/30">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#60A5FA] to-[#2563EB] flex items-center justify-center shadow-lg shadow-[#2563EB]/30">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
         </div>
         <div className="text-center space-y-1.5">
           <p className="text-[#1C1B33] font-black text-[22px]">복습 완료!</p>
-          <p className="text-[#6B7280] text-[14px]">{questions.length}문제 중 <span className="text-[#4F46E5] font-bold">{correctCount}개</span> 정답</p>
+          <p className="text-[#6B7280] text-[14px]">{questions.length}문제 중 <span className="text-[#2563EB] font-bold">{correctCount}개</span> 정답</p>
         </div>
 
-        <div className="w-full max-w-[360px] bg-white border border-[#ECEAF5] rounded-2xl p-5 shadow-sm">
+        <div className="w-full max-w-[360px] bg-white border border-[#DBEAFE] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[#1C1B33] font-bold text-[15px]">결과</p>
             <span className={`text-[13px] font-black ${accuracy >= 80 ? 'text-[#059669]' : accuracy >= 60 ? 'text-[#D97706]' : 'text-[#DC2626]'}`}>
               {accuracy}%
             </span>
           </div>
-          <div className="h-2 bg-[#ECEAF5] rounded-full overflow-hidden">
+          <div className="h-2 bg-[#DBEAFE] rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -103,13 +103,13 @@ function ReviewInner() {
         <div className="w-full max-w-[360px] space-y-2">
           <button
             onClick={() => { setIndex(0); setChosen(null); setCorrectCount(0); setDone(false) }}
-            className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3.5 rounded-2xl font-bold text-[15px] transition-colors"
+            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-2xl font-bold text-[15px] transition-colors"
           >
             다시 복습하기
           </button>
           <Link
             href="/my-learning?tab=wrong"
-            className="block w-full text-center bg-white border border-[#ECEAF5] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] hover:border-[#C7D2FE] transition-colors"
+            className="block w-full text-center bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] hover:border-[#C7D2FE] transition-colors"
           >
             오답노트로 돌아가기
           </Link>
@@ -144,9 +144,9 @@ function ReviewInner() {
         <div className="flex-1 min-w-0">
           <p className="text-[#1C1B33] font-bold text-[15px] truncate">{titleLabel}</p>
           <div className="flex items-center gap-2 mt-0.5">
-            <div className="flex-1 h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
+            <div className="flex-1 h-1.5 bg-[#DBEAFE] rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#4F46E5] rounded-full transition-all duration-300"
+                className="h-full bg-[#2563EB] rounded-full transition-all duration-300"
                 style={{ width: `${((index + (answered ? 1 : 0)) / questions.length) * 100}%` }}
               />
             </div>
@@ -158,16 +158,16 @@ function ReviewInner() {
       <div className="px-5 max-w-[600px] mx-auto w-full space-y-3">
         {/* 지문 제목 */}
         {item.passageTitle && (
-          <div className="bg-white border border-[#ECEAF5] rounded-2xl px-4 py-3">
+          <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
             <p className="text-[#374151] text-[13px] font-medium">{item.passageTitle}</p>
           </div>
         )}
 
         {/* 문제 */}
-        <div className="bg-white border border-[#ECEAF5] rounded-2xl px-5 py-4 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold bg-[#EEF2FF] text-[#4F46E5] px-2 py-0.5 rounded-md">{item.partLabel}</span>
+            <span className="text-[10px] font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-md">{item.partLabel}</span>
             {item.category && (
               <span className="text-[10px] font-bold bg-[#FEE2E2] text-[#DC2626] px-2 py-0.5 rounded-md">{item.category}</span>
             )}
@@ -188,7 +188,7 @@ function ReviewInner() {
               else if (isWrong) style = 'bg-[#FEE2E2] border-[#EF4444] text-[#DC2626]'
               else style = 'bg-white border-[#E5E7EB] text-[#9CA3AF]'
             } else if (isChosen) {
-              style = 'bg-[#EEF2FF] border-[#4F46E5] text-[#4F46E5]'
+              style = 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]'
             }
 
             return (
@@ -199,12 +199,12 @@ function ReviewInner() {
                   setChosen(i)
                   if (i === item.correctAnswer) setCorrectCount(c => c + 1)
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${style} ${!answered ? 'hover:border-[#4F46E5] hover:bg-[#EEF2FF] active:scale-[0.99]' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${style} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
                   answered && isCorrectOpt ? 'bg-[#10B981] text-white' :
                   answered && isWrong      ? 'bg-[#EF4444] text-white' :
-                  !answered && isChosen    ? 'bg-[#4F46E5] text-white' :
+                  !answered && isChosen    ? 'bg-[#2563EB] text-white' :
                   'bg-[#F3F4F6] text-[#6B7280]'
                 }`}>
                   {LABELS[i]}
@@ -262,7 +262,7 @@ function ReviewInner() {
           <div className="max-w-[600px] mx-auto">
             <button
               onClick={handleNext}
-              className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#4F46E5]/20"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
             >
               {index < questions.length - 1 ? '다음 문제' : '복습 완료'}
             </button>

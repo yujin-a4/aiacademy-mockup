@@ -11,12 +11,12 @@ const config: Config = {
       colors: {
         // ── 디자인 시스템 v2 Primary ───────────────────────────────────
         primary: {
-          DEFAULT: '#1A3FD4',
-          50:      '#EEF2FF',
-          100:     '#D6E0FD',
-          300:     '#8AA4F6',
-          400:     '#5578F0',
-          500:     '#3459E6',
+          DEFAULT: '#2563EB',
+          50:      '#EFF6FF',
+          100:     '#DBEAFE',
+          300:     '#93C5FD',
+          400:     '#60A5FA',
+          500:     '#3B82F6',
         },
         // ── Accent (AI 기능 강조) ──────────────────────────────────────
         accent: {
@@ -28,9 +28,9 @@ const config: Config = {
         error:   '#EF4444',
         warning: '#F59E0B',
         // ── 레거시 (classroom 등 기존 화면용) ──────────────────────────
-        "ybm-blue":        "#1A3FD4",
-        "ybm-blue-mid":    "#5578F0",
-        "ybm-blue-light":  "#EEF2FF",
+        "ybm-blue":        "#2563EB",
+        "ybm-blue-mid":    "#3B82F6",
+        "ybm-blue-light":  "#EFF6FF",
         "ybm-bg":          "#F3F4F6",
         "ybm-card":        "#FFFFFF",
         "ybm-text":        "#111318",
@@ -39,8 +39,8 @@ const config: Config = {
         // ── 수업 화면(classroom) 전용 토큰 ─────────────────────────────
         "cr-nav":          "#12203A",
         "cr-panel":        "#EAF2FF",
-        "cr-accent":       "#1A3FD4",
-        "cr-accent-light": "#EEF2FF",
+        "cr-accent":       "#2563EB",
+        "cr-accent-light": "#EFF6FF",
       },
       fontFamily: {
         sans:    ['Noto Sans KR', 'sans-serif'],

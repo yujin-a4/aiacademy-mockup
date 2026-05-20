@@ -49,10 +49,10 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
               <button
                 key={profile.userName}
                 onClick={() => handleSelect(profile.userName)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/20 active:scale-[0.98] transition-all text-left"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-[#2563EB]/5 hover:border-[#2563EB]/20 active:scale-[0.98] transition-all text-left"
               >
-                <div className="w-11 h-11 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                  <span className="text-[#4F46E5] font-black text-lg">{profile.userName.slice(0, 1)}</span>
+                <div className="w-11 h-11 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                  <span className="text-[#2563EB] font-black text-lg">{profile.userName.slice(0, 1)}</span>
                 </div>
                 <div>
                   <p className="text-slate-900 font-bold text-base">{profile.userName}</p>
@@ -107,14 +107,14 @@ export default function Home() {
           {/* 카피 + CTA */}
           <div className="space-y-7">
             {/* 배지 */}
-            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#4F46E5] bg-[#EEF2FF] px-3 py-1.5 rounded-full border border-[#C7D2FE]">
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-full border border-[#C7D2FE]">
               ✨ YBM 강사 × AI 맞춤 코칭
             </span>
 
             {/* 헤드라인 */}
             <h1 className="text-[34px] md:text-[46px] font-black text-[#1C1B33] leading-[1.2] tracking-tight">
               토익 공부,<br />오늘 뭐 할지<br />
-              <span className="text-[#4F46E5]">고민하지 마세요</span>
+              <span className="text-[#2563EB]">고민하지 마세요</span>
             </h1>
 
             {/* 서브타이틀 */}
@@ -128,7 +128,7 @@ export default function Home() {
               {FEATURES.map((f) => (
                 <span
                   key={f}
-                  className="text-[12px] font-normal text-[#374151] bg-white border border-[#ECEAF5] px-3.5 py-1.5 rounded-full shadow-sm"
+                  className="text-[12px] font-normal text-[#374151] bg-white border border-[#DBEAFE] px-3.5 py-1.5 rounded-full shadow-sm"
                 >
                   {f}
                 </span>
@@ -139,7 +139,7 @@ export default function Home() {
             <div className="pt-1 w-full md:w-[260px] mx-auto flex flex-col items-center gap-4">
               <Link
                 href="/onboarding"
-                className="inline-flex items-center justify-center gap-2 w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-[15px] h-[52px] px-8 rounded-xl animate-cta-pulse transition-colors active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[15px] h-[52px] px-8 rounded-xl animate-cta-pulse transition-colors active:scale-[0.98]"
               >
                 AI 진단 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -150,7 +150,7 @@ export default function Home() {
                 이미 계정이 있나요?{' '}
                 <button
                   onClick={() => setShowLogin(true)}
-                  className="text-[#4F46E5] font-bold hover:underline"
+                  className="text-[#2563EB] font-bold hover:underline"
                 >
                   로그인
                 </button>
@@ -161,7 +161,7 @@ export default function Home() {
           {/* 신뢰 요소 */}
           <div className="grid grid-cols-3 gap-3 pt-2">
             {TRUST.map((item) => (
-              <div key={item.text} className="bg-white rounded-xl border border-[#ECEAF5] p-3 text-center shadow-sm">
+              <div key={item.text} className="bg-white rounded-xl border border-[#DBEAFE] p-3 text-center shadow-sm">
                 <span className="text-[18px] block mb-1">{item.icon}</span>
                 <p className="text-[10px] font-semibold text-[#6B7280] leading-tight">{item.text}</p>
               </div>

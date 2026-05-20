@@ -222,9 +222,9 @@ export default function DailyPage() {
           {/* 점수 원 */}
           <div className="relative w-32 h-32">
             <svg width="128" height="128" viewBox="0 0 128 128">
-              <circle cx="64" cy="64" r="56" fill="none" stroke="#ECEAF5" strokeWidth="10"/>
+              <circle cx="64" cy="64" r="56" fill="none" stroke="#DBEAFE" strokeWidth="10"/>
               <circle cx="64" cy="64" r="56" fill="none"
-                stroke={finalCorrect === 3 ? '#10B981' : finalCorrect >= 2 ? '#4F46E5' : '#F59E0B'}
+                stroke={finalCorrect === 3 ? '#10B981' : finalCorrect >= 2 ? '#2563EB' : '#F59E0B'}
                 strokeWidth="10"
                 strokeDasharray={`${Math.PI * 2 * 56}`}
                 strokeDashoffset={`${Math.PI * 2 * 56 * (1 - finalCorrect / 3)}`}
@@ -240,11 +240,11 @@ export default function DailyPage() {
 
           <div className="text-center space-y-1">
             <p className="text-[#1C1B33] font-black text-[22px]">{scoreMsg}</p>
-            <p className="text-[#6B7280] text-[14px]">오늘 전체 유저 평균 정답률 <span className="text-[#4F46E5] font-bold">{avgAccuracy}%</span></p>
+            <p className="text-[#6B7280] text-[14px]">오늘 전체 유저 평균 정답률 <span className="text-[#2563EB] font-bold">{avgAccuracy}%</span></p>
           </div>
 
           {/* 문제별 결과 */}
-          <div className="w-full max-w-[400px] bg-white border border-[#ECEAF5] rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="w-full max-w-[400px] bg-white border border-[#DBEAFE] rounded-2xl p-4 space-y-3 shadow-sm">
             <p className="text-[#1C1B33] font-bold text-[13px] mb-1">문제별 결과</p>
             {questions.map((q, i) => {
               const a = i < answers.length ? answers[i] : null
@@ -260,8 +260,8 @@ export default function DailyPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[#374151] text-[12px] font-medium truncate">Q{i + 1}. {q.category}</p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <div className="flex-1 h-1.5 bg-[#ECEAF5] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: `${mockAccuracy(q.id)}%` }}/>
+                      <div className="flex-1 h-1.5 bg-[#DBEAFE] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${mockAccuracy(q.id)}%` }}/>
                       </div>
                       <span className="text-[11px] text-[#9CA3AF] shrink-0">유저 {mockAccuracy(q.id)}% 정답</span>
                     </div>
@@ -272,10 +272,10 @@ export default function DailyPage() {
           </div>
 
           <div className="w-full max-w-[400px] space-y-2">
-            <Link href="/dashboard" className="block w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3.5 rounded-2xl font-bold text-[15px] text-center transition-colors">
+            <Link href="/dashboard" className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-2xl font-bold text-[15px] text-center transition-colors">
               대시보드로 돌아가기
             </Link>
-            <Link href="/my-learning?tab=part" className="block w-full bg-white border border-[#ECEAF5] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] text-center hover:border-[#C7D2FE] transition-colors">
+            <Link href="/my-learning?tab=part" className="block w-full bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] text-center hover:border-[#C7D2FE] transition-colors">
               파트별 연습 더 하기
             </Link>
           </div>
@@ -302,7 +302,7 @@ export default function DailyPage() {
               {questions.map((_, i) => (
                 <div key={i} className={`rounded-full transition-all ${
                   i < index ? 'w-2 h-2 bg-[#10B981]' :
-                  i === index ? 'w-3 h-3 bg-[#4F46E5]' :
+                  i === index ? 'w-3 h-3 bg-[#2563EB]' :
                   'w-2 h-2 bg-[#E5E7EB]'
                 }`}/>
               ))}
@@ -310,7 +310,7 @@ export default function DailyPage() {
           </div>
           {/* 프로그레스 바 */}
           <div className="mt-2 h-1 bg-[#E5E7EB] rounded-full overflow-hidden">
-            <div className="h-full bg-[#4F46E5] rounded-full transition-all duration-300"
+            <div className="h-full bg-[#2563EB] rounded-full transition-all duration-300"
               style={{ width: `${((index + (answered ? 1 : 0)) / questions.length) * 100}%` }}/>
           </div>
         </div>
@@ -320,18 +320,18 @@ export default function DailyPage() {
 
         {/* 문제 번호 + 카테고리 */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold bg-[#EEF2FF] text-[#4F46E5] px-2.5 py-1 rounded-full">Q{index + 1} / 3</span>
+          <span className="text-[11px] font-bold bg-[#EFF6FF] text-[#2563EB] px-2.5 py-1 rounded-full">Q{index + 1} / 3</span>
           <span className="text-[11px] font-bold bg-[#FEE2E2] text-[#DC2626] px-2.5 py-1 rounded-full">{q.category}</span>
         </div>
 
         {/* 문제 카드 */}
-        <div className="bg-white border border-[#ECEAF5] rounded-2xl px-5 py-5 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-5 shadow-sm">
           <p className="text-[#1C1B33] text-[15px] leading-relaxed font-medium">
             {q.sentence.split('___').map((part, i, arr) => (
               <span key={i}>
                 {part}
                 {i < arr.length - 1 && (
-                  <span className="inline-block mx-1 px-3 py-0.5 border-b-2 border-[#4F46E5] text-[#4F46E5] font-black text-[13px] min-w-[64px] text-center">
+                  <span className="inline-block mx-1 px-3 py-0.5 border-b-2 border-[#2563EB] text-[#2563EB] font-black text-[13px] min-w-[64px] text-center">
                     {answered ? q.choices[q.answer] : '　　　'}
                   </span>
                 )}
@@ -359,12 +359,12 @@ export default function DailyPage() {
                 key={i}
                 disabled={answered}
                 onClick={() => handleSelect(i)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${cls} ${!answered ? 'hover:border-[#4F46E5] hover:bg-[#EEF2FF] active:scale-[0.99]' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${cls} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
                   answered && isCorrectOpt ? 'bg-[#10B981] text-white' :
                   answered && isWrong ? 'bg-[#EF4444] text-white' :
-                  !answered && isChosen ? 'bg-[#4F46E5] text-white' :
+                  !answered && isChosen ? 'bg-[#2563EB] text-white' :
                   'bg-[#F3F4F6] text-[#6B7280]'
                 }`}>{LABELS[i]}</span>
                 <span className="text-[14px] font-medium flex-1">{choice}</span>
@@ -396,16 +396,16 @@ export default function DailyPage() {
               </div>
               {/* 정답률 미니 바 */}
               <div className="shrink-0 text-right">
-                <p className="text-[16px] font-black text-[#4F46E5]">{accuracy}%</p>
+                <p className="text-[16px] font-black text-[#2563EB]">{accuracy}%</p>
                 <div className="w-16 h-1.5 bg-white/60 rounded-full overflow-hidden mt-1">
-                  <div className="h-full bg-[#4F46E5] rounded-full" style={{ width: `${accuracy}%` }}/>
+                  <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${accuracy}%` }}/>
                 </div>
               </div>
             </div>
 
             {/* 해설 */}
-            <div className="bg-white border border-[#ECEAF5] rounded-2xl px-4 py-3">
-              <p className="text-[11px] font-bold text-[#4F46E5] uppercase tracking-wider mb-1.5">해설</p>
+            <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
+              <p className="text-[11px] font-bold text-[#2563EB] uppercase tracking-wider mb-1.5">해설</p>
               <p className="text-[#374151] text-[13px] leading-relaxed">{q.explanation}</p>
             </div>
           </div>
@@ -418,7 +418,7 @@ export default function DailyPage() {
           <div className="max-w-[600px] mx-auto">
             <button
               onClick={handleNext}
-              className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#4F46E5]/20"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
             >
               {index < questions.length - 1 ? '다음 문제' : '결과 보기'}
             </button>

@@ -13,7 +13,7 @@ const INSTRUCTORS = [
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
     quote: '"이거 또 틀렸네. 패턴 외워."',
     badgeCls: 'bg-[#FEF9C3] text-[#B45309]',
-    matching: '92%',
+    matching: '99%',
     matchingDesc: '계획적인 학습 습관과 빠른 피드백을 선호하는 성향이 잘 맞아요.',
     recommendations: [
       '단기간에 점수를 올리고 싶은 분',
@@ -49,7 +49,7 @@ const INSTRUCTORS = [
     badge: '꼼꼼 관리형',
     desc: '친근하고 꼼꼼한 코칭으로 기초 개념부터 탄탄하게 다져주는 파트너입니다.',
     quote: '"헷갈릴 수 있어, 같이 보자."',
-    badgeCls: 'bg-[#EEF2FF] text-[#4F46E5]',
+    badgeCls: 'bg-[#EFF6FF] text-[#2563EB]',
     matching: '88%',
     matchingDesc: '꼼꼼하고 차근차근 배우고 싶어하는 성향에 잘 맞아요.',
     recommendations: [
@@ -484,7 +484,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div
                   className={`w-full h-full rounded-[22px] overflow-hidden relative group ${
                     isActive
-                      ? 'ring-[3px] ring-[#4F46E5] shadow-2xl shadow-[#4F46E5]/30'
+                      ? 'ring-[3px] ring-[#2563EB] shadow-2xl shadow-[#2563EB]/30'
                       : 'ring-1 ring-[#E5E7EB]'
                   }`}
                 >
@@ -512,18 +512,27 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex flex-col justify-end p-3 gap-2">
                       <button
                         onClick={e => { e.stopPropagation(); goToDetail(inst) }}
-                        className="w-full bg-white text-[#1C1B33] rounded-xl h-10 font-semibold text-[13px] hover:bg-[#EEF2FF] hover:text-[#4F46E5] transition-colors active:scale-[0.98]"
+                        className="w-full bg-white text-[#1C1B33] rounded-xl h-10 font-semibold text-[13px] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-colors active:scale-[0.98]"
                       >
                         {inst.name} 강사 자세히 보기
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleConfirm(inst.id) }}
-                        className="w-full bg-[#4F46E5] text-white rounded-xl h-10 font-semibold text-[13px] hover:bg-[#4338CA] transition-colors active:scale-[0.98]"
+                        className="w-full bg-[#2563EB] text-white rounded-xl h-10 font-semibold text-[13px] hover:bg-[#1D4ED8] transition-colors active:scale-[0.98]"
                       >
                         바로 선택하기
                       </button>
                     </div>
                   )}
+
+                  {/* Match 배지 */}
+                  <div className={`absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-bold pointer-events-none ${
+                    inst.id === 'park'
+                      ? 'bg-[#2563EB] text-white px-3 py-1 shadow-lg shadow-[#2563EB]/50'
+                      : 'bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px] font-medium'
+                  }`}>
+                    {inst.id === 'park' ? `✦ ${inst.matching} Match` : `${inst.matching} Match`}
+                  </div>
 
                   {/* 음소거 토글 버튼 */}
                   {isActive && showVideo && (
@@ -571,7 +580,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         {/* Instructor name + tag */}
         <div className="text-center mt-5 px-6 transition-all duration-300">
           <h2 className="text-[#111318] text-[22px] font-bold">{focused.name}</h2>
-          <p className="text-[#4F46E5] text-[14px] font-semibold mt-1">{focused.tag}</p>
+          <p className="text-[#2563EB] text-[14px] font-semibold mt-1">{focused.tag}</p>
         </div>
 
         {/* Indicator dots */}
@@ -581,7 +590,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
               key={i}
               onClick={() => setFocusedIndex(i)}
               className={`rounded-full transition-all duration-300 ${
-                i === focusedIndex ? 'w-5 h-2 bg-[#4F46E5]' : 'w-2 h-2 bg-[#D1D5DB]'
+                i === focusedIndex ? 'w-5 h-2 bg-[#2563EB]' : 'w-2 h-2 bg-[#D1D5DB]'
               }`}
             />
           ))}
@@ -598,7 +607,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFF] animate-fade-in font-sans">
       {/* 헤더 */}
-      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#ECEAF5] sticky top-0 z-30 shadow-sm">
+      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#DBEAFE] sticky top-0 z-30 shadow-sm">
         <button
           onClick={() => { setView('list'); setChatHistory([]); window.speechSynthesis.cancel() }}
           className="p-2 -ml-2 text-[#6B7280] hover:text-[#111318] transition-colors"
@@ -615,11 +624,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         <div className="max-w-[1000px] mx-auto w-full px-6 py-8">
 
           {/* 강사 프로필 상단 */}
-          <div className="bg-white rounded-[24px] border border-[#ECEAF5] p-8 shadow-sm mb-8">
+          <div className="bg-white rounded-[24px] border border-[#DBEAFE] p-8 shadow-sm mb-8">
             <div className="flex flex-col md:flex-row gap-8">
               {/* 이미지 */}
               <div className="w-full md:w-[240px] shrink-0">
-                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#ECEAF5]">
+                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#DBEAFE]">
                   <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
               </div>
@@ -635,15 +644,15 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 <div className="flex flex-wrap gap-2">
                   {selectedInst.proposal.tags.map((tag: string) => (
-                    <span key={tag} className="text-[13px] px-3 py-1 bg-[#F8FAFF] text-[#4F46E5] rounded-lg font-bold border border-[#EEF2FF]">
+                    <span key={tag} className="text-[13px] px-3 py-1 bg-[#F8FAFF] text-[#2563EB] rounded-lg font-bold border border-[#EFF6FF]">
                       {tag}
                     </span>
                   ))}
                 </div>
 
-                <div className="bg-[#F5F3FF] rounded-2xl p-5 border border-[#EDE9FE]">
+                <div className="bg-[#EFF6FF] rounded-2xl p-5 border border-[#EDE9FE]">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[#4F46E5] font-black text-[16px]">
+                    <span className="text-[#2563EB] font-black text-[16px]">
                       {userName}님의 성향과 {selectedInst.matching} 매칭
                     </span>
                     <span className="text-[16px]">💙</span>
@@ -660,7 +669,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     { icon: <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>, label: '평균 점수 상승', value: selectedInst.stats.avgIncrease },
                   ].map((stat, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#F5F3FF] flex items-center justify-center text-[#4F46E5]">
+                      <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">{stat.icon}</svg>
                       </div>
                       <div className="text-[13px]">
@@ -674,13 +683,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
               {/* 추천 & CTA */}
               <div className="w-full md:w-[280px] shrink-0 space-y-4">
-                <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#ECEAF5]">
+                <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#DBEAFE]">
                   <h4 className="text-[#1C1B33] font-bold text-[14px] mb-4">이런 분께 추천해요</h4>
                   <ul className="space-y-3">
                     {selectedInst.recommendations.map((rec: string, i: number) => (
                       <li key={i} className="flex items-start gap-2.5">
-                        <div className="mt-1 w-4 h-4 rounded-full bg-[#EEF2FF] flex items-center justify-center shrink-0">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" strokeWidth="3.5">
+                        <div className="mt-1 w-4 h-4 rounded-full bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="3.5">
                             <path d="M20 6L9 17l-5-5"/>
                           </svg>
                         </div>
@@ -693,7 +702,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div className="space-y-2.5">
                   <button
                     onClick={() => { setSelectedInstructor(selectedInst.id); window.location.href = 'https://aiacademy-classroom.vercel.app/' }}
-                    className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#4F46E5]/20"
+                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#2563EB]/20"
                   >
                     샘플 수업 시작하기
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -702,7 +711,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                   </button>
                   <button
                     onClick={() => handleConfirm(selectedInst.id)}
-                    className="w-full bg-white border border-[#ECEAF5] text-[#4F46E5] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
+                    className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
                   >
                     이 강사 선택하기
                   </button>
@@ -712,7 +721,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
           </div>
 
           {/* 탭 메뉴 */}
-          <div className="flex border-b border-[#ECEAF5] mb-8">
+          <div className="flex border-b border-[#DBEAFE] mb-8">
             {[
               { id: 'proposal', label: 'Study Plan' },
               { id: 'curriculum', label: '맞춤 교재' },
@@ -722,12 +731,12 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id as 'proposal' | 'chat' | 'curriculum')}
                 className={`px-10 py-4 text-[15px] font-bold transition-all relative ${
-                  activeTab === tab.id ? 'text-[#4F46E5]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
+                  activeTab === tab.id ? 'text-[#2563EB]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
                 }`}
               >
                 {tab.label}
                 {activeTab === tab.id && (
-                  <div className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-[#4F46E5] rounded-t-full" />
+                  <div className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-[#2563EB] rounded-t-full" />
                 )}
               </button>
             ))}
@@ -736,7 +745,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
           {/* 탭 콘텐츠 */}
           <div className="animate-fade-in">
             {activeTab === 'proposal' && (
-              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10">
+              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
                 <div className="max-w-[720px] space-y-10">
                   <section>
                     <h4 className="text-[#1C1B33] font-black text-[20px] mb-4">학습 제안 배경</h4>
@@ -746,13 +755,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     </p>
                   </section>
                   <section className="grid grid-cols-2 gap-8">
-                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EEF2FF]">
+                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
                       <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">추천 플랜</span>
                       <p className="text-[#1C1B33] text-[18px] font-black">{selectedInst.proposal.plan}</p>
                     </div>
-                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EEF2FF]">
+                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
                       <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">목표 달성</span>
-                      <p className="text-[#4F46E5] text-[18px] font-black">{selectedInst.proposal.target}</p>
+                      <p className="text-[#2563EB] text-[18px] font-black">{selectedInst.proposal.target}</p>
                     </div>
                   </section>
                 </div>
@@ -760,26 +769,26 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             )}
 
             {activeTab === 'curriculum' && (
-              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10">
+              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
                 <div className="mb-8">
                   <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">맞춤 로드맵</h4>
                   <p className="text-[#9CA3AF] text-[14px]">단계별로 실력을 확실히 끌어올리는 커리큘럼이에요.</p>
                 </div>
-                <div className="overflow-hidden border border-[#ECEAF5] rounded-2xl">
+                <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#F8FAFF] border-b border-[#ECEAF5]">
+                      <tr className="bg-[#F8FAFF] border-b border-[#DBEAFE]">
                         <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-20 text-center">주차</th>
                         <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF]">커리큘럼 명</th>
                         <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">집중 파트</th>
                         <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">목표</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#ECEAF5]">
+                    <tbody className="divide-y divide-[#DBEAFE]">
                       {selectedInst.curriculum.map((item: any, idx: number) => (
                         <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
                           <td className="px-6 py-6 text-center">
-                            <div className="w-8 h-8 rounded-full bg-[#EEF2FF] text-[#4F46E5] font-black text-[13px] flex items-center justify-center mx-auto">
+                            <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-black text-[13px] flex items-center justify-center mx-auto">
                               {idx + 1}
                             </div>
                             <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>
@@ -789,14 +798,14 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                             <p className="text-[#9CA3AF] text-[13px] leading-relaxed">{item.detail}</p>
                           </td>
                           <td className="px-6 py-6">
-                            <span className="inline-block px-3 py-1 bg-[#F5F3FF] text-[#4F46E5] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
+                            <span className="inline-block px-3 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
                               {item.part || '-'}
                             </span>
                           </td>
                           <td className="px-6 py-6">
                             <div className="flex items-center justify-between group-hover:pr-2 transition-all">
                               <span className="text-[#1C1B33] text-[14px] font-bold">{item.goal || '-'}</span>
-                              <svg className="text-[#D1D5DB] group-hover:text-[#4F46E5] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <svg className="text-[#D1D5DB] group-hover:text-[#2563EB] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <path d="M9 18l6-6-6-6"/>
                               </svg>
                             </div>
@@ -806,26 +815,26 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-8 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EEF2FF]">
-                  <div className="w-5 h-5 rounded-full bg-[#4F46E5] flex items-center justify-center text-white text-[10px]">ℹ</div>
+                <div className="mt-8 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EFF6FF]">
+                  <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px]">ℹ</div>
                   <p className="text-[#6B7280] text-[13px] font-medium">매주 학습 진행 상황을 분석하여 커리큘럼을 유연하게 조정해 드려요.</p>
                 </div>
               </div>
             )}
 
             {activeTab === 'chat' && (
-              <div className="bg-white rounded-3xl border border-[#ECEAF5] p-10 pb-20">
+              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10 pb-20">
                 <div className="max-w-[600px] mx-auto space-y-8">
                   <div className="text-center space-y-4">
                     <div className="relative w-24 h-24 mx-auto">
-                      {isRecording && <div className="absolute inset-[-6px] rounded-full border-2 border-[#4F46E5] animate-ping opacity-50" />}
-                      {isTalking && <div className="absolute inset-[-3px] rounded-full border-[3px] border-[#4F46E5] animate-pulse opacity-20" />}
-                      <div className={`relative w-full h-full rounded-full overflow-hidden border-2 border-[#EEF2FF] bg-[#F3F4F6] transition-transform duration-500 ${isRecording ? 'scale-105' : 'scale-100'}`}>
+                      {isRecording && <div className="absolute inset-[-6px] rounded-full border-2 border-[#2563EB] animate-ping opacity-50" />}
+                      {isTalking && <div className="absolute inset-[-3px] rounded-full border-[3px] border-[#2563EB] animate-pulse opacity-20" />}
+                      <div className={`relative w-full h-full rounded-full overflow-hidden border-2 border-[#EFF6FF] bg-[#F3F4F6] transition-transform duration-500 ${isRecording ? 'scale-105' : 'scale-100'}`}>
                         <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
                       </div>
                     </div>
                     <div className="flex items-center justify-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${isTalking ? 'bg-[#4F46E5] animate-pulse' : 'bg-[#10B981]'}`} />
+                      <span className={`w-2 h-2 rounded-full ${isTalking ? 'bg-[#2563EB] animate-pulse' : 'bg-[#10B981]'}`} />
                       <span className="text-[#6B7280] text-[13px] font-bold">
                         {isTalking ? '선생님이 말씀하시는 중...' : isRecording ? '듣고 있어요...' : 'AI 온라인 대화 중'}
                       </span>
@@ -836,7 +845,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     {chatHistory.slice(-4).map((c, i) => (
                       <div key={i} className={`flex ${c.role === 'instructor' ? 'justify-start' : 'justify-end'} animate-fade-in`}>
                         <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium leading-relaxed shadow-sm ${
-                          c.role === 'instructor' ? 'bg-[#F8FAFF] border border-[#EEF2FF] text-[#1C1B33]' : 'bg-[#4F46E5] text-white'
+                          c.role === 'instructor' ? 'bg-[#F8FAFF] border border-[#EFF6FF] text-[#1C1B33]' : 'bg-[#2563EB] text-white'
                         }`}>
                           {c.text}
                         </div>
@@ -858,7 +867,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                         key={i}
                         onClick={() => processConversation(q)}
                         disabled={isTalking || isRecording}
-                        className="w-full bg-white border border-[#ECEAF5] text-[#374151] px-5 py-4 rounded-2xl text-[14px] font-bold text-left hover:border-[#4F46E5] hover:text-[#4F46E5] transition-all active:scale-[0.98] disabled:opacity-50"
+                        className="w-full bg-white border border-[#DBEAFE] text-[#374151] px-5 py-4 rounded-2xl text-[14px] font-bold text-left hover:border-[#2563EB] hover:text-[#2563EB] transition-all active:scale-[0.98] disabled:opacity-50"
                       >
                         &ldquo;{q}&rdquo;
                       </button>
