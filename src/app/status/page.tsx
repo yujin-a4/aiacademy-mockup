@@ -4,6 +4,8 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '@/data/instructorData'
+import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
+import type { CallEntry } from '@/components/CallScreen'
 
 /* ── 데이터 ── */
 
@@ -238,17 +240,17 @@ const NAV = [
   { label: '홈',      href: '/dashboard',  active: false },
   { label: '내 학습', href: '/my-learning', active: false },
   { label: '현황',    href: '/status',      active: true  },
-  { label: '알림',    href: '#',            active: false },
+  { label: '전화',    href: '#',            active: false },
 ]
 
 const NAV_ICONS = [
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#2563EB':'none'} stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#2563EB':'none'} stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
 ]
 
-function Sidebar() {
+function Sidebar({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; callLogCount?: number }) {
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -267,13 +269,24 @@ function Sidebar() {
       </div>
 
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
-        {NAV.map((item, i) => (
-          <Link key={item.label} href={item.href}
-            className={`w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`}>
-            <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
-            {open && <span className="animate-fade-in">{item.label}</span>}
-          </Link>
-        ))}
+        {NAV.map((item, i) => {
+          const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
+          if (item.label === '전화') return (
+            <button key={item.label} onClick={onPhoneClick} className={`relative ${cls}`}>
+              <span className="relative shrink-0">
+                {NAV_ICONS[i](item.active)}
+                {(callLogCount ?? 0) > 0 && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+              </span>
+              {open && <span className="animate-fade-in">전화</span>}
+            </button>
+          )
+          return (
+            <Link key={item.label} href={item.href} className={cls}>
+              <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
+              {open && <span className="animate-fade-in">{item.label}</span>}
+            </Link>
+          )
+        })}
       </nav>
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
@@ -288,15 +301,25 @@ function Sidebar() {
   )
 }
 
-function BottomNav() {
+function BottomNav({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; callLogCount?: number }) {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DBEAFE] flex items-center justify-around px-2 pt-2 pb-6 z-50">
-      {NAV.slice(0, 4).map((item, i) => (
-        <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
-          {NAV_ICONS[i](item.active)}
-          <span className="text-[10px] font-medium">{item.label}</span>
-        </Link>
-      ))}
+      {NAV.slice(0, 4).map((item, i) => {
+        const cls = `flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`
+        if (item.label === '전화') return (
+          <button key={item.label} onClick={onPhoneClick} className={`relative ${cls}`}>
+            {NAV_ICONS[i](item.active)}
+            {(callLogCount ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+            <span className="text-[10px] font-medium">전화</span>
+          </button>
+        )
+        return (
+          <Link key={item.label} href={item.href} className={cls}>
+            {NAV_ICONS[i](item.active)}
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </Link>
+        )
+      })}
       <Link href="/settings/account" className="flex flex-col items-center gap-1 min-w-[52px] py-1 text-[#9CA3AF]">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span className="text-[10px] font-medium">설정</span>
@@ -336,6 +359,26 @@ export default function StatusPage() {
 
   const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.status ?? []
   const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
+  const instThumb = (selectedInstructor ?? 'park') === 'park'
+    ? '/image_reference/park-report.png'
+    : INST_THUMBS[selectedInstructor ?? 'park']
+
+  const [callState, setCallState] = useState<'idle' | 'ringing' | 'log'>('idle')
+  const [callLog, setCallLog] = useState<CallEntry[]>([])
+  const handlePhoneClick = () => setCallState('ringing')
+  const handleAnswer = () => setCallState('idle')
+  const handleReject = () => {
+    setCallLog(prev => [...prev, {
+      id: Date.now().toString(),
+      instructorKey: selectedInstructor ?? 'park',
+      instructorName: instName,
+      instructorThumb: instThumb,
+      time: new Date(),
+      status: 'rejected' as const,
+    }])
+    setCallState('log')
+  }
+  const handleCloseLog = () => setCallState('idle')
 
   // 30초마다 멘트 교체
   useEffect(() => {
@@ -375,26 +418,38 @@ export default function StatusPage() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar />
+      <Sidebar onPhoneClick={handlePhoneClick} callLogCount={callLog.length} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <p className="text-[#1C1B33] text-[20px] font-bold">현황</p>
-            <AccountMenu userName={userName ?? ''} />
+            <div className="flex items-center gap-2">
+              <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                {callLog.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+              </button>
+              <AccountMenu userName={userName ?? ''} />
+            </div>
           </div>
         </header>
         {/* 데스크탑 헤더 */}
         <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <p className="text-[#1C1B33] font-bold text-[20px]">현황</p>
-          <AccountMenu userName={userName ?? ''} />
+          <div className="flex items-center gap-2">
+            <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              {callLog.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+            </button>
+            <AccountMenu userName={userName ?? ''} />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-10">
           <div className="max-w-[1200px] mx-auto w-full">
 
-            {/* 탭 */}
+              {/* 탭 */}
             <div className="flex border-b border-[#DBEAFE] mb-5 overflow-x-auto">
               {([
                 ['report',    '리포트'],
@@ -463,64 +518,70 @@ export default function StatusPage() {
                 {/* 2-col */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
-                  {/* LEFT: AI 강사 피드백 + 행동 분석 */}
-                  <div className="space-y-4">
+                  {/* LEFT: AI 강사 피드백 통합 카드 */}
+                  <div>
+                    <section className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
 
-                    {/* AI 강사의 한마디 */}
-                    <section>
-                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">AI 강사의 한마디</p>
-                      <div className="flex gap-3 items-start">
+                      {/* 헤더 */}
+                      <div className="flex items-center gap-2 mb-4 flex-wrap">
+                        <p className="text-[13px] font-bold text-[#1C1B33]">{instName} 강사의 오늘 피드백 ★</p>
+                        <span className="text-[10px] font-semibold text-[#D97706] bg-[#FEF9C3] border border-[#FDE68A] px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                          정답률 △ 2.1% 목표보다 낮아요
+                        </span>
+                      </div>
+
+                      {/* 사진 + 말풍선 */}
+                      <div className="flex gap-3 items-start mb-4">
                         <img
-                          src={(selectedInstructor ?? 'park') === 'park' ? '/image_reference/park-report.png' : INST_THUMBS[selectedInstructor ?? 'park']}
+                          src={instThumb}
                           alt={instName}
-                          className="w-[96px] h-[136px] object-cover object-top rounded-2xl shrink-0 shadow-md"
+                          className="w-[130px] h-[190px] object-cover object-top rounded-2xl shrink-0 shadow-md"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 relative shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
-                            <div className="absolute -left-[9px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #DBEAFE' }}/>
-                            <div className="absolute -left-[7px] top-5" style={{ width:0, height:0, borderTop:'8px solid transparent', borderBottom:'8px solid transparent', borderRight:'9px solid #fff' }}/>
-                            <p className="text-[13px] font-semibold text-[#1C1B33] mb-0.5">{instName} 강사</p>
-                            <p className="text-[10px] text-[#9CA3AF] mb-3">AI 코치</p>
-                            <div className="bg-[#EFF6FF] rounded-xl px-3.5 py-3">
-                              <div className="min-h-[50px]">
-                                <p className="text-[12.5px] text-[#374151] leading-relaxed">
-                                  {typedMsg}
-                                  {!typingDone && (
-                                    <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
-                                  )}
-                                </p>
-                              </div>
+                          <div className="bg-[#EFF6FF] rounded-2xl px-3.5 py-3.5 relative">
+                            <div className="absolute -left-[8px] top-5" style={{ width:0, height:0, borderTop:'7px solid transparent', borderBottom:'7px solid transparent', borderRight:'8px solid #EFF6FF' }}/>
+                            <div className="min-h-[120px]">
+                              <p className="text-[12.5px] text-[#374151] leading-relaxed">
+                                {typedMsg}
+                                {!typingDone && (
+                                  <span className="inline-block w-[2px] h-3 bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                                )}
+                              </p>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </section>
 
-                    {/* 음성/필기 행동 분석 */}
-                    <section>
-                      <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">음성·필기 행동 분석</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
+                      {/* 행동 분석 pills */}
+                      <div className="grid grid-cols-2 gap-2.5 mb-3">
+                        <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-3 py-2.5">
                           <p className="text-[10px] text-[#9CA3AF] mb-0.5">필기 습관</p>
-                          <p className="text-[10px] text-[#D97706] font-medium mb-2.5">보기 선행 리딩</p>
-                          <p className="text-[28px] font-semibold text-[#D97706] leading-none">72<span className="text-[14px]">%</span></p>
-                          <div className="flex items-center gap-1 mt-2">
+                          <p className="text-[10px] text-[#D97706] font-medium mb-1.5">보기 선행 리딩</p>
+                          <p className="text-[22px] font-bold text-[#D97706] leading-none">72<span className="text-[12px] font-normal">%</span></p>
+                          <div className="flex items-center gap-1 mt-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"/>
                             <p className="text-[10px] text-[#D97706]">주의 필요</p>
                           </div>
                         </div>
-                        <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
+                        <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3 py-2.5">
                           <p className="text-[10px] text-[#9CA3AF] mb-0.5">대화 지체 시간</p>
-                          <p className="text-[10px] text-[#059669] font-medium mb-2.5">평균 응답 속도</p>
-                          <p className="text-[28px] font-semibold text-[#1C1B33] leading-none">4.1<span className="text-[14px] text-[#6B7280] ml-0.5">초</span></p>
-                          <div className="flex items-center gap-1 mt-2">
+                          <p className="text-[10px] text-[#059669] font-medium mb-1.5">평균 응답 속도</p>
+                          <p className="text-[22px] font-bold text-[#1C1B33] leading-none">4.1<span className="text-[12px] font-normal text-[#6B7280] ml-0.5">초</span></p>
+                          <div className="flex items-center gap-1 mt-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]"/>
                             <p className="text-[10px] text-[#059669]">양호</p>
                           </div>
                         </div>
                       </div>
-                    </section>
 
+                      {/* CTA */}
+                      <a href="https://aiacademy-classroom.vercel.app/"
+                        className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-md shadow-[#2563EB]/25 active:scale-[0.98]">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        1:1 학습 시작하기
+                      </a>
+
+                    </section>
                   </div>
 
                   {/* RIGHT: 레이더 차트 + 실전 정답률 */}
@@ -802,7 +863,14 @@ export default function StatusPage() {
         </main>
       </div>
 
-      <BottomNav />
+      <BottomNav onPhoneClick={handlePhoneClick} callLogCount={callLog.length} />
+
+      {callState === 'ringing' && (
+        <IncomingCallScreen instructorName={instName} instructorThumb={instThumb} onAnswer={handleAnswer} onReject={handleReject} />
+      )}
+      {callState === 'log' && (
+        <CallLogSheet log={callLog} onClose={handleCloseLog} />
+      )}
     </div>
   )
 }

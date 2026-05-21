@@ -274,7 +274,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
         </div>
       </div>
       <div className="space-y-2 pb-2">
-        <button onClick={handleComplete} disabled={!time} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98]">커리큘럼 생성하기</button>
+        <button onClick={handleComplete} disabled={!time} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98]">진단 결과 보기</button>
         <button onClick={() => setSubStep('date')} className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors">이전</button>
       </div>
     </StepLayout>

@@ -6,10 +6,12 @@ import GoalSetting from '@/components/onboarding/GoalSetting'
 import LoadingScreen from '@/components/onboarding/LoadingScreen'
 import InstructorSelect from '@/components/onboarding/InstructorSelect'
 import CurriculumConfirm from '@/components/onboarding/CurriculumConfirm'
+import DiagnosisResult from '@/components/onboarding/DiagnosisResult'
+import CurriculumLoading from '@/components/onboarding/CurriculumLoading'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
-// step 1=Name 2=Quiz 3=Goal 4=Loading 5=Instructor 6=Curriculum
+// step 1=Name 2=Quiz 3=Goal 4=Diagnosis 5=CurriculumLoading 6=Instructor 7=Curriculum
 export default function OnboardingPage() {
   const [step, setStep] = useState(1) // 홈에서 버튼을 누르고 오므로 바로 이름 입력(1)부터 시작
   const router = useRouter()
@@ -55,7 +57,7 @@ export default function OnboardingPage() {
     store.setExamDate(examDate)
     store.setStudyPeriod('3개월')
 
-    setStep(5) // 강사 선택 단계로 이동
+    setStep(6) // 강사 선택 단계로 이동
   }
 
   return (
@@ -81,9 +83,10 @@ export default function OnboardingPage() {
       {step === 1 && <NameInput onNext={next} />}
       {step === 2 && <QuizCard onComplete={next} />}
       {step === 3 && <GoalSetting onNext={next} />}
-      {step === 4 && <LoadingScreen onNext={next} />}
-      {step === 5 && <InstructorSelect onNext={next} onBack={() => setStep(3)} />}
-      {step === 6 && <CurriculumConfirm onComplete={() => router.push('/dashboard')} />}
+      {step === 4 && <DiagnosisResult onNext={next} />}
+      {step === 5 && <CurriculumLoading onNext={next} />}
+      {step === 6 && <InstructorSelect onNext={next} onBack={() => setStep(3)} />}
+      {step === 7 && <CurriculumConfirm onComplete={() => router.push('/dashboard')} />}
     </main>
   )
 }
