@@ -8,7 +8,6 @@ function formatDate(ds: string): string {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DAY_NAMES[d.getDay()]})`
 }
 
-// QuizCard actual values → letter
 const LEARN_LETTER: Record<string, string> = { '빠르게': 'F', '꼼꼼': 'T', '반복': 'R' }
 const MANAGE_LETTER: Record<string, string> = { '강하게': 'D', '스스로': 'I', '함께': 'G', '코칭': 'C' }
 const MOTIVE_LETTER: Record<string, string> = { '점수': 'P', '성취감': 'A', '재미': 'J', '습관': 'H' }
@@ -25,7 +24,6 @@ const TIME_DESC: Record<string, string> = {
   '15분': '스낵 학습형', '30분': '집중 단기형', '1시간': '균형 집중형', '1시간 이상': '몰입 심화형',
 }
 
-// 유형 이름: learningStyle 첫글자 + motivationType 첫글자 조합
 const TYPE_NAMES: Record<string, string> = {
   'FP': '목표 돌파형', 'FA': '활력 성취형', 'FJ': '활력 탐험형', 'FH': '스피드 루틴형',
   'TP': '꼼꼼 점수형', 'TA': '완벽 달성형', 'TJ': '탐구 즐김형', 'TH': '정밀 루틴형',
@@ -45,7 +43,7 @@ const LETTER_COLORS = [
   'from-orange-400 to-orange-500',
 ]
 
-export default function DiagnosisResult({ onNext }: { onNext: () => void }) {
+export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
   const {
     userName, learningStyle, managementStyle, motivationType,
     targetScore, studyRange, examDate, studyPeriod, dailyTime,
@@ -78,8 +76,18 @@ export default function DiagnosisResult({ onNext }: { onNext: () => void }) {
     <div className="flex flex-col min-h-screen bg-[#F3F4F6] px-4 py-10 animate-fade-in overflow-y-auto">
       <div className="w-full max-w-[390px] mx-auto flex flex-col flex-1 space-y-4 pb-6">
 
-        {/* 헤더 */}
-        <div className="text-center space-y-1 mb-1">
+        {/* 헤더 + 뒤로가기 */}
+        <div className="relative text-center space-y-1 mb-1">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#6B7280] hover:text-[#374151] transition-colors rounded-lg hover:bg-white"
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
           <p className="text-[#6B7280] text-xs font-semibold uppercase tracking-[0.15em]">AI 진단 완료</p>
           <h2 className="text-[#111318] text-[22px] font-bold">{userName}님의 학습 유형</h2>
         </div>
@@ -102,44 +110,21 @@ export default function DiagnosisResult({ onNext }: { onNext: () => void }) {
           </div>
           <div className="grid grid-cols-4 gap-1">
             {letterDetails.map((d, i) => (
-              <div key={i} className="text-center">
-                <p className="text-white/65 text-[9.5px] leading-snug">{d.label}</p>
-              </div>
+              <p key={i} className="text-white/65 text-[9.5px] leading-snug text-center">{d.label}</p>
             ))}
           </div>
         </div>
 
-        {/* 각 글자 배지 */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* 글자 배지 — 가로형 4열 */}
+        <div className="grid grid-cols-4 gap-2">
           {letterDetails.map((d, i) => (
-            <div key={i} className="bg-white border border-[#E5E7EB] rounded-[12px] p-3 flex items-center gap-2.5">
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shrink-0`}>
+            <div key={i} className="bg-white border border-[#E5E7EB] rounded-[12px] py-3 px-1.5 flex flex-col items-center gap-2">
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center`}>
                 <span className="text-white text-[18px] font-black">{d.letter}</span>
               </div>
-              <p className="text-[#374151] text-[12px] font-medium leading-tight">{d.label}</p>
+              <p className="text-[#374151] text-[10px] font-medium leading-tight text-center">{d.label}</p>
             </div>
           ))}
-        </div>
-
-        {/* AI 매니저 */}
-        <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex flex-col items-center shrink-0 gap-1">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-md">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <p className="text-[#9CA3AF] text-[9px] font-semibold whitespace-nowrap">AI 매니저</p>
-            </div>
-            <div className="flex-1 bg-[#EFF6FF] border border-[#BFDBFE] rounded-[14px] rounded-tl-[4px] px-3.5 py-3">
-              <p className="text-[#1D4ED8] text-[13px] leading-relaxed font-medium">
-                지금부터 <span className="font-bold">{userName}님</span>에게 딱 맞는 강사와 프로그램을 제안해 드릴게요! 🎯
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* 목표 & 일정 */}
@@ -155,14 +140,44 @@ export default function DiagnosisResult({ onNext }: { onNext: () => void }) {
           </div>
         </div>
 
+        {/* AI 매니저 — 우측 하단 정렬 */}
+        <div className="flex justify-end items-end gap-2.5">
+          <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-[14px] rounded-br-[4px] px-3.5 py-3 max-w-[72%]">
+            <p className="text-[#1D4ED8] text-[13px] leading-relaxed font-medium">
+              지금부터 <span className="font-bold">{userName}님</span>에게 딱 맞는 강사와 프로그램을 제안해 드릴게요! 🎯
+            </p>
+          </div>
+          <div className="flex flex-col items-center shrink-0 gap-1">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-md">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <p className="text-[#9CA3AF] text-[9px] font-semibold">AI 매니저</p>
+          </div>
+        </div>
+
         <div className="flex-1" />
 
-        <button
-          onClick={onNext}
-          className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]"
-        >
-          커리큘럼 생성하기
-        </button>
+        {/* 하단 버튼 */}
+        <div className="space-y-2 pb-2">
+          <button
+            onClick={onNext}
+            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]"
+          >
+            커리큘럼 생성하기
+          </button>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors"
+            >
+              이전
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
