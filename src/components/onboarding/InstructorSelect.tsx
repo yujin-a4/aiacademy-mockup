@@ -631,6 +631,15 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#DBEAFE]">
                   <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
+                <button
+                  onClick={() => handleTabChange('chat')}
+                  className="mt-3 w-full flex items-center justify-center gap-2 bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#2563EB] py-3 rounded-xl font-bold text-[14px] transition-colors border border-[#DBEAFE] active:scale-[0.98]"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  선생님과 상담하기
+                </button>
               </div>
 
               {/* 정보 */}

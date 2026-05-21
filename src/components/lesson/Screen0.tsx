@@ -9,9 +9,10 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 
 interface Screen0Props {
   onComplete: () => void
+  onEnd?: () => void
 }
 
-export default function Screen0({ onComplete }: Screen0Props) {
+export default function Screen0({ onComplete, onEnd }: Screen0Props) {
   const persona  = useClassroomStore((s) => s.persona)
   const userName = useOnboardingStore((s) => s.userName) || '민주'
   const turn     = buildTurns(userName).s0_intro
@@ -32,7 +33,7 @@ export default function Screen0({ onComplete }: Screen0Props) {
       instructorSpeech={turn.script}
       instructorLoading={false}
       instructorVideoSrc={turn.videoSrc}
-      onEnd={() => window.history.back()}
+      onEnd={onEnd ?? (() => window.history.back())}
       instructorInput={
         <button
           onClick={() => { stopCurrentAudio(); onComplete() }}

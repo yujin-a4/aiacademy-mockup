@@ -87,19 +87,19 @@ function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }
 /* ── 사이드바 ── */
 const NAV = [
   { label: '홈',      href: '/dashboard',  active: false },
-  { label: '내 학습', href: '/my-learning', active: true },
+  { label: '내 학습', href: '/lessons',      active: false },
   { label: '현황',    href: '/status',     active: false },
-  { label: '전화',    href: '#',           active: false },
+  { label: '자율학습', href: '/my-learning', active: true },
 ]
 
 const NAV_ICONS = [
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#2563EB':'none'} stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill={a?'#2563EB':'none'} stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  (a: boolean) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?'#2563EB':'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
 ]
 
-function Sidebar({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; callLogCount?: number }) {
+function Sidebar() {
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -120,15 +120,6 @@ function Sidebar({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; ca
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item, i) => {
           const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
-          if (item.label === '전화') return (
-            <button key={item.label} onClick={onPhoneClick} className={`relative ${cls}`}>
-              <span className="relative shrink-0">
-                {NAV_ICONS[i](item.active)}
-                {(callLogCount ?? 0) > 0 && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
-              </span>
-              {open && <span className="animate-fade-in">전화</span>}
-            </button>
-          )
           return (
             <Link key={item.label} href={item.href} className={cls}>
               <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
@@ -151,18 +142,11 @@ function Sidebar({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; ca
 }
 
 /* ── 모바일 하단 네비 ── */
-function BottomNav({ onPhoneClick, callLogCount }: { onPhoneClick?: () => void; callLogCount?: number }) {
+function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DBEAFE] flex items-center justify-around px-2 pt-2 pb-6 z-50">
       {NAV.slice(0, 4).map((item, i) => {
         const cls = `flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`
-        if (item.label === '전화') return (
-          <button key={item.label} onClick={onPhoneClick} className={`relative ${cls}`}>
-            {NAV_ICONS[i](item.active)}
-            {(callLogCount ?? 0) > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
-            <span className="text-[10px] font-medium">전화</span>
-          </button>
-        )
         return (
           <Link key={item.label} href={item.href} className={cls}>
             {NAV_ICONS[i](item.active)}
@@ -246,14 +230,14 @@ function MyLearningInner() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar onPhoneClick={handlePhoneClick} callLogCount={callLog.length} />
+      <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* 모바일 헤더 */}
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <div className="flex items-center justify-between">
-            <p className="text-[#1C1B33] text-[20px] font-bold">내 학습</p>
+            <p className="text-[#1C1B33] text-[20px] font-bold">자율학습</p>
             <div className="flex items-center gap-2">
               {ddayLabel && (
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-2.5 py-1 rounded-full">
@@ -276,7 +260,7 @@ function MyLearningInner() {
 
         {/* 데스크탑 탑바 */}
         <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
-          <p className="text-[#1C1B33] font-bold text-[20px]">내 학습</p>
+          <p className="text-[#1C1B33] font-bold text-[20px]">자율학습</p>
           <div className="flex items-center gap-2">
             {ddayLabel && (
               <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-3 py-1.5 rounded-full">
@@ -640,13 +624,13 @@ function MyLearningInner() {
         </main>
       </div>
 
-      <BottomNav onPhoneClick={handlePhoneClick} callLogCount={callLog.length} />
+      <BottomNav />
 
       {callState === 'ringing' && (
         <IncomingCallScreen instructorName={instName} instructorThumb={instThumb} onAnswer={handleAnswer} onReject={handleReject} />
       )}
       {callState === 'log' && (
-        <CallLogSheet log={callLog} onClose={handleCloseLog} />
+        <CallLogSheet entries={callLog} onClose={handleCloseLog} />
       )}
     </div>
   )

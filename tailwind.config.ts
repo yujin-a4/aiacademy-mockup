@@ -28,24 +28,24 @@ const config: Config = {
         error:   '#EF4444',
         warning: '#F59E0B',
         // ── 레거시 (classroom 등 기존 화면용) ──────────────────────────
-        "ybm-blue":        "#2563EB",
-        "ybm-blue-mid":    "#3B82F6",
-        "ybm-blue-light":  "#EFF6FF",
-        "ybm-bg":          "#F3F4F6",
+        "ybm-blue":        "#2277F0",
+        "ybm-blue-mid":    "#5BA8F5",
+        "ybm-blue-light":  "#D6EAFF",
+        "ybm-bg":          "#F0F5FF",
         "ybm-card":        "#FFFFFF",
-        "ybm-text":        "#111318",
-        "ybm-text-sub":    "#6B7280",
-        "ybm-border":      "#D1D5DB",
+        "ybm-text":        "#1A2B4B",
+        "ybm-text-sub":    "#6B7A99",
+        "ybm-border":      "#E2EAF4",
         // ── 수업 화면(classroom) 전용 토큰 ─────────────────────────────
         "cr-nav":          "#12203A",
         "cr-panel":        "#EAF2FF",
-        "cr-accent":       "#2563EB",
-        "cr-accent-light": "#EFF6FF",
+        "cr-accent":       "#2277F0",
+        "cr-accent-light": "#D6EAFF",
       },
       fontFamily: {
-        sans:    ['Noto Sans KR', 'sans-serif'],
+        sans:    ['Pretendard', 'Noto Sans KR', 'Inter', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
-        display: ['Noto Sans KR', 'sans-serif'],
+        display: ['Barlow Condensed', 'sans-serif'],
       },
       borderRadius: {
         'sharp':   '6px',
@@ -69,7 +69,10 @@ const config: Config = {
         'fade-out':  'fadeOut 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'svg-draw': 'svgDraw 3s ease-in-out forwards',
         'fill-in': 'fillIn 0.8s ease-in-out forwards 2s',
-        'cta-pulse': 'ctaPulse 1.8s ease-in-out infinite',
+        'cta-pulse':    'ctaPulse 1.8s ease-in-out infinite',
+        'fade-in-up':  'fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'particle-fly':'particleFly 0.7s ease-out both',
+        'pop-badge':   'popBadge 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
       },
       keyframes: {
         svgDraw: {
@@ -110,6 +113,19 @@ const config: Config = {
         ctaPulse: {
           '0%, 100%': { transform: 'scale(1)',    opacity: '1' },
           '50%':      { transform: 'scale(1.05)', opacity: '0.88' },
+        },
+        fadeInUp: {
+          '0%':   { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        particleFly: {
+          '0%':   { transform: 'translate(0, 0) scale(1)', opacity: '1' },
+          '100%': { transform: 'translate(var(--dx), var(--dy)) scale(0)', opacity: '0' },
+        },
+        popBadge: {
+          '0%':   { transform: 'scale(0)', opacity: '0' },
+          '60%':  { transform: 'scale(1.2)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },

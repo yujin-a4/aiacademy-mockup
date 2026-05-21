@@ -1,7 +1,7 @@
 import type { VoiceBranch } from '@/lib/matchBranch'
 
 export type InputType = 'voice' | 'draw' | 'choice' | 'button' | 'none'
-export type DrawHint = 'underline' | 'circle'
+export type DrawHint = 'underline' | 'circle' | 'x'
 
 export interface LessonTurn {
   id: string
@@ -14,6 +14,8 @@ export interface LessonTurn {
   script: string
   inputType: InputType
   drawHint?: DrawHint
+  /** drawHint가 underline/circle일 때 유효 획 범위로 인정할 단어 인덱스 목록 (SCREEN1_PROBLEM.words 기준) */
+  drawTargetWordIndices?: number[]
   voiceBranches?: VoiceBranch[]
   defaultNextTurnId?: string
   onDraw?: string
@@ -53,20 +55,21 @@ export const SCREEN1_PROBLEM = {
    SCREEN 2 — 문제 데이터 (750점 학생 주도)
 ═══════════════════════════════════════════════ */
 export const SCREEN2_PROBLEM = {
-  partLabel: '1단계 · 문제 유형 학습',
+  partLabel: '예제 풀어보기',
   topic: 'Part 5 수동태',
   words: [
-    'Visitors', 'to', 'the', 'manufacturing', 'facility',
+    'The', 'monthly', 'sales', 'report',
     '______',
-    'to', 'wear', 'safety', 'goggles', 'at', 'all', 'times.',
+    'by', 'the', 'regional', 'manager',
+    'to', 'evaluate', 'the', "team's", 'performance.',
   ],
-  blankIndex: 5,
-  correctAnswer: 'are required',
+  blankIndex: 4,
+  correctAnswer: 'is reviewed',
   choices: [
-    { id: 'A', text: 'require' },
-    { id: 'B', text: 'are required' },
-    { id: 'C', text: 'have required' },
-    { id: 'D', text: 'requiring' },
+    { id: 'A', text: 'reviews' },
+    { id: 'B', text: 'is reviewing' },
+    { id: 'C', text: 'is reviewed' },
+    { id: 'D', text: 'has reviewed' },
   ],
   timerSeconds: 15,
 }
@@ -134,26 +137,26 @@ export const SCREEN3_PROBLEMS = [
 export const SCREEN4_CARDS = [
   {
     id: 'card1',
-    prompt: '주어가 직접 행위를 하는 주체면 [  A  ], 주어가 행위를 당하는 대상이면 [  B  ]',
-    blanks: ['A', 'B'],
-    answers: { A: '능동태', B: '수동태' },
-    keywords: { A: ['능동', 'active'], B: ['수동', 'passive'] },
+    prompt: '[  A  ]와의 관계 확인. 주어가 직접 행위를 하는 주체면 [  B  ], 주어가 행위를 당하는 대상이면 [  C  ]',
+    blanks: ['A', 'B', 'C'],
+    answers: { A: '주어', B: '능동태', C: '수동태' },
+    keywords: { A: ['주어', 'subject'], B: ['능동', 'active'], C: ['수동', 'passive'] },
     hint: '주어와 행위의 관계를 확인해요',
   },
   {
     id: 'card2',
-    prompt: '동사 뒤에 [  C  ](이)가 있으면 능동, 없으면 [  D  ]',
-    blanks: ['C', 'D'],
-    answers: { C: '목적어', D: '수동' },
-    keywords: { C: ['목적어', '목적'], D: ['수동', 'passive'] },
+    prompt: '[  A  ] 유무 확인. 동사 뒤에 [  B  ]가 있으면 [  C  ], 없으면 [  D  ]',
+    blanks: ['A', 'B', 'C', 'D'],
+    answers: { A: '목적어', B: '목적어', C: '능동태', D: '수동태' },
+    keywords: { A: ['목적어', '목적'], B: ['목적어', '목적'], C: ['능동', 'active'], D: ['수동', 'passive'] },
     hint: '동사 뒤 구조를 확인해요',
   },
   {
     id: 'card3',
-    prompt: '주어의 수를 확인하며 단수/복수 맞춰주고, 시간 부사(next, last) 확인하여 시제 [  E  ]',
-    blanks: ['E'],
-    answers: { E: '확인' },
-    keywords: { E: ['확인', '체크', 'check'] },
+    prompt: '수, [  A  ] 확인. 주어의 수를 확인하여 [  B  ] 맞추고, 시간 부사(next, last) 확인하여 [  C  ] 확인',
+    blanks: ['A', 'B', 'C'],
+    answers: { A: '시제', B: '단수/복수', C: '시제' },
+    keywords: { A: ['시제', 'tense'], B: ['단수', '복수', '수', 'singular', 'plural'], C: ['시제', 'tense'] },
     hint: '수와 시제를 확인해요',
   },
 ]
@@ -169,8 +172,8 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
     s0_intro: {
       id: 's0_intro',
       screen: 0,
-      videoSrc: '/videos/screen0/intro.mp4',
-      audioSrc: '/part5/part5_1.mp3',
+      videoSrc: undefined,
+      audioSrc: undefined,
       script: `자, 오늘은 Part 5에서 맨날 나오는 수동태 아주 박살을 내줄 거야. 수업은 세 단계로 꽉 채워줄게 간다. 먼저 실전 문제 풀면서 본인 실력 진단부터 확인하고, 그 문제들로 유형 완벽하게 짚어 먹을 거야. 그 다음은 맨날 깊고 시간 안에 푸는 연습. 마지막엔 본인이 직접 요점 정리하면서 머리에 넣는 훈련까지 끝내야 수업 끝이야. 시작한다.`,
       inputType: 'button',
       buttonLabel: '시작하기',
@@ -181,66 +184,63 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
     s1_turn1: {
       id: 's1_turn1',
       screen: 1,
-      videoSrc: '/videos/screen1/turn1.mp4',
-      audioSrc: '/part5/part5_2_1.mp3',
-      script: `${name}야, Part 5에서는 문장 구조를 먼저 파악해야 해. 문장 보이면 무조건 주어랑 동사 먼저 찾아봐. 여기서 주어가 뭐야?`,
+      videoSrc: '/part5/P5_2_1.mp4',
+      script: `Part 5에서는 문장 구조를 먼저 파악해야 해. 문장 보이면 무조건 주어랑 동사 먼저 찾아봐. 여기서 주어가 뭐야?`,
       inputType: 'voice',
       defaultNextTurnId: 's1_turn2a',
     },
     s1_turn2a: {
       id: 's1_turn2a',
       screen: 1,
-      videoSrc: '/videos/screen1/turn2a.mp4',
-      audioSrc: '/part5/part5_2_2.mp3',
+      videoSrc: '/part5/P5_2_2.mp4',
       script: `다시 봐봐. 빈칸 앞에서 with 같은 찌꺼기들 빼고 핵심이 뭐야? 밑줄 그어 봐.`,
       inputType: 'draw',
       drawHint: 'underline',
+      drawTargetWordIndices: [0, 1, 2],
       onDraw: 's1_turn3',
     },
     s1_turn3: {
       id: 's1_turn3',
       screen: 1,
-      videoSrc: '/videos/screen1/turn3.mp4',
-      audioSrc: '/part5/part5_2_3.mp3',
-      script: `오케이. 일단 주어가 복수인 거 확인했어. 그럼 동사 찾아야 하는데 지금 빈칸 자리가 동사야? 이럴 때는 빈칸 뒤 확인해봐. 중요한 힌트가 있어. 힌트에 동그라미 쳐봐.`,
+      videoSrc: '/part5/P5_2_3.mp4',
+      script: `오케이. 일단 주어가 복수인 거 확인했어. 그럼 동사 찾아야하는데 지금 빈칸 자리가 동사지? 이럴 때는 빈칸 뒤 확인해봐. 중요한 힌트가 있어. 힌트에 동그라미 쳐봐.`,
       inputType: 'draw',
       drawHint: 'circle',
+      drawTargetWordIndices: [8],
       onDraw: 's1_turn4',
     },
     s1_turn4: {
       id: 's1_turn4',
       screen: 1,
-      videoSrc: '/videos/screen1/turn4.mp4',
-      audioSrc: '/part5/part5_2_4.mp3',
-      script: `좋아. 동사 뒤에 by + 행위자가 나오면 수동태인지 먼저 의심해야 해. 그럼 여기서, 주어인 기술적인 문제가 해결하는 거야, 해결되는 거야?`,
-      inputType: 'button',
-      buttonLabel: '다음 단계로 →',
-      onButton: 'NEXT_SCREEN',
+      videoSrc: '/part5/P5_2_4.mp4',
+      script: `좋아. 동사 뒤에 by랑 행위자가 나오면 수동태인지 먼저 의심해야 해. 자 여기까지 확인했으면 첫째로, 주어 동사 관계를 파악해야 해. 주어인 기술적인 문제가 해결하는 거야, 해결되는 거야?`,
+      inputType: 'voice',
+      defaultNextTurnId: 's1_turn5',
     },
     s1_turn5: {
       id: 's1_turn5',
       screen: 1,
-      videoSrc: '/videos/screen1/turn5.mp4',
-      script: `그렇지. 주어가 당하는 거일 때는 수동태 be p.p.를 써야 해. 의미 확인됐으면 이제 동사 뒤에 목적어 있는지 확인 들어가. 목적어 있어, 없어?`,
+      videoSrc: '/part5/P5_2_5.mp4',
+      script: `그렇지. 주어가 당하는 거일 때는 수동태 be p.p.를 써야 해. 의미 확인했으면 이제 둘째, 동사 뒤에 목적어 있는지 없는지 확인 들어가자. 목적어 있어 없어?`,
       inputType: 'voice',
       defaultNextTurnId: 's1_turn6',
     },
     s1_turn6: {
       id: 's1_turn6',
       screen: 1,
-      videoSrc: '/videos/screen1/turn6.mp4',
-      script: `맞았어. 이제 주어 were 복수이니까 단수 was handled 버려. 답 were handled 나왔어?`,
-      inputType: 'button',
-      highlightChoiceId: 'B',
-      buttonLabel: '네, 맞아요!',
-      onButton: 's1_turn7',
+      videoSrc: '/part5/P5_2_6.mp4',
+      script: `맞지. 목적어 없이 뒤에 부사 promptly랑 찌꺼기들 나오지? 그럼 이제 선택지 봐봐. 수동태니깐 일단 능동 재껴. 능동인 거 X 표시 해봐.`,
+      inputType: 'draw',
+      drawHint: 'x',
+      onDraw: 's1_turn7',
     },
     s1_turn7: {
       id: 's1_turn7',
       screen: 1,
-      videoSrc: '/videos/screen1/turn7.mp4',
-      script: `완벽해. 수동태 공식 정리하자. be + p.p., 주어가 복수면 were. 이 패턴 눈에 익혀두면 Part 5 수동태는 5초컷이야.`,
+      videoSrc: '/part5/P5_2_7.mp4',
+      script: `잘했어. 그럼 이제 주어 복수였으니깐 단수 was handled 버려. 답 were handled 나오지?`,
       inputType: 'button',
+      highlightChoiceId: 'B',
       buttonLabel: '다음 단계로 →',
       onButton: 'NEXT_SCREEN',
     },
@@ -363,7 +363,7 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
       id: 's4_opening',
       screen: 4,
       videoSrc: '/videos/screen4/opening.mp4',
-      script: `오늘 수업 여기까지인데 그냥 끝낼 생각은 아니지? 네가 맨날 설명하다보면 본인이 진짜 머릿속에 알아야 소화가 돼. 설명해봐. 오늘 배운 수동태 핵심 3가지 나한테 설명해봐. 첫째, 주어와 관계를 보고 어떻게 판단해?`,
+      script: `오늘 수업 여기까지인데 그냥 끝낼 생각은 아니지? 네가 맨날 설명하다보면 본인이 진짜 머릿속에 알아야 소화가 돼. 설명해봐. 오늘 배운 수동태 핵심 3가지 나한테 설명해봐. 첫째, 무엇과의 관계를 확인하지?`,
       inputType: 'none',
     },
     s4_card2_prompt: {
