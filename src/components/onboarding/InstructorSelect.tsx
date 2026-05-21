@@ -480,7 +480,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                   transform: `translateX(calc(-50% + ${offset * spacing}px)) translateY(-50%) scale(${scale})`,
                   opacity: isVisible ? opacity : 0,
                   filter: blur,
-                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: isVisible ? 'all 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
                   zIndex: isActive ? 10 : absOffset === 1 ? 6 : 3,
                   cursor: isActive ? 'default' : 'pointer',
                   pointerEvents: isVisible ? 'auto' : 'none',
