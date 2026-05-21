@@ -142,7 +142,7 @@ function OjjDashboard() {
 
   return (
     <div className={`${notoSerifKR.variable} ${diphylleia.variable} flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]`}>
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onPhoneClick={handlePhoneClick} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* 모바일 헤더 */}
@@ -190,6 +190,10 @@ function OjjDashboard() {
                   토익 시험 접수하기
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </a>
+                <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  {callLog.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+                </button>
                 <AccountMenu userName={userName ?? ''} />
               </div>
             </div>
@@ -433,7 +437,7 @@ function OjjDashboard() {
         </main>
       </div>
 
-      <BottomNav onPhoneClick={handlePhoneClick} />
+      <BottomNav />
 
       {callState === 'ringing' && (
         <IncomingCallScreen
@@ -460,7 +464,7 @@ const NAV = [
     ),
   },
   {
-    label: '내 학습', active: false, href: '#',
+    label: '내 학습', active: false, href: '/lessons',
     icon: (a: boolean) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a ? '#2563EB' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
@@ -483,14 +487,6 @@ const NAV = [
       </svg>
     ),
   },
-  {
-    label: '전화', active: false, href: '#',
-    icon: (a: boolean) => (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill={a ? '#2563EB' : 'none'} stroke={a ? '#2563EB' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-      </svg>
-    ),
-  },
 ]
 
 const SETTINGS_ICON = (a: boolean) => (
@@ -501,8 +497,8 @@ const SETTINGS_ICON = (a: boolean) => (
 )
 
 /* ── 사이드바 ── */
-function Sidebar({ open, setOpen, onPhoneClick }: {
-  open: boolean; setOpen: (v: boolean) => void; onPhoneClick?: () => void
+function Sidebar({ open, setOpen }: {
+  open: boolean; setOpen: (v: boolean) => void
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
@@ -525,12 +521,6 @@ function Sidebar({ open, setOpen, onPhoneClick }: {
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item) => {
           const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
-          if (item.label === '전화') return (
-            <button key={item.label} onClick={onPhoneClick} className={cls}>
-              <span className="shrink-0">{item.icon(item.active)}</span>
-              {open && <span className="animate-fade-in">{item.label}</span>}
-            </button>
-          )
           return (
             <Link key={item.label} href={item.href ?? '#'} className={cls}>
               <span className="shrink-0">{item.icon(item.active)}</span>
@@ -552,18 +542,12 @@ function Sidebar({ open, setOpen, onPhoneClick }: {
 }
 
 /* ── 모바일 하단 네비 ── */
-function BottomNav({ onPhoneClick }: { onPhoneClick?: () => void }) {
+function BottomNav() {
   const items = [...NAV.slice(0, 4), { label: '설정', active: false, href: '/settings/account', icon: SETTINGS_ICON }]
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#DBEAFE] flex items-center justify-around px-2 pt-2 pb-6 z-50">
       {items.map((item) => {
         const cls = `flex flex-col items-center gap-1 min-w-[52px] py-1 ${item.active ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`
-        if (item.label === '전화') return (
-          <button key={item.label} onClick={onPhoneClick} className={cls}>
-            {item.icon(item.active)}
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </button>
-        )
         return (
           <Link key={item.label} href={item.href ?? '#'} className={cls}>
             {item.icon(item.active)}
@@ -648,7 +632,7 @@ function RegularDashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onPhoneClick={handlePhoneClick} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
@@ -690,6 +674,10 @@ function RegularDashboard() {
                   토익 시험 접수하기
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </a>
+                <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  {callLog.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
+                </button>
                 <AccountMenu userName={userName ?? ''} />
               </div>
             </div>
@@ -883,7 +871,7 @@ function RegularDashboard() {
         </main>
       </div>
 
-      <BottomNav onPhoneClick={handlePhoneClick} />
+      <BottomNav />
 
       {callState === 'ringing' && (
         <IncomingCallScreen instructorName={instName} instructorThumb={instThumb} onAnswer={handleAnswer} onReject={handleReject} />

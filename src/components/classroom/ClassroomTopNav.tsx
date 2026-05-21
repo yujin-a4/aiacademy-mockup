@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useClassroomStore } from '@/store/classroomStore'
 
 interface ClassroomTopNavProps {
@@ -16,28 +17,29 @@ export default function ClassroomTopNav({
   initialSeconds = 20 * 60,
   onEnd,
 }: ClassroomTopNavProps) {
+  const router = useRouter()
   const currentProblemIndex = useClassroomStore((s) => s.currentProblemIndex)
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds)
 
-  const handleEnd = useCallback(() => onEnd?.(), [onEnd])
+  const handleEnd = () => onEnd?.()
 
   useEffect(() => {
-    if (secondsLeft <= 0) { handleEnd(); return }
+    if (secondsLeft <= 0) return
     const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000)
     return () => clearInterval(id)
-  }, [secondsLeft, handleEnd])
+  }, [secondsLeft])
 
   const mm   = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
   const ss   = String(secondsLeft % 60).padStart(2, '0')
   const isLow = secondsLeft <= 3 * 60
 
   return (
-    <nav className="bg-white border-b border-ybm-border flex items-center justify-between px-4 h-14 shrink-0">
+    <nav className="bg-white border-b border-ybm-border flex items-center justify-between px-4 md:px-6 h-14 md:h-16 shrink-0">
 
       {/* 좌측: 브레드크럼 */}
-      <div className="flex items-center gap-1.5 text-sm min-w-0">
+      <div className="flex items-center gap-1.5 text-base min-w-0">
         <button
-          onClick={handleEnd}
+          onClick={() => router.push('/lessons')}
           className="text-ybm-text-sub hover:text-ybm-text transition-colors"
           aria-label="뒤로"
         >
@@ -47,11 +49,11 @@ export default function ClassroomTopNav({
         </button>
         <span className="text-ybm-text-sub hidden sm:inline">TOEIC RC</span>
         <span className="text-ybm-text-sub hidden sm:inline">›</span>
-        <span className="text-ybm-text font-semibold truncate">{partName}</span>
+        <span className="text-ybm-text text-sm md:text-base font-semibold truncate">{partName}</span>
       </div>
 
       {/* 중앙: 진행도 */}
-      <div className="flex items-center gap-1 text-sm font-semibold">
+      <div className="flex items-center gap-1 text-base md:text-lg font-semibold">
         <span className="text-cr-accent">{currentProblemIndex + 1}</span>
         <span className="text-ybm-text-sub">/</span>
         <span className="text-ybm-text-sub">{totalProblems}</span>
@@ -61,18 +63,18 @@ export default function ClassroomTopNav({
       <div className="flex items-center gap-3 shrink-0">
         {/* 타이머 */}
         <div className="flex items-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-ybm-text-sub">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-ybm-text-sub md:w-4 md:h-4">
             <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />
             <path d="M7 4.5v3l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
-          <span className={`text-sm font-semibold tabular-nums ${isLow ? 'text-red-500' : 'text-ybm-text'}`}>
+          <span className={`text-base md:text-lg font-semibold tabular-nums ${isLow ? 'text-red-500' : 'text-ybm-text'}`}>
             {mm}:{ss}
           </span>
         </div>
 
         {/* 학습 도움말 아이콘 */}
         <button
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-ybm-text-sub hover:bg-ybm-bg transition-colors"
+          className="w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-ybm-text-sub hover:bg-ybm-bg transition-colors"
           aria-label="학습 도움말"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -85,7 +87,7 @@ export default function ClassroomTopNav({
         {/* 수업 종료 */}
         <button
           onClick={handleEnd}
-          className="h-8 px-3 rounded-lg border border-ybm-border text-ybm-text-sub text-xs font-medium hover:border-red-300 hover:text-red-500 transition-colors whitespace-nowrap"
+          className="h-8 md:h-10 px-3 md:px-4 rounded-lg border border-ybm-border text-ybm-text-sub text-sm md:text-base font-medium hover:border-red-300 hover:text-red-500 transition-colors whitespace-nowrap"
         >
           종료
         </button>

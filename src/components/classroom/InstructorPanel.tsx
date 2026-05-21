@@ -1,21 +1,18 @@
 'use client'
 
-import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface InstructorPanelProps {
   speech: string
   isLoading?: boolean
   inputSlot?: React.ReactNode
   imageSrc?: string
-  /** 강사 영상 src. 제공되면 이미지 대신 영상 재생 */
   videoSrc?: string
-  /** 영상 재생 완료 콜백 */
   onVideoEnd?: () => void
   instructorName?: string
 }
 
-const CHAR_DELAY_MS = 8 // 한 글자당 딜레이
+const CHAR_DELAY_MS = 30 // 영상 없는 턴의 고정 타이핑 속도
 
 export default function InstructorPanel({
   speech,
@@ -27,24 +24,46 @@ export default function InstructorPanel({
   instructorName = 'AI 강사',
 }: InstructorPanelProps) {
   const [videoError, setVideoError] = useState(false)
-  const [displayed, setDisplayed] = useState('')
-  const [isTyping, setIsTyping]   = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [displayed, setDisplayed]   = useState('')
+  const [isTyping, setIsTyping]     = useState(false)
 
-  /* speech가 바뀔 때마다 타자기 효과 (isLoading과 무관하게 진행) */
+  /* videoSrc가 바뀌면 이전 에러 상태 초기화 */
+  useEffect(() => { setVideoError(false) }, [videoSrc])
+
+  const videoRef    = useRef<HTMLVideoElement | null>(null)
+  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastCharRef = useRef(-1)
+  const speechRef   = useRef(speech)
+  const speechBoxRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => { speechRef.current = speech }, [speech])
+
+  /* 타이핑 중 말풍선 하단 자동 스크롤 */
   useEffect(() => {
-    if (!speech) {
-      setDisplayed('')
-      setIsTyping(false)
-      return
+    if (speechBoxRef.current) {
+      speechBoxRef.current.scrollTop = speechBoxRef.current.scrollHeight
     }
+  }, [displayed])
+
+  /* ── 영상 없는 턴: 고정 속도 타이핑 ── */
+  useEffect(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    lastCharRef.current = -1
+
+    if (videoSrc && !videoError) {
+      /* 영상 턴은 onLoadedMetadata에서 interval 시작 → 여기서는 초기화만 */
+      setDisplayed('')
+      setIsTyping(true)
+      return () => {
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+      }
+    }
+
+    if (!speech) { setDisplayed(''); setIsTyping(false); return }
 
     setDisplayed('')
     setIsTyping(true)
     let idx = 0
-
-    if (timerRef.current) clearInterval(timerRef.current)
-
     timerRef.current = setInterval(() => {
       idx += 1
       setDisplayed(speech.slice(0, idx))
@@ -55,45 +74,94 @@ export default function InstructorPanel({
       }
     }, CHAR_DELAY_MS)
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [speech])
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [speech, videoSrc, videoError])
+
+  /* ── 영상 duration 확인 후 50ms 폴링 시작 ── */
+  const startVideoSync = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    lastCharRef.current = -1
+
+    timerRef.current = setInterval(() => {
+      const v   = videoRef.current
+      const cur = speechRef.current
+      if (!v || !v.duration || isNaN(v.duration) || !cur) return
+
+      const progress  = Math.min(v.currentTime / v.duration, 1)
+      const charCount = Math.floor(progress * cur.length)
+
+      if (charCount !== lastCharRef.current) {
+        lastCharRef.current = charCount
+        setDisplayed(cur.slice(0, charCount))
+        setIsTyping(progress < 1)
+      }
+
+      if (progress >= 1) {
+        clearInterval(timerRef.current!)
+        timerRef.current = null
+      }
+    }, 50)
+  }, [])
+
+  const handleLoadedMetadata = useCallback(() => {
+    startVideoSync()
+  }, [startVideoSync])
+
+  /* 이미 캐시된 영상은 loadedmetadata가 이미 지나갔을 수 있어 onPlay로도 보장 */
+  const handlePlay = useCallback(() => {
+    if (!timerRef.current) startVideoSync()
+  }, [startVideoSync])
+
+  const handleVideoEnded = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    setDisplayed(speechRef.current)
+    setIsTyping(false)
+    onVideoEnd?.()
+  }, [onVideoEnd])
+
+  const handleVideoError = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    setVideoError(true)
+    onVideoEnd?.()
+  }, [onVideoEnd])
 
   return (
     <div className="flex flex-col h-full bg-cr-panel">
 
       {/* ── 강사 영상 or 이미지 ── */}
       <div className="relative w-full shrink-0 lg:pt-[68px]">
-        <div className="relative w-full overflow-hidden max-h-[200px] lg:max-h-none">
-          {/* 영상이 있으면 video, 오류/없으면 이미지 */}
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
           {videoSrc && !videoError ? (
             <video
+              ref={videoRef}
               key={videoSrc}
               src={videoSrc}
               autoPlay
               playsInline
               poster={imageSrc}
-              className="w-full h-auto block"
-              onEnded={() => onVideoEnd?.()}
-              onError={() => setVideoError(true)}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: 'center top' }}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={handlePlay}
+              onEnded={handleVideoEnded}
+              onError={handleVideoError}
             />
           ) : imageSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageSrc}
               alt={instructorName}
-              className="w-full h-auto block"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ objectPosition: 'center top' }}
             />
           ) : (
-            <div className="w-full bg-cr-accent-light rounded-2xl flex items-center justify-center" style={{ height: 200 }}>
+            <div className="absolute inset-0 bg-cr-accent-light flex items-center justify-center">
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-cr-accent/30">
                 <circle cx="24" cy="18" r="10" stroke="currentColor" strokeWidth="2.5" />
                 <path d="M6 44c0-9.941 8.059-18 18-18s18 8.059 18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
             </div>
           )}
-          {/* 하단 뱃지 오버레이 */}
           <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
             <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
               YBM AI 어학원
@@ -105,19 +173,15 @@ export default function InstructorPanel({
 
       {/* ── 말풍선 ── */}
       <div className="mx-3 mt-2 mb-2 bg-white rounded-2xl shadow-sm border border-ybm-border/50 overflow-hidden">
-
-        {/* 말풍선 헤더: 강사 이름 + 상태 인디케이터 */}
         <div className="flex items-center gap-2 px-4 pt-3 pb-1.5 border-b border-ybm-border/40">
-          <span className="text-xs font-semibold text-cr-accent">{instructorName}</span>
+          <span className="text-sm font-semibold text-cr-accent">{instructorName}</span>
           {isLoading ? (
-            /* 생각 중 */
             <div className="flex items-center gap-1 ml-1">
               {[0, 150, 300].map((d) => (
                 <span key={d} className="w-1.5 h-1.5 rounded-full bg-cr-accent/50 animate-bounce" style={{ animationDelay: `${d}ms` }} />
               ))}
             </div>
           ) : isTyping ? (
-            /* 말하는 중: 음파 바 애니메이션 */
             <div className="flex items-center gap-[2px] ml-1" style={{ height: 14 }}>
               {[0, 1, 2, 3, 4].map((i) => (
                 <span
@@ -139,19 +203,17 @@ export default function InstructorPanel({
               `}</style>
             </div>
           ) : (
-            /* 완료: 체크 */
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" className="ml-0.5 opacity-50">
               <path d="M2.5 6.5l3 3 5-5" stroke="#2277F0" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           )}
         </div>
 
-        {/* 말풍선 본문 */}
-        <div className="px-4 py-3 min-h-[80px]">
+        <div ref={speechBoxRef} className="px-4 py-3 h-[112px] overflow-y-auto">
           {isLoading ? (
             <LoadingDots />
           ) : (
-            <p className="text-ybm-text text-sm leading-relaxed">
+            <p className="text-ybm-text text-base leading-relaxed">
               {displayed}
               {isTyping && (
                 <span
@@ -170,12 +232,12 @@ export default function InstructorPanel({
         </div>
       </div>
 
-      {/* ── 입력 슬롯 ── */}
       {inputSlot && (
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-2">
           {inputSlot}
         </div>
       )}
+
     </div>
   )
 }
