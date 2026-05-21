@@ -60,9 +60,9 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
           </div>
 
           <div className="space-y-1">
-            <p className="text-[#6B7280] text-xs font-semibold uppercase tracking-[0.15em]">커리큘럼 생성 중</p>
+            <p className="text-[#6B7280] text-xs font-semibold uppercase tracking-[0.15em]">프로그램 생성 중</p>
             <h2 className="text-[#111318] text-[22px] font-bold leading-snug">
-              {userName}님에게 맞는<br />커리큘럼을 만들고 있어요
+              {userName}님에게 맞는<br />학습 프로그램을 만들고 있어요
             </h2>
           </div>
         </div>
