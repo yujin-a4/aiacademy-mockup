@@ -869,7 +869,7 @@ export default function StatusPage() {
         <IncomingCallScreen instructorName={instName} instructorThumb={instThumb} onAnswer={handleAnswer} onReject={handleReject} />
       )}
       {callState === 'log' && (
-        <CallLogSheet log={callLog} onClose={handleCloseLog} />
+        <CallLogSheet entries={callLog} onClose={handleCloseLog} />
       )}
     </div>
   )
