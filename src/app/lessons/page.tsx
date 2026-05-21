@@ -33,7 +33,18 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 2, emoji: '📘', accentColor: '#2563EB',
+    id: 2, emoji: '📙', accentColor: '#F59E0B',
+    title: '장문 공란 AI 실전', duration: '2주',
+    desc: 'Part 6 — AI 강사와 함께 지문 흐름 속 빈칸 채우기',
+    fullyLocked: false,
+    lessons: [
+      { id: 'l_p6_1', title: 'AI 강사와 실전 풀기', status: 'upcoming', partLabel: 'Part 6', href: '/part6' },
+      { id: 'l_p6_2', title: '이메일·공지 지문 분석', status: 'locked', partLabel: 'Part 6' },
+      { id: 'l_p6_3', title: '문장 삽입 전략 완성', status: 'locked', partLabel: 'Part 6' },
+    ],
+  },
+  {
+    id: 3, emoji: '📘', accentColor: '#2563EB',
     title: '독해 실전 훈련', duration: '4주',
     desc: 'Part 7 — 장문 읽기 이해력 훈련',
     fullyLocked: false,
@@ -45,7 +56,7 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 3, emoji: '🎤', accentColor: '#7C3AED',
+    id: 4, emoji: '🎤', accentColor: '#7C3AED',
     title: '스피킹 도전', duration: '2주',
     desc: 'TOEIC Speaking — 사진 묘사부터 즉흥 말하기까지',
     fullyLocked: false,
@@ -56,10 +67,10 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 4, emoji: '📕', accentColor: '#6B7280',
+    id: 5, emoji: '📕', accentColor: '#6B7280',
     title: '실전 감각 만들기', duration: '5주',
     desc: '시간 내 풀기, 오답 패턴 분석',
-    fullyLocked: true, lockReason: 'Book 1·2·3 완료 후 해제', lessons: [],
+    fullyLocked: true, lockReason: 'Book 1·2·3·4 완료 후 해제', lessons: [],
   },
 ]
 
@@ -371,7 +382,7 @@ export default function LessonsPage() {
               </div>
               <div className="bg-white rounded-2xl px-3.5 py-3 text-center shrink-0 min-w-[68px] relative z-10 shadow-sm">
                 <p className="text-[28px] leading-none mb-1">📚</p>
-                <p className="text-[10px] text-[#374151] font-bold">4 Books</p>
+                <p className="text-[10px] text-[#374151] font-bold">5 Books</p>
               </div>
             </div>
 
