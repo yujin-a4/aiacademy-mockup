@@ -218,20 +218,12 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
                   <p className="text-[#1D4ED8] text-[12px] md:text-[13px] font-bold tracking-wide mb-2">AI 매니저</p>
                   <div className="relative">
                     <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-3.5 py-3 md:px-4 md:py-3.5 shadow-sm">
-                      <p className="text-[#1C1B33] text-[12px] md:text-[12.5px] leading-relaxed min-h-[60px] md:min-h-[72px]">
+                      <p className="text-[#1C1B33] text-[12px] md:text-[12.5px] leading-relaxed">
                         {typedText}
                         {!typingDone && (
                           <span className="inline-block w-0.5 h-[13px] bg-[#2563EB] align-middle ml-0.5 animate-pulse" />
                         )}
                       </p>
-                      {typingDone && (
-                        <div className="mt-2 pt-2 border-t border-[#EFF6FF] animate-fade-in">
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                            목표 달성 예정
-                          </span>
-                        </div>
-                      )}
                     </div>
                     {/* 말풍선 꼬리 — 모바일: 오른쪽 / 데스크톱: 아래 */}
                     <div
