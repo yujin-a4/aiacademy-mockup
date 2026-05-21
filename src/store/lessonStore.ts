@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type LessonScreen = 0 | 1 | 2 | 3 | 4 | 5
+export type LessonScreen = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 interface LessonState {
   currentScreen: LessonScreen
@@ -18,7 +18,7 @@ export const useLessonStore = create<LessonState>((set) => ({
 
   nextScreen: () =>
     set((s) => ({
-      currentScreen: Math.min(s.currentScreen + 1, 5) as LessonScreen,
+      currentScreen: Math.min(s.currentScreen + 1, 6) as LessonScreen,
     })),
 
   goToScreen: (screen) => set({ currentScreen: screen }),

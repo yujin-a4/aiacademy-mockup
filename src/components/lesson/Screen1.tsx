@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
-import ClassroomToolbar from '@/components/classroom/toolbar/ClassroomToolbar'
+import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import InputBar from '@/components/classroom/toolbar/InputBar'
 import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import { useClassroomStore } from '@/store/classroomStore'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { buildTurns, SCREEN1_PROBLEM } from '@/data/lessonScenario'
 import { matchBranch } from '@/lib/matchBranch'
-import { speakTurn, stopCurrentAudio } from '@/lib/tts'
+import { speakTurn, stopCurrentAudio, waitForVideoEnd, notifyVideoEnded } from '@/lib/tts'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 
 type TurnId =
@@ -19,9 +19,10 @@ type TurnId =
 interface Screen1Props {
   onComplete: () => void
   onEnd: () => void
+  onPrev?: () => void
 }
 
-export default function Screen1({ onComplete, onEnd }: Screen1Props) {
+export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
   const persona  = useClassroomStore((s) => s.persona)
   const userName = useOnboardingStore((s) => s.userName) || '민주'
   const TURNS    = buildTurns(userName)
@@ -31,16 +32,20 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
   const [canInput, setCanInput]     = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [speech, setSpeech]         = useState('')
-  const [drawingState, setDrawing]  = useState<DrawingState>({ tool: 'pen', color: '#2277F0' })
+  const [drawingState, setDrawing]  = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
   const [clearCanvas, setClear]     = useState(0)
   const [clearInput, setClearInput] = useState(0)
-  const [selectedChoice, setChoice] = useState<string | null>(null)
-  const [pipListening, setPip]      = useState(false)
+  const [selectedChoice, setChoice]       = useState<string | null>(null)
+  const [pipListening, setPip]            = useState(false)
+  const [warnMessage, setWarnMessage]     = useState('')
+  const [strokeReset, setStrokeReset]     = useState(0)
+  const [xMarkedChoices, setXMarked]      = useState<Set<string>>(new Set())
 
   const startListeningRef = useRef<() => void>(() => {})
   const stopListeningRef  = useRef<() => void>(() => {})
   const mountedRef        = useRef(false)
   const enteredRef        = useRef(false)
+  const xTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* mountedRef: 실제 unmount 시 false, remount(StrictMode 포함) 시 true로 리셋 */
   useEffect(() => {
@@ -58,14 +63,19 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
     setCanInput(false)
     setIsListening(false)
     setClearInput((n) => n + 1)
-    setClear((n) => n + 1)
+    if (xTimerRef.current) { clearTimeout(xTimerRef.current); xTimerRef.current = null }
+    setXMarked(new Set())
 
     /* 대사를 즉시 업데이트 → InstructorPanel 타이핑 즉시 시작 */
     setSpeech(turn.script)
     setPlaying(true)
 
-    /* 오디오는 대사와 동시에 재생 */
-    await speakTurn({ audioSrc: turn.audioSrc, script: turn.script, persona })
+    /* 영상 있으면 영상 끝날 때까지 대기, 없으면 오디오/TTS */
+    if (turn.videoSrc) {
+      await waitForVideoEnd()
+    } else {
+      await speakTurn({ audioSrc: turn.audioSrc, script: turn.script, persona })
+    }
     if (!mountedRef.current) return
 
     setPlaying(false)
@@ -73,8 +83,10 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
 
     if (turn.inputType === 'voice') {
       /* 오디오 컨텍스트 해제 후 마이크 자동 시작 — state 경유 없이 직접 스케줄 */
+      console.log('[Screen1] inputType=voice, scheduling mic start in 300ms for turn:', turnId)
       setTimeout(() => {
         if (!mountedRef.current) return
+        console.log('[Screen1] starting mic now for turn:', turnId)
         startListeningRef.current()
       }, 300)
     }
@@ -90,6 +102,7 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
 
   /* ── 음성 입력 처리 ── */
   const handleVoice = useCallback(async (text: string) => {
+    console.log('[Screen1] handleVoice called, text:', text, 'canInput:', canInput, 'turnId:', currentTurnId)
     if (!canInput) return
     const turn = TURNS[currentTurnId]
     if (turn.inputType !== 'voice') return
@@ -107,16 +120,94 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
   }, [canInput, currentTurnId, TURNS, enterTurn])
 
   /* ── 필기 첫 획 처리 ── */
-  const handleFirstStroke = useCallback(async () => {
+  const handleFirstStroke = useCallback(async (relX: number, relY: number, screenX: number, screenY: number) => {
     const turn = TURNS[currentTurnId]
     if (turn.inputType !== 'draw' || !canInput) return
+
+    /* X 표시 턴: A·C 둘 다 표시해야 통과 */
+    if (turn.drawHint === 'x') {
+      const col      = relX > 0.5 ? 1 : 0
+      const row      = relY > 0.5 ? 1 : 0
+      const markedId = SCREEN1_PROBLEM.choices[row * 2 + col]?.id
+      const required = ['A', 'C']  // 능동태 제거 대상
+
+      if (!markedId || !required.includes(markedId)) {
+        showWarn('다시 생각해봐! 능동태 선택지에 X 표시해 보세요 😊')
+        return
+      }
+
+      /* 유효한 X 획 — set에 추가 */
+      const newMarked = new Set(xMarkedChoices)
+      newMarked.add(markedId)
+      setXMarked(newMarked)
+      if (xTimerRef.current) { clearTimeout(xTimerRef.current); xTimerRef.current = null }
+
+      if (required.every(id => newMarked.has(id))) {
+        /* A·C 둘 다 표시 → 다음 턴 */
+        setCanInput(false)
+        const nextId = turn.onDraw as TurnId | undefined
+        if (nextId) {
+          await new Promise(r => setTimeout(r, 600))
+          await enterTurn(nextId)
+        }
+        return
+      }
+
+      /* 하나만 표시 — 3초 후 힌트 */
+      xTimerRef.current = setTimeout(() => {
+        showHint('하나 더! 틀린 선택지가 하나 더 있어요 😊')
+      }, 3000)
+      return
+    }
+
+    /* underline / circle 턴: 타겟 단어 범위 밖이면 경고 */
+    if ((turn.drawHint === 'underline' || turn.drawHint === 'circle') && turn.drawTargetWordIndices?.length) {
+      const PAD_X = 60
+      const PAD_Y_TOP = 60
+      const PAD_Y_BOT = turn.drawHint === 'underline' ? 80 : 60
+      /* ClassroomLayout이 children을 모바일/데스크탑 두 곳에 렌더링하므로
+         querySelectorAll로 전부 찾은 뒤 실제로 보이는(width > 0) 엘리먼트만 사용 */
+      const els = turn.drawTargetWordIndices.flatMap(idx =>
+        Array.from(document.querySelectorAll(`[data-word-index="${idx}"]`))
+          .filter(el => el.getBoundingClientRect().width > 0)
+      )
+      const hit = els.length === 0 || els.some(el => {
+        const r = el.getBoundingClientRect()
+        return (
+          screenX >= r.left  - PAD_X &&
+          screenX <= r.right + PAD_X &&
+          screenY >= r.top   - PAD_Y_TOP &&
+          screenY <= r.bottom + PAD_Y_BOT
+        )
+      })
+      if (!hit) {
+        const msg = turn.drawHint === 'underline'
+          ? '다시 생각해봐! 주어 부분을 찾아서 밑줄을 그어 보세요 😊'
+          : '다시 생각해봐! 빈칸 뒤 힌트 단어에 동그라미를 쳐 보세요 😊'
+        showWarn(msg)
+        return
+      }
+    }
+
     setCanInput(false)
     const nextId = turn.onDraw as TurnId | undefined
     if (nextId) {
       await new Promise((r) => setTimeout(r, 600))
       await enterTurn(nextId)
     }
-  }, [canInput, currentTurnId, TURNS, enterTurn])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canInput, currentTurnId, TURNS, enterTurn, xMarkedChoices])
+
+  const showWarn = useCallback((msg: string) => {
+    setWarnMessage(msg)
+    setStrokeReset(n => n + 1)
+    setTimeout(() => setWarnMessage(''), 2500)
+  }, [])
+
+  const showHint = useCallback((msg: string) => {
+    setWarnMessage(msg)
+    setTimeout(() => setWarnMessage(''), 3000)
+  }, [])
 
   /* ── 버튼 처리 ── */
   const handleButton = useCallback(async () => {
@@ -130,23 +221,42 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
   }, [canInput, currentTurnId, TURNS, enterTurn, onComplete])
 
   const problem = SCREEN1_PROBLEM
-  const quizVisible   = currentTurnId === 's1_turn6' || currentTurnId === 's1_turn7'
-  const highlightId   = currentTurn.highlightChoiceId ?? null
-  const canAdvanceNow = (currentTurnId === 's1_turn4' || currentTurnId === 's1_turn7') && canInput
-  const pulseAdvance  = currentTurnId === 's1_turn4' && canInput
+  const choicesVisible = currentTurnId === 's1_turn6' || currentTurnId === 's1_turn7'
+  const answerVisible  = currentTurnId === 's1_turn7'
+  const highlightId    = currentTurn.highlightChoiceId ?? null
+  const canAdvanceNow = currentTurnId === 's1_turn7' && canInput
+  const pulseAdvance  = currentTurnId === 's1_turn7' && canInput
 
   return (
+  <>
+    {pulseAdvance && (
+      <style>{`
+        .advance-pulse { animation: advanceRing 1.4s ease-out infinite; }
+        @keyframes advanceRing {
+          0%   { box-shadow: 0 0 0 0 rgba(34,119,240,0.55); }
+          70%  { box-shadow: 0 0 0 10px rgba(34,119,240,0); }
+          100% { box-shadow: 0 0 0 0 rgba(34,119,240,0); }
+        }
+      `}</style>
+    )}
     <ClassroomLayout
       partName="Part 5 수동태"
       totalProblems={5}
       instructorSpeech={speech}
       instructorLoading={false}
       instructorVideoSrc={currentTurn.videoSrc}
+      onInstructorVideoEnd={notifyVideoEnded}
       onEnd={onEnd}
       toolbar={
-        <ClassroomToolbar
+        <LessonToolbar
+          drawing={drawingState}
           onDrawingChange={setDrawing}
           onClearAll={() => setClear((n) => n + 1)}
+          onPrev={onPrev}
+          nextLabel="다음 단계로"
+          onNext={() => { stopCurrentAudio(); onComplete() }}
+          nextEnabled={canAdvanceNow}
+          nextPulse={pulseAdvance}
         />
       }
       onPipMic={() => {
@@ -159,7 +269,7 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
           placeholder={
             !canInput                          ? '강사 설명 듣는 중...' :
             currentTurn.inputType === 'voice'  ? '음성으로 대답해 보세요' :
-            currentTurn.inputType === 'draw'   ? `문장에 ${currentTurn.drawHint === 'underline' ? '밑줄' : '동그라미'}을 그어 보세요` :
+            currentTurn.inputType === 'draw'   ? (currentTurn.drawHint === 'underline' ? '문장에 밑줄을 그어 보세요' : currentTurn.drawHint === 'x' ? '틀린 선택지에 X 표시해 보세요' : '힌트에 동그라미를 쳐 보세요') :
             currentTurn.inputType === 'button' ? '아래 버튼을 눌러주세요' : ''
           }
           clearTrigger={clearInput}
@@ -169,11 +279,7 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
           }}
           onSpeechResult={handleVoice}
           onListeningChange={setIsListening}
-          actions={
-            currentTurn.inputType === 'button' && canInput && currentTurnId !== 's1_turn4'
-              ? [{ label: currentTurn.buttonLabel ?? '다음', onClick: handleButton }]
-              : []
-          }
+          actions={[]}
         />
       }
     >
@@ -182,19 +288,31 @@ export default function Screen1({ onComplete, onEnd }: Screen1Props) {
         drawingState={drawingState}
         onFirstStroke={handleFirstStroke}
         clearCanvas={clearCanvas}
-        quizVisible={quizVisible}
+        strokeReset={strokeReset}
+        choicesVisible={choicesVisible}
+        answerVisible={answerVisible}
         highlightId={highlightId}
         selectedChoice={selectedChoice}
         onChoiceSelect={setChoice}
         drawActive={currentTurn.inputType === 'draw' && canInput}
         drawHint={currentTurn.drawHint}
         turnId={currentTurnId}
-        onNext={handleButton}
-        canAdvance={canAdvanceNow}
-        pulseAdvance={pulseAdvance}
         isListening={isListening}
       />
     </ClassroomLayout>
+    {/* 경고/힌트 토스트 — fixed 위치로 레이아웃 영향 없음 */}
+    {warnMessage && (
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce-once">
+        <div className="bg-orange-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
+            <path d="M9 2L16.5 15H1.5L9 2Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M9 7v4M9 12.5v.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          {warnMessage}
+        </div>
+      </div>
+    )}
+  </>
   )
 }
 
@@ -204,32 +322,30 @@ function ProblemContent({
   drawingState,
   onFirstStroke,
   clearCanvas,
-  quizVisible,
+  strokeReset,
+  choicesVisible,
+  answerVisible,
   highlightId,
   selectedChoice,
   onChoiceSelect,
   drawActive,
   drawHint,
   turnId,
-  onNext,
-  canAdvance,
-  pulseAdvance,
   isListening,
 }: {
   problem: typeof SCREEN1_PROBLEM
   drawingState: DrawingState
-  onFirstStroke: () => void
+  onFirstStroke: (relX: number, relY: number, screenX: number, screenY: number) => void
   clearCanvas: number
-  quizVisible: boolean
+  strokeReset: number
+  choicesVisible: boolean
+  answerVisible: boolean
   highlightId: string | null
   selectedChoice: string | null
   onChoiceSelect: (id: string) => void
   drawActive: boolean
   drawHint?: string
   turnId: TurnId
-  onNext: () => void
-  canAdvance: boolean
-  pulseAdvance?: boolean
   isListening: boolean
 }) {
   return (
@@ -249,7 +365,7 @@ function ProblemContent({
           <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
             <span className="text-sm shrink-0">✏️</span>
             <span className="text-xs font-medium text-amber-700 animate-pulse">
-              {drawHint === 'underline' ? '주어에 밑줄 긋기' : 'by 뒤 동그라미'}
+              {drawHint === 'underline' ? '주어에 밑줄 긋기' : drawHint === 'x' ? '틀린 선택지 2개에 X표시' : '힌트에 동그라미 표시'}
             </span>
           </div>
         ) : isListening ? (
@@ -275,39 +391,42 @@ function ProblemContent({
                 <span
                   className={`inline-block border-b-2 text-center font-semibold transition-colors
                     ${highlightId && selectedChoice === highlightId ? 'border-green-400 text-green-600'
-                    : quizVisible ? 'border-[#2277F0]'
                     : 'border-[#2277F0]'}
                   `}
                   style={{ minWidth: 160 }}
                 >
-                  {quizVisible ? problem.correctAnswer : '\u00a0'}
+                  {answerVisible ? problem.correctAnswer : '\u00a0'}
                 </span>
               </span>
             ) : (
-              <span key={i}>{word} </span>
+              <span key={i} data-word-index={i}>{word} </span>
             )
           )}
         </p>
-        <CanvasOverlay
-          tool={drawingState.tool}
-          color={drawingState.color}
-          onFirstStroke={drawActive ? onFirstStroke : undefined}
-          clearTrigger={clearCanvas}
-        />
+        {/* 문장 위 드로잉 — x 힌트일 때만 선택지로 이동, 나머지는 항상 활성 */}
+        {drawHint !== 'x' && (
+          <CanvasOverlay
+            tool={drawingState.tool}
+            color={drawingState.color}
+            onFirstStroke={drawActive ? onFirstStroke : undefined}
+            clearTrigger={clearCanvas}
+            strokeResetTrigger={strokeReset}
+          />
+        )}
       </div>
 
-      {/* 선택지 — 항상 표시, quiz 단계에서만 인터랙션 활성 */}
-      <div className={`grid grid-cols-2 gap-3 ${!quizVisible ? 'pointer-events-none' : ''}`}>
+      {/* 선택지 — quiz 단계에서만 인터랙션 활성 / X 드로잉 모드에서는 캔버스가 위를 덮음 */}
+      <div className={`relative grid grid-cols-2 gap-3 ${!choicesVisible ? 'pointer-events-none' : ''}`}>
         {problem.choices.map(({ id, text }) => {
-          const isHighlight = quizVisible && id === highlightId
+          const isHighlight = choicesVisible && id === highlightId
           return (
             <button
               key={id}
-              onClick={() => quizVisible && onChoiceSelect(id)}
+              onClick={() => choicesVisible && onChoiceSelect(id)}
               className={`flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all
                 ${isHighlight
                   ? 'border-green-400 bg-green-50'
-                  : quizVisible
+                  : choicesVisible
                   ? 'border-ybm-border bg-white hover:border-[#2277F0]/40 cursor-pointer'
                   : 'border-ybm-border bg-white opacity-50 cursor-default'}
               `}
@@ -326,42 +445,87 @@ function ProblemContent({
             </button>
           )
         })}
+        {/* 선택지 위 드로잉 — drawHint가 'x'일 때 항상 활성 */}
+        {drawHint === 'x' && (
+          <CanvasOverlay
+            tool={drawingState.tool}
+            color={drawingState.color}
+            onFirstStroke={drawActive ? onFirstStroke : undefined}
+            clearTrigger={clearCanvas}
+            strokeResetTrigger={strokeReset}
+          />
+        )}
       </div>
 
       {/* 하단 안내 */}
-      {quizVisible && (
+      {answerVisible && (
         <p className="text-ybm-text-sub text-xs text-center">정답이 하이라이트 되어 있어요.</p>
       )}
 
-      {/* 하단 다음 단계 버튼 */}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <span className="text-xs text-ybm-text-sub font-medium">1단계 · 문제 유형 학습</span>
+    </div>
+  )
+}
+
+/* ── 공용 레슨 툴바 ── */
+export function LessonToolbar({
+  drawing,
+  onDrawingChange,
+  onClearAll,
+  onPrev,
+  onNext,
+  nextLabel = '다음',
+  nextEnabled = true,
+  nextPulse = false,
+}: {
+  drawing: import('@/components/classroom/toolbar/DrawingToolbar').DrawingState
+  onDrawingChange: (s: import('@/components/classroom/toolbar/DrawingToolbar').DrawingState) => void
+  onClearAll: () => void
+  onPrev?: () => void
+  onNext?: () => void
+  nextLabel?: string
+  nextEnabled?: boolean
+  nextPulse?: boolean
+}) {
+  return (
+    <div className="flex items-center px-4 py-3 gap-2">
+      {/* 필기도구 */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <DrawingToolbar onChange={onDrawingChange} onClearAll={onClearAll} />
+      </div>
+
+      <div className="h-5 w-px bg-ybm-border shrink-0" />
+
+      {/* 이전 / 다음 */}
+      <div className="flex items-center gap-1 shrink-0">
         <button
-          onClick={onNext}
-          disabled={!canAdvance}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all
-            ${canAdvance
-              ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-95 shadow-sm'
-              : 'border border-ybm-border text-ybm-text-sub bg-ybm-bg cursor-not-allowed opacity-50'}
-            ${pulseAdvance ? 'advance-pulse' : ''}
+          onClick={onPrev}
+          disabled={!onPrev}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+            ${!onPrev
+              ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
+              : 'text-ybm-text hover:bg-ybm-bg active:scale-95'}
           `}
         >
-          다음 단계로
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 3L4 7l5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
+          이전
         </button>
-        {pulseAdvance && (
-          <style>{`
-            .advance-pulse {
-              animation: advanceRing 1.4s ease-out infinite;
-            }
-            @keyframes advanceRing {
-              0%   { box-shadow: 0 0 0 0 rgba(34,119,240,0.55); }
-              70%  { box-shadow: 0 0 0 10px rgba(34,119,240,0); }
-              100% { box-shadow: 0 0 0 0 rgba(34,119,240,0); }
-            }
-          `}</style>
+
+        {onNext && (
+          <button
+            onClick={onNext}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+              ${nextEnabled
+                ? `bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm${nextPulse ? ' advance-pulse' : ''}`
+                : 'text-ybm-text-sub border border-ybm-border bg-ybm-bg hover:bg-gray-100'}
+            `}
+          >
+            {nextLabel}
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M5 3l5 4-5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         )}
       </div>
     </div>

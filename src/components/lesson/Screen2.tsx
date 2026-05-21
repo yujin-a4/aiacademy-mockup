@@ -2,204 +2,143 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
-import ClassroomToolbar from '@/components/classroom/toolbar/ClassroomToolbar'
+import { LessonToolbar } from './Screen1'
 import InputBar from '@/components/classroom/toolbar/InputBar'
 import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import { useClassroomStore } from '@/store/classroomStore'
-import { useOnboardingStore } from '@/store/onboardingStore'
-import { buildTurns, SCREEN2_PROBLEM } from '@/data/lessonScenario'
-import { matchBranch } from '@/lib/matchBranch'
+import { useLessonStore } from '@/store/lessonStore'
+import { SCREEN3_PROBLEMS } from '@/data/lessonScenario'
 import { speakAndWait, stopCurrentAudio } from '@/lib/tts'
 import { useCountdownTimer } from '@/hooks/useCountdownTimer'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 
-type TurnId =
-  | 's2_start' | 's2_timer_hint' | 's2_reason' | 's2_reason_wrong'
-  | 's2_branch_a' | 's2_branch_b' | 's2_common' | 's2_voice1' | 's2_conclusion'
+const TIMER_SECONDS = 20
 
 interface Screen2Props {
   onComplete: () => void
   onEnd: () => void
+  onPrev?: () => void
 }
 
-export default function Screen2({ onComplete, onEnd }: Screen2Props) {
-  const persona  = useClassroomStore((s) => s.persona)
-  const userName = useOnboardingStore((s) => s.userName) || '민주'
-  const TURNS    = buildTurns(userName)
+export default function Screen2({ onComplete, onEnd, onPrev }: Screen2Props) {
+  const persona           = useClassroomStore((s) => s.persona)
+  const setPracticeResult = useLessonStore((s) => s.setPracticeResult)
 
-  const [currentTurnId, setTurnId]   = useState<TurnId>('s2_start')
-  const [isPlaying, setPlaying]      = useState(false)
-  const [canInput, setCanInput]      = useState(false)
-  const [isListening, setIsListening]= useState(false)
-  const [speech, setSpeech]          = useState('')
-  const [drawingState, setDrawing]   = useState<DrawingState>({ tool: 'pen', color: '#2277F0' })
-  const [clearCanvas, setClear]      = useState(0)
-  const [clearInput, setClearInput]  = useState(0)
-  const [selectedChoice, setChoice]  = useState<string | null>(null)
-  const [isCorrect, setIsCorrect]    = useState<boolean | null>(null)
-  const [pipListening, setPip]       = useState(false)
-  const [pendingListen, setPendingListen] = useState(false)
+  const [problemIdx, setProblemIdx] = useState(0)
+  const [answers, setAnswers]       = useState<(string | null)[]>([null, null, null])
+  const [drawingState, setDrawing]  = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
+  const [clearCanvas, setClear]     = useState(0)
+  const [timeOver, setTimeOver]     = useState(false)
+  const [panelOpen, setPanelOpen]   = useState(false)
+  const [speech, setSpeech]         = useState('문제 3개를 풀어봐.')
+  const [isPlaying, setIsPlaying]   = useState(false)
+  const feedbackDoneRef = useRef(false)
 
-  const startListeningRef = useRef<() => void>(() => {})
-  const stopListeningRef  = useRef<() => void>(() => {})
-  const mountedRef        = useRef(true)
-  useEffect(() => { return () => { mountedRef.current = false } }, [])
+  const timer = useCountdownTimer(TIMER_SECONDS, () => setTimeOver(true))
 
-  const currentTurn = TURNS[currentTurnId]
-
-  const problem = SCREEN2_PROBLEM
-
-  /* 타이머: s2_start 단계에서만 동작 */
-  const handleTimerExpire = useCallback(async () => {
-    if (currentTurnId !== 's2_start') return
-    await enterTurn('s2_timer_hint')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTurnId])
-
-  const timer = useCountdownTimer(problem.timerSeconds, handleTimerExpire)
-
-  const enterTurn = useCallback(async (turnId: TurnId) => {
-    if (!mountedRef.current) return
-    const turn = TURNS[turnId]
-    setTurnId(turnId)
-    setCanInput(false)
-    setClearInput((n) => n + 1)
-
-    if (!turn.script) {
-      setCanInput(true)
-      if (turnId === 's2_start') timer.start()
-      return
-    }
-
-    /* 대사 즉시 표시 → 타이핑 애니메이션 즉시 시작 */
-    setSpeech(turn.script)
-    setPlaying(true)
-    /* React 렌더링 완료 후 오디오 시작 */
-    await new Promise<void>((r) => setTimeout(r, 0))
-    await speakAndWait(turn.script, persona)
-    if (!mountedRef.current) return
-    setPlaying(false)
-    setCanInput(true)
-
-    if (turn.inputType === 'voice') {
-      setPendingListen(true)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [TURNS, persona, timer])
-
+  /* 문제 이동 시 타이머 리셋 */
   useEffect(() => {
-    enterTurn('s2_start')
+    setTimeOver(false)
+    timer.start()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [problemIdx])
 
-  /* pendingListen → React 재렌더 완료 후 실제 마이크 시작 */
+  const problem   = SCREEN3_PROBLEMS[problemIdx]
+  const correctId = problem.choices.find((c) => c.text === problem.correctAnswer)?.id ?? ''
+  const selected  = answers[problemIdx]
+
+  const results = answers.map((a, i) => {
+    if (a === null) return null
+    const cid = SCREEN3_PROBLEMS[i].choices.find((c) => c.text === SCREEN3_PROBLEMS[i].correctAnswer)?.id
+    return a === cid
+  })
+
+  const allAnswered = answers.every((a) => a !== null)
+
+  /* 3문제 완료 → 패널 즉시 오픈 후 LLM 총평 생성 + TTS */
   useEffect(() => {
-    if (!pendingListen || !canInput) return
-    setPendingListen(false)
-    const timer2 = setTimeout(() => {
-      if (!mountedRef.current) return
-      setIsListening(true)
-      startListeningRef.current()
-    }, 300)
-    return () => clearTimeout(timer2)
-  }, [pendingListen, canInput])
+    if (!allAnswered || feedbackDoneRef.current) return
+    feedbackDoneRef.current = true
 
-  /* 선택지 선택 */
-  const handleChoiceSelect = useCallback(async (choiceId: string) => {
-    if (currentTurnId !== 's2_start' || selectedChoice) return
+    const currentResults = answers.map((a, i) => {
+      const cid = SCREEN3_PROBLEMS[i].choices.find((c) => c.text === SCREEN3_PROBLEMS[i].correctAnswer)?.id
+      return a === cid
+    })
+    const correctCount = currentResults.filter(Boolean).length
+    const wrongNums    = SCREEN3_PROBLEMS
+      .filter((_, i) => currentResults[i] === false)
+      .map((p) => p.number)
+      .join(', ')
+
+    const fallback = `3문제 중에 ${correctCount}개 맞혔네? ${correctCount === 3 ? '완벽해! 다음 단계로 가자.' : '틀린 문제 다시 봐보자.'}`
+
+    /* 패널을 즉시 오픈 */
+    setSpeech(fallback)
+    setPanelOpen(true)
+    setIsPlaying(true)
+
+    const prompt = `학생이 토익 Part 5 수동태 문제 3개를 풀었어. ${correctCount}개 맞혔고 틀린 문제는 ${wrongNums || '없음'}이야. 반드시 "3문제 중에 ${correctCount}개 맞혔네?"로 시작해서, 틀린 문제가 있으면 살짝 언급하고, 전체 총평을 친근하고 간결하게 2문장 이내로 말해줘. 한국어로.`
+
+    fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: prompt, persona: 'park', history: [] }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const reply = (data.dialogue as string) || fallback
+        setSpeech(reply)
+        return speakAndWait(reply, persona)
+      })
+      .catch(() => speakAndWait(fallback, persona))
+      .finally(() => setIsPlaying(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAnswered])
+
+  const handleChoiceSelect = useCallback((choiceId: string) => {
+    if (answers[problemIdx] !== null) return
     timer.stop()
-    setChoice(choiceId)
-    const correct = choiceId === problem.choices.find((c) => c.text === problem.correctAnswer)?.id
-    setIsCorrect(correct)
-    const nextId: TurnId = correct ? 's2_reason' : 's2_reason_wrong'
-    await enterTurn(nextId)
-  }, [currentTurnId, selectedChoice, timer, problem, enterTurn])
-
-  /* 음성 입력 */
-  const handleVoice = useCallback(async (text: string) => {
-    if (!canInput || currentTurn.inputType !== 'voice') return
-    stopListeningRef.current()
-    setIsListening(false)
-    setCanInput(false)
-    const nextId = (
-      matchBranch(text, currentTurn.voiceBranches ?? []) ??
-      currentTurn.defaultNextTurnId
-    ) as TurnId | undefined
-    if (nextId) await enterTurn(nextId)
-  }, [canInput, currentTurn, enterTurn])
-
-  /* 필기 감지 */
-  const handleFirstStroke = useCallback(async () => {
-    if (currentTurn.inputType !== 'draw' || !canInput) return
-    setCanInput(false)
-    const nextId = currentTurn.onDraw as TurnId | undefined
-    if (nextId) {
-      await new Promise((r) => setTimeout(r, 600))
-      await enterTurn(nextId)
-    }
-  }, [canInput, currentTurn, enterTurn])
-
-  /* 버튼 처리 */
-  const handleButton = useCallback(async () => {
-    if (!canInput && currentTurn.inputType !== 'button') return
-    if (currentTurn.onButton === 'NEXT_SCREEN') {
-      stopCurrentAudio(); onComplete()
-    } else if (currentTurn.onButton) {
-      await enterTurn(currentTurn.onButton as TurnId)
-    }
-  }, [canInput, currentTurn, enterTurn, onComplete])
-
-  const highlightId = currentTurn.highlightChoiceId ?? null
-  const showChoices = currentTurnId === 's2_start' || currentTurnId === 's2_timer_hint'
-    || currentTurnId === 's2_conclusion'
-  const drawActive  = currentTurn.inputType === 'draw' && canInput
-  const correctId   = problem.choices.find((c) => c.text === problem.correctAnswer)?.id ?? ''
+    const correct = choiceId === correctId
+    const newAnswers = [...answers]
+    newAnswers[problemIdx] = choiceId
+    setAnswers(newAnswers)
+    setPracticeResult(problemIdx, correct)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, problemIdx, correctId, setPracticeResult])
 
   return (
     <ClassroomLayout
       partName="Part 5 수동태"
       totalProblems={5}
-      instructorSpeech={speech || `15초 안에 답을 선택해보세요.`}
-      instructorLoading={false}
-      instructorVideoSrc={currentTurn.videoSrc}
+      instructorSpeech={speech}
+      instructorLoading={isPlaying}
+      panelOpen={panelOpen}
+      onPanelToggle={() => setPanelOpen((v) => !v)}
+      disablePip={true}
       onEnd={onEnd}
       toolbar={
-        <ClassroomToolbar
+        <LessonToolbar
+          drawing={drawingState}
           onDrawingChange={setDrawing}
           onClearAll={() => setClear((n) => n + 1)}
+          onPrev={onPrev}
+          onNext={() => { stopCurrentAudio(); onComplete() }}
+          nextEnabled={allAnswered}
+          nextLabel="다음 단계로"
         />
       }
-      onPipMic={() => {
-        if (pipListening) { stopListeningRef.current(); setPip(false) }
-        else              { startListeningRef.current(); setPip(true) }
-      }}
-      pipListening={pipListening}
       instructorInput={
         <InputBar
-          placeholder={
-            !canInput                         ? '강사 설명 듣는 중...' :
-            currentTurn.inputType === 'voice' ? '이유를 음성으로 설명해 보세요' :
-            currentTurn.inputType === 'draw'  ? '문장에 표시해 보세요' :
-            currentTurn.inputType === 'button'? '아래 버튼을 눌러주세요' :
-            showChoices                        ? '선택지를 골라주세요' : ''
-          }
-          clearTrigger={clearInput}
-          onReadyToListen={(start, stop) => {
-            startListeningRef.current = start
-            stopListeningRef.current  = stop
-          }}
-          onSpeechResult={handleVoice}
-          actions={
-            currentTurn.inputType === 'button' && canInput
-              ? [{ label: currentTurn.buttonLabel ?? '다음', onClick: handleButton }]
-              : []
-          }
+          placeholder="선택지를 골라주세요"
+          clearTrigger={0}
+          onReadyToListen={() => {}}
+          actions={[]}
         />
       }
     >
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-3 h-full">
 
-        {/* 헤더 */}
+        {/* 헤더 + Q 탭 */}
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#2277F0]">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -207,57 +146,73 @@ export default function Screen2({ onComplete, onEnd }: Screen2Props) {
               <path d="M6 6h6M6 9h6M6 12h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <span className="font-bold text-base text-[#1A2B4B]">{problem.partLabel}</span>
-          <span className="inline-flex items-center justify-center font-bold text-sm px-3 py-1 rounded-lg bg-[#D6EAFF] text-[#2277F0]">Q1</span>
-          {currentTurn.inputType === 'draw' && canInput ? (
-            <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
-              <span className="text-sm shrink-0">✏️</span>
-              <span className="text-xs font-medium text-amber-700 animate-pulse">문장에 직접 표시</span>
-            </div>
-          ) : isListening ? (
-            <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2277F0]/8 border border-[#2277F0]/20">
-              <div className="flex items-center gap-[3px] shrink-0">
-                {[0,1,2,3].map((i) => (
-                  <span key={i} className="inline-block w-[3px] rounded-full bg-[#2277F0]"
-                    style={{ height: 14, animation: `micBar2 ${0.5+i*0.1}s ease-in-out ${i*80}ms infinite alternate` }} />
-                ))}
-              </div>
-              <span className="text-xs font-medium text-[#2277F0]">마이크 켜짐</span>
-              <style>{`@keyframes micBar2{from{transform:scaleY(0.3)}to{transform:scaleY(1)}}`}</style>
-            </div>
-          ) : (
-            <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-600">750점 모드</span>
-          )}
+          <span className="font-bold text-base text-[#1A2B4B]">실전 확인 문제</span>
+
+          {/* Q1 / Q2 / Q3 탭 */}
+          <div className="ml-auto flex items-center gap-1.5">
+            {SCREEN3_PROBLEMS.map((p, i) => {
+              const r = results[i]
+              const isCurrent = i === problemIdx
+              return (
+                <button
+                  key={p.number}
+                  onClick={() => setProblemIdx(i)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border
+                    ${isCurrent
+                      ? 'bg-[#2277F0] text-white border-[#2277F0]'
+                      : r === true  ? 'bg-green-50 text-green-600 border-green-300'
+                      : r === false ? 'bg-red-50 text-red-500 border-red-300'
+                      : 'bg-ybm-bg text-ybm-text-sub border-ybm-border'}
+                  `}
+                >
+                  {p.number}
+                  {r === true  && <span className="text-green-500">✓</span>}
+                  {r === false && <span className="text-red-400">✗</span>}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* 타이머 바 */}
-        {currentTurnId === 's2_start' && timer.running && (
+        {!selected && (
           <div className="flex items-center gap-3">
             <div className="flex-1 h-2 bg-ybm-border rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${timer.remaining <= 5 ? 'bg-red-400' : 'bg-[#2277F0]'}`}
-                style={{ width: `${(timer.remaining / problem.timerSeconds) * 100}%`, transition: 'width 1s linear' }}
+                className={`h-full rounded-full ${timeOver || timer.remaining <= 5 ? 'bg-red-400' : 'bg-[#2277F0]'}`}
+                style={{ width: timeOver ? '0%' : `${(timer.remaining / TIMER_SECONDS) * 100}%`, transition: 'width 1s linear' }}
               />
             </div>
-            <span className={`text-sm font-bold tabular-nums min-w-[2rem] text-right ${timer.remaining <= 5 ? 'text-red-500' : 'text-[#2277F0]'}`}>
-              {timer.remaining}s
-            </span>
+            {timeOver ? (
+              <span className="text-xs font-bold text-red-500 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                시간 초과
+              </span>
+            ) : (
+              <span className={`text-sm font-bold tabular-nums min-w-[2rem] text-right ${timer.remaining <= 5 ? 'text-red-500' : 'text-[#2277F0]'}`}>
+                {timer.remaining}s
+              </span>
+            )}
           </div>
         )}
 
         {/* 문제 카드 */}
-        <div className="ybm-card p-6 relative overflow-hidden select-none flex-1" style={{ minHeight: 140 }}>
+        <div className="ybm-card px-6 pt-4 pb-5 relative overflow-hidden select-none flex-1" style={{ minHeight: 140 }}>
+          <span className="inline-flex items-center justify-center font-bold text-sm px-3 py-1 rounded-lg bg-[#D6EAFF] text-[#2277F0] mb-3">
+            {problem.number}
+          </span>
           <p className="text-ybm-text text-xl lg:text-2xl font-medium leading-[2.6] tracking-wide">
             {problem.words.map((word, i) =>
               i === problem.blankIndex ? (
                 <span key={i} className="inline-block align-bottom mx-1">
                   <span
                     className={`inline-block border-b-2 text-center font-semibold transition-colors
-                      ${highlightId ? 'border-green-400 text-green-600' : 'border-[#2277F0]'}
+                      ${selected && results[problemIdx] === true  ? 'border-green-400 text-green-600'
+                      : selected && results[problemIdx] === false ? 'border-red-400 text-red-600'
+                      : 'border-[#2277F0]'}
                     `}
                     style={{ minWidth: 160 }}
                   >
-                    {highlightId ? problem.correctAnswer : '\u00a0'}
+                    {selected ? problem.correctAnswer : ' '}
                   </span>
                 </span>
               ) : (
@@ -265,60 +220,85 @@ export default function Screen2({ onComplete, onEnd }: Screen2Props) {
               )
             )}
           </p>
-          <CanvasOverlay
-            tool={drawingState.tool}
-            color={drawingState.color}
-            onFirstStroke={drawActive ? handleFirstStroke : undefined}
-            clearTrigger={clearCanvas}
-          />
+          <CanvasOverlay tool={drawingState.tool} color={drawingState.color} clearTrigger={clearCanvas} />
         </div>
 
         {/* 선택지 */}
-        {showChoices && (
-          <div className="grid grid-cols-2 gap-3">
-            {problem.choices.map(({ id, text }) => {
-              const isSel = selectedChoice === id
-              const isCorrectC = id === correctId
-              const showResult = selectedChoice !== null
+        <div className="grid grid-cols-2 gap-2.5">
+          {problem.choices.map(({ id, text }) => {
+            const isSel      = selected === id
+            const isCorr     = id === correctId
+            const showResult = selected !== null
+            return (
+              <button
+                key={id}
+                onClick={() => !selected && handleChoiceSelect(id)}
+                disabled={!!selected}
+                className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all
+                  ${!selected
+                    ? 'border-ybm-border bg-white hover:border-[#2277F0]/50 cursor-pointer active:scale-[0.98]'
+                    : isSel && isCorr      ? 'border-green-400 bg-green-50'
+                    : isSel && !isCorr     ? 'border-red-400 bg-red-50'
+                    : showResult && isCorr ? 'border-green-300 bg-green-50/40'
+                    : 'border-ybm-border bg-white opacity-40'}
+                `}
+              >
+                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0
+                  ${isSel && isCorr      ? 'bg-green-400 text-white'
+                  : isSel && !isCorr     ? 'bg-red-400 text-white'
+                  : showResult && isCorr ? 'bg-green-300 text-white'
+                  : 'bg-ybm-bg text-ybm-text-sub'}
+                `}>{id}</span>
+                <span className={`text-sm font-medium flex-1
+                  ${isSel && isCorr      ? 'text-green-700'
+                  : isSel && !isCorr     ? 'text-red-600'
+                  : showResult && isCorr ? 'text-green-600'
+                  : 'text-ybm-text'}
+                `}>{text}</span>
+              </button>
+            )
+          })}
+        </div>
 
-              return (
-                <button
-                  key={id}
-                  onClick={() => !selectedChoice && handleChoiceSelect(id)}
-                  disabled={!!selectedChoice}
-                  className={`flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all
-                    ${!selectedChoice
-                      ? 'border-ybm-border bg-white hover:border-[#2277F0]/50 cursor-pointer'
-                      : isSel && isCorrectC   ? 'border-green-400 bg-green-50'
-                      : isSel && !isCorrectC  ? 'border-red-400 bg-red-50'
-                      : showResult && isCorrectC ? 'border-green-300 bg-green-50/40'
-                      : 'border-ybm-border bg-white opacity-40'}
-                  `}
-                >
-                  <span className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0
-                    ${isSel && isCorrectC  ? 'bg-green-400 text-white'
-                    : isSel && !isCorrectC ? 'bg-red-400 text-white'
-                    : showResult && isCorrectC ? 'bg-green-300 text-white'
-                    : 'bg-ybm-bg text-ybm-text-sub'}
-                  `}>{id}</span>
-                  <span className={`text-base font-medium flex-1
-                    ${isSel && isCorrectC  ? 'text-green-700'
-                    : isSel && !isCorrectC ? 'text-red-600'
-                    : showResult && isCorrectC ? 'text-green-600'
-                    : 'text-ybm-text'}
-                  `}>{text}</span>
-                </button>
-              )
-            })}
+        {/* 해설 */}
+        {selected && (
+          <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2
+            ${results[problemIdx] ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
+          `}>
+            <span className="shrink-0 text-base">{results[problemIdx] ? '✅' : '❌'}</span>
+            <div>
+              <p className={`font-bold text-xs mb-0.5 ${results[problemIdx] ? 'text-green-700' : 'text-red-600'}`}>
+                {results[problemIdx] ? '정답!' : `오답 — 정답: ${problem.correctAnswer}`}
+              </p>
+              <p className="text-ybm-text-sub leading-relaxed">{problem.explanation}</p>
+            </div>
           </div>
         )}
 
-        <p className="text-ybm-text-sub text-xs text-center">
-          {currentTurnId === 's2_start' ? '15초 안에 선택해 보세요.'
-          : currentTurn.inputType === 'voice' ? '음성으로 이유를 설명해 보세요.'
-          : currentTurn.inputType === 'draw'  ? '문장에 직접 표시해 보세요.'
-          : isCorrect !== null ? (isCorrect ? '정답이에요!' : '오답이에요. 근거를 확인해봐요.') : ''}
-        </p>
+        {/* 이전 / 다음 문제 버튼 */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            onClick={() => setProblemIdx((i) => Math.max(0, i - 1))}
+            disabled={problemIdx === 0}
+            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-colors
+              ${problemIdx === 0
+                ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
+                : 'text-[#2277F0] hover:bg-[#D6EAFF]'}`}
+          >
+            ← 이전 문제
+          </button>
+          <button
+            onClick={() => setProblemIdx((i) => Math.min(SCREEN3_PROBLEMS.length - 1, i + 1))}
+            disabled={problemIdx === SCREEN3_PROBLEMS.length - 1}
+            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-colors
+              ${problemIdx === SCREEN3_PROBLEMS.length - 1
+                ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
+                : 'text-[#2277F0] hover:bg-[#D6EAFF]'}`}
+          >
+            다음 문제 →
+          </button>
+        </div>
+
       </div>
     </ClassroomLayout>
   )
