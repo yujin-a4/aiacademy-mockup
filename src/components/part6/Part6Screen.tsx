@@ -139,7 +139,7 @@ export default function Part6Screen({ onEnd }: Props) {
 
       {/* Top nav */}
       <header className="shrink-0 bg-white border-b border-ybm-border h-14 flex items-center px-4 gap-3">
-        <button onClick={() => router.push('/')} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
+        <button onClick={() => router.push('/lessons')} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12 16l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

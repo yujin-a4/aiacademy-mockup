@@ -246,7 +246,7 @@ function OjjDashboard() {
                       style={{ borderTop: '7px solid transparent', borderBottom: '7px solid transparent', borderRight: '7px solid white' }} />
                   </div>
                 </div>
-                <a href="https://aiacademy-classroom.vercel.app/"
+                <a href="/part5"
                   className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl font-bold text-[13px] transition-colors shadow-md shadow-[#2563EB]/25 active:scale-[0.98]">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   1:1 학습 시작하기
@@ -724,7 +724,7 @@ function RegularDashboard() {
                     </p>
                   </div>
                   <a
-                    href="https://aiacademy-classroom.vercel.app/"
+                    href="/part5"
                     className="self-start flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-7 py-3 rounded-xl font-black text-[14px] transition-colors shadow-lg shadow-[#2563EB]/25 active:scale-[0.98]"
                   >
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
