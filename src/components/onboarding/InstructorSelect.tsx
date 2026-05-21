@@ -8,6 +8,7 @@ const INSTRUCTORS = [
     name: '박혜원',
     tag: '#단기집중형',
     video: '/video/video-park.mp4',
+    videoJiyun: '/video/video-park2.mp4',
     thumbnail: '/image_reference/park-2.jpg',
     badge: '단기 목표 전문',
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
@@ -45,6 +46,7 @@ const INSTRUCTORS = [
     name: '장연지',
     tag: '#꼼꼼관리형',
     video: '/video/video-jang.mp4',
+    videoJiyun: '/video/video-jang2.mp4',
     thumbnail: '/image_reference/jang.png',
     badge: '꼼꼼 관리형',
     desc: '친근하고 꼼꼼한 코칭으로 기초 개념부터 탄탄하게 다져주는 파트너입니다.',
@@ -82,6 +84,7 @@ const INSTRUCTORS = [
     name: '김토익',
     tag: '#균형코칭형',
     video: '/video/video-kim.mp4',
+    videoJiyun: '/video/video-kim2.mp4',
     thumbnail: '/image_reference/kim.png',
     badge: '균형 코칭형',
     desc: '바쁜 일상 속에서도 현실적인 목표와 가장 효율적인 가성비 전략을 제공합니다.',
@@ -119,6 +122,7 @@ const INSTRUCTORS = [
     name: '정은순',
     tag: '#감성멘토형',
     video: '/video/video-jung.mp4',
+    videoJiyun: '/video/video-jung2.mp4',
     thumbnail: '/image_reference/jung.png',
     badge: '감성 멘토형',
     desc: '공감과 격려로 학습 동기를 꾸준히 유지시켜주는 따뜻한 멘토입니다.',
@@ -156,6 +160,7 @@ const INSTRUCTORS = [
     name: '이인호',
     tag: '#데이터기반형',
     video: '/video/video-lee.mp4',
+    videoJiyun: '/video/video-lee2.mp4',
     thumbnail: '/image_reference/lee.png',
     badge: '데이터 기반형',
     desc: '출제 패턴 분석과 통계 기반 전략으로 최단 경로를 설계하는 전략가입니다.',
@@ -434,11 +439,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
           </button>
         )}
         {/* Header */}
-        <div className="text-center pt-12 pb-5 px-6">
-          <h1 className="text-[#111318] text-[20px] font-bold leading-snug">
-            {userName}님에게 추천하는<br />AI 강사를 선택해 주세요.
+        <div className="pt-12 pb-4 px-5">
+          <h1 className="text-[#111318] text-[18px] font-bold leading-snug text-center">
+            AI 추천 강사를 선택해 주세요.
           </h1>
-          <p className="text-[#6B7280] text-[13px] mt-2">카드를 좌우로 넘겨보세요.</p>
+          <p className="text-[#6B7280] text-[13px] mt-1 text-center">카드를 좌우로 넘겨보세요.</p>
         </div>
 
         {/* Card Slider */}
@@ -460,7 +465,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             const scale = isActive ? 1 : absOffset === 1 ? 0.85 : 0.70
             const opacity = isActive ? 1 : absOffset === 1 ? 0.65 : 0.40
             const blur = isActive ? 'none' : absOffset === 1 ? 'blur(1.5px)' : 'blur(2.5px)'
-            const showVideo = !!inst.video && !videoErrors[inst.id]
+            const videoSrc = (userName === '지윤' && inst.videoJiyun) ? inst.videoJiyun : inst.video
+            const showVideo = !!videoSrc && !videoErrors[inst.id]
 
             return (
               <div
@@ -491,7 +497,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                   {showVideo ? (
                     <video
                       ref={el => { videoRefs.current[i] = el }}
-                      src={inst.video}
+                      src={videoSrc}
                       poster={inst.thumbnail}
                       playsInline
                       loop
