@@ -293,7 +293,7 @@ function AiTutorBar() {
             <p className="text-[#9CA3AF] text-[11px]">막힌 문제 바로 물어보세요</p>
           </div>
           <button
-            onClick={() => router.push('/part5')}
+            onClick={() => router.push('/part6')}
             className="shrink-0 bg-[#2563EB] text-white hover:bg-[#1D4ED8] text-[12px] font-bold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
           >
             입장하기
