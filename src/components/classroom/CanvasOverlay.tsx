@@ -224,7 +224,7 @@ const CanvasOverlay = forwardRef<HTMLCanvasElement, CanvasOverlayProps>(function
     if (isDrawing.current) {
       const dx = lastPos.current.x - strokeStartPos.current.x
       const dy = lastPos.current.y - strokeStartPos.current.y
-      const isTap = Math.sqrt(dx * dx + dy * dy) < 5
+      const isTap = Math.sqrt(dx * dx + dy * dy) < 12
 
       if (isTap) {
         /* 탭 → 캔버스 아래 요소에 클릭 전달 */

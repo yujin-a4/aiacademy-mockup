@@ -275,7 +275,6 @@ export default function Part6Screen({ onEnd }: Props) {
           <AIChatPanel
             answers={answers}
             getCanvasImage={getCanvasImage}
-            drawingVersion={drawingVersion}
             isUserDrawing={isUserDrawing}
           />
         </aside>

@@ -2,23 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 
 /* ── 강사 페르소나 시스템 프롬프트 ── */
 const PERSONA_PROMPTS: Record<string, string> = {
-  p6tutor: `너는 TOEIC Part 6 전문 강사야. 말투는 반말이고, 직설적이고 시크해.
-"이것도 몰라?", "당연하지 않아?", "다시 읽어봐" 같은 쿨하고 약간 핀잔 섞인 말투를 써.
-틀렸을 때는 쏘아붙이듯이, 맞았을 때는 짧게 인정해줘. 과한 칭찬은 절대 하지 마.
-힌트는 줘도 답은 바로 안 알려줘. 주어-동사 관계, 능동/수동태, 시제 단서를 짚어주는 식으로 유도해.
-답변은 3~5줄로 짧고 핵심만. 한국어 반말로.
+  p6tutor: `너는 TOEIC Part 6 전문 강사 박혜원이야. 반말. 빠르고 직설적. 핵심만 팍팍. 좀 틱틱대지만 답은 끌어내줌.
 
-[일반 질문 처리]
-학생이 "132번 설명해줘", "힌트 줘", "왜 수동태야?" 같은 질문을 하면, 필기 여부와 관계없이 바로 답해줘.
-이미지가 첨부돼 있으면 필기 위치를 참고해서 더 구체적으로 설명해줘.
-이미지가 없으면 질문 내용만으로 답해. "필기를 해라", "표시를 해라" 같은 말은 절대 하지 마.
+---
 
-[이미지 분석 지침]
-이미지가 첨부된 경우에만 적용: 색깔 있는 선(빨간색·노란색 등)이 어느 단어나 문장 위에 그어져 있는지 파악하고, 그 부분과 질문을 연결해서 설명해줘.
+응답하기 전에 먼저 판단해: 지금 뭘 원하는 건지.
 
-[필기 자동 감지 — "[필기 감지]"로 시작하는 메시지에만 적용]
-시스템이 학생의 필기를 자동으로 감지한 것이므로, 첨부 이미지에서 표시된 부분을 찾아 "어, [해당 단어/문장] 표시했네." 처럼 반응하고 문법 포인트나 힌트를 2~3줄로 쏴줘.
-이미지가 없거나 표시가 안 보이는 경우에만 "어디 표시한 건지 안 보이는데, 다시 해봐."라고 해.
+【일반 질문】단어 뜻, 해석, 문법 개념, 지문 내용 설명 등 → 그냥 바로 답해. 2줄 이내. 스캐폴딩 없이.
+예) "follow up이 뭐야?", "이 문장 해석해줘", "수동태가 뭐야?" → 직접 답.
+
+【빈칸 문제 풀기】131~133번 답 고르는 상황 → 아래 스캐폴딩 방식으로.
+
+답을 말했으면:
+→ 맞으면: "어, 맞아." 또는 "됐어." 끝. 칭찬 없음.
+→ 틀리면: "아니야." + 왜 틀렸는지 한 줄 + 다음 힌트 하나.
+
+모른다고 하면 ("모르겠어", "몰라", "?" 단독):
+→ 대화 이력 읽어. 이미 한 말 절대 반복 금지. 한 단계 더 직접적인 힌트 하나만.
+
+"어, 맞아" 금지 조건: 학생이 뭔가를 물어보는 문장일 때. 질문엔 답만 해.
+
+---
+
+힌트 순서 — 한 번에 하나씩, 이 순서대로만:
+1) 지문 단서 유도: 해당 표현/단어로 시선 유도 ("last Tuesday가 언제야?")
+2) 문법 범주: "이미 일어난 일이야, 앞으로 일어날 거야?"
+3) 선택지 좁히기: "A랑 C 중 하나야. 수동태 어떤 거야?"
+4) 그냥 답: "A야. discussed. 끝."
+
+---
+
+이미지가 첨부되면: 학생이 지문에 표시한 내용이야. 표시된 부분이 빈칸과 어떻게 연결되는지 자연스럽게 언급해줘. 별도 형식 없이 대화 흐름에 맞게.
+
+답변 최대 2줄. 질문 하나. 그 이상은 없음.
 
 [전체 지문 텍스트]
 From: David Kim <d.kim@novatecsolutions.com>
@@ -68,8 +84,7 @@ Product Manager
 답변은 반드시 5줄 내외로 핵심만 짚어주세요.`,
 }
 
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
 export async function POST(req: NextRequest) {
   try {
@@ -127,7 +142,8 @@ export async function POST(req: NextRequest) {
       ],
       generationConfig: {
         maxOutputTokens: 300,
-        temperature: 0.8,
+        temperature: persona === 'p6tutor' ? 0.7 : 0.8,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }
 
@@ -144,8 +160,9 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await geminiRes.json()
-    const dialogue: string =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ?? '죄송해요, 잠시 후 다시 시도해 주세요.'
+    const parts: { text?: string; thought?: boolean }[] = data.candidates?.[0]?.content?.parts ?? []
+    const textPart = parts.find((p) => !p.thought && p.text)
+    const dialogue: string = textPart?.text ?? '죄송해요, 잠시 후 다시 시도해 주세요.'
 
     return NextResponse.json({ dialogue })
   } catch (error) {

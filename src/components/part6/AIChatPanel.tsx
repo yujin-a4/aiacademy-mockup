@@ -12,11 +12,10 @@ interface Message {
 interface Props {
   answers: Record<number, string>
   getCanvasImage: () => Promise<{ base64: string; hint: string } | null>
-  drawingVersion?: number   // 필기 변경 시 증가 — 음성 모드에서 자동 반응 트리거
   isUserDrawing?: boolean   // 필기 중일 때 true — STT 일시정지용
 }
 
-export default function AIChatPanel({ answers, getCanvasImage, drawingVersion = 0, isUserDrawing = false }: Props) {
+export default function AIChatPanel({ answers, getCanvasImage, isUserDrawing = false }: Props) {
   const [mode, setMode]             = useState<ChatMode>('text')
   const [messages, setMessages]     = useState<Message[]>([
     { role: 'ai', text: '131~133번 풀어봐. 모르는 거 있으면 물어봐.' },
@@ -174,20 +173,6 @@ export default function AIChatPanel({ answers, getCanvasImage, drawingVersion = 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isUserDrawing])
 
-  /* ── 음성 모드: 필기 변경 감지 → 자동 AI 반응 ── */
-  const prevDrawingVersionRef = useRef(0)
-  useEffect(() => {
-    if (drawingVersion === 0) return                          // 초기값 무시
-    if (drawingVersion === prevDrawingVersionRef.current) return
-    prevDrawingVersionRef.current = drawingVersion
-
-    if (mode !== 'voice') return                             // 음성 모드에서만
-    if (loading || isSpeaking || listening) return           // AI/STT 사용 중이면 스킵
-
-    sendMessageRef.current(
-      '[필기 감지] 학생이 지문에 방금 표시를 했습니다. 표시된 부분을 이미지에서 확인하고, 어느 단어/문장인지 파악한 뒤 자연스럽게 "여기를 표시했군요!" 같은 반응과 함께 해당 부분에 대한 힌트나 설명을 2~3줄로 말해주세요.'
-    )
-  }, [drawingVersion, mode, loading, isSpeaking, listening])
 
   /* ── STT: 실시간 인식 텍스트 표시 + isFinal 시 자동 전송 ── */
   const startListening = useCallback(() => {
