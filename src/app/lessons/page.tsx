@@ -49,6 +49,7 @@ const BOOKS: BookData[] = [
     desc: 'Part 7 — 장문 읽기 이해력 훈련',
     fullyLocked: false,
     lessons: [
+      { id: 'l_p7_ai', title: 'AI 튜터와 함께 풀기', status: 'upcoming', partLabel: 'Part 7', href: '/part7-ai' },
       { id: 'l6', title: '장문 독해 — 단일지문', status: 'upcoming', partLabel: 'Part 7', href: '/part7' },
       { id: 'l7', title: 'Why 문제 풀이 전략', status: 'locked', partLabel: 'Part 7' },
       { id: 'l8', title: '추론 독해 완성', status: 'locked', partLabel: 'Part 7' },

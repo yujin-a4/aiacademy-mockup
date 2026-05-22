@@ -12,13 +12,23 @@ interface Message {
 interface Props {
   answers: Record<number, string>
   getCanvasImage: () => Promise<{ base64: string; hint: string } | null>
-  isUserDrawing?: boolean   // 필기 중일 때 true — STT 일시정지용
+  isUserDrawing?: boolean
+  persona?: string
+  initialMessage?: string
+  quickQuestions?: string[]
 }
 
-export default function AIChatPanel({ answers, getCanvasImage, isUserDrawing = false }: Props) {
+export default function AIChatPanel({
+  answers,
+  getCanvasImage,
+  isUserDrawing = false,
+  persona = 'p6tutor',
+  initialMessage = '131~133번 풀어봐. 모르는 거 있으면 물어봐.',
+  quickQuestions = ['131번 힌트 줘', '132번 왜 수동태야?', '133번 설명해줘'],
+}: Props) {
   const [mode, setMode]             = useState<ChatMode>('text')
   const [messages, setMessages]     = useState<Message[]>([
-    { role: 'ai', text: '131~133번 풀어봐. 모르는 거 있으면 물어봐.' },
+    { role: 'ai', text: initialMessage },
   ])
   const [input, setInput]           = useState('')
   const [loading, setLoading]       = useState(false)
@@ -47,7 +57,7 @@ export default function AIChatPanel({ answers, getCanvasImage, isUserDrawing = f
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, persona: 'p6tutor' }),
+        body: JSON.stringify({ text, persona }),
       })
       const data = await res.json()
 
@@ -126,7 +136,7 @@ export default function AIChatPanel({ answers, getCanvasImage, isUserDrawing = f
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: contextualMessage,
-          persona: 'p6tutor',
+          persona,
           history: messages.slice(-6).map((m) => ({
             role: m.role === 'ai' ? 'instructor' : 'user',
             text: m.text,
@@ -428,7 +438,7 @@ export default function AIChatPanel({ answers, getCanvasImage, isUserDrawing = f
         /* ── 텍스트 모드 UI ── */
         <>
           <div className="shrink-0 px-3 pb-2 flex gap-1.5 overflow-x-auto">
-            {['131번 힌트 줘', '132번 왜 수동태야?', '133번 설명해줘'].map((q) => (
+            {quickQuestions.map((q) => (
               <button key={q} onClick={() => sendMessage(q)} disabled={loading}
                 className="shrink-0 text-[11px] font-medium px-2.5 py-1.5 rounded-full border border-violet-200 text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors disabled:opacity-40"
               >
