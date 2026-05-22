@@ -2,9 +2,9 @@
 import Link from 'next/link'
 
 const ITEMS = [
-  { icon: '📢', label: '공지사항',  desc: '앱 업데이트 및 서비스 안내를 확인하세요',  danger: false },
-  { icon: '💬', label: '문의하기',  desc: '불편한 점이나 제안 사항을 보내주세요',     danger: false },
-  { icon: '📄', label: '이용약관',  desc: '서비스 이용약관 및 개인정보처리방침',      danger: false },
+  { icon: '', label: '공지사항',  desc: '앱 업데이트 및 서비스 안내를 확인하세요',  danger: false },
+  { icon: '', label: '문의하기',  desc: '불편한 점이나 제안 사항을 보내주세요',     danger: false },
+  { icon: '', label: '이용약관',  desc: '서비스 이용약관 및 개인정보처리방침',      danger: false },
 ]
 
 export default function AccountSettings() {
@@ -35,7 +35,7 @@ export default function AccountSettings() {
         {/* 로그아웃 */}
         <div className="pt-2">
           <button className="w-full bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:bg-[#FEF2F2] hover:border-[#FECACA] transition-colors text-left shadow-sm">
-            <span className="text-[22px] shrink-0">🚪</span>
+            <span className="text-[22px] shrink-0"></span>
             <div className="flex-1 min-w-0">
               <p className="text-[#DC2626] font-semibold text-[14px]">로그아웃</p>
               <p className="text-[#9CA3AF] text-[12px] mt-0.5">앱에서 로그아웃합니다</p>

@@ -49,11 +49,11 @@ const LETTER_COLORS = [
 ]
 
 const GOAL_ITEMS = [
-  { icon: '🎯', label: '목표 점수' },
-  { icon: '📚', label: '학습 범위' },
-  { icon: '📅', label: '시험 예정일' },
-  { icon: '⏳', label: '학습 기간' },
-  { icon: '⏰', label: '하루 학습' },
+  { icon: '', label: '목표 점수' },
+  { icon: '', label: '학습 범위' },
+  { icon: '', label: '시험 예정일' },
+  { icon: '', label: '학습 기간' },
+  { icon: '', label: '하루 학습' },
 ]
 
 export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
@@ -80,7 +80,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
   const dday = examDate ? dDayFrom(examDate) : null
 
-  const fullMessage = `${userName}님, 목표 점수까지 가는 가장 효율적인 커리큘럼을 만들었어요. 지금부터 딱 맞는 프로그램을 제안해 드릴게요! 🎯`
+  const fullMessage = `${userName}님, 목표 점수까지 가는 가장 효율적인 커리큘럼을 만들었어요. 지금부터 딱 맞는 프로그램을 제안해 드릴게요!`
   const [typedText, setTypedText] = useState('')
   const [typingDone, setTypingDone] = useState(false)
 
@@ -140,7 +140,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
               {/* MBTI 히어로 카드 */}
               <div
-                className="rounded-2xl md:rounded-3xl p-5 md:p-7 relative overflow-hidden shadow-lg border border-[#1a3fa8]/20"
+                className="rounded-xl p-5 md:p-7 relative overflow-hidden shadow-lg border border-[#1a3fa8]/20"
                 style={{ background: 'linear-gradient(135deg, #1a3fa8 0%, #2563EB 55%, #4f8ef7 100%)' }}
               >
                 <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full bg-white/10 blur-3xl pointer-events-none" />
@@ -194,9 +194,9 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
                 {letterDetails.map((d, i) => (
                   <div
                     key={i}
-                    className="bg-white rounded-2xl py-3 md:py-4 px-1.5 md:px-2.5 flex flex-col items-center gap-2 md:gap-3 shadow-sm border border-[#E5E7EB]"
+                    className="bg-white rounded-xl py-3 md:py-4 px-1.5 md:px-2.5 flex flex-col items-center gap-2 md:gap-3 shadow-sm border border-[#E5E7EB]"
                   >
-                    <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl md:rounded-2xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shadow-sm`}>
+                    <div className={`w-9 h-9 md:w-11 md:h-11 rounded-xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shadow-sm`}>
                       <span className="text-white text-[18px] md:text-[22px] font-black">{d.letter}</span>
                     </div>
                     <p className="text-[#374151] text-[10px] md:text-[11px] font-semibold leading-tight text-center">{d.label}</p>
@@ -207,7 +207,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
             {/* 오른쪽: AI 매니저 */}
             <div
-              className="rounded-2xl md:rounded-3xl overflow-hidden relative shadow-md border border-[#BFDBFE]/60"
+              className="rounded-xl overflow-hidden relative shadow-md border border-[#BFDBFE]/60"
               style={{ background: 'linear-gradient(160deg, #EBF2FF 0%, #D6E8FF 60%, #C5DAFF 100%)' }}
             >
               {/* 모바일: 가로 배치 / 데스크톱: 세로 배치 */}
@@ -217,7 +217,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
                 <div className="flex-1 px-4 pt-4 pb-4 md:px-5 md:pt-5 md:pb-0 z-10 relative">
                   <p className="text-[#1D4ED8] text-[12px] md:text-[13px] font-bold tracking-wide mb-2">AI 매니저</p>
                   <div className="relative">
-                    <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-3.5 py-3 md:px-4 md:py-3.5 shadow-sm h-[88px] md:h-[100px] overflow-hidden">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl px-3.5 py-3 md:px-4 md:py-3.5 shadow-sm h-[88px] md:h-[100px] overflow-hidden">
                       <p className="text-[#1C1B33] text-[12px] md:text-[12.5px] leading-relaxed">
                         {typedText}
                         {!typingDone && (
@@ -255,13 +255,13 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
           </div>
 
           {/* ── 목표 & 학습 계획 ── */}
-          <div className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-[#E5E7EB] p-4 md:p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-[#E5E7EB] p-4 md:p-6">
             <p className="text-[#6B7280] text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.18em] mb-3 md:mb-4">목표 & 학습 계획</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
               {GOAL_ITEMS.map((item, i) => (
                 <div
                   key={item.label}
-                  className={`bg-[#F8FAFF] rounded-xl md:rounded-2xl px-3 py-3 md:px-4 md:py-3.5 flex flex-col gap-1 md:gap-1.5
+                  className={`bg-[#F8FAFF] rounded-xl px-3 py-3 md:px-4 md:py-3.5 flex flex-col gap-1 md:gap-1.5
                     ${i === 2 ? 'col-span-2 md:col-span-1' : ''}`}
                 >
                   <span className="text-[16px] md:text-[18px]">{item.icon}</span>
@@ -276,7 +276,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
           <div className="space-y-2 pb-2">
             <button
               onClick={onNext}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl md:rounded-2xl font-bold text-[15px] transition-colors active:scale-[0.98] shadow-lg shadow-[#2563EB]/25 flex items-center justify-center gap-2"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl font-bold text-[15px] transition-colors active:scale-[0.98] shadow-lg shadow-[#2563EB]/25 flex items-center justify-center gap-2"
               style={{ height: '52px' }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

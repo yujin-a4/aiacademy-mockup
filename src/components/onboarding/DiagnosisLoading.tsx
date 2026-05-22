@@ -34,7 +34,7 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
       setTimeout(() => setCurrent(3), 3000),
       setTimeout(() => {
         setDone(true)
-        setTimeout(onNext, 600)
+        setTimeout(onNext, 3000)
       }, 4200),
     ]
     return () => timers.forEach(clearTimeout)
@@ -109,7 +109,7 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
                 </svg>
               </div>
               <p className="text-[#111318] font-bold text-[14px]">
-                학습 유형 분석이 완료되었습니다! ✨
+                학습 유형 분석이 완료되었습니다!
               </p>
             </div>
           )}

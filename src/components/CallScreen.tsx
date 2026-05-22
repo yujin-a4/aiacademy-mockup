@@ -183,7 +183,7 @@ export function CallLogSheet({
       >
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-slate-900 font-bold text-[18px]">📞 통화 기록</h2>
+          <h2 className="text-slate-900 font-bold text-[18px]">통화 기록</h2>
           <button onClick={onClose} className="text-slate-400 text-[13px] font-medium hover:text-slate-600 transition-colors">
             닫기
           </button>
@@ -210,7 +210,7 @@ export function CallLogSheet({
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-slate-900 text-[14px]">{entry.instructorName} 선생님</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[11px] text-red-500 font-semibold">📵 부재중</span>
+                    <span className="text-[11px] text-red-500 font-semibold">부재중</span>
                   </div>
                 </div>
 

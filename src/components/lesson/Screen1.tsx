@@ -132,7 +132,7 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
       const required = ['A', 'C']  // 능동태 제거 대상
 
       if (!markedId || !required.includes(markedId)) {
-        showWarn('다시 생각해봐! 능동태 선택지에 X 표시해 보세요 😊')
+        showWarn('다시 생각해봐! 능동태 선택지에 X 표시해 보세요')
         return
       }
 
@@ -155,7 +155,7 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
 
       /* 하나만 표시 — 3초 후 힌트 */
       xTimerRef.current = setTimeout(() => {
-        showHint('하나 더! 틀린 선택지가 하나 더 있어요 😊')
+        showHint('하나 더! 틀린 선택지가 하나 더 있어요')
       }, 3000)
       return
     }
@@ -182,8 +182,8 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
       })
       if (!hit) {
         const msg = turn.drawHint === 'underline'
-          ? '다시 생각해봐! 주어 부분을 찾아서 밑줄을 그어 보세요 😊'
-          : '다시 생각해봐! 빈칸 뒤 힌트 단어에 동그라미를 쳐 보세요 😊'
+          ? '다시 생각해봐! 주어 부분을 찾아서 밑줄을 그어 보세요'
+          : '다시 생각해봐! 빈칸 뒤 힌트 단어에 동그라미를 쳐 보세요'
         showWarn(msg)
         return
       }
@@ -363,7 +363,7 @@ function ProblemContent({
         <span className="inline-flex items-center justify-center font-bold text-sm px-3 py-1 rounded-lg bg-[#D6EAFF] text-[#2277F0]">Q1</span>
         {drawActive ? (
           <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
-            <span className="text-sm shrink-0">✏️</span>
+            <span className="text-sm shrink-0"></span>
             <span className="text-xs font-medium text-amber-700 animate-pulse">
               {drawHint === 'underline' ? '주어에 밑줄 긋기' : drawHint === 'x' ? '틀린 선택지 2개에 X표시' : '힌트에 동그라미 표시'}
             </span>

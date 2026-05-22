@@ -203,7 +203,7 @@ export default function DailyPage() {
 
   // 완료 화면
   if (done) {
-    const scoreMsg = finalCorrect === 3 ? '완벽해요! 🎉' : finalCorrect === 2 ? '잘 했어요!' : finalCorrect === 1 ? '조금 더 파이팅!' : '내일 다시 도전!'
+    const scoreMsg = finalCorrect === 3 ? '완벽해요!' : finalCorrect === 2 ? '잘 했어요!' : finalCorrect === 1 ? '조금 더 파이팅!' : '내일 다시 도전!'
     const avgAccuracy = Math.round(questions.reduce((s, q) => s + mockAccuracy(q.id), 0) / questions.length)
 
     return (

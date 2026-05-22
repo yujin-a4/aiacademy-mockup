@@ -232,7 +232,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
 
                   {/* 힌트 */}
                   {isCurrent && activeBlank && !isPlaying && (
-                    <p className="text-xs text-[#2277F0]/70">💬 {c.hint}</p>
+                    <p className="text-xs text-[#2277F0]/70">{c.hint}</p>
                   )}
                 </div>
               )
@@ -241,7 +241,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
 
           {done && !isPlaying && (
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center shrink-0">
-              <p className="text-green-700 font-semibold text-sm">🎉 모든 핵심 내용을 정리했어요! 요약 노트로 이동하세요.</p>
+              <p className="text-green-700 font-semibold text-sm">모든 핵심 내용을 정리했어요! 요약 노트로 이동하세요.</p>
             </div>
           )}
         </div>

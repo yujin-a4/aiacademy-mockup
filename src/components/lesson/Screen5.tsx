@@ -57,7 +57,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
       {(isPlaying || !saved) && (
         <div className="mx-4 mt-4 bg-white rounded-2xl border border-ybm-border p-4 flex items-start gap-3 shadow-sm">
           <div className="w-10 h-10 rounded-full bg-[#2277F0]/10 flex items-center justify-center shrink-0">
-            <span className="text-lg">👩‍🏫</span>
+            <span className="text-lg"></span>
           </div>
           <div>
             <p className="text-xs font-semibold text-[#2277F0] mb-1">박혜원 AI 강사</p>
@@ -115,7 +115,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
         {/* 토익 빈출 포인트 */}
         <div className="bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-ybm-border bg-[#2277F0]/5">
-            <p className="font-bold text-sm text-[#2277F0]">⭐ 토익 빈출 포인트</p>
+            <p className="font-bold text-sm text-[#2277F0]">토익 빈출 포인트</p>
           </div>
           <div className="flex flex-col divide-y divide-ybm-border">
             <PointItem
@@ -154,7 +154,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
                 : 'border-[#2277F0] text-[#2277F0] bg-white hover:bg-blue-50'}
             `}
           >
-            {saved ? '✓ MY PAGE 저장됨' : '📥 PDF 다운로드'}
+            {saved ? '✓ MY PAGE 저장됨' : 'PDF 다운로드'}
           </button>
           <button
             onClick={() => { stopCurrentAudio(); onComplete() }}

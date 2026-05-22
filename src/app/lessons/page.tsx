@@ -20,7 +20,7 @@ interface BookData {
 /* ── 커리큘럼 ── */
 const BOOKS: BookData[] = [
   {
-    id: 1, emoji: '📗', accentColor: '#16A34A',
+    id: 1, emoji: '', accentColor: '#16A34A',
     title: '문법 기초 다지기', duration: '3주',
     desc: '수동태, 시제, 접속사 — 진단에서 약했던 영역 집중',
     fullyLocked: false,
@@ -33,7 +33,7 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 2, emoji: '📙', accentColor: '#F59E0B',
+    id: 2, emoji: '', accentColor: '#F59E0B',
     title: '장문 공란 AI 실전', duration: '2주',
     desc: 'Part 6 — AI 강사와 함께 지문 흐름 속 빈칸 채우기',
     fullyLocked: false,
@@ -44,7 +44,7 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 3, emoji: '📘', accentColor: '#2563EB',
+    id: 3, emoji: '', accentColor: '#2563EB',
     title: '독해 실전 훈련', duration: '4주',
     desc: 'Part 7 — 장문 읽기 이해력 훈련',
     fullyLocked: false,
@@ -56,7 +56,7 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 4, emoji: '🎤', accentColor: '#7C3AED',
+    id: 4, emoji: '', accentColor: '#7C3AED',
     title: '스피킹 도전', duration: '2주',
     desc: 'TOEIC Speaking — 사진 묘사부터 즉흥 말하기까지',
     fullyLocked: false,
@@ -67,7 +67,7 @@ const BOOKS: BookData[] = [
     ],
   },
   {
-    id: 5, emoji: '📕', accentColor: '#6B7280',
+    id: 5, emoji: '', accentColor: '#6B7280',
     title: '실전 감각 만들기', duration: '5주',
     desc: '시간 내 풀기, 오답 패턴 분석',
     fullyLocked: true, lockReason: 'Book 1·2·3·4 완료 후 해제', lessons: [],
@@ -222,7 +222,7 @@ function BookSection({ book }: { book: BookData }) {
                         ▶ 오늘의 수업
                       </span>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">
-                        📍 지금 여기
+                         지금 여기
                       </span>
                     </div>
                     {lesson.partLabel && (
@@ -333,7 +333,7 @@ export default function LessonsPage() {
                 </span>
               )}
               <span className="text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-2.5 py-1 rounded-full">
-                🔥 12일
+                 12일
               </span>
               <AccountMenu userName={userName ?? ''} />
             </div>
@@ -351,7 +351,7 @@ export default function LessonsPage() {
               </span>
             )}
             <span className="text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
-              🔥 12일 연속
+               12일 연속
             </span>
             <AccountMenu userName={userName ?? ''} />
           </div>
@@ -370,7 +370,7 @@ export default function LessonsPage() {
                   <span className="text-[10px] font-semibold bg-white/20 text-white/90 px-1.5 py-0.5 rounded">진단 결과 반영</span>
                 </div>
                 <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
-                  🎯 {userName ? `${userName}님의 플랜` : '나만의 플랜'}
+                   {userName ? `${userName}님의 플랜` : '나만의 플랜'}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">3개월</span>
@@ -381,7 +381,7 @@ export default function LessonsPage() {
                 </div>
               </div>
               <div className="bg-white rounded-2xl px-3.5 py-3 text-center shrink-0 min-w-[68px] relative z-10 shadow-sm">
-                <p className="text-[28px] leading-none mb-1">📚</p>
+                <p className="text-[28px] leading-none mb-1"></p>
                 <p className="text-[10px] text-[#374151] font-bold">5 Books</p>
               </div>
             </div>

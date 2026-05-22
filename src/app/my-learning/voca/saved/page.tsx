@@ -91,7 +91,7 @@ export default function SavedVocaPage() {
               </svg>
             </div>
             <p className="text-[#6B7280] text-[14px] font-medium">저장된 단어가 없어요</p>
-            <p className="text-[#9CA3AF] text-[12px] mt-1">플래시카드에서 ★을 눌러 단어를 저장해보세요</p>
+            <p className="text-[#9CA3AF] text-[12px] mt-1">플래시카드에서 별표를 눌러 단어를 저장해보세요</p>
           </div>
         ) : (
           <>

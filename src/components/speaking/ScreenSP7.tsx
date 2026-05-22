@@ -56,9 +56,7 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
         {/* Title */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl leading-none">★</span>
             <h2 className="text-xl font-black text-[#1A2B4B]">이것만 기억하자!</h2>
-            <span className="text-[#2277F0] text-lg leading-none ml-1">✦</span>
           </div>
           <div className="border-b-2 border-[#1A2B4B]/10" />
         </div>

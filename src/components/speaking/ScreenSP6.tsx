@@ -146,7 +146,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
           {phase !== 'feedback' ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-5">
               <p className="text-base font-bold text-[#1A2B4B]">사진을 보고 설명해 보세요.</p>
-              <span className="text-[#2277F0] text-xl select-none">◆</span>
+              <span className="text-[#2277F0] text-xl select-none"></span>
 
               <TimerRing seconds={45} running={timerRunning} size={72} onEnd={handleTimerEnd} />
 

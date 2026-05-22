@@ -28,7 +28,7 @@ export default function NameInput({ onNext }: Props) {
           <div className="bg-white border border-[#D1D5DB] rounded-2xl px-5 py-4 text-[#111318] text-[15px] font-medium leading-relaxed relative">
             <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />
             {confirmed
-              ? `${input}님, 반갑습니다! 최적화된 학습 코스를 구성해 드릴게요.`
+              ? <>{input}님, 반갑습니다!<br/>최적화된 학습 코스를 구성해 드릴게요.</>
               : '안녕하세요! YBM AI 코스에 오신 것을 환영합니다.'}
           </div>
         </div>

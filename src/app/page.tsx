@@ -81,9 +81,9 @@ function LoginSheet({ onClose }: { onClose: () => void }) {
 const FEATURES = ['AI 진단', '오답 루틴', '1:1 코칭', '보카런']
 
 const TRUST = [
-  { icon: '🎓', text: 'YBM 강사 콘텐츠 기반' },
-  { icon: '🎯', text: '목표 점수 맞춤 루틴' },
-  { icon: '📊', text: '오답 패턴 자동 분석' },
+  { icon: '', text: 'YBM 강사 콘텐츠 기반' },
+  { icon: '', text: '목표 점수 맞춤 루틴' },
+  { icon: '', text: '오답 패턴 자동 분석' },
 ]
 
 export default function Home() {
@@ -108,7 +108,7 @@ export default function Home() {
           <div className="space-y-7">
             {/* 배지 */}
             <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-full border border-[#C7D2FE]">
-              ✨ YBM 강사 × AI 맞춤 코칭
+              YBM 강사 × AI 맞춤 코칭
             </span>
 
             {/* 헤드라인 */}

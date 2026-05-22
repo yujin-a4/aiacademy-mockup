@@ -3,8 +3,8 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
 const MENU = [
-  { icon: '📚', label: '학습 설정', href: '/settings/learning' },
-  { icon: '👤', label: '계정 설정', href: '/settings/account' },
+  { icon: '', label: '학습 설정', href: '/settings/learning' },
+  { icon: '', label: '계정 설정', href: '/settings/account' },
 ]
 
 export default function AccountMenu({ userName }: { userName: string }) {

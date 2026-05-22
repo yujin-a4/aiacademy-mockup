@@ -111,7 +111,7 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
                 </svg>
               </div>
               <p className="text-[#111318] font-bold text-[15px]">
-                생성이 완료되었습니다! 🎉
+                생성이 완료되었습니다!
               </p>
             </div>
           )}

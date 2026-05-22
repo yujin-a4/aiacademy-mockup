@@ -28,14 +28,14 @@ const RADAR_DATA = [
 ]
 
 const BADGES = [
-  { id: 1, icon: '🔥', name: '첫 발걸음',      desc: '첫 번째 학습 완료',             earned: true,  earnedAt: '3월 1일' },
-  { id: 2, icon: '📅', name: '7일 연속',        desc: '7일 연속 학습 달성',           earned: true,  earnedAt: '3월 8일' },
-  { id: 3, icon: '✍️', name: '받아쓰기 입문',   desc: '받아쓰기 10회 완료',           earned: true,  earnedAt: '4월 2일' },
-  { id: 4, icon: '📖', name: 'Part 5 도전자',   desc: 'Part 5 연습 20문제 완료',      earned: true,  earnedAt: '5월 10일' },
-  { id: 5, icon: '🏆', name: '30일 연속',       desc: '30일 연속 학습 달성',           earned: false, condition: '현재 12일 · 18일 남음' },
-  { id: 6, icon: '⭐', name: '700점 돌파',      desc: '모의 점수 700점 이상 달성',    earned: false, condition: '현재 예상 668점' },
-  { id: 7, icon: '💎', name: '파트 마스터',     desc: '모든 파트 정답률 80% 이상',    earned: false, condition: 'P5·P6·P7 개선 필요' },
-  { id: 8, icon: '🌟', name: '보카런 완주',     desc: '1,000개 단어 학습 완료',       earned: false, condition: '현재 312 / 1,000개' },
+  { id: 1, icon: '', name: '첫 발걸음',      desc: '첫 번째 학습 완료',             earned: true,  earnedAt: '3월 1일' },
+  { id: 2, icon: '', name: '7일 연속',        desc: '7일 연속 학습 달성',           earned: true,  earnedAt: '3월 8일' },
+  { id: 3, icon: '️', name: '받아쓰기 입문',   desc: '받아쓰기 10회 완료',           earned: true,  earnedAt: '4월 2일' },
+  { id: 4, icon: '', name: 'Part 5 도전자',   desc: 'Part 5 연습 20문제 완료',      earned: true,  earnedAt: '5월 10일' },
+  { id: 5, icon: '', name: '30일 연속',       desc: '30일 연속 학습 달성',           earned: false, condition: '현재 12일 · 18일 남음' },
+  { id: 6, icon: '', name: '700점 돌파',      desc: '모의 점수 700점 이상 달성',    earned: false, condition: '현재 예상 668점' },
+  { id: 7, icon: '', name: '파트 마스터',     desc: '모든 파트 정답률 80% 이상',    earned: false, condition: 'P5·P6·P7 개선 필요' },
+  { id: 8, icon: '', name: '보카런 완주',     desc: '1,000개 단어 학습 완료',       earned: false, condition: '현재 312 / 1,000개' },
 ]
 
 type TipColor = 'blue' | 'purple' | 'green' | 'amber'
@@ -137,7 +137,7 @@ const MATERIALS = [
 ]
 
 /* ── 랭킹 행 ── */
-const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
+const MEDAL: Record<number, string> = { 1: '', 2: '', 3: '' }
 
 function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
   const isMe = item.isMe === true
@@ -154,7 +154,7 @@ function RankRow({ item }: { item: typeof RANKING_DATA[0] }) {
           <p className={`text-[13px] font-semibold truncate ${isMe ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>{item.name}</p>
           {isMe && <span className="text-[9px] font-bold bg-[#2563EB] text-white px-1.5 py-0.5 rounded-full shrink-0">나</span>}
         </div>
-        <p className="text-[10px] text-[#9CA3AF] mt-0.5">🔥 {item.streak}일 연속 · 목표 {item.target}점</p>
+        <p className="text-[10px] text-[#9CA3AF] mt-0.5"> {item.streak}일 연속 · 목표 {item.target}점</p>
       </div>
       <div className="text-right shrink-0">
         <p className={`text-[15px] font-bold ${isMe ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
@@ -469,7 +469,7 @@ export default function StatusPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-5 py-3 mb-2">
-                      <p className="text-white text-[22px] font-bold">+45점 🚀</p>
+                      <p className="text-white text-[22px] font-bold">+45점 </p>
                       <p className="text-white/75 text-[12px]">상승 중!</p>
                     </div>
                     <p className="text-white/45 text-[10px]">목표 750점까지 5점 남음</p>
@@ -480,10 +480,10 @@ export default function StatusPage() {
                 {/* 학습 상태 요약 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
-                    { label: '총 학습일',    value: '12',  unit: '일',   icon: '📅', color: '#2563EB', bg: '#EFF6FF' },
-                    { label: '총 풀이 문제', value: '247', unit: '문제', icon: '✏️', color: '#059669', bg: '#F0FDF4' },
-                    { label: 'LC 정답률',    value: '83',  unit: '%',    icon: '🎧', color: '#2563EB', bg: '#EFF6FF' },
-                    { label: 'RC 정답률',    value: '54',  unit: '%',    icon: '📖', color: '#D97706', bg: '#FEF9C3' },
+                    { label: '총 학습일',    value: '12',  unit: '일',   icon: '', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: '총 풀이 문제', value: '247', unit: '문제', icon: '️', color: '#059669', bg: '#F0FDF4' },
+                    { label: 'LC 정답률',    value: '83',  unit: '%',    icon: '', color: '#2563EB', bg: '#EFF6FF' },
+                    { label: 'RC 정답률',    value: '54',  unit: '%',    icon: '', color: '#D97706', bg: '#FEF9C3' },
                   ].map(s => (
                     <div key={s.label} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 flex items-center gap-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] shrink-0" style={{ background: s.bg }}>
@@ -769,7 +769,7 @@ export default function StatusPage() {
                   </div>
                   <p className="text-white text-[26px] font-bold leading-snug">
                     지금 <span className="text-[#93C5FD]">2,847명</span>이<br/>
-                    함께 달리고 있어요 🏃
+                    함께 달리고 있어요 
                   </p>
                   <p className="text-white/50 text-[12px] mt-2 leading-relaxed">
                     혼자 패드 붙잡고 공부하는 게 아니에요.<br/>

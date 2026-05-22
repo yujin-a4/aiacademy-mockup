@@ -41,11 +41,11 @@ type AdviceQuote = {
 }
 
 const OJJ_SCHEDULE = [
-  { time: '오전 10:00', title: '화장실 먼저 다녀오기', done: true,  icon: '🚽' },
-  { time: '오전 10:10', title: 'Part 5 기초 문법 (천천히)', done: true,  icon: '📖' },
-  { time: '오후 2:00',  title: '오늘 단어 딱 10개만 (이상 안 해도 됨)', done: false, icon: '📝' },
-  { time: '오후 4:00',  title: 'LC 듣기 (두 번 틀어줄게요)', done: false, icon: '🎧' },
-  { time: '저녁 7:00',  title: '커피 한 잔 마시기 (공부 끝)', done: false, icon: '☕' },
+  { time: '오전 10:00', title: '화장실 먼저 다녀오기', done: true,  icon: '' },
+  { time: '오전 10:10', title: 'Part 5 기초 문법 (천천히)', done: true,  icon: '' },
+  { time: '오후 2:00',  title: '오늘 단어 딱 10개만 (이상 안 해도 됨)', done: false, icon: '' },
+  { time: '오후 4:00',  title: 'LC 듣기 (두 번 틀어줄게요)', done: false, icon: '' },
+  { time: '저녁 7:00',  title: '커피 한 잔 마시기 (공부 끝)', done: false, icon: '' },
 ]
 
 function OjjDashboard() {
@@ -149,7 +149,7 @@ function OjjDashboard() {
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 👵</p>
+              <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 </p>
               {ddayLabel && <span className="inline-block mt-1 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-full">토익 시험 {ddayLabel}</span>}
             </div>
             <div className="flex items-center gap-2">
@@ -176,11 +176,11 @@ function OjjDashboard() {
             <div className="hidden md:flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
-                  🔥 17일 연속 학습 중
+                   17일 연속 학습 중
                 </span>
                 {ddayLabel && (
                   <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-3 py-1.5 rounded-full">
-                    📅 토익 시험 {ddayLabel}
+                     토익 시험 {ddayLabel}
                   </span>
                 )}
               </div>
@@ -202,7 +202,7 @@ function OjjDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
               {/* 1. 명언 족자 */}
-              <div className="flex items-stretch rounded-2xl overflow-hidden shadow-md" style={{ minHeight: '190px' }}>
+              <div className="flex items-stretch rounded-xl overflow-hidden shadow-md" style={{ minHeight: '190px' }}>
                 <div style={{ width: '14px', flexShrink: 0, background: 'linear-gradient(to right, #3B1F0A 0%, #7C4A1E 30%, #A0642A 50%, #7C4A1E 70%, #3B1F0A 100%)', boxShadow: '3px 0 6px rgba(0,0,0,0.35)' }} />
                 <div style={{ flex: 1, background: 'linear-gradient(to bottom, #D4A96A 0%, #F5E6C0 5%, #FFFAED 50%, #F5E6C0 95%, #D4A96A 100%)', borderTop: '2px solid #C4974A', borderBottom: '2px solid #C4974A', padding: '20px 20px 30px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ position: 'absolute', top: '8px', left: 0, right: 0, height: '1px', background: 'rgba(180,120,40,0.2)' }} />
@@ -225,12 +225,12 @@ function OjjDashboard() {
               </div>
 
               {/* 2. 선생님 응원 메시지 */}
-              <div className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
+              <div className="relative overflow-hidden rounded-xl p-5 flex flex-col gap-3"
                 style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 55%, #BFDBFE 100%)' }}>
                 <div className="absolute -right-6 -top-6 w-40 h-40 rounded-full bg-[#60A5FA]/15 blur-3xl pointer-events-none" />
                 <span className="self-start inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                  오정자 선생님의 오늘 처방전 📋
+                  오정자 선생님의 오늘 처방전 
                 </span>
                 <div className="flex items-end gap-2 flex-1">
                   <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border-2 border-white shadow-md">
@@ -254,7 +254,7 @@ function OjjDashboard() {
               </div>
 
               {/* 3. 동기부여 — D-day + 연속학습 */}
-              <div className="rounded-2xl p-5 flex flex-col justify-between"
+              <div className="rounded-xl p-5 flex flex-col justify-between"
                 style={{ background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 60%, #3B82F6 100%)' }}>
                 <div>
                   <p className="text-white/60 text-[11px] font-semibold mb-1">토익 시험까지</p>
@@ -266,7 +266,7 @@ function OjjDashboard() {
                 </div>
                 <div className="mt-4">
                   <div className="flex items-center gap-2.5 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
-                    <span className="text-[22px] leading-none">🔥</span>
+                    <span className="text-[22px] leading-none"></span>
                     <div>
                       <p className="text-[22px] font-black text-white leading-none">12일</p>
                       <p className="text-[10px] text-white/70 font-semibold">연속 학습 중</p>
@@ -283,18 +283,18 @@ function OjjDashboard() {
               {/* 66일 달성 그리드 — 전체 가로 */}
               {(() => {
                 const TODAY = 13
-                const MILESTONES: Record<number, string> = { 7: '🏆', 14: '⭐', 21: '🏆', 30: '🎯', 42: '⭐', 55: '🏆', 66: '👑' }
-                const COLS = 11
-                const TOTAL_CELLS = Math.ceil(66 / COLS) * COLS // 72
+                const MILESTONES: Record<number, string> = { 7: '', 14: '', 21: '', 30: '', 42: '', 55: '', 66: '' }
+                const COLS = 13
+                const TOTAL_CELLS = Math.ceil(66 / COLS) * COLS // 78
                 return (
-                  <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-3">
+                  <div className="bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-5 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-[#1C1B33] font-bold text-[14px]">66일 연속 달성 🏅</h3>
-                      <span className="text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full">🔥 {TODAY - 1}일째</span>
+                      <h3 className="text-[#1C1B33] font-bold text-[14px]">66일 연속 달성 </h3>
+                      <span className="text-[11px] font-semibold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full"> {TODAY - 1}일째</span>
                     </div>
                     <p className="text-[11px] text-[#9CA3AF] -mt-1">트로피·별표를 눌러서 미리 달성해봐요!</p>
 
-                    <div className="grid gap-[5px]" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+                    <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
                       {Array.from({ length: TOTAL_CELLS }, (_, i) => {
                         const day = i + 1
                         if (day > 66) return <div key={`empty-${i}`} />
@@ -311,7 +311,7 @@ function OjjDashboard() {
                               if (!clickable) return
                               setClickedMilestones(p => isUserMarked ? p.filter(d => d !== day) : [...p, day])
                             }}
-                            className="aspect-square rounded-[4px] flex items-center justify-center transition-all"
+                            className="aspect-square rounded-[7px] flex items-center justify-center transition-all"
                             style={{
                               cursor: clickable ? 'pointer' : 'default',
                               ...(isToday ? {
@@ -361,7 +361,7 @@ function OjjDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* 오늘의 일정 */}
-              <div className="bg-white rounded-2xl overflow-hidden shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
                 <div className="h-1 bg-[#EFF6FF]">
                   <div className="h-full transition-all duration-500 rounded-r-full from-[#2563EB] to-[#1D4ED8] bg-gradient-to-r"
                     style={{ width: `${Math.round((doneCount / missions.length) * 100)}%` }} />
@@ -369,7 +369,7 @@ function OjjDashboard() {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-[14px]">오늘의 일정</h3>
-                    <span className="text-[11px] text-[#9CA3AF]">선생님이 짜줬어요 ✍️</span>
+                    <span className="text-[11px] text-[#9CA3AF]">선생님이 짜줬어요 ️</span>
                   </div>
                   <div className="space-y-2">
                     {missions.map((item, i) => (
@@ -399,9 +399,9 @@ function OjjDashboard() {
               </div>
 
               {/* 오늘의 학습량 */}
-              <div className="bg-white rounded-2xl p-5 flex flex-col shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
+              <div className="bg-white rounded-xl p-5 flex flex-col shadow-[0_1px_8px_rgba(37,99,235,0.06)] border border-[#DBEAFE]">
                 <h3 className="font-bold text-[14px] mb-1">오늘의 학습량</h3>
-                <p className="text-[10px] text-[#9CA3AF] mb-4">선생님이 직접 확인했어요 👀</p>
+                <p className="text-[10px] text-[#9CA3AF] mb-4">선생님이 직접 확인했어요 </p>
 
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {[
@@ -420,13 +420,13 @@ function OjjDashboard() {
                 {/* 오정자 코멘트 */}
                 <div className="rounded-xl p-3 mt-auto bg-[#EFF6FF] border border-[#DBEAFE]">
                   <p className="text-[11px] font-bold leading-relaxed text-[#1D4ED8]">
-                    👵 "42분이요? 잘했어요. 내일은 45분 해봐요. 딱 3분만 더요."
+                     "42분이요? 잘했어요. 내일은 45분 해봐요. 딱 3분만 더요."
                   </p>
                 </div>
 
                 <Link href="/daily"
                   className="mt-3 w-full py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[0.98] bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white">
-                  📜 오늘의 문제 풀기
+                   오늘의 문제 풀기
                 </Link>
               </div>
 
@@ -640,7 +640,7 @@ function RegularDashboard() {
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[#1C1B33] text-[20px] font-bold leading-snug">{userName || '학습자'}님 👋</p>
+              <p className="text-[#1C1B33] text-[20px] font-bold leading-snug">{userName || '학습자'}님 </p>
               {ddayLabel && (
                 <span className="inline-block mt-1 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-full">
                   토익 시험 {ddayLabel}
@@ -649,7 +649,7 @@ function RegularDashboard() {
             </div>
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1.5 rounded-full shrink-0">
-                🔥 17일 연속
+                 17일 연속
               </span>
               <button onClick={handlePhoneClick}
                 className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
@@ -687,7 +687,7 @@ function RegularDashboard() {
 
               {/* ── 왼쪽 패널: 강사 사진 + 말풍선 + CTA ── */}
               <div
-                className="flex-1 rounded-2xl overflow-hidden flex"
+                className="flex-1 rounded-xl overflow-hidden flex"
                 style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)' }}
               >
                 {/* 강사 사진 */}
@@ -735,14 +735,14 @@ function RegularDashboard() {
 
               {/* ── 오른쪽: 뱃지 2개 분리 패널 ── */}
               <div className="shrink-0 flex flex-col gap-4" style={{ minWidth: '110px' }}>
-                <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                  <span className="text-[28px] leading-none">🔥</span>
+                <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+                  <span className="text-[28px] leading-none"></span>
                   <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
                   <p className="text-[11px] text-[#92400E] font-semibold">연속 학습 중</p>
                 </div>
                 {ddayLabel && (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                    <span className="text-[28px] leading-none">📅</span>
+                  <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+                    <span className="text-[28px] leading-none"></span>
                     <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
                     <p className="text-[11px] text-[#3B82F6] font-semibold">토익 시험</p>
                   </div>
@@ -755,10 +755,10 @@ function RegularDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* 66일 챌린지 */}
-              <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-3 flex flex-col gap-1.5">
+              <div className="bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[#1C1B33] font-bold text-[13px]">66일 챌린지</h3>
-                  <span className="text-[10px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2 py-0.5 rounded-full">🔥 17일 연속</span>
+                  <span className="text-[10px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2 py-0.5 rounded-full"> 17일 연속</span>
                 </div>
                 {/* 슬라이딩 그리드: 30개씩 2페이지 */}
                 <div className="overflow-hidden">
@@ -768,7 +768,7 @@ function RegularDashboard() {
                   >
                     {/* 페이지 0: 1~30일 */}
                     <div className="w-full shrink-0">
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', columnGap: '3px', rowGap: '6px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', columnGap: '2px', rowGap: '4px' }}>
                         {Array.from({ length: 30 }, (_, i) => {
                           const day = i + 1
                           const isDone = day < streakDay
@@ -777,7 +777,7 @@ function RegularDashboard() {
                           return (
                             <div key={day}
                               title={isMilestone ? '30일 마일스톤' : undefined}
-                              className={`aspect-square rounded-[3px] ${
+                              className={`aspect-square rounded-[7px] ${
                                 isDone ? 'bg-[#BFDBFE]'
                                 : isToday ? 'bg-[#2563EB] ring-2 ring-[#2563EB] ring-offset-1'
                                 : isMilestone ? 'bg-[#FCD34D]/50 border border-[#F59E0B]/60'
@@ -790,14 +790,14 @@ function RegularDashboard() {
                       <div className="flex items-center justify-between mt-0.5" >
                         <span className="text-[9px] text-[#9CA3AF]">1일</span>
                         <span className="text-[9px] font-bold text-[#2563EB]">
-                          {streakDay <= 30 ? `${streakDay}일차 🔥 오늘` : '30일 ✅'}
+                          {streakDay <= 30 ? `${streakDay}일차  오늘` : '30일 ✅'}
                         </span>
                         <span className="text-[9px] text-[#9CA3AF]">30일</span>
                       </div>
                     </div>
                     {/* 페이지 1: 31~66일 */}
                     <div className="w-full shrink-0">
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', columnGap: '3px', rowGap: '6px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', columnGap: '2px', rowGap: '4px' }}>
                         {Array.from({ length: 36 }, (_, i) => {
                           const day = i + 31
                           const isDone = day < streakDay
@@ -806,7 +806,7 @@ function RegularDashboard() {
                           return (
                             <div key={day}
                               title={isMilestone ? '66일 완주!' : undefined}
-                              className={`aspect-square rounded-[3px] ${
+                              className={`aspect-square rounded-[7px] ${
                                 isDone ? 'bg-[#BFDBFE]'
                                 : isToday ? 'bg-[#2563EB] ring-2 ring-[#2563EB] ring-offset-1'
                                 : isMilestone ? 'bg-[#FCD34D]/50 border border-[#F59E0B]/60'
@@ -819,7 +819,7 @@ function RegularDashboard() {
                       <div className="flex items-center justify-between mt-0.5" >
                         <span className="text-[9px] text-[#9CA3AF]">31일</span>
                         <span className="text-[9px] font-bold text-[#2563EB]">
-                          {streakDay > 30 ? `${streakDay}일차 🔥 오늘` : ''}
+                          {streakDay > 30 ? `${streakDay}일차  오늘` : ''}
                         </span>
                         <span className="text-[9px] text-[#9CA3AF]">66일</span>
                       </div>
@@ -836,33 +836,35 @@ function RegularDashboard() {
               </div>
 
               {/* 오늘의 데일리 챌린지 */}
-              <div className="bg-white rounded-2xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-3 flex flex-col justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-[#FEF9C3] flex items-center justify-center text-[14px] shrink-0">🏆</div>
+              <div className="bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-4 flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between">
                   <h3 className="text-[#1C1B33] font-bold text-[13px]">오늘의 데일리 챌린지</h3>
                 </div>
-                {/* 평균 정답률 */}
-                <div>
-                  <div className="flex justify-between mb-0.5">
-                    <span className="text-[11px] text-[#6B7280]">오늘의 평균 정답률</span>
-                    <span className="text-[11px] font-bold text-[#2563EB]">75%</span>
+                {/* 평균 정답률 - 도넛 차트 */}
+                <div className="flex items-center gap-3">
+                  <div className="relative w-12 h-12 shrink-0">
+                    <svg viewBox="0 0 48 48" className="w-full h-full -rotate-90">
+                      <circle cx="24" cy="24" r="18" fill="none" stroke="#E5E7EB" strokeWidth="5" />
+                      <circle cx="24" cy="24" r="18" fill="none" stroke="#2563EB" strokeWidth="5"
+                        strokeDasharray="84.82 113.1" strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-[#2563EB]">75%</span>
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-                    <div className="bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] h-full rounded-full" style={{ width: '75%' }} />
+                  <div>
+                    <p className="text-[11px] text-[#6B7280] leading-snug">오늘의 평균 정답률</p>
+                    <p className="text-[10px] text-[#9CA3AF] mt-0.5">지금 <span className="font-semibold text-[#374151]">923명</span>이 도전 중</p>
                   </div>
-                  <p className="text-[10px] text-[#9CA3AF] mt-0.5">지금 <span className="font-semibold text-[#374151]">923명</span>이 도전 중</p>
                 </div>
                 {/* 오늘의 학습 팁 */}
-                <div className="bg-[#F8FAFF] rounded-xl p-2.5 flex gap-2.5 items-start">
-                  <span className="text-[18px] leading-none shrink-0 mt-0.5">💡</span>
-                  <div>
-                    <p className="text-[10px] font-bold text-[#2563EB] mb-0.5">오늘의 학습 팁</p>
-                    <p className="text-[11px] text-[#374151] leading-relaxed">Part 5는 시간이 생명! 모르는 문제는 과감히 넘기고 마지막에 돌아오세요. 속도가 곧 점수입니다.</p>
-                  </div>
+                <div className="bg-[#F8FAFF] rounded-xl p-2.5">
+                  <p className="text-[10px] font-bold text-[#2563EB] mb-0.5">오늘의 학습 팁</p>
+                  <p className="text-[11px] text-[#374151] leading-relaxed">Part 5는 시간이 생명! 모르는 문제는 과감히 넘기고 마지막에 돌아오세요. 속도가 곧 점수입니다.</p>
                 </div>
                 <Link href="/daily"
                   className="w-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white py-2 rounded-xl font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#2563EB]/20 active:scale-[0.98]">
-                  ⚡ 오늘의 데일리 문제 풀기
+                  오늘의 데일리 문제 풀기
                 </Link>
               </div>
 

@@ -35,7 +35,7 @@ export default function ResultPage() {
         <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-black/10 rounded-full blur-xl" />
         
         <div className="relative z-10 w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md shadow-inner">
-          <span className="text-[40px]">🎉</span>
+          <span className="text-[40px]"></span>
         </div>
         <h1 className="relative z-10 text-[28px] font-black text-white">학습 완료!</h1>
         <p className="relative z-10 text-white/90 mt-2 text-[15px] font-medium">오늘의 할당량을 모두 마쳤습니다. 대단해요!</p>
@@ -52,7 +52,7 @@ export default function ResultPage() {
 
           {reviewWords.length === 0 ? (
             <div className="text-center py-10">
-              <span className="text-[40px] block mb-2">✨</span>
+              <span className="text-[40px] block mb-2"></span>
               <p className="text-[#1C1B33] font-bold text-[16px]">완벽합니다!</p>
               <p className="text-[#6B7280] text-[13px] mt-1">모든 단어를 완벽하게 익혔습니다.</p>
             </div>

@@ -211,7 +211,7 @@ function PhraseContent({ turnId, canInput, onChoice }: {
         </span>
         {' '}laptop.
       </p>
-      <p className="text-base text-ybm-text-sub mt-1.5">💡 사물 앞에는 관사 <strong>a</strong>를 꼭 넣어줘요</p>
+      <p className="text-base text-ybm-text-sub mt-1.5">사물 앞에는 관사 <strong>a</strong>를 꼭 넣어줘요</p>
     </div>
   )
 

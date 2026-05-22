@@ -73,7 +73,7 @@ export default function StepGrowth({ score, previousScore, totalCompletions, onN
         <div className="animate-pop-badge text-center">
           {isFirst ? (
             <>
-              <p className="text-3xl font-black text-amber-500">🌟 첫 기록 달성!</p>
+              <p className="text-3xl font-black text-amber-500">첫 기록 달성!</p>
               <p className="text-slate-400 text-sm mt-1">앞으로 계속 성장해봐요</p>
             </>
           ) : delta !== null && (

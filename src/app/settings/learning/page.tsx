@@ -2,8 +2,8 @@
 import Link from 'next/link'
 
 const ITEMS = [
-  { icon: '🎓', label: '강사 선택하기',  desc: '내 학습 스타일에 맞는 강사를 바꿀 수 있어요' },
-  { icon: '🔔', label: '푸시알림 설정',  desc: '학습 알림, 데일리 리마인더 시간을 설정해요' },
+  { icon: '', label: '강사 선택하기',  desc: '내 학습 스타일에 맞는 강사를 바꿀 수 있어요' },
+  { icon: '', label: '푸시알림 설정',  desc: '학습 알림, 데일리 리마인더 시간을 설정해요' },
 ]
 
 export default function LearningSettings() {

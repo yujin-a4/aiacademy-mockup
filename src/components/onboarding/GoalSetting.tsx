@@ -76,11 +76,15 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const [subStep, setSubStep] = useState<SubStep>('score')
   const [score, setScore] = useState<number | null>(store.targetScore)
   const [range, setRange] = useState<'LC+RC' | 'LC' | 'RC' | null>(store.studyRange)
-  const [examDate, setExamDate] = useState<string>(() => store.examDate ?? getDefaultExamDate())
+  const [examDate, setExamDate] = useState<string>(() => {
+    const stored = store.examDate
+    return (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
+  })
   const [time, setTime] = useState<string | null>(store.dailyTime)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [viewDate, setViewDate] = useState<Date>(() => {
-    const ds = store.examDate ?? getDefaultExamDate()
+    const stored = store.examDate
+    const ds = (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
     return new Date(ds + 'T00:00:00')
   })
 
@@ -118,7 +122,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     return (
       <StepLayout>
         <div className="flex-1 flex flex-col justify-center">
-          <StepHeader icon="🎯" title="목표 점수는요?" subtitle="달성하고 싶은 토익 점수를 선택해 주세요." />
+          <StepHeader icon="" title="목표 점수는요?" subtitle="달성하고 싶은 토익 점수를 선택해 주세요." />
           <div className="grid grid-cols-3 gap-2.5">
             {SCORE_OPTIONS.map((s) => (
               <button
@@ -151,7 +155,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     return (
       <StepLayout>
         <div className="flex-1 flex flex-col justify-center">
-          <StepHeader icon="📚" title="학습할 영역을 선택해 주세요." subtitle="선택한 영역에 맞춰 커리큘럼이 구성돼요." />
+          <StepHeader icon="" title="학습할 영역을 선택해 주세요." subtitle="선택한 영역에 맞춰 커리큘럼이 구성돼요." />
           <div className="flex flex-col gap-3">
             {RANGE_OPTIONS.map((opt) => (
               <button
@@ -182,7 +186,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     return (
       <StepLayout>
         <div className="flex-1 flex flex-col space-y-4 pb-4">
-          <StepHeader icon="📅" title={`시험 예정일을\n알려 주세요.`} subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요." />
+          <StepHeader icon="" title={`시험 예정일을\n알려 주세요.`} subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요." />
 
           <button
             onClick={() => setCalendarOpen(!calendarOpen)}
@@ -256,7 +260,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   return (
     <StepLayout>
       <div className="flex-1 flex flex-col justify-center">
-        <StepHeader icon="⏰" title={`하루에 얼마나\n공부할 수 있어요?`} subtitle="무리하지 않아도 괜찮아요. 솔직하게 알려 주세요." />
+        <StepHeader icon="" title={`하루에 얼마나\n공부할 수 있어요?`} subtitle="무리하지 않아도 괜찮아요. 솔직하게 알려 주세요." />
         <div className="grid grid-cols-2 gap-2.5">
           {TIME_OPTIONS.map((t) => (
             <button

@@ -199,7 +199,7 @@ const INSTRUCTORS = [
     tag: '#시니어맞춤형',
     video: '/video/video-6.mp4',
     thumbnail: '/image_reference/ojungja.jpg',
-    badge: '시니어 전용 👵',
+    badge: '시니어 전용',
     desc: '30년 경력 국어 교사 출신. 절대 서두르지 않고, 절대 포기시키지 않는 토익계의 할머니.',
     quote: '"급하면 체해요. 천천히, 같이 봐요."',
     badgeCls: 'bg-[#FAF5FF] text-[#7C3AED]',
@@ -537,7 +537,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       ? 'bg-[#2563EB] text-white px-3 py-1 shadow-lg shadow-[#2563EB]/50'
                       : 'bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px] font-medium'
                   }`}>
-                    {inst.id === 'park' ? `✦ ${inst.matching} Match` : `${inst.matching} Match`}
+                    {`${inst.matching} Match`}
                   </div>
 
                   {/* 음소거 토글 버튼 */}
@@ -670,7 +670,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     <span className="text-[#2563EB] font-black text-[16px]">
                       {userName}님의 성향과 {selectedInst.matching} 매칭
                     </span>
-                    <span className="text-[16px]">💙</span>
+                    <span className="text-[16px]"></span>
                   </div>
                   <p className="text-[#5B5A72] text-[14px] leading-relaxed">{selectedInst.matchingDesc}</p>
                 </div>
