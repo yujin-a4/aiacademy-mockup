@@ -682,33 +682,57 @@ function RegularDashboard() {
               </div>
             </div>
 
-            {/* ── 히어로 영역: 좌우 완전 분리 패널 ── */}
-            <div className="flex gap-4" style={{ minHeight: '380px' }}>
+            {/* ── 히어로 영역 ── */}
+            <div
+              className="rounded-xl overflow-hidden flex"
+              style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)', minHeight: '380px' }}
+            >
+              {/* 좌: 강사 사진 — 변경 없음 */}
+              <div className="relative w-[38%] shrink-0 overflow-hidden">
+                {(selectedInstructor ?? 'park') === 'park' ? (
+                  <img
+                    src="/image_reference/park-report.png"
+                    alt={instName}
+                    className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 h-full max-w-none object-contain object-bottom drop-shadow-md"
+                  />
+                ) : (
+                  <img
+                    src={INST_THUMBS[selectedInstructor ?? 'park']}
+                    alt={instName}
+                    className="absolute inset-0 w-full h-full object-cover object-top"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                )}
+              </div>
 
-              {/* ── 왼쪽 패널: 강사 사진 + 말풍선 + CTA ── */}
-              <div
-                className="flex-1 rounded-xl overflow-hidden flex"
-                style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)' }}
-              >
-                {/* 강사 사진 */}
-                <div className="relative w-[38%] shrink-0 overflow-hidden">
-                  {(selectedInstructor ?? 'park') === 'park' ? (
-                    <img
-                      src="/image_reference/park-report.png"
-                      alt={instName}
-                      className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 h-full max-w-none object-contain object-bottom drop-shadow-md"
-                    />
-                  ) : (
-                    <img
-                      src={INST_THUMBS[selectedInstructor ?? 'park']}
-                      alt={instName}
-                      className="absolute inset-0 w-full h-full object-cover object-top"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
+              {/* 우: 디데이/연속학습 + 말풍선 + CTA */}
+              <div className="flex-1 flex flex-col px-6 py-5 gap-3">
+                {/* 카드: 오른쪽 상단 */}
+                <div className="flex gap-2.5 justify-end">
+                  <div className="w-[100px] bg-white/90 rounded-xl border border-[#FED7AA] overflow-hidden">
+                    <div className="px-3 pt-2.5 pb-2 text-center">
+                      <p className="text-[10px] font-semibold text-[#92400E] tracking-wide">연속 학습일</p>
+                    </div>
+                    <div className="border-t border-[#FED7AA]" />
+                    <div className="px-3 pt-2 pb-2.5 text-center">
+                      <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
+                    </div>
+                  </div>
+                  {ddayLabel && (
+                    <div className="w-[100px] bg-white/90 rounded-xl border border-[#DBEAFE] overflow-hidden">
+                      <div className="px-3 pt-2.5 pb-2 text-center">
+                        <p className="text-[10px] font-semibold text-[#3B82F6] tracking-wide">토익 시험</p>
+                      </div>
+                      <div className="border-t border-[#DBEAFE]" />
+                      <div className="px-3 pt-2 pb-2.5 text-center">
+                        <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
+
                 {/* 말풍선 + CTA */}
-                <div className="flex-1 px-6 py-8 flex flex-col justify-center gap-5">
+                <div className="flex-1 flex flex-col justify-center gap-5">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#2563EB] bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full self-start">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
                     {instName} 선생님이 보내는 말
@@ -731,22 +755,6 @@ function RegularDashboard() {
                     1:1 학습 시작하기
                   </a>
                 </div>
-              </div>
-
-              {/* ── 오른쪽: 뱃지 2개 분리 패널 ── */}
-              <div className="shrink-0 flex flex-col gap-4" style={{ minWidth: '110px' }}>
-                <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                  <span className="text-[28px] leading-none"></span>
-                  <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
-                  <p className="text-[11px] text-[#92400E] font-semibold">연속 학습 중</p>
-                </div>
-                {ddayLabel && (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-1 px-4 bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                    <span className="text-[28px] leading-none"></span>
-                    <p className="text-[22px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
-                    <p className="text-[11px] text-[#3B82F6] font-semibold">토익 시험</p>
-                  </div>
-                )}
               </div>
 
             </div>

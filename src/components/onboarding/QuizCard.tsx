@@ -59,45 +59,49 @@ export default function QuizCard({ onComplete }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#F3F4F6] px-4">
-      <div className="w-full max-w-[390px] space-y-8 animate-fade-in">
-        {/* 진행 바 */}
-        <div className="flex gap-1.5">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${i <= idx ? 'bg-primary' : 'bg-[#D1D5DB]'}`} />
-          ))}
+    <div className="flex flex-col min-h-screen bg-[#F3F4F6] px-4 py-10">
+      <div className="w-full max-w-[390px] mx-auto flex flex-col flex-1 animate-fade-in">
+
+        <div className="flex-1 flex flex-col justify-center space-y-8">
+          {/* 진행 바 */}
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${i <= idx ? 'bg-primary' : 'bg-[#D1D5DB]'}`} />
+            ))}
+          </div>
+
+          {/* 질문 헤더 */}
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary-50 border border-primary-100 rounded-2xl animate-bounce-in">
+              <span className="text-2xl">{showReaction ? '✓' : '?'}</span>
+            </div>
+            <div className="bg-white border border-[#D1D5DB] rounded-2xl px-5 py-4 text-[#111318] text-[15px] font-medium leading-relaxed min-h-[60px] flex items-center justify-center text-center relative">
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />
+              {showReaction ? q.reaction : q.label}
+            </div>
+          </div>
+
+          {/* 선택지 */}
+          <div className="space-y-2.5">
+            {[q.left, q.right].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handlePick(opt.value)}
+                disabled={!!picked}
+                className={`w-full py-4 px-5 rounded-[10px] text-[15px] font-medium transition-all duration-200 border text-left ${
+                  picked === opt.value
+                    ? 'bg-primary text-white border-primary'
+                    : picked
+                    ? 'bg-white text-[#D1D5DB] border-[#D1D5DB]'
+                    : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
+                }`}
+              >
+                {opt.text}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* 질문 헤더 */}
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary-50 border border-primary-100 rounded-2xl animate-bounce-in">
-            <span className="text-2xl">{showReaction ? '✓' : '?'}</span>
-          </div>
-          <div className="bg-white border border-[#D1D5DB] rounded-2xl px-5 py-4 text-[#111318] text-[15px] font-medium leading-relaxed min-h-[60px] flex items-center justify-center text-center relative">
-            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[10px] border-b-white" />
-            {showReaction ? q.reaction : q.label}
-          </div>
-        </div>
-
-        {/* 선택지 */}
-        <div className="space-y-2.5">
-          {[q.left, q.right].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handlePick(opt.value)}
-              disabled={!!picked}
-              className={`w-full py-4 px-5 rounded-[10px] text-[15px] font-medium transition-all duration-200 border text-left ${
-                picked === opt.value
-                  ? 'bg-primary text-white border-primary'
-                  : picked
-                  ? 'bg-white text-[#D1D5DB] border-[#D1D5DB]'
-                  : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
-              }`}
-            >
-              {opt.text}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   )

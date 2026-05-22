@@ -185,7 +185,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   if (subStep === 'date') {
     return (
       <StepLayout>
-        <div className="flex-1 flex flex-col space-y-4 pb-4">
+        <div className="flex-1 flex flex-col justify-center space-y-4">
           <StepHeader icon="" title={`시험 예정일을\n알려 주세요.`} subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요." />
 
           <button

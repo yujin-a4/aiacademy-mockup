@@ -255,6 +255,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const [isMuted, setIsMuted] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const recognitionRef = useRef<any>(null)
+  const tabSectionRef = useRef<HTMLDivElement | null>(null)
 
   /* ── video autoplay on focus change ── */
   useEffect(() => {
@@ -341,6 +342,9 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   const handleTabChange = (tab: 'proposal' | 'chat' | 'curriculum') => {
     setActiveTab(tab)
+    if (tab === 'chat') {
+      setTimeout(() => tabSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    }
     if (tab === 'chat' && chatHistory.length === 1 && selectedInst) {
       setTimeout(() => playTTS(selectedInst.greeting, selectedInst.id), 500)
     } else {
@@ -426,7 +430,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   if (view === 'list') {
     const focused = visibleInstructors[focusedIndex]
     return (
-      <div className="flex flex-col min-h-screen bg-[#F3F4F6] overflow-hidden select-none relative">
+      <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#EAF1FF] via-[#F3F4F6] to-[#F0F0F8] overflow-hidden select-none relative">
         {onBack && (
           <button
             onClick={onBack}
@@ -611,7 +615,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   if (!selectedInst) return null
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFF] animate-fade-in font-sans">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#EAF1FF] via-[#F8FAFF] to-[#F0F0F8] animate-fade-in font-sans">
       {/* 헤더 */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#DBEAFE] sticky top-0 z-30 shadow-sm">
         <button
@@ -736,7 +740,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
           </div>
 
           {/* 탭 메뉴 */}
-          <div className="flex border-b border-[#DBEAFE] mb-8">
+          <div ref={tabSectionRef} className="flex border-b border-[#DBEAFE] mb-8">
             {[
               { id: 'proposal', label: 'Study Plan' },
               { id: 'curriculum', label: '맞춤 교재' },
@@ -784,56 +788,144 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             )}
 
             {activeTab === 'curriculum' && (
-              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
-                <div className="mb-8">
-                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">맞춤 로드맵</h4>
-                  <p className="text-[#9CA3AF] text-[14px]">단계별로 실력을 확실히 끌어올리는 커리큘럼이에요.</p>
+              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10 space-y-10">
+
+                {/* ── 교재 카드 ── */}
+                <div>
+                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">맞춤 교재</h4>
+                  <p className="text-[#9CA3AF] text-[14px] mb-6">{userName}님을 위해 구성된 전용 교재예요.</p>
+
+                  <div className="flex gap-7 items-start">
+                    {/* 북 커버 — /public/curriculum-cover.png 로 이미지 교체 가능 */}
+                    {/* 북커버 — /public/curriculum-cover.png 교체 시 자동 반영 */}
+                    <div
+                      className="relative w-[120px] shrink-0"
+                      style={{ aspectRatio: '3/4', perspective: '600px' }}
+                    >
+                      {/* 두께감 레이어 (페이지 스택) */}
+                      <div className="absolute inset-0 rounded-r-xl" style={{ background: 'linear-gradient(160deg, #1d4ed8, #60a5fa)', transform: 'translate(7px, 4px)', opacity: 0.28 }} />
+                      <div className="absolute inset-0 rounded-r-xl" style={{ background: 'linear-gradient(160deg, #1e3faa, #3b82f6)', transform: 'translate(4px, 2px)', opacity: 0.45 }} />
+
+                      {/* 메인 커버 */}
+                      <div
+                        className="absolute inset-0 rounded-r-xl overflow-hidden"
+                        style={{
+                          backgroundImage: "url('/curriculum-cover.png'), linear-gradient(160deg, #1E3A8A 0%, #2563EB 55%, #60A5FA 100%)",
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          transform: 'rotateY(-6deg)',
+                          boxShadow: '-6px 10px 24px rgba(30,58,138,0.35)',
+                        }}
+                      >
+                        {/* 책등 그림자 */}
+                        <div className="absolute left-0 top-0 bottom-0 w-3 bg-black/25" />
+                        {/* 골드 장식 라인 */}
+                        <div className="absolute inset-x-4 top-4 h-[1px] bg-amber-400/60" />
+                        <div className="absolute inset-x-4 bottom-4 h-[1px] bg-amber-400/60" />
+                        {/* 텍스트 — 볼드 없음 */}
+                        <div className="absolute inset-0 flex flex-col justify-between p-4 pl-5">
+                          <p className="text-white/50 text-[8px] uppercase tracking-widest">YBM AI TOEIC</p>
+                          <div className="space-y-1">
+                            <p className="text-white text-[12px] leading-snug drop-shadow">
+                              {userName}님의<br />TOEIC {targetScore}<br />완성 교재
+                            </p>
+                            <p className="text-amber-300/80 text-[9px] mt-1">{selectedInst.name} 강사</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 교재 메타 정보 */}
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-wide">교재명</p>
+                        <p className="text-[#1C1B33] font-black text-[17px] leading-snug mt-0.5">
+                          {userName}님의 TOEIC {targetScore} 완성 교재
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-2.5 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#DBEAFE]">
+                          {studyRange ?? 'LC+RC'}
+                        </span>
+                        <span className="px-2.5 py-1 bg-[#ECFDF5] text-[#059669] text-[12px] font-bold rounded-lg border border-[#D1FAE5]">
+                          {selectedInst.proposal.plan}
+                        </span>
+                        <span className="px-2.5 py-1 bg-[#FFF7ED] text-[#C2410C] text-[12px] font-bold rounded-lg border border-[#FED7AA]">
+                          목표 {targetScore}점
+                        </span>
+                      </div>
+
+                      <div className="border-t border-[#F3F4F6] pt-3 space-y-1">
+                        <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-wide">담당 강사</p>
+                        <div className="flex items-center gap-2">
+                          <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-7 h-7 rounded-full object-cover border-2 border-[#DBEAFE]" />
+                          <span className="text-[#1C1B33] font-bold text-[14px]">{selectedInst.name} 강사</span>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${selectedInst.badgeCls}`}>{selectedInst.badge}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg>
+                        </div>
+                        <p className="text-emerald-600 text-[12px] font-bold">교재 구성이 완료되었습니다</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F8FAFF] border-b border-[#DBEAFE]">
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-20 text-center">주차</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF]">커리큘럼 명</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">집중 파트</th>
-                        <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">목표</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#DBEAFE]">
-                      {selectedInst.curriculum.map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
-                          <td className="px-6 py-6 text-center">
-                            <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-black text-[13px] flex items-center justify-center mx-auto">
-                              {idx + 1}
-                            </div>
-                            <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <h5 className="text-[#1C1B33] font-bold text-[16px] mb-1">{item.title}</h5>
-                            <p className="text-[#9CA3AF] text-[13px] leading-relaxed">{item.detail}</p>
-                          </td>
-                          <td className="px-6 py-6">
-                            <span className="inline-block px-3 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
-                              {item.part || '-'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <div className="flex items-center justify-between group-hover:pr-2 transition-all">
-                              <span className="text-[#1C1B33] text-[14px] font-bold">{item.goal || '-'}</span>
-                              <svg className="text-[#D1D5DB] group-hover:text-[#2563EB] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <path d="M9 18l6-6-6-6"/>
-                              </svg>
-                            </div>
-                          </td>
+
+                {/* ── 목차 (로드맵) ── */}
+                <div>
+                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">목차</h4>
+                  <p className="text-[#9CA3AF] text-[14px] mb-6">단계별로 실력을 확실히 끌어올리는 학습 로드맵이에요.</p>
+                  <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#F8FAFF] border-b border-[#DBEAFE]">
+                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-20 text-center">주차</th>
+                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF]">단원명</th>
+                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">집중 파트</th>
+                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">목표</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-[#DBEAFE]">
+                        {selectedInst.curriculum.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
+                            <td className="px-6 py-6 text-center">
+                              <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-black text-[13px] flex items-center justify-center mx-auto">
+                                {idx + 1}
+                              </div>
+                              <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>
+                            </td>
+                            <td className="px-6 py-6">
+                              <h5 className="text-[#1C1B33] font-bold text-[16px] mb-1">{item.title}</h5>
+                              <p className="text-[#9CA3AF] text-[13px] leading-relaxed">{item.detail}</p>
+                            </td>
+                            <td className="px-6 py-6">
+                              <span className="inline-block px-3 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
+                                {item.part || '-'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-6">
+                              <div className="flex items-center justify-between group-hover:pr-2 transition-all">
+                                <span className="text-[#1C1B33] text-[14px] font-bold">{item.goal || '-'}</span>
+                                <svg className="text-[#D1D5DB] group-hover:text-[#2563EB] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M9 18l6-6-6-6"/>
+                                </svg>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-6 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EFF6FF]">
+                    <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] shrink-0">ℹ</div>
+                    <p className="text-[#6B7280] text-[13px] font-medium">매주 학습 진행 상황을 분석하여 커리큘럼을 유연하게 조정해 드려요.</p>
+                  </div>
                 </div>
-                <div className="mt-8 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EFF6FF]">
-                  <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px]">ℹ</div>
-                  <p className="text-[#6B7280] text-[13px] font-medium">매주 학습 진행 상황을 분석하여 커리큘럼을 유연하게 조정해 드려요.</p>
-                </div>
+
               </div>
             )}
 
