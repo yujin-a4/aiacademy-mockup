@@ -11,6 +11,7 @@ import AccountMenu from '@/components/AccountMenu'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
+import { useStreakDay } from '@/hooks/useStreakDay'
 
 /* ── 데이터 ── */
 const PARTS = [
@@ -165,6 +166,7 @@ function BottomNav() {
 /* ── 메인 페이지 ── */
 function MyLearningInner() {
   const { userName, targetScore, examDate, selectedInstructor } = useOnboardingStore()
+  const streakDay = useStreakDay()
   const { bookmarkedIds } = useBookmarkStore()
   const { initTodayWords } = useVocaStore()
   const { wrongAnswers } = useWrongAnswerStore()
@@ -247,7 +249,7 @@ function MyLearningInner() {
               )}
               <span className="flex items-center gap-1 text-[11px] font-bold text-[#059669] bg-[#F0FDF4] border border-[#BBF7D0] px-2.5 py-1 rounded-full">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-                12일 연속
+                {streakDay}일 연속
               </span>
               <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -270,7 +272,7 @@ function MyLearningInner() {
             )}
             <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#059669] bg-[#F0FDF4] border border-[#BBF7D0] px-3 py-1.5 rounded-full">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-              12일 연속
+              {streakDay}일 연속
             </span>
             <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -557,7 +559,7 @@ function MyLearningInner() {
                     <Ring current={18} total={50} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[#1C1B33] font-bold text-[15px]">오늘의 단어 목표 50개</p>
-                      <p className="text-[#6B7280] text-[12px] mt-0.5 mb-3">32개 남았어요 · 12일 연속 달성 중</p>
+                      <p className="text-[#6B7280] text-[12px] mt-0.5 mb-3">32개 남았어요 · {streakDay}일 연속 달성 중</p>
                       <div className="flex flex-wrap gap-2">
                         {[
                           { label: '플래시카드', color: 'indigo', href: '/my-learning/voca/flashcard' },

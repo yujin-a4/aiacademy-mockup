@@ -4,6 +4,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useMemo, useState, Suspense } from 'react'
+import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 
 const LABELS = ['A', 'B', 'C', 'D']
 
@@ -34,6 +35,7 @@ function ReviewInner() {
   const [chosen, setChosen]     = useState<number | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
   const [done, setDone]         = useState(false)
+  const drawing = useDrawingTool()
 
   const inst      = instructor ?? 'park'
   const instColor = INST_COLOR[inst] ?? INST_COLOR.park
@@ -153,7 +155,9 @@ function ReviewInner() {
             <span className="text-[11px] text-[#9CA3AF] shrink-0">{index + 1} / {questions.length}</span>
           </div>
         </div>
+        <DrawToggleButton drawMode={drawing.drawMode} toggleDraw={drawing.toggleDraw} />
       </header>
+      <DrawingOverlay {...drawing} />
 
       <div className="px-5 max-w-[600px] mx-auto w-full space-y-3">
         {/* 지문 제목 */}

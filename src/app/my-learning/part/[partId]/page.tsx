@@ -5,6 +5,7 @@ import { P5_QUESTIONS, P6_PASSAGES, P7_PASSAGES } from '@/data/rcData'
 import type { RCChoices } from '@/data/rcData'
 import ExitConfirmModal from '@/components/ExitConfirmModal'
 import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
+import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 
 const PART_INFO: Record<string, { name: string; label: string }> = {
   p5: { name: '단문 공란', label: 'Part 5' },
@@ -84,6 +85,8 @@ export default function PartPracticePage() {
   const [results, setResults] = useState<boolean[]>([])
   const [showExitModal, setShowExitModal] = useState(false)
 
+  const drawing = useDrawingTool()
+
   const partInfo = PART_INFO[partId]
 
   const items: PracticeItem[] = useMemo(() => {
@@ -97,17 +100,17 @@ export default function PartPracticePage() {
     }
     if (partId === 'p6') {
       const passage = P6_PASSAGES[Math.floor(Math.random() * P6_PASSAGES.length)]
-      return passage.questions.map(q => ({
+      return shuffle(passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         category: q.category, blankNum: q.blankNum,
-      }))
+      })))
     }
     if (partId === 'p7') {
       const passage = P7_PASSAGES[Math.floor(Math.random() * P7_PASSAGES.length)]
-      return passage.questions.map(q => ({
+      return shuffle(passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         question: q.question,
-      }))
+      })))
     }
     return []
   }, [partId])
@@ -293,8 +296,10 @@ export default function PartPracticePage() {
       <header className="px-6 py-4 flex items-center justify-between shrink-0 bg-[#F8FAFF]">
         <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
         <div className="font-bold text-[#1C1B33] text-[15px]">{partInfo.label} · {partInfo.name}</div>
-        <div className="w-8" />
+        <DrawToggleButton drawMode={drawing.drawMode} toggleDraw={drawing.toggleDraw} />
       </header>
+
+      <DrawingOverlay {...drawing} />
 
       {/* 진행 바 */}
       <div className={`shrink-0 px-6 pb-3 mx-auto w-full ${isSplit ? 'md:px-8 md:max-w-none' : 'max-w-[600px]'}`}>

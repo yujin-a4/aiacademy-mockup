@@ -7,6 +7,7 @@ import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS, INST_MESSAGES } from '@/data/instructorData'
+import { useStreakDay } from '@/hooks/useStreakDay'
 
 type CallState = 'idle' | 'ringing' | 'active' | 'log'
 
@@ -51,6 +52,7 @@ const OJJ_SCHEDULE = [
 function OjjDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { userName, examDate } = useOnboardingStore()
+  const streakDay = useStreakDay()
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
   const [missions, setMissions] = useState(OJJ_SCHEDULE)
@@ -176,7 +178,7 @@ function OjjDashboard() {
             <div className="hidden md:flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
-                   17일 연속 학습 중
+                   {streakDay}일 연속 학습 중
                 </span>
                 {ddayLabel && (
                   <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-3 py-1.5 rounded-full">
@@ -268,7 +270,7 @@ function OjjDashboard() {
                   <div className="flex items-center gap-2.5 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-3">
                     <span className="text-[22px] leading-none"></span>
                     <div>
-                      <p className="text-[22px] font-black text-white leading-none">12일</p>
+                      <p className="text-[22px] font-black text-white leading-none">{streakDay}일</p>
                       <p className="text-[10px] text-white/70 font-semibold">연속 학습 중</p>
                     </div>
                   </div>
@@ -282,7 +284,7 @@ function OjjDashboard() {
 
               {/* 66일 달성 그리드 — 전체 가로 */}
               {(() => {
-                const TODAY = 13
+                const TODAY = streakDay
                 const MILESTONES: Record<number, string> = { 7: '', 14: '', 21: '', 30: '', 42: '', 55: '', 66: '' }
                 const COLS = 13
                 const TOTAL_CELLS = Math.ceil(66 / COLS) * COLS // 78
@@ -563,15 +565,15 @@ function BottomNav() {
 function RegularDashboard() {
   const { userName, selectedInstructor, examDate } = useOnboardingStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const streakDay = 17
-  const [gridPage, setGridPage] = useState(() => streakDay > 30 ? 1 : 0)
+  const streakDay = useStreakDay()
+  const [gridPage, setGridPage] = useState(0)
 
   useEffect(() => {
     if (streakDay > 30) {
       const t = setTimeout(() => setGridPage(1), 600)
       return () => clearTimeout(t)
     }
-  }, [])
+  }, [streakDay])
 
   const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
   const instThumb = INST_THUMBS[selectedInstructor ?? 'park'] ?? ''
@@ -649,7 +651,7 @@ function RegularDashboard() {
             </div>
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1.5 rounded-full shrink-0">
-                 17일 연속
+                 {streakDay}일 연속
               </span>
               <button onClick={handlePhoneClick}
                 className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center hover:bg-[#EFF6FF] transition-colors">
@@ -715,7 +717,7 @@ function RegularDashboard() {
                     </div>
                     <div className="border-t border-[#FED7AA]" />
                     <div className="px-3 pt-2 pb-2.5 text-center">
-                      <p className="text-[22px] font-black text-[#D97706] leading-none">17일</p>
+                      <p className="text-[22px] font-black text-[#D97706] leading-none">{streakDay}일</p>
                     </div>
                   </div>
                   {ddayLabel && (
@@ -766,7 +768,7 @@ function RegularDashboard() {
               <div className="bg-white rounded-xl border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] p-4 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-[#1C1B33] font-bold text-[13px]">66일 챌린지</h3>
-                  <span className="text-[10px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2 py-0.5 rounded-full"> 17일 연속</span>
+                  <span className="text-[10px] font-semibold text-[#F59E0B] bg-[#FEF9C3] px-2 py-0.5 rounded-full"> {streakDay}일 연속</span>
                 </div>
                 {/* 슬라이딩 그리드: 30개씩 2페이지 */}
                 <div className="overflow-hidden">
@@ -871,7 +873,7 @@ function RegularDashboard() {
                   <p className="text-[11px] text-[#374151] leading-relaxed">Part 5는 시간이 생명! 모르는 문제는 과감히 넘기고 마지막에 돌아오세요. 속도가 곧 점수입니다.</p>
                 </div>
                 <Link href="/daily"
-                  className="w-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white py-2 rounded-xl font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#2563EB]/20 active:scale-[0.98]">
+                  className="w-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white py-2 rounded-md font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#2563EB]/20 active:scale-[0.98]">
                   오늘의 데일리 문제 풀기
                 </Link>
               </div>

@@ -62,7 +62,7 @@ export default function OnboardingPage() {
   }
 
   const handleSkipToInstructor = () => {
-    store.setUserName('토익초보')
+    store.setUserName('지윤')
     store.setTargetScore(750)
     store.setStudyRange('LC+RC')
     store.setLearningStyle('꼼꼼')
