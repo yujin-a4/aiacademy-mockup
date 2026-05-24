@@ -2,14 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
-import { LessonToolbar } from './Screen1'
-import InputBar from '@/components/classroom/toolbar/InputBar'
-import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import { useClassroomStore } from '@/store/classroomStore'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { SCREEN4_CARDS, buildTurns } from '@/data/lessonScenario'
-import { speakAndWait, stopCurrentAudio } from '@/lib/tts'
-import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
+import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 
 interface Screen4Props {
   onComplete: () => void
@@ -20,125 +16,185 @@ interface Screen4Props {
 type BlankFills = Record<string, string>
 type SummarySegment = string | { blank: string }
 
+/* ── Web Speech API 타입 ── */
+interface SREvent extends Event {
+  readonly resultIndex: number
+  readonly results: { readonly length: number; [i: number]: { readonly isFinal: boolean; [j: number]: { readonly transcript: string } } }
+}
+interface SRInstance extends EventTarget {
+  continuous: boolean; interimResults: boolean; lang: string
+  onstart: ((e: Event) => void) | null
+  onend:   ((e: Event) => void) | null
+  onerror: ((e: Event) => void) | null
+  onresult: ((e: SREvent) => void) | null
+  start(): void; stop(): void; abort(): void
+}
+
+const CARD_META: { title: SummarySegment[]; body: SummarySegment[] }[] = [
+  {
+    title: [{ blank: 'A' }, '와의 관계 확인'],
+    body:  ['주어가 직접 행위를 하는 주체면 ', { blank: 'B' }, ', 주어가 행위를 당하는 대상이면 ', { blank: 'C' }],
+  },
+  {
+    title: [{ blank: 'A' }, ' 유무 확인'],
+    body:  ['동사 뒤에 ', { blank: 'B' }, '가 있으면 ', { blank: 'C' }, ', 없으면 ', { blank: 'D' }],
+  },
+  {
+    title: ['수, ', { blank: 'A' }, ' 확인'],
+    body:  ['주어의 수를 확인하여 ', { blank: 'B' }, ' 맞추고, 시간 부사(next, last) 확인하여 ', { blank: 'C' }, ' 확인'],
+  },
+]
+
 export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
-  const persona  = useClassroomStore((s) => s.persona)
-  const userName = useOnboardingStore((s) => s.userName) || '민주'
+  const persona  = useClassroomStore(s => s.persona)
+  const userName = useOnboardingStore(s => s.userName) || '민주'
   const TURNS    = buildTurns(userName)
 
-  const [cardIdx, setCardIdx]   = useState(0)
-  const [speech, setSpeech]     = useState('')
-  const [isPlaying, setPlaying] = useState(false)
-  const [fills, setFills]       = useState<BlankFills[]>(SCREEN4_CARDS.map(() => ({})))
-  const [activeBlank, setActiveBlank] = useState<string | null>(null)
-  const [cardDone, setCardDone] = useState<boolean[]>([false, false, false])
-  const [done, setDone]         = useState(false)
-  const [clearInput, setClearInput] = useState(0)
-  const [drawingState, setDrawing]  = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
-  const [clearCanvas, setClear]     = useState(0)
+  const [speech, setSpeech]           = useState('')
+  const [isPlaying, setPlaying]       = useState(false)
+  const [fills, setFills]             = useState<BlankFills[]>(SCREEN4_CARDS.map(() => ({})))
+  const [fillCorrect, setFillCorrect] = useState<Record<string, boolean>[]>(SCREEN4_CARDS.map(() => ({})))
+  const [cardDone, setCardDone]       = useState<boolean[]>(SCREEN4_CARDS.map(() => false))
+  const [activeCard, setActiveCard]   = useState(0)
+  const [isRecording, setIsRecording] = useState(false)
+  const [interimText, setInterimText] = useState('')
+  const [showAnswers, setShowAnswers] = useState(false)
 
-  const startListeningRef = useRef<() => void>(() => {})
-  const stopListeningRef  = useRef<() => void>(() => {})
-  const mountedRef = useRef(true)
+  const recognRef      = useRef<SRInstance | null>(null)
+  const speechBufRef   = useRef('')
+  const isRecordingRef = useRef(false)
+  const activeCardRef  = useRef(0)
+  const mountedRef     = useRef(true)
+  const startedRef     = useRef(false)
+
   useEffect(() => {
+    activeCardRef.current = activeCard
+  }, [activeCard])
+
+  useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
       stopCurrentAudio()
+      isRecordingRef.current = false
+      try { recognRef.current?.stop() } catch (_) {}
     }
   }, [])
 
-  const CARD_PROMPTS = [
-    TURNS.s4_opening.script,
-    TURNS.s4_card2_prompt.script,
-    TURNS.s4_card3_prompt.script,
-  ]
-
-  const enterCard = useCallback(async (idx: number) => {
-    if (idx >= SCREEN4_CARDS.length) return
-    const card = SCREEN4_CARDS[idx]
-    const prompt = CARD_PROMPTS[idx]
-    setSpeech(prompt)
-    setPlaying(true)
-    await new Promise<void>((r) => setTimeout(r, 0))
-    await speakAndWait(prompt, persona)
-    if (!mountedRef.current) return
-    setPlaying(false)
-    setActiveBlank(card.blanks[0])
-    startListeningRef.current()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persona])
-
+  /* 오프닝 TTS */
   useEffect(() => {
-    enterCard(0)
+    if (startedRef.current) return
+    startedRef.current = true
+    const run = async () => {
+      const text = TURNS.s4_opening.script
+      setSpeech(text)
+      setPlaying(true)
+      await speakTTS(text, persona)
+      if (mountedRef.current) setPlaying(false)
+    }
+    run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* STT 결과 → 빈칸 채우기 */
-  const handleVoice = useCallback(async (text: string) => {
-    if (!activeBlank || isPlaying) return
-    stopListeningRef.current()
-
-    const card = SCREEN4_CARDS[cardIdx]
-    const keywords = card.keywords[activeBlank as keyof typeof card.keywords] as string[]
-
+  /* 빈칸 채우기 처리 */
+  const processCard = useCallback((text: string, cardIdx: number) => {
+    const card  = SCREEN4_CARDS[cardIdx]
     const lower = text.toLowerCase()
-    const matched = keywords.some((kw) => lower.includes(kw))
-    const answer = card.answers[activeBlank as keyof typeof card.answers] as string
+    const newFills: BlankFills                = {}
+    const newCorrect: Record<string, boolean> = {}
 
-    const newFills = fills.map((f, i) => i === cardIdx ? { ...f, [activeBlank]: matched ? answer : text } : f)
-    setFills(newFills)
-    setClearInput((n) => n + 1)
+    card.blanks.forEach(blank => {
+      const keywords = card.keywords[blank as keyof typeof card.keywords] as string[]
+      const matched  = keywords.some(kw => lower.includes(kw))
+      const answer   = card.answers[blank as keyof typeof card.answers] as string
+      newFills[blank]   = matched ? answer : '✗'
+      newCorrect[blank] = matched
+    })
 
-    const nextBlankIdx = card.blanks.indexOf(activeBlank) + 1
-    if (nextBlankIdx < card.blanks.length) {
-      setActiveBlank(card.blanks[nextBlankIdx])
-      const promptNext = `다음, ${card.blanks[nextBlankIdx]}는?`
-      setSpeech(promptNext)
-      setPlaying(true)
-      await new Promise<void>((r) => setTimeout(r, 0))
-      await speakAndWait(promptNext, persona)
-      if (!mountedRef.current) return
-      setPlaying(false)
-      startListeningRef.current()
-    } else {
-      setActiveBlank(null)
-      const newCardDone = [...cardDone]
-      newCardDone[cardIdx] = true
-      setCardDone(newCardDone)
+    setFills(prev => prev.map((f, i) => i === cardIdx ? newFills : f))
+    setFillCorrect(prev => prev.map((f, i) => i === cardIdx ? newCorrect : f))
+    setCardDone(prev => { const next = [...prev]; next[cardIdx] = true; return next })
+    if (cardIdx + 1 < SCREEN4_CARDS.length) setActiveCard(cardIdx + 1)
+  }, [])
 
-      const nextCardIdx = cardIdx + 1
-      if (nextCardIdx < SCREEN4_CARDS.length) {
-        setCardIdx(nextCardIdx)
-        await new Promise((r) => setTimeout(r, 500))
-        await enterCard(nextCardIdx)
-      } else {
-        setDone(true)
-        const conclusionText = TURNS.s4_conclusion.script
-        setSpeech(conclusionText)
-        setPlaying(true)
-        await new Promise<void>((r) => setTimeout(r, 0))
-        await speakAndWait(conclusionText, persona)
-        if (mountedRef.current) setPlaying(false)
+  /* Web Speech API 시작 */
+  const startSR = useCallback(() => {
+    const SRCtor = (
+      (window as unknown as { SpeechRecognition?: new () => SRInstance; webkitSpeechRecognition?: new () => SRInstance })
+        .SpeechRecognition ??
+      (window as unknown as { SpeechRecognition?: new () => SRInstance; webkitSpeechRecognition?: new () => SRInstance })
+        .webkitSpeechRecognition
+    )
+    if (!SRCtor) { alert('이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome 권장)'); return }
+
+    const rec = new SRCtor()
+    rec.lang           = 'ko-KR'
+    rec.continuous     = true
+    rec.interimResults = true
+
+    rec.onresult = (e: SREvent) => {
+      let interim = '', final = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) final += t
+        else                      interim += t
+      }
+      if (final) speechBufRef.current = (speechBufRef.current + ' ' + final).trim()
+      setInterimText(interim || speechBufRef.current)
+    }
+    rec.onerror = () => {}
+    rec.onend = () => {
+      /* Chrome이 예기치 않게 종료한 경우 자동 재시작 */
+      if (isRecordingRef.current) {
+        setTimeout(() => { if (isRecordingRef.current) startSR() }, 200)
       }
     }
+    recognRef.current = rec
+    rec.start()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBlank, isPlaying, cardIdx, fills, cardDone, persona])
+  }, [])
 
-  const card = SCREEN4_CARDS[cardIdx]
+  /* 마이크 토글 (시작 / 중지+처리) */
+  const handleMicToggle = useCallback((cardIdx: number) => {
+    if (isPlaying) return
 
-  const CARD_META = [
-    {
-      title: [{ blank: 'A' }, '와의 관계 확인'] as SummarySegment[],
-      body: ['주어가 직접 행위를 하는 주체면 ', { blank: 'B' }, ', 주어가 행위를 당하는 대상이면 ', { blank: 'C' }] as SummarySegment[],
-    },
-    {
-      title: [{ blank: 'A' }, ' 유무 확인'] as SummarySegment[],
-      body: ['동사 뒤에 ', { blank: 'B' }, '가 있으면 ', { blank: 'C' }, ', 없으면 ', { blank: 'D' }] as SummarySegment[],
-    },
-    {
-      title: ['수, ', { blank: 'A' }, ' 확인'] as SummarySegment[],
-      body: ['주어의 수를 확인하여 ', { blank: 'B' }, ' 맞추고, 시간 부사(next, last) 확인하여 ', { blank: 'C' }, ' 확인'] as SummarySegment[],
-    },
-  ]
+    if (isRecording) {
+      /* 중지 → 처리 */
+      isRecordingRef.current = false
+      try { recognRef.current?.stop() } catch (_) {}
+      recognRef.current = null
+      const text = speechBufRef.current.trim()
+      speechBufRef.current = ''
+      setInterimText('')
+      setIsRecording(false)
+      if (text) processCard(text, cardIdx)
+    } else {
+      /* 시작 */
+      speechBufRef.current = ''
+      setInterimText('')
+      isRecordingRef.current = true
+      setIsRecording(true)
+      startSR()
+    }
+  }, [isPlaying, isRecording, processCard, startSR])
+
+  /* 정답 보기 */
+  const handleShowAnswers = useCallback(() => {
+    setShowAnswers(true)
+    setFills(SCREEN4_CARDS.map(card => {
+      const f: BlankFills = {}
+      card.blanks.forEach(blank => { f[blank] = card.answers[blank as keyof typeof card.answers] as string })
+      return f
+    }))
+    setFillCorrect(SCREEN4_CARDS.map(card => {
+      const c: Record<string, boolean> = {}
+      card.blanks.forEach(blank => { c[blank] = true })
+      return c
+    }))
+    setCardDone(SCREEN4_CARDS.map(() => true))
+  }, [])
+
+  const allDone = cardDone.every(Boolean)
 
   return (
     <ClassroomLayout
@@ -149,39 +205,36 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
       instructorVideoSrc={undefined}
       onEnd={onEnd}
       toolbar={
-        <LessonToolbar
-          drawing={drawingState}
-          onDrawingChange={setDrawing}
-          onClearAll={() => setClear((n) => n + 1)}
-          onPrev={onPrev}
-          onNext={done
-            ? () => { stopCurrentAudio(); onComplete() }
-            : () => { stopCurrentAudio(); onEnd() }}
-          nextLabel={done ? '요약 노트 보기' : '종료'}
-          nextEnabled={done ? !isPlaying : true}
-        />
-      }
-      instructorInput={
-        <InputBar
-          placeholder={
-            isPlaying   ? '강사 설명 듣는 중...' :
-            activeBlank ? `"${SCREEN4_CARDS[cardIdx].answers[activeBlank as keyof typeof card.answers]}"를 음성으로 말해 보세요` :
-            done        ? '모든 카드를 완성했어요!' : ''
-          }
-          clearTrigger={clearInput}
-          onReadyToListen={(start, stop) => {
-            startListeningRef.current = start
-            stopListeningRef.current  = stop
-          }}
-          onSpeechResult={handleVoice}
-          actions={[]}
-        />
+        <div className="flex items-center px-4 py-3 gap-2">
+          <div className="flex-1" />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onPrev}
+              disabled={!onPrev}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                ${!onPrev ? 'opacity-30 cursor-not-allowed text-ybm-text-sub' : 'text-ybm-text hover:bg-ybm-bg active:scale-95'}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 3L4 7l5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              이전
+            </button>
+            <button
+              onClick={() => { stopCurrentAudio(); allDone || showAnswers ? onComplete() : onEnd() }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm active:scale-95 transition-all"
+            >
+              {allDone || showAnswers ? '요약 노트 보기' : '종료'}
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M5 3l5 4-5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       }
     >
-      <div className="relative flex flex-col gap-4 h-full">
-        <CanvasOverlay tool={drawingState.tool} color={drawingState.color} clearTrigger={clearCanvas} />
+      <div className="flex flex-col gap-4 h-full">
 
-        {/* 헤더 - 다른 페이지와 동일한 스타일 */}
+        {/* 헤더 */}
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#2277F0]">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -195,43 +248,79 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
           </span>
         </div>
 
-        {/* 흰색 박스 — 안내 문구 + 카드 3개 */}
+        {/* 카드 영역 */}
         <div className="ybm-card px-5 pt-4 pb-5 flex flex-col gap-4 flex-1">
-          <p className="text-lg font-bold text-[#1A2B4B]">오늘 배운 내용을 직접 설명해 보세요</p>
+
+          {/* 안내 + 정답 보기 */}
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-bold text-[#1A2B4B]">오늘 배운 내용을 직접 설명해 보세요</p>
+            {allDone && !showAnswers && (
+              <button
+                onClick={handleShowAnswers}
+                className="shrink-0 ml-3 px-3 py-1.5 bg-[#2277F0] text-white text-xs font-bold rounded-lg hover:bg-[#1a66d4] active:scale-95 transition-all"
+              >
+                정답 보기
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 gap-3 flex-1">
             {SCREEN4_CARDS.map((c, i) => {
-              const isCurrent = i === cardIdx && !done
-              const isDone    = cardDone[i]
-              const cardFills = fills[i]
-              const meta      = CARD_META[i]
+              const isCurrent   = i === activeCard && !allDone
+              const isDone      = cardDone[i]
+              const isRecordNow = isRecording && i === activeCard
+              const meta        = CARD_META[i]
 
               return (
                 <div
                   key={c.id}
-                  className={`rounded-2xl border-2 p-4 flex flex-col gap-4 transition-all
-                    ${isCurrent ? 'border-[#2277F0]'
-                    : isDone    ? 'border-green-300'
-                    : 'border-ybm-border'} bg-white
+                  className={`rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all bg-white
+                    ${isCurrent ? 'border-[#2277F0]' : isDone ? 'border-green-300' : 'border-ybm-border'}
                   `}
                 >
-                  {/* 번호 + 제목 */}
-                  <div className="flex items-start gap-2">
-                    <span className="w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0 bg-[#2277F0] text-white">
+                  {/* 번호 + 마이크 + 제목 */}
+                  <div className="flex items-center gap-2">
+                    <span className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-bold shrink-0 text-white
+                      ${isDone ? 'bg-green-500' : 'bg-[#2277F0]'}`}>
                       {isDone ? '✓' : i + 1}
                     </span>
-                    <span className="text-lg font-bold text-[#1A2B4B] leading-9">
-                      {renderSummarySegments(meta.title, cardFills, activeBlank, isCurrent)}
+
+                    {isCurrent && (
+                      <button
+                        onClick={() => handleMicToggle(i)}
+                        disabled={isPlaying}
+                        aria-label={isRecordNow ? '녹음 중지' : '녹음 시작'}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all
+                          ${isPlaying ? 'opacity-30 cursor-not-allowed bg-ybm-bg text-ybm-text-sub'
+                          : isRecordNow
+                            ? 'bg-red-500 text-white animate-pulse'
+                            : 'bg-[#2277F0]/10 text-[#2277F0] hover:bg-[#2277F0]/20 active:scale-95'}`}
+                      >
+                        {isRecordNow
+                          ? <span className="w-3 h-3 rounded-sm bg-white inline-block" />
+                          : <MicIcon />}
+                      </button>
+                    )}
+
+                    <span className="text-base font-bold text-[#1A2B4B] leading-9 flex-1">
+                      {renderSummarySegments(meta.title, fills[i], fillCorrect[i])}
                     </span>
                   </div>
 
                   {/* 빈칸 문장 */}
-                  <div className="text-base text-ybm-text-sub font-semibold leading-9 flex-1">
-                    {renderSummarySegments(meta.body, cardFills, activeBlank, isCurrent)}
+                  <div className="text-sm text-ybm-text-sub font-semibold leading-9 pl-2">
+                    {renderSummarySegments(meta.body, fills[i], fillCorrect[i])}
                   </div>
 
+                  {/* 실시간 인식 텍스트 */}
+                  {isRecordNow && (
+                    <p className="text-xs text-red-500 italic min-h-[16px]">
+                      {interimText ? `"${interimText}"` : '말을 마치면 버튼을 다시 눌러 제출하세요'}
+                    </p>
+                  )}
+
                   {/* 힌트 */}
-                  {isCurrent && activeBlank && !isPlaying && (
+                  {isCurrent && !isRecordNow && !isDone && (
                     <p className="text-xs text-[#2277F0]/70">{c.hint}</p>
                   )}
                 </div>
@@ -239,9 +328,9 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
             })}
           </div>
 
-          {done && !isPlaying && (
+          {showAnswers && (
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center shrink-0">
-              <p className="text-green-700 font-semibold text-sm">모든 핵심 내용을 정리했어요! 요약 노트로 이동하세요.</p>
+              <p className="text-green-700 font-semibold text-sm">정답을 모두 확인했어요! 요약 노트로 이동하세요.</p>
             </div>
           )}
         </div>
@@ -253,26 +342,38 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
 function renderSummarySegments(
   segments: SummarySegment[],
   fills: BlankFills,
-  activeBlank: string | null,
-  isCurrent: boolean,
+  correct: Record<string, boolean>,
 ) {
   return segments.map((segment, index) => {
     if (typeof segment === 'string') return segment
 
-    const filled = fills[segment.blank]
-    const isActive = isCurrent && activeBlank === segment.blank
+    const filled  = fills[segment.blank]
+    const isRight = correct[segment.blank]
+    const display = filled
+      ? (filled.length > 10 ? filled.slice(0, 10) + '…' : filled)
+      : ' '
 
     return (
       <span
         key={`${segment.blank}-${index}`}
-        className={`mx-1 inline-flex min-w-[70px] items-end justify-center border-b-2 px-1 text-base font-bold leading-7 transition-colors
-          ${filled ? 'border-green-400 text-green-700'
-          : isActive ? 'border-[#2277F0] text-[#2277F0]'
-          : 'border-[#CBD5E1] text-[#CBD5E1]'}
+        className={`mx-1 inline-flex min-w-[60px] items-end justify-center border-b-2 px-1 text-sm font-bold leading-7 transition-colors
+          ${filled
+            ? isRight ? 'border-green-400 text-green-700' : 'border-red-400 text-red-600'
+            : 'border-[#CBD5E1] text-[#CBD5E1]'}
         `}
       >
-        {filled || (isActive ? '?' : '\u00A0')}
+        {filled || '   '}
       </span>
     )
   })
+}
+
+function MicIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+      <rect x="6" y="1.5" width="6" height="8" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3 9.5c0 3.314 2.686 6 6 6s6-2.686 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M9 15.5v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
 }

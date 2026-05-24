@@ -223,7 +223,7 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
   const problem = SCREEN1_PROBLEM
   const choicesVisible = currentTurnId === 's1_turn6' || currentTurnId === 's1_turn7'
   const answerVisible  = currentTurnId === 's1_turn7'
-  const highlightId    = currentTurn.highlightChoiceId ?? null
+  const highlightId    = (canInput && currentTurn.highlightChoiceId) ? currentTurn.highlightChoiceId : null
   const canAdvanceNow = currentTurnId === 's1_turn7' && canInput
   const pulseAdvance  = currentTurnId === 's1_turn7' && canInput
 
@@ -456,11 +456,6 @@ function ProblemContent({
           />
         )}
       </div>
-
-      {/* 하단 안내 */}
-      {answerVisible && (
-        <p className="text-ybm-text-sub text-xs text-center">정답이 하이라이트 되어 있어요.</p>
-      )}
 
     </div>
   )

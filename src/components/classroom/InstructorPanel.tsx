@@ -138,7 +138,6 @@ export default function InstructorPanel({
               src={videoSrc}
               autoPlay
               playsInline
-              poster={imageSrc}
               className="absolute inset-0 w-full h-full object-cover"
               style={{ objectPosition: 'center top' }}
               onLoadedMetadata={handleLoadedMetadata}

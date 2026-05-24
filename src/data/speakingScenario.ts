@@ -22,7 +22,7 @@ export interface PhotoAnnotation {
 }
 
 export const OFFICE_PHOTO = '/speaking/sp_image.png'
-export const PARK_PHOTO   = '/speaking/park.jpg'
+export const PARK_PHOTO   = '/speaking/sp_img2.png'
 
 export const OFFICE_SCRIPT: ScriptLine[] = [
   { label: '장소',  text: 'This picture was taken in an office.',  blanks: ['office'] },
@@ -44,6 +44,7 @@ export const PARK_SCRIPT: ScriptLine[] = [
 export const OFFICE_ANNOTATIONS: Record<string, PhotoAnnotation[]> = {
   sp2: [{ n: 1, x: 28, y: 58 }],
   sp3: [{ n: 1, x: 28, y: 58 }, { n: 2, x: 62, y: 38 }],
+  sp3_t3: [{ n: 1, x: 28, y: 58 }, { n: 2, x: 62, y: 38 }, { n: 3, x: 75, y: 82 }],
 }
 
 export const SPEAKING_TURNS: Record<string, SpeakingTurn> = {
@@ -63,7 +64,7 @@ export const SPEAKING_TURNS: Record<string, SpeakingTurn> = {
   sp1_t2: {
     id: 'sp1_t2',
     videoSrc: '/speaking/sp1_t2.mp4',
-    script: '그렇지. "이 사진은 사무실에서 찍힌 것 같다"를 영어로 말해보자.\nI think this picture was taken in an office 따라해봐.',
+    script: '그렇지. 그러면 "이 사진은 사무실에서 찍힌 것 같다."를 영어로 말해보자.\nI think this picture was taken in an office. 따라해봐.',
     inputType: 'repeat',
     repeatPhrase: 'I think this picture was taken in an office.',
     nextTurnId: 'sp1_t3',
@@ -76,21 +77,21 @@ export const SPEAKING_TURNS: Record<string, SpeakingTurn> = {
   },
   sp2_t1: {
     id: 'sp2_t1',
-    videoSrc: '/speaking/sp2_t1.mp4',
-    script: '둘째, 가장 잘 보이는 사람 하나만 잡아. 왼쪽에 있는 여자가 뭐하고 있어? 책상에 앉아있지?\n"여자가 책상에 앉아 있다"를 영어로 말해봐.',
+    videoSrc: '/speaking/sp2_t4.mp4',
+    script: '둘째, 가장 잘 보이는 사람 하나만 잡아. 왼쪽에 있는 여자가 뭐하고 있어? 책상에 앉아있지?\n"여자가 책상에 앉아 있다"를 영어로 말해봐. A woman is 뒤에 뭐라고 말하면 될까?',
     inputType: 'voice',
     nextTurnId: 'sp2_t2',
   },
   sp2_t2: {
     id: 'sp2_t2',
-    videoSrc: '/speaking/sp2_t2.mp4',
+    videoSrc: '/speaking/sp2_t5.mp4',
     script: '그렇지 잘했어. 그럼 여자는 앉아서 뭐하고 있어? 노트북 laptop을 쓰고 있지?\nShe is ~ 뒤에 뭐라고 하면 되지?',
     inputType: 'voice',
     nextTurnId: 'sp2_t3',
   },
   sp2_t3: {
     id: 'sp2_t3',
-    videoSrc: '/speaking/sp2_t3.mp4',
+    videoSrc: '/speaking/sp2_t6.mp4',
     script: '그렇지. 여기서도 사물 앞에 관사 a 넣어주자.\nShe is using a laptop. 따라해봐.',
     inputType: 'repeat',
     repeatPhrase: 'She is using a laptop.',
@@ -98,42 +99,42 @@ export const SPEAKING_TURNS: Record<string, SpeakingTurn> = {
   },
   sp2_t4: {
     id: 'sp2_t4',
-    videoSrc: '/speaking/sp2_t4.mp4',
+    videoSrc: '/speaking/sp2_t7.mp4',
     script: '잘했어. 여기서 중요한 건 뭘까? 주어? 동사?',
     inputType: 'voice',
     nextTurnId: 'sp2_t5',
   },
   sp2_t5: {
     id: 'sp2_t5',
-    videoSrc: '/speaking/sp2_t5.mp4',
+    videoSrc: '/speaking/sp2_t8.mp4',
     script: '맞아. 사진 묘사는 대부분 be동사 + -ing 를 쓰면 돼.\n지금 사진 속에서 보이는 동작을 말해주는 게 핵심이야.',
     inputType: 'button',
   },
   sp3_t1: {
     id: 'sp3_t1',
-    videoSrc: '/speaking/sp3_t1.mp4',
+    videoSrc: '/speaking/sp3_t9.mp4',
     script: '셋째, 옆에 있는 다른 인물 하나 더 잡아봐. 남자는 뭐하고 있어? 여자 뒤에 서있지?\nA man is ~ 뒤에 뭐라고 말하면 될까?',
     inputType: 'voice',
     nextTurnId: 'sp3_t2',
   },
   sp3_t2: {
     id: 'sp3_t2',
-    videoSrc: '/speaking/sp3_t2.mp4',
-    script: "'뒤에'는 전치사 behind를 쓰면 돼. 자, 따라해봐.\nA man is standing behind her.",
+    videoSrc: '/speaking/sp3_t10.mp4',
+    script: "'~뒤에'는 전치사 behind를 쓰면 돼. 자, 따라해봐.\nA man is standing behind her.",
     inputType: 'repeat',
     repeatPhrase: 'A man is standing behind her.',
     nextTurnId: 'sp3_t3',
   },
   sp3_t3: {
     id: 'sp3_t3',
-    videoSrc: '/speaking/sp3_t3.mp4',
+    videoSrc: '/speaking/sp3_t11.mp4',
     script: '마지막으로 가까이 있는 사물 아무거나 잡아서 말하면 끝나.\n책상 위에 종이가 있다를 말해볼까? There are some ~',
     inputType: 'voice',
     nextTurnId: 'sp3_t4',
   },
   sp3_t4: {
     id: 'sp3_t4',
-    videoSrc: '/speaking/sp3_t4.mp4',
+    videoSrc: '/speaking/sp3_t12.mp4',
     script: '잘했어. 시간 남으면 마지막에 전체 분위기 한 줄만 붙여주면 돼.\nOverall, the people look busy. 따라해봐.',
     inputType: 'repeat',
     repeatPhrase: 'Overall, the people look busy.',
@@ -141,7 +142,7 @@ export const SPEAKING_TURNS: Record<string, SpeakingTurn> = {
   },
   sp3_t5: {
     id: 'sp3_t5',
-    videoSrc: '/speaking/sp3_t5.mp4',
+    videoSrc: '/speaking/sp3_t13.mp4',
     script: '실전에서는 이 틀만 유지해도 훨씬 안정적으로 말할 수 있어.',
     inputType: 'button',
   },

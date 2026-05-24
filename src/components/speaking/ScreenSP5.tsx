@@ -8,7 +8,7 @@ import ScriptPanel from './ScriptPanel'
 import TimerRing from './TimerRing'
 import { useClassroomStore } from '@/store/classroomStore'
 import { SPEAKING_TURNS, OFFICE_PHOTO, OFFICE_SCRIPT } from '@/data/speakingScenario'
-import { waitForVideoEnd, notifyVideoEnded, speakTurn, stopCurrentAudio } from '@/lib/tts'
+import { waitForVideoEnd, notifyVideoEnded, speakTurn, fetchTTSAudio, playAndWait, stopCurrentAudio } from '@/lib/tts'
 import SpeakingNavBar from './SpeakingNavBar'
 
 type TurnId = 'sp5_t1' | 'sp5_t2' | 'sp5_t3'
@@ -35,15 +35,22 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
     const turn = SPEAKING_TURNS[id]
     setTurnId(id)
     setCanInput(false)
-    setSpeech(turn.script)
     setVideo(turn.videoSrc)
 
-    if (turn.videoSrc) await waitForVideoEnd()
-    else await speakTurn({ script: turn.script, persona })
+    if (id === 'sp5_t1') {
+      setSpeech('')
+      const audio = await fetchTTSAudio(turn.script, persona)
+      if (!mountedRef.current) return
+      setSpeech(turn.script)
+      if (audio) await playAndWait(audio)
+    } else {
+      setSpeech(turn.script)
+      if (turn.videoSrc) await waitForVideoEnd()
+      else await speakTurn({ script: turn.script, persona })
+    }
     if (!mountedRef.current) return
 
     setCanInput(true)
-    if (id === 'sp5_t1') { setTimer(true); setTimeout(() => startListeningRef.current(), 300) }
     if (turn.inputType === 'repeat') setTimeout(() => startListeningRef.current(), 300)
   }, [persona])
 
@@ -62,6 +69,12 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
     setCanInput(false)
     if (turn.nextTurnId) await enterTurn(turn.nextTurnId as TurnId)
   }, [canInput, turnId, enterTurn])
+
+  const handleStartPractice = useCallback(() => {
+    if (!canInput) return
+    setTimer(true)
+    setTimeout(() => startListeningRef.current(), 300)
+  }, [canInput])
 
   const handleButton = useCallback(() => { stopCurrentAudio(); onComplete() }, [onComplete])
   const currentTurn = SPEAKING_TURNS[turnId]
@@ -124,7 +137,7 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
         {isPractice && canInput && (
           <div className="px-5 pb-4">
             <button
-              onClick={handleVoice}
+              onClick={handleStartPractice}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#2277F0] text-white font-bold text-base hover:bg-[#1a66d4] active:scale-95 transition-all"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

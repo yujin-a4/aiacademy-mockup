@@ -102,6 +102,64 @@ export async function speakTurn(
   // videoSrc가 있거나 오디오 파일이 없으면 TTS 없이 즉시 종료
 }
 
+/** TTS 오디오를 미리 fetch해서 Audio 객체로 반환. 실패 시 null. */
+export async function fetchTTSAudio(text: string, persona: string): Promise<HTMLAudioElement | null> {
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, persona }),
+    })
+    const data = await res.json()
+    if (!data.useNativeTts && data.audioContent) {
+      return new Audio(`data:audio/mp3;base64,${data.audioContent}`)
+    }
+  } catch { /* fall through */ }
+  return null
+}
+
+/** 이미 준비된 Audio 객체를 재생하고 종료까지 대기. */
+export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
+  stopCurrentAudio()
+  const token = ++_playbackToken
+  _currentAudio = audio
+  return new Promise((resolve) => {
+    let settled = false
+    const done = () => {
+      if (settled) return
+      settled = true
+      if (_currentAudio === audio && _playbackToken === token) _currentAudio = null
+      resolve()
+    }
+    audio.onended = done
+    audio.onerror = done
+    audio.play().catch(done)
+  })
+}
+
+/** fetchTTSAudio + playAndWait + speechSynthesis fallback.
+ *  토큰을 fetch 완료 후에만 설정하므로 이전 화면 cleanup의 stopCurrentAudio()와 충돌하지 않는다. */
+export async function speakTTS(text: string, persona: string): Promise<void> {
+  const audio = await fetchTTSAudio(text, persona)
+  if (audio) {
+    await playAndWait(audio)
+  } else {
+    await new Promise<void>((resolve) => {
+      if (!('speechSynthesis' in window)) { resolve(); return }
+      window.speechSynthesis.cancel()
+      const utt = new SpeechSynthesisUtterance(text)
+      utt.lang = 'ko-KR'
+      utt.rate = persona === 'driller' ? 1.2 : 0.95
+      let settled = false
+      const done = () => { if (settled) return; settled = true; resolve() }
+      utt.onend = done
+      utt.onerror = done
+      setTimeout(done, Math.max(4000, text.length * 200))
+      window.speechSynthesis.speak(utt)
+    })
+  }
+}
+
 export async function speakAndWait(text: string, persona: string): Promise<void> {
   stopCurrentAudio()
   const token = ++_playbackToken
@@ -155,6 +213,8 @@ export async function speakAndWait(text: string, persona: string): Promise<void>
       }
       utt.onend = done
       utt.onerror = done
+      // Chrome bug: speechSynthesis.onend sometimes doesn't fire
+      setTimeout(done, Math.max(4000, text.length * 200))
       window.speechSynthesis.speak(utt)
     } else {
       resolve()

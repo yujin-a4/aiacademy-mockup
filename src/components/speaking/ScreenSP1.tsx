@@ -19,6 +19,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
   const [speech, setSpeech]   = useState('')
   const [videoSrc, setVideo]  = useState<string | undefined>()
   const [canInput, setCanInput] = useState(false)
+  const [warnMessage, setWarnMessage] = useState('')
 
   const mountedRef = useRef(false)
   const enteredRef = useRef(false)
@@ -52,6 +53,23 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const showWarn = useCallback((msg: string) => {
+    setWarnMessage(msg)
+    setTimeout(() => setWarnMessage(''), 2500)
+  }, [])
+
+  const handleLocationSelect = useCallback(async (loc: string) => {
+    if (!canInput) return
+    if (loc !== 'office') {
+      showWarn('다시 생각해봐! 사진을 잘 봐보세요')
+      return
+    }
+    const turn = SPEAKING_TURNS[turnId]
+    stopListeningRef.current()
+    setCanInput(false)
+    if (turn.nextTurnId) await enterTurn(turn.nextTurnId as TurnId)
+  }, [canInput, turnId, enterTurn, showWarn])
+
   const handleVoice = useCallback(async () => {
     if (!canInput) return
     const turn = SPEAKING_TURNS[turnId]
@@ -68,6 +86,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
   const currentTurn = SPEAKING_TURNS[turnId]
 
   return (
+    <>
     <ClassroomLayout
       partName="TOEIC Speaking · Part 2"
       totalProblems={1}
@@ -116,7 +135,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
                 {['office', 'restaurant', 'street'].map((loc) => (
                   <button
                     key={loc}
-                    onClick={handleVoice}
+                    onClick={() => handleLocationSelect(loc)}
                     className="px-4 py-2 rounded-xl border-2 border-[#2277F0]/30 bg-[#EFF6FF] text-[#2277F0] text-base font-semibold hover:border-[#2277F0] transition-colors"
                   >
                     {loc}
@@ -130,5 +149,17 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
 
       </div>
     </ClassroomLayout>
+    {warnMessage && (
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce-once">
+        <div className="bg-orange-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
+            <path d="M9 2L16.5 15H1.5L9 2Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
+            <path d="M9 7v4M9 12.5v.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          {warnMessage}
+        </div>
+      </div>
+    )}
+  </>
   )
 }

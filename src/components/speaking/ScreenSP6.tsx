@@ -49,7 +49,6 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
       await speakTurn({ script: turn.script, persona })
       if (!mountedRef.current) return
       setPhase('practice')
-      setTimer(true)
       setCanInput(true)
     }
     run()
@@ -84,6 +83,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
 
   const handleMicTap = useCallback(() => {
     if (!canInput || phase !== 'practice') return
+    setTimer(true)
     startListeningRef.current()
   }, [canInput, phase])
 
@@ -135,63 +135,50 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-0 flex gap-4 p-4">
-        {/* Photo */}
-        <div className="w-1/2 shrink-0">
-          <PhotoCard src={PARK_PHOTO} className="h-full" />
-        </div>
-
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col gap-3">
-          {phase !== 'feedback' ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-5">
-              <p className="text-base font-bold text-[#1A2B4B]">사진을 보고 설명해 보세요.</p>
-              <span className="text-[#2277F0] text-xl select-none"></span>
-
-              <TimerRing seconds={45} running={timerRunning} size={72} onEnd={handleTimerEnd} />
-
-              {/* Voice wave */}
-              <div className="flex items-end justify-center gap-1 h-12 w-52">
-                {WAVE_HEIGHTS.map((h, i) => (
-                  <div
-                    key={i}
-                    className="w-1.5 rounded-full"
-                    style={{
-                      height: `${h}px`,
-                      backgroundColor: isRecording ? '#2277F0' : '#D1D5DB',
-                      animation: isRecording
-                        ? `wavePractice ${0.4 + (i % 5) * 0.07}s ease-in-out ${i * 28}ms infinite alternate`
-                        : 'none',
-                    }}
-                  />
-                ))}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {phase !== 'feedback' ? (
+          <>
+            <div className="flex-1 min-h-0 flex gap-3 p-4">
+              {/* 사진 — 좌측 넓게 */}
+              <div className="flex-1 min-h-0">
+                <PhotoCard src={PARK_PHOTO} className="h-full" />
               </div>
 
-              {/* Mic button */}
-              <button
-                onClick={handleMicTap}
-                disabled={!canInput}
-                className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all
-                  ${isRecording ? 'bg-red-500 scale-105' : canInput ? 'bg-[#2277F0] hover:bg-[#1a66d4] active:scale-95' : 'bg-[#D1D5DB]'}
-                `}
-              >
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                  <rect x="10" y="2" width="12" height="16" rx="6" stroke="white" strokeWidth="2.5"/>
-                  <path d="M4 16c0 6.627 5.373 12 12 12s12-5.373 12-12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M16 28v4" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-              <p className="text-xs text-ybm-text-sub text-center">버튼을 눌러 말하기를 시작하세요.</p>
+              {/* 우측 좁은 패널 */}
+              <div className="w-20 shrink-0 flex flex-col items-center justify-center gap-4 bg-white rounded-2xl border border-ybm-border shadow-sm py-4">
+                <TimerRing seconds={45} running={timerRunning} size={48} onEnd={handleTimerEnd} />
+
+                <div className="w-px h-6 bg-ybm-border" />
+
+                <button
+                  onClick={handleMicTap}
+                  disabled={!canInput}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow transition-all
+                    ${isRecording ? 'bg-red-500 scale-105' : canInput ? 'bg-[#2277F0] hover:bg-[#1a66d4] active:scale-95' : 'bg-[#D1D5DB]'}
+                  `}
+                >
+                  <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+                    <rect x="10" y="2" width="12" height="16" rx="6" stroke="white" strokeWidth="2.5"/>
+                    <path d="M4 16c0 6.627 5.373 12 12 12s12-5.373 12-12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                    <path d="M16 28v4" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+                <p className="text-[10px] text-ybm-text-sub text-center leading-tight px-1">
+                  {isRecording ? '말하는\n중...' : '눌러서\n시작'}
+                </p>
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-ybm-border overflow-y-auto">
-                <p className="text-sm leading-relaxed text-[#1A2B4B] whitespace-pre-line">{speech}</p>
-              </div>
-              {/* Feedback InputBar */}
-            </>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="flex-1 min-h-0 flex gap-4 p-4">
+            <div className="w-1/2 shrink-0">
+              <PhotoCard src={PARK_PHOTO} className="h-full" />
+            </div>
+            <div className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-ybm-border overflow-y-auto">
+              <p className="text-sm leading-relaxed text-[#1A2B4B] whitespace-pre-line">{speech}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Single InputBar — always mounted, sr-only in practice, visible in feedback */}

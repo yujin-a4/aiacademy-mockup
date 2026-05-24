@@ -103,7 +103,11 @@ export default function ScreenSP3({ onComplete, onEnd }: Props) {
         <div className="flex-1 min-h-0">
           <PhotoCard
             src={OFFICE_PHOTO}
-            annotations={OFFICE_ANNOTATIONS['sp3']}
+            annotations={
+              (['sp3_t3', 'sp3_t4', 'sp3_t5'] as TurnId[]).includes(turnId)
+                ? OFFICE_ANNOTATIONS['sp3_t3']
+                : OFFICE_ANNOTATIONS['sp3']
+            }
             className="h-full rounded-none"
           />
         </div>

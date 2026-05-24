@@ -238,7 +238,7 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
       id: 's1_turn7',
       screen: 1,
       videoSrc: '/part5/P5_2_7.mp4',
-      script: `잘했어. 그럼 이제 주어 복수였으니깐 단수 was handled 버려. 답 were handled 나오지?`,
+      script: `잘했어. 그럼 이제 주어가 복수였으니깐 단수 was handled 버려. 답 were handled 나오지?`,
       inputType: 'button',
       highlightChoiceId: 'B',
       buttonLabel: '다음 단계로 →',

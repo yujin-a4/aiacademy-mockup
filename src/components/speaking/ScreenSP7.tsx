@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
 import { SPEAKING_TURNS } from '@/data/speakingScenario'
-import { waitForVideoEnd, notifyVideoEnded } from '@/lib/tts'
+import { notifyVideoEnded, fetchTTSAudio, playAndWait } from '@/lib/tts'
+import { useClassroomStore } from '@/store/classroomStore'
 import SpeakingNavBar from './SpeakingNavBar'
 
 const RULES = [
@@ -16,8 +17,8 @@ const RULES = [
 interface Props { onComplete: () => void; onEnd: () => void }
 
 export default function ScreenSP7({ onComplete, onEnd }: Props) {
+  const usePersona = useClassroomStore((s) => s.persona)
   const [speech, setSpeech]     = useState('')
-  const [videoSrc, setVideo]    = useState<string | undefined>()
   const [canInput, setCanInput] = useState(false)
 
   const mountedRef = useRef(false)
@@ -33,9 +34,11 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
     startedRef.current = true
     const run = async () => {
       const turn = SPEAKING_TURNS['sp7_t1']
+      setSpeech('')
+      const audio = await fetchTTSAudio(turn.script, usePersona)
+      if (!mountedRef.current) return
       setSpeech(turn.script)
-      setVideo(turn.videoSrc)
-      if (turn.videoSrc) await waitForVideoEnd()
+      if (audio) await playAndWait(audio)
       if (!mountedRef.current) return
       setCanInput(true)
     }
@@ -47,7 +50,6 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
       partName="TOEIC Speaking · Part 2"
       totalProblems={1}
       instructorSpeech={speech}
-      instructorVideoSrc={videoSrc}
       onInstructorVideoEnd={notifyVideoEnded}
       onEnd={onEnd}
       toolbar={<SpeakingNavBar onNext={onComplete} highlighted={canInput} />}
