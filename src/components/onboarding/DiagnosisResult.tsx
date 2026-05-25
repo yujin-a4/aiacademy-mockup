@@ -32,9 +32,14 @@ const TIME_DESC: Record<string, string> = {
 }
 
 const TYPE_NAMES: Record<string, string> = {
-  'FP': '목표 돌파형', 'FA': '활력 성취형', 'FJ': '활력 탐험형', 'FH': '스피드 루틴형',
-  'TP': '꼼꼼 점수형', 'TA': '완벽 달성형', 'TJ': '탐구 즐김형', 'TH': '정밀 루틴형',
-  'RP': '반복 점수형', 'RA': '반복 정복형', 'RJ': '반복 탐험형', 'RH': '습관 강화형',
+  'FDPL': '틈새 속공형', 'FDPM': '단기 돌파형', 'FDPN': '직진 득점형', 'FDPX': '전력 질주형',
+  'FDAL': '틈새 파이터형', 'FDAM': '속공 달성형', 'FDAN': '직진 성취형', 'FDAX': '집중 돌파형',
+  'FIPL': '틈새 자율형', 'FIPM': '자율 속공형', 'FIPN': '독립 득점형', 'FIPX': '자율 몰입형',
+  'FIAL': '틈새 질주형', 'FIAM': '속공 성취형', 'FIAN': '자율 달성형', 'FIAX': '자율 정복형',
+  'TDPL': '틈새 분석형', 'TDPM': '정밀 득점형', 'TDPN': '꼼꼼 직진형', 'TDPX': '완벽 점수형',
+  'TDAL': '틈새 완성형', 'TDAM': '정밀 달성형', 'TDAN': '꼼꼼 정복형', 'TDAX': '완전 정복형',
+  'TIPL': '틈새 탐구형', 'TIPM': '자율 분석형', 'TIPN': '정밀 자율형', 'TIPX': '심화 분석형',
+  'TIAL': '틈새 정밀형', 'TIAM': '자율 완성형', 'TIAN': '탐구 달성형', 'TIAX': '심화 정복형',
 }
 
 const RANGE_LABEL: Record<string, string> = {
@@ -68,7 +73,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
     MOTIVE_LETTER[motivationType ?? ''] ?? '?',
     TIME_LETTER[dailyTime ?? ''] ?? '?',
   ]
-  const typeKey = `${letters[0]}${letters[2]}`
+  const typeKey = letters.join('')
   const typeName = TYPE_NAMES[typeKey] ?? '맞춤 학습형'
 
   const letterDetails = [

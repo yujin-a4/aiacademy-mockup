@@ -427,7 +427,7 @@ function OjjDashboard() {
                 </div>
 
                 <Link href="/daily"
-                  className="mt-3 w-full py-2.5 rounded-xl font-bold text-[12px] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 active:scale-[0.98] bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white">
+                  className="mt-3 w-full py-2.5 rounded-md font-bold text-[12px] flex items-center justify-center gap-2 transition-colors active:scale-[0.98] bg-white border border-[#DBEAFE] text-[#2563EB] hover:bg-[#EFF6FF]">
                    오늘의 문제 풀기
                 </Link>
               </div>
@@ -873,7 +873,7 @@ function RegularDashboard() {
                   <p className="text-[11px] text-[#374151] leading-relaxed">Part 5는 시간이 생명! 모르는 문제는 과감히 넘기고 마지막에 돌아오세요. 속도가 곧 점수입니다.</p>
                 </div>
                 <Link href="/daily"
-                  className="w-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white py-2 rounded-md font-bold text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[#2563EB]/20 active:scale-[0.98]">
+                  className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-2 rounded-md font-bold text-[13px] flex items-center justify-center gap-2 hover:bg-[#EFF6FF] transition-colors active:scale-[0.98]">
                   오늘의 데일리 문제 풀기
                 </Link>
               </div>

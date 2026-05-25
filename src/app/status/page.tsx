@@ -614,9 +614,6 @@ export default function StatusPage() {
                           alt={instName}
                           className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 15%' }}
                         />
-                        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-[#D97706] bg-[#FEF9C3] border border-[#FDE68A] px-2 py-0.5 rounded-full whitespace-nowrap">
-                          정답률 △ 2.1% 낮아요
-                        </span>
                       </div>
                     </div>
                     {/* 말풍선 — 오른쪽 절반 */}
@@ -624,6 +621,7 @@ export default function StatusPage() {
                       <div className="relative bg-white/75 rounded-2xl px-4 py-3 shadow-sm">
                         {/* 왼쪽 꼬리 */}
                         <div className="absolute top-1/2 -translate-y-1/2" style={{ left: '-9px', width: 0, height: 0, borderTop: '9px solid transparent', borderBottom: '9px solid transparent', borderRight: '9px solid rgba(255,255,255,0.75)' }} />
+                        <p className="text-[9px] text-[#9CA3AF] mb-1.5">{lastWeekRange} 주간 리포트</p>
                         <p className="text-[#374151] text-[12px] leading-relaxed">
                           {typedMsg}
                           {!typingDone && (
@@ -687,29 +685,66 @@ export default function StatusPage() {
 
                 </div>
 
-                {/* ④ 레이더 + 실전 정답률 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* 이번 주 분석 + 처방전 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
 
-                  {/* 약점 저격 레이더 */}
-                  <section>
-                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
-                    <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
-                      <RadarChart />
-                      <div className="flex items-center justify-center gap-5 mt-1">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-[#10B981]"/>
-                          <span className="text-[10px] text-[#6B7280]">강점 70%+</span>
+                  {/* 이번 주 분석 */}
+                  <section className="flex flex-col">
+                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">주간 분석</p>
+                  <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)] flex-1">
+                    <div className="space-y-2">
+
+                      <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                          <p className="text-[11px] font-bold text-[#059669]">잘한 점</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-[#EF4444]"/>
-                          <span className="text-[10px] text-[#6B7280]">약점 70%-</span>
-                        </div>
+                        <ul className="space-y-1">
+                          {['LC 정답률 83% — 목표치 유지 중', '총 247문제 풀이 완료', '5일 연속 학습 달성'].map((t, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <span className="text-[#10B981] mt-[2px] shrink-0">✓</span>
+                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
+
+                      <div className="bg-[#FFF7ED] border border-[#FDE68A] rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
+                          <p className="text-[11px] font-bold text-[#D97706]">개선 필요</p>
+                        </div>
+                        <ul className="space-y-1">
+                          {['RC 정답률 54% — 목표 대비 16%p 부족', 'Part 5 풀이 시간 초과 패턴 지속', '주 2일 학습 공백 발생'].map((t, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <span className="text-[#F59E0B] mt-[2px] shrink-0">!</span>
+                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                          <p className="text-[11px] font-bold text-[#2563EB]">다음 주 집중 포인트</p>
+                        </div>
+                        <ul className="space-y-1">
+                          {['RC 집중 주간 — Part 6 문맥 파악', 'Part 5 10분 컷 타이머 훈련', '7일 연속 학습 도전'].map((t, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <span className="text-[#2563EB] mt-[2px] shrink-0">→</span>
+                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
                     </div>
+                  </div>
                   </section>
 
                   {/* 강사 처방전 */}
-                  <section>
+                  <section className="flex flex-col">
                     <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">강사 처방전</p>
                     {(() => {
                       const instKey = selectedInstructor ?? 'park'
@@ -717,7 +752,6 @@ export default function StatusPage() {
                       const comments = INST_WEAK_COMMENTS[instKey] ?? {}
                       return (
                         <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_6px_rgba(37,99,235,0.04)] overflow-hidden">
-                          {/* 헤더 */}
                           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#F3F4F6]">
                             <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-[#DBEAFE]">
                               <img src={INST_THUMBS[instKey]} alt={INST_NAME[instKey]} className="w-full h-full object-cover object-top" />
@@ -727,37 +761,24 @@ export default function StatusPage() {
                               <p className="text-[11px] text-[#9CA3AF]">레이더 분석 기반 약점 파트 처방</p>
                             </div>
                           </div>
-                          {/* 파트별 */}
                           <div className="divide-y divide-[#F3F4F6]">
                             {weakParts.map(p => (
                               <div key={p.id} className="px-4 py-3.5 space-y-2">
-                                {/* 파트명 + 정답률 바 */}
                                 <div className="flex items-center gap-2">
                                   <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
-                                    style={{
-                                      background: p.accuracy >= 55 ? '#FEF9C3' : '#FEF2F2',
-                                      color: p.accuracy >= 55 ? '#B45309' : '#DC2626',
-                                    }}>
+                                    style={{ background: p.accuracy >= 55 ? '#FEF9C3' : '#FEF2F2', color: p.accuracy >= 55 ? '#B45309' : '#DC2626' }}>
                                     {p.id}
                                   </span>
                                   <span className="text-[12px] text-[#374151] font-medium shrink-0">{p.name}</span>
                                   <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{
-                                      width: `${p.accuracy}%`,
-                                      background: p.accuracy >= 55 ? '#F59E0B' : '#EF4444',
-                                    }} />
+                                    <div className="h-full rounded-full" style={{ width: `${p.accuracy}%`, background: p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }} />
                                   </div>
-                                  <span className="text-[12px] font-bold shrink-0"
-                                    style={{ color: p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }}>
-                                    {p.accuracy}%
-                                  </span>
+                                  <span className="text-[12px] font-bold shrink-0" style={{ color: p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }}>{p.accuracy}%</span>
                                 </div>
-                                {/* 이유 */}
                                 <p className="text-[11px] text-[#6B7280] flex items-start gap-1">
                                   <span className="shrink-0">📍</span>
                                   {PART_WEAK_REASONS[p.id] ?? '해당 파트에서 오답이 집중되고 있어요'}
                                 </p>
-                                {/* 강사 코멘트 + 버튼 */}
                                 <div className="flex items-end justify-between gap-2">
                                   <p className="text-[12px] text-[#1C1B33] leading-relaxed flex-1">
                                     "{comments[p.id] ?? `${p.name} 파트를 집중적으로 연습해보세요.`}"
@@ -778,57 +799,72 @@ export default function StatusPage() {
 
                 </div>
 
-                {/* 스피킹 연습 현황 */}
-                <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_6px_rgba(37,99,235,0.04)] overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
-                    <p className="text-[13px] font-bold text-[#1C1B33]">스피킹 연습 현황</p>
-                    <span className="text-[11px] text-[#9CA3AF]">이번 주 3회 · 마지막 2일 전</span>
-                  </div>
+                {/* 스피킹 연습 현황 + 레이더 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
 
-                  {/* SP1~SP7 파트 칩 */}
-                  <div className="px-5 pt-4 pb-3">
-                    <div className="flex gap-1.5 mb-3">
-                      {SPEAKING_PARTS.map(p => (
-                        <div key={p.id} className={`flex-1 rounded-lg py-2 flex flex-col items-center gap-1 border ${
-                          p.done
-                            ? 'bg-[#EFF6FF] border-[#BFDBFE]'
-                            : 'bg-[#F9FAFB] border-[#E5E7EB]'
-                        }`}>
-                          <p className={`text-[9px] font-bold ${p.done ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{p.id}</p>
-                          {p.done
-                            ? <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            : <div className="w-2 h-2 rounded-full border-2 border-[#D1D5DB]" />
-                          }
+                  {/* 스피킹 연습 현황 */}
+                  <section className="flex flex-col">
+                  <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">스피킹 연습 현황</p>
+                  <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_6px_rgba(37,99,235,0.04)] overflow-hidden flex-1">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
+                      <p className="text-[13px] font-bold text-[#1C1B33]">스피킹 연습 현황</p>
+                      <span className="text-[11px] text-[#9CA3AF]">이번 주 3회 · 마지막 2일 전</span>
+                    </div>
+                    <div className="px-5 pt-4 pb-3">
+                      <div className="flex gap-1.5 mb-3">
+                        {SPEAKING_PARTS.map(p => (
+                          <div key={p.id} className={`flex-1 rounded-lg py-2 flex flex-col items-center gap-1 border ${p.done ? 'bg-[#EFF6FF] border-[#BFDBFE]' : 'bg-[#F9FAFB] border-[#E5E7EB]'}`}>
+                            <p className={`text-[9px] font-bold ${p.done ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{p.id}</p>
+                            {p.done
+                              ? <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              : <div className="w-2 h-2 rounded-full border-2 border-[#D1D5DB]" />}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                          <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${(SPEAKING_PARTS.filter(p => p.done).length / SPEAKING_PARTS.length) * 100}%` }} />
                         </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#2563EB] rounded-full"
-                          style={{ width: `${(SPEAKING_PARTS.filter(p => p.done).length / SPEAKING_PARTS.length) * 100}%` }} />
+                        <span className="text-[11px] text-[#6B7280] shrink-0">
+                          <span className="font-bold text-[#2563EB]">{SPEAKING_PARTS.filter(p => p.done).length}</span>/{SPEAKING_PARTS.length} 완료
+                        </span>
                       </div>
-                      <span className="text-[11px] text-[#6B7280] shrink-0">
-                        <span className="font-bold text-[#2563EB]">{SPEAKING_PARTS.filter(p => p.done).length}</span>
-                        /{SPEAKING_PARTS.length} 완료
-                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-[#F3F4F6] border-t border-[#F3F4F6]">
+                      <div className="px-5 py-3.5 text-center">
+                        <p className="text-[10px] text-[#9CA3AF] mb-1">이번 주 연습</p>
+                        <p className="text-[22px] font-bold text-[#2563EB] leading-none">3<span className="text-[11px] font-normal text-[#9CA3AF] ml-0.5">회</span></p>
+                      </div>
+                      <div className="px-5 py-3.5 text-center">
+                        <p className="text-[10px] text-[#9CA3AF] mb-1">평균 발화 시간</p>
+                        <p className="text-[22px] font-bold text-[#1C1B33] leading-none">18<span className="text-[11px] font-normal text-[#6B7280] ml-0.5">초</span></p>
+                        <div className="flex items-center justify-center gap-1 mt-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                          <p className="text-[9px] text-[#059669]">충분한 발화</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  </section>
 
-                  {/* 하단 스탯 */}
-                  <div className="grid grid-cols-2 divide-x divide-[#F3F4F6] border-t border-[#F3F4F6]">
-                    <div className="px-5 py-3.5 text-center">
-                      <p className="text-[10px] text-[#9CA3AF] mb-1">이번 주 연습</p>
-                      <p className="text-[22px] font-bold text-[#2563EB] leading-none">3<span className="text-[11px] font-normal text-[#9CA3AF] ml-0.5">회</span></p>
-                    </div>
-                    <div className="px-5 py-3.5 text-center">
-                      <p className="text-[10px] text-[#9CA3AF] mb-1">평균 발화 시간</p>
-                      <p className="text-[22px] font-bold text-[#1C1B33] leading-none">18<span className="text-[11px] font-normal text-[#6B7280] ml-0.5">초</span></p>
-                      <div className="flex items-center justify-center gap-1 mt-0.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-                        <p className="text-[9px] text-[#059669]">충분한 발화</p>
+                  {/* 약점 저격 레이더 */}
+                  <section className="flex flex-col">
+                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
+                    <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)] flex-1">
+                      <RadarChart />
+                      <div className="flex items-center justify-center gap-5 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-[#10B981]"/>
+                          <span className="text-[10px] text-[#6B7280]">강점 70%+</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-[#EF4444]"/>
+                          <span className="text-[10px] text-[#6B7280]">약점 70%-</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
+
                 </div>
 
               </div>

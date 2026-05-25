@@ -720,19 +720,19 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 <div className="space-y-2.5">
                   <button
-                    onClick={() => { setSelectedInstructor(selectedInst.id); window.location.href = 'https://aiacademy-classroom.vercel.app/' }}
+                    onClick={() => handleConfirm(selectedInst.id)}
                     className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#2563EB]/20"
+                  >
+                    이 강사 선택하기
+                  </button>
+                  <button
+                    onClick={() => { setSelectedInstructor(selectedInst.id); window.location.href = '/lessons' }}
+                    className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
                   >
                     샘플 수업 시작하기
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                     </svg>
-                  </button>
-                  <button
-                    onClick={() => handleConfirm(selectedInst.id)}
-                    className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
-                  >
-                    이 강사 선택하기
                   </button>
                 </div>
               </div>
