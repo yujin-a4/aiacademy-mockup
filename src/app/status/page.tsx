@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
-import { INST_NAME, INST_MESSAGES, INST_THUMBS } from '@/data/instructorData'
+import { INST_NAME, INST_MESSAGES, INST_THUMBS, INST_WEAK_COMMENTS } from '@/data/instructorData'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 
@@ -18,13 +18,32 @@ const PART_STATS = [
   { id: 'P7', name: '장문 독해',  type: 'RC', accuracy: 48 },
 ]
 
-const RADAR_DATA = [
-  { label: 'Part 1', value: 91 },
-  { label: 'Part 2', value: 83 },
-  { label: 'Part 3', value: 74 },
-  { label: 'Part 5', value: 61 },
-  { label: 'Part 6', value: 52 },
-  { label: 'Part 7', value: 48 },
+const SPEAKING_PARTS = [
+  { id: 'SP1', label: '사무실\n묘사',   done: true  },
+  { id: 'SP2', label: '공원\n묘사',     done: true  },
+  { id: 'SP3', label: '받아쓰기',       done: true  },
+  { id: 'SP4', label: '즉흥\n답변',     done: true  },
+  { id: 'SP5', label: '대화\n연습',     done: true  },
+  { id: 'SP6', label: '롤\n플레이',     done: false },
+  { id: 'SP7', label: '사진\n묘사 2',   done: false },
+]
+
+const PART_WEAK_REASONS: Record<string, string> = {
+  P3: '짧은 대화 유형에서 오답이 집중되고 있어요',
+  P5: '품사 구분 유형에서 오답이 반복되고 있어요',
+  P6: '접속사·연결어 유형 정답률이 40% 미만이에요',
+  P7: '지문당 풀이 시간이 기준을 초과하고 있어요',
+}
+
+type TrendDir = 'up' | 'down' | 'same'
+
+const RADAR_DATA: { label: string; value: number; trend: TrendDir }[] = [
+  { label: 'Part 1', value: 91, trend: 'up' },
+  { label: 'Part 2', value: 83, trend: 'up' },
+  { label: 'Part 3', value: 74, trend: 'up' },
+  { label: 'Part 5', value: 61, trend: 'same' },
+  { label: 'Part 6', value: 52, trend: 'down' },
+  { label: 'Part 7', value: 48, trend: 'down' },
 ]
 
 const BADGES = [
@@ -304,8 +323,11 @@ function RadarChart() {
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
     }).join(' ') + 'Z'
   )
+  const TREND_SYMBOL: Record<TrendDir, string> = { up: '↑', down: '↓', same: '→' }
+  const TREND_COLOR: Record<TrendDir, string>  = { up: '#10B981', down: '#EF4444', same: '#9CA3AF' }
+
   return (
-    <svg viewBox="0 0 200 220" className="w-full max-w-[230px] mx-auto">
+    <svg viewBox="0 0 200 224" className="w-full max-w-[230px] mx-auto">
       {gridPaths.map((path, gi) => (
         <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 0.8 : 0.5}/>
       ))}
@@ -319,14 +341,23 @@ function RadarChart() {
         return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="0.8"/>
       })}
       {RADAR_DATA.map((d, i) => {
-        const lx = CX + (R + 20) * Math.cos(angles[i])
-        const ly = CY + (R + 20) * Math.sin(angles[i])
+        const lx = CX + (R + 22) * Math.cos(angles[i])
+        const ly = CY + (R + 22) * Math.sin(angles[i])
+        const labelColor = d.value >= 70 ? '#059669' : '#DC2626'
         return (
-          <text key={i} x={lx.toFixed(1)} y={ly.toFixed(1)}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize="8.5" fontWeight="600" fill={d.value >= 70 ? '#059669' : '#DC2626'}>
-            {d.label}
-          </text>
+          <g key={i}>
+            <text x={lx.toFixed(1)} y={(ly - 5).toFixed(1)}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fontWeight="600" fill={labelColor}>
+              {d.label}
+            </text>
+            <text x={lx.toFixed(1)} y={(ly + 5).toFixed(1)}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize="8" fontWeight="700" fill={labelColor}>
+              {d.value}%
+              <tspan fill={TREND_COLOR[d.trend]}> {TREND_SYMBOL[d.trend]}</tspan>
+            </text>
+          </g>
         )
       })}
     </svg>
@@ -677,46 +708,127 @@ export default function StatusPage() {
                     </div>
                   </section>
 
-                  {/* 실전문제 정답률 */}
+                  {/* 강사 처방전 */}
                   <section>
-                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">실전문제 정답률</p>
-                    <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
-                      <div className="grid grid-cols-3 gap-2 mb-4 pb-4 border-b border-[#F3F4F6]">
-                        {[
-                          { label: '오늘 문제', value: '35', unit: '문제' },
-                          { label: '평균 정답률', value: '78', unit: '%' },
-                          { label: '누적 학습', value: '12:40', unit: 'h' },
-                        ].map(s => (
-                          <div key={s.label} className="text-center">
-                            <p className="text-[10px] text-[#9CA3AF] mb-1">{s.label}</p>
-                            <p className="text-[20px] font-semibold text-[#1C1B33] leading-none">
-                              {s.value}<span className="text-[11px] text-[#2563EB] ml-0.5">{s.unit}</span>
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="space-y-3">
-                        {PART_STATS.filter(p => ['P5','P6','P7'].includes(p.id)).map(p => (
-                          <div key={p.id} className="flex items-center gap-3">
-                            <span className="text-[11px] text-[#9CA3AF] w-[28px] shrink-0">{p.id}</span>
-                            <span className="text-[12px] text-[#374151] w-[56px] shrink-0 truncate">{p.name}</span>
-                            <div className="flex-1 h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-700"
-                                style={{
-                                  width: `${p.accuracy}%`,
-                                  background: p.accuracy >= 70 ? '#10B981' : p.accuracy >= 55 ? '#F59E0B' : '#EF4444',
-                                }}/>
+                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">강사 처방전</p>
+                    {(() => {
+                      const instKey = selectedInstructor ?? 'park'
+                      const weakParts = PART_STATS.filter(p => p.accuracy < 70)
+                      const comments = INST_WEAK_COMMENTS[instKey] ?? {}
+                      return (
+                        <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_6px_rgba(37,99,235,0.04)] overflow-hidden">
+                          {/* 헤더 */}
+                          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#F3F4F6]">
+                            <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-[#DBEAFE]">
+                              <img src={INST_THUMBS[instKey]} alt={INST_NAME[instKey]} className="w-full h-full object-cover object-top" />
                             </div>
-                            <span className="text-[12px] w-8 text-right shrink-0 font-medium"
-                              style={{ color: p.accuracy >= 70 ? '#10B981' : p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }}>
-                              {p.accuracy}%
-                            </span>
+                            <div>
+                              <p className="text-[13px] font-bold text-[#1C1B33]">{INST_NAME[instKey]} 선생님의 처방전</p>
+                              <p className="text-[11px] text-[#9CA3AF]">레이더 분석 기반 약점 파트 처방</p>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          {/* 파트별 */}
+                          <div className="divide-y divide-[#F3F4F6]">
+                            {weakParts.map(p => (
+                              <div key={p.id} className="px-4 py-3.5 space-y-2">
+                                {/* 파트명 + 정답률 바 */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                                    style={{
+                                      background: p.accuracy >= 55 ? '#FEF9C3' : '#FEF2F2',
+                                      color: p.accuracy >= 55 ? '#B45309' : '#DC2626',
+                                    }}>
+                                    {p.id}
+                                  </span>
+                                  <span className="text-[12px] text-[#374151] font-medium shrink-0">{p.name}</span>
+                                  <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{
+                                      width: `${p.accuracy}%`,
+                                      background: p.accuracy >= 55 ? '#F59E0B' : '#EF4444',
+                                    }} />
+                                  </div>
+                                  <span className="text-[12px] font-bold shrink-0"
+                                    style={{ color: p.accuracy >= 55 ? '#F59E0B' : '#EF4444' }}>
+                                    {p.accuracy}%
+                                  </span>
+                                </div>
+                                {/* 이유 */}
+                                <p className="text-[11px] text-[#6B7280] flex items-start gap-1">
+                                  <span className="shrink-0">📍</span>
+                                  {PART_WEAK_REASONS[p.id] ?? '해당 파트에서 오답이 집중되고 있어요'}
+                                </p>
+                                {/* 강사 코멘트 + 버튼 */}
+                                <div className="flex items-end justify-between gap-2">
+                                  <p className="text-[12px] text-[#1C1B33] leading-relaxed flex-1">
+                                    "{comments[p.id] ?? `${p.name} 파트를 집중적으로 연습해보세요.`}"
+                                  </p>
+                                  <Link href="/my-learning"
+                                    className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-lg hover:bg-[#DBEAFE] transition-colors whitespace-nowrap">
+                                    연습하기
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                                  </Link>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </section>
 
+                </div>
+
+                {/* 스피킹 연습 현황 */}
+                <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_6px_rgba(37,99,235,0.04)] overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3F4F6]">
+                    <p className="text-[13px] font-bold text-[#1C1B33]">스피킹 연습 현황</p>
+                    <span className="text-[11px] text-[#9CA3AF]">이번 주 3회 · 마지막 2일 전</span>
+                  </div>
+
+                  {/* SP1~SP7 파트 칩 */}
+                  <div className="px-5 pt-4 pb-3">
+                    <div className="flex gap-1.5 mb-3">
+                      {SPEAKING_PARTS.map(p => (
+                        <div key={p.id} className={`flex-1 rounded-lg py-2 flex flex-col items-center gap-1 border ${
+                          p.done
+                            ? 'bg-[#EFF6FF] border-[#BFDBFE]'
+                            : 'bg-[#F9FAFB] border-[#E5E7EB]'
+                        }`}>
+                          <p className={`text-[9px] font-bold ${p.done ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{p.id}</p>
+                          {p.done
+                            ? <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            : <div className="w-2 h-2 rounded-full border-2 border-[#D1D5DB]" />
+                          }
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                        <div className="h-full bg-[#2563EB] rounded-full"
+                          style={{ width: `${(SPEAKING_PARTS.filter(p => p.done).length / SPEAKING_PARTS.length) * 100}%` }} />
+                      </div>
+                      <span className="text-[11px] text-[#6B7280] shrink-0">
+                        <span className="font-bold text-[#2563EB]">{SPEAKING_PARTS.filter(p => p.done).length}</span>
+                        /{SPEAKING_PARTS.length} 완료
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 하단 스탯 */}
+                  <div className="grid grid-cols-2 divide-x divide-[#F3F4F6] border-t border-[#F3F4F6]">
+                    <div className="px-5 py-3.5 text-center">
+                      <p className="text-[10px] text-[#9CA3AF] mb-1">이번 주 연습</p>
+                      <p className="text-[22px] font-bold text-[#2563EB] leading-none">3<span className="text-[11px] font-normal text-[#9CA3AF] ml-0.5">회</span></p>
+                    </div>
+                    <div className="px-5 py-3.5 text-center">
+                      <p className="text-[10px] text-[#9CA3AF] mb-1">평균 발화 시간</p>
+                      <p className="text-[22px] font-bold text-[#1C1B33] leading-none">18<span className="text-[11px] font-normal text-[#6B7280] ml-0.5">초</span></p>
+                      <div className="flex items-center justify-center gap-1 mt-0.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                        <p className="text-[9px] text-[#059669]">충분한 발화</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
               </div>
