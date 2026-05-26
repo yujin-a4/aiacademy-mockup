@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
 import { SPEAKING_TURNS } from '@/data/speakingScenario'
-import { notifyVideoEnded, fetchTTSAudio, playAndWait } from '@/lib/tts'
+import { notifyVideoEnded, speakTTS } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
 import SpeakingNavBar from './SpeakingNavBar'
 
@@ -18,8 +18,8 @@ interface Props { onComplete: () => void; onEnd: () => void }
 
 export default function ScreenSP7({ onComplete, onEnd }: Props) {
   const usePersona = useClassroomStore((s) => s.persona)
-  const [speech, setSpeech]     = useState('')
-  const [canInput, setCanInput] = useState(false)
+  const [speech, setSpeech] = useState('')
+  const canInput = true
 
   const mountedRef = useRef(false)
   const startedRef = useRef(false)
@@ -34,13 +34,8 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
     startedRef.current = true
     const run = async () => {
       const turn = SPEAKING_TURNS['sp7_t1']
-      setSpeech('')
-      const audio = await fetchTTSAudio(turn.script, usePersona)
-      if (!mountedRef.current) return
       setSpeech(turn.script)
-      if (audio) await playAndWait(audio)
-      if (!mountedRef.current) return
-      setCanInput(true)
+      await speakTTS(turn.script, usePersona)
     }
     run()
   }, [])

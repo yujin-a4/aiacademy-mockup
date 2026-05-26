@@ -6,7 +6,7 @@ import PhotoCard from './PhotoCard'
 import TimerRing from './TimerRing'
 import { useClassroomStore } from '@/store/classroomStore'
 import { SPEAKING_TURNS, PARK_PHOTO } from '@/data/speakingScenario'
-import { speakTurn } from '@/lib/tts'
+import { speakTTS } from '@/lib/tts'
 import SpeakingNavBar from './SpeakingNavBar'
 
 type Phase = 'intro' | 'practice' | 'feedback'
@@ -46,7 +46,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
     const run = async () => {
       const turn = SPEAKING_TURNS['sp6_t1']
       setSpeech(turn.script)
-      await speakTurn({ script: turn.script, persona })
+      await speakTTS(turn.script, persona)
       if (!mountedRef.current) return
       setPhase('practice')
       setCanInput(true)
@@ -65,7 +65,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
       const t2 = SPEAKING_TURNS['sp6_t2']
       setFeedTurn('sp6_t2')
       setSpeech(t2.script)
-      await speakTurn({ script: t2.script, persona })
+      await speakTTS(t2.script, persona)
       if (!mountedRef.current) return
       setCanInput(true)
       setTimeout(() => startListeningRef.current(), 300)
@@ -75,7 +75,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
       const t3 = SPEAKING_TURNS['sp6_t3']
       setFeedTurn('sp6_t3')
       setSpeech(t3.script)
-      await speakTurn({ script: t3.script, persona })
+      await speakTTS(t3.script, persona)
       if (!mountedRef.current) return
       setCanInput(true)
     }
@@ -193,6 +193,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
           onReadyToListen={(s, st) => { startListeningRef.current = s; stopListeningRef.current = st }}
           onSpeechResult={handleSpeechResult}
           onListeningChange={(listening) => { if (phase === 'practice') setRecording(listening) }}
+          lang={currentTurn.lang ?? 'ko-KR'}
           actions={[]}
         />
       </div>

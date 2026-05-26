@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClassroomStore } from '@/store/classroomStore'
+import { stopCurrentAudio } from '@/lib/tts'
 
 interface ClassroomTopNavProps {
   partName: string
@@ -39,7 +40,7 @@ export default function ClassroomTopNav({
       {/* 좌측: 브레드크럼 */}
       <div className="flex items-center gap-1.5 text-base min-w-0">
         <button
-          onClick={() => router.push('/lessons')}
+          onClick={() => { stopCurrentAudio(); router.push('/lessons') }}
           className="text-ybm-text-sub hover:text-ybm-text transition-colors"
           aria-label="뒤로"
         >

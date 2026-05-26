@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
+import { stopCurrentAudio } from '@/lib/tts'
 import AIChatPanel from '@/components/part6/AIChatPanel'
 import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
@@ -20,14 +21,31 @@ export default function Part7AIScreen({ onEnd }: Props) {
   const router = useRouter()
   const set = PART7_SETS[0]
 
-  const [answers, setAnswers]     = useState<Record<number, string>>({})
-  const [submitted, setSubmitted] = useState(false)
-  const [drawing, setDrawing]     = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
-  const [clearTrigger, setClear]  = useState(0)
+  const [answers, setAnswers]       = useState<Record<number, string>>({})
+  const [submitted, setSubmitted]   = useState(false)
+  const [drawing, setDrawing]       = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
+  const [clearTrigger, setClear]    = useState(0)
+  const [chunkingMode, setChunking] = useState(false)
+  const [slashSet, setSlashSet]     = useState<Set<number>>(new Set())
 
   const canvasRef   = useRef<HTMLCanvasElement | null>(null)
   const passageRef  = useRef<HTMLDivElement | null>(null)
   const [isUserDrawing, setIsUserDrawing] = useState(false)
+
+  const passageWords = useMemo(() => set.passage.split(/\s+/).filter(Boolean), [set.passage])
+
+  const toggleSlash = useCallback((idx: number) => {
+    setSlashSet(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx); else next.add(idx)
+      return next
+    })
+  }, [])
+
+  const getChunkingText = useCallback((): string | null => {
+    if (slashSet.size === 0) return null
+    return passageWords.map((word, i) => word + (slashSet.has(i) ? ' /' : '')).join(' ')
+  }, [passageWords, slashSet])
 
   const handleSelect = useCallback((qNum: number, id: string) => {
     if (submitted) return
@@ -89,7 +107,7 @@ export default function Part7AIScreen({ onEnd }: Props) {
 
       {/* Top nav */}
       <header className="shrink-0 bg-white border-b border-ybm-border h-14 flex items-center px-4 gap-3">
-        <button onClick={() => router.push('/lessons')} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
+        <button onClick={() => { stopCurrentAudio(); router.push('/lessons') }} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12 16l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -130,23 +148,61 @@ export default function Part7AIScreen({ onEnd }: Props) {
                 </p>
               </div>
 
-              {/* 지문 카드 (캔버스 오버레이 포함) */}
+              {/* 지문 카드 */}
               <div
                 ref={passageRef}
                 className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4 relative overflow-hidden"
               >
-                <p className="text-sm leading-relaxed text-[#1A2B4B]">
-                  <span className="font-bold">Used Car For Sale.</span>
-                  {set.passage.replace('Used Car For Sale.', '')}
-                </p>
-                <CanvasOverlay
-                  ref={canvasRef}
-                  tool={drawing.tool}
-                  color={drawing.color}
-                  clearTrigger={clearTrigger}
-                  onDrawStart={() => setIsUserDrawing(true)}
-                  onStrokeEnd={() => setIsUserDrawing(false)}
-                />
+                {chunkingMode ? (
+                  <>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-[10px] font-semibold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-full">
+                        단어 사이 탭 → 끊기 표시 추가
+                      </p>
+                      {slashSet.size > 0 && (
+                        <button
+                          onClick={() => setSlashSet(new Set())}
+                          className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-sm leading-[2] text-[#1A2B4B] select-none">
+                      {passageWords.map((word, i) => (
+                        <Fragment key={i}>
+                          {i > 0 && (
+                            <button
+                              onClick={() => toggleSlash(i - 1)}
+                              className="inline-flex items-center mx-[1px] rounded cursor-pointer"
+                            >
+                              {slashSet.has(i - 1)
+                                ? <span className="text-[#2563EB] font-black px-0.5"> / </span>
+                                : <span className="text-gray-200 hover:text-gray-400 transition-colors px-0.5"> · </span>
+                              }
+                            </button>
+                          )}
+                          <span className={i === 0 ? 'font-bold' : ''}>{word}</span>
+                        </Fragment>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm leading-relaxed text-[#1A2B4B]">
+                      <span className="font-bold">Used Car For Sale.</span>
+                      {set.passage.replace('Used Car For Sale.', '')}
+                    </p>
+                    <CanvasOverlay
+                      ref={canvasRef}
+                      tool={drawing.tool}
+                      color={drawing.color}
+                      clearTrigger={clearTrigger}
+                      onDrawStart={() => setIsUserDrawing(true)}
+                      onStrokeEnd={() => setIsUserDrawing(false)}
+                    />
+                  </>
+                )}
               </div>
 
               {/* 문항 카드들 */}
@@ -194,22 +250,45 @@ export default function Part7AIScreen({ onEnd }: Props) {
           <AIChatPanel
             answers={answers}
             getCanvasImage={getCanvasImage}
+            getChunkingText={getChunkingText}
             isUserDrawing={isUserDrawing}
             persona="p7tutor"
             initialMessage="147, 148번 풀어봐. 모르는 거 있으면 물어봐."
-            quickQuestions={['147번 힌트 줘', '148번 왜 D야?', 'going overseas 뜻이 뭐야?']}
+            quickQuestions={['147번 힌트 줘', '148번 왜 D야?', 'going overseas 뜻이 뭐야?', '끊어읽기 첨삭해줘']}
           />
         </aside>
 
       </div>
 
-      {/* 하단 필기 툴바 */}
+      {/* 하단 툴바 */}
       <div className="shrink-0 border-t border-ybm-border bg-white">
-        <div className="flex items-center px-4 py-3 gap-2">
-          <DrawingToolbar
-            onChange={setDrawing}
-            onClearAll={() => setClear((n) => n + 1)}
-          />
+        <div className="flex items-center px-4 py-2.5 gap-3">
+          {chunkingMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[11px] font-semibold text-[#2563EB]">
+                끊어읽기 모드 {slashSet.size > 0 ? `· ${slashSet.size}개 표시됨` : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <DrawingToolbar
+                onChange={setDrawing}
+                onClearAll={() => setClear((n) => n + 1)}
+              />
+            </div>
+          )}
+          <button
+            onClick={() => { setChunking(v => !v); setSlashSet(new Set()) }}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all
+              ${chunkingMode
+                ? 'bg-[#2563EB] text-white'
+                : 'border border-ybm-border text-ybm-text-sub hover:border-[#2563EB] hover:text-[#2563EB]'}`}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M1 6h10M6 1v10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+            끊어읽기
+          </button>
         </div>
       </div>
 

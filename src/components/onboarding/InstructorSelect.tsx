@@ -8,7 +8,7 @@ const INSTRUCTORS = [
     name: '박혜원',
     tag: '#단기집중형',
     video: '/video/video-park.mp4',
-    videoJiyun: '/video/video-park3.mp4',
+    videoJiyun: '/video/video-park2.mp4',
     thumbnail: '/image_reference/park-2.jpg',
     badge: '단기 목표 전문',
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',

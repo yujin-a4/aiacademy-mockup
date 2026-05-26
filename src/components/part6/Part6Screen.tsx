@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
+import { stopCurrentAudio } from '@/lib/tts'
 import AIChatPanel from './AIChatPanel'
 import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
@@ -24,8 +25,11 @@ export default function Part6Screen({ onEnd }: Props) {
   const [setIndex, setSetIndex]   = useState(0)
   const [answers, setAnswers]     = useState<Record<number, string>>({})
   const [submitted, setSubmitted] = useState(false)
-  const [drawing, setDrawing]     = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
-  const [clearTrigger, setClear]  = useState(0)
+  const [drawing, setDrawing]       = useState<DrawingState>({ tool: 'pen', color: '#EF4444' })
+  const [clearTrigger, setClear]    = useState(0)
+  const [chunkingMode, setChunking] = useState(false)
+  const [slashSet, setSlashSet]     = useState<Set<number>>(new Set())
+  const [demoMode, setDemoMode]     = useState(true)
 
   const set = P6_SETS[setIndex]
 
@@ -34,7 +38,34 @@ export default function Part6Screen({ onEnd }: Props) {
     setAnswers({})
     setSubmitted(false)
     setClear((n) => n + 1)
+    setSlashSet(new Set())
   }
+
+  const passageWords = useMemo(() => set.segments.flatMap((seg) =>
+    seg.blankNumber
+      ? [`(${seg.blankNumber})`]
+      : (seg.text ?? '').split(/\s+/).filter(Boolean)
+  ), [set.segments])
+
+  const toggleSlash = useCallback((idx: number) => {
+    setSlashSet(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx); else next.add(idx)
+      return next
+    })
+  }, [])
+
+  const isBlankToken = (word: string) => word.startsWith('(')
+
+  const getChunkingText = useCallback((): string | null => {
+    if (slashSet.size === 0) return null
+    const parts: string[] = []
+    passageWords.forEach((word, i) => {
+      if (isBlankToken(word)) return
+      parts.push(word + (slashSet.has(i) ? ' /' : ''))
+    })
+    return parts.length > 0 ? parts.join(' ') : null
+  }, [passageWords, slashSet])
 
   const canvasRef        = useRef<HTMLCanvasElement | null>(null)
   const passageRef       = useRef<HTMLDivElement | null>(null)
@@ -139,7 +170,7 @@ export default function Part6Screen({ onEnd }: Props) {
 
       {/* Top nav */}
       <header className="shrink-0 bg-white border-b border-ybm-border h-14 flex items-center px-4 gap-3">
-        <button onClick={() => router.push('/lessons')} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
+        <button onClick={() => { stopCurrentAudio(); router.push('/lessons') }} className="p-1 text-ybm-text-sub hover:text-ybm-text transition-colors shrink-0">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M12 16l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -158,6 +189,14 @@ export default function Part6Screen({ onEnd }: Props) {
             <span className="text-sm text-ybm-text-sub">/ {set.questions.length}</span>
           </div>
         )}
+        <button
+          onClick={() => setDemoMode((v) => !v)}
+          title={demoMode ? '시연 모드 ON' : '시연 모드 OFF'}
+          className={`shrink-0 w-6 h-6 rounded-full border-2 transition-all
+            ${demoMode
+              ? 'border-violet-400 bg-violet-100'
+              : 'border-gray-200 bg-white opacity-40 hover:opacity-70'}`}
+        />
         <button onClick={() => onEnd(getEndResult())} className="shrink-0 text-xs font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition-colors">
           종료
         </button>
@@ -182,7 +221,7 @@ export default function Part6Screen({ onEnd }: Props) {
                 <p className="text-sm font-semibold text-[#1A2B4B] mt-2">{set.intro}</p>
               </div>
 
-              {/* 지문 카드 (캔버스 오버레이 포함) */}
+              {/* 지문 카드 */}
               <div
                 ref={passageRef}
                 className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4 relative overflow-hidden"
@@ -193,41 +232,83 @@ export default function Part6Screen({ onEnd }: Props) {
                   <span><b>Date:</b> {set.meta.date}</span>
                   <span><b>Subject:</b> {set.meta.subject}</span>
                 </div>
-                <div className="border-t border-ybm-border pt-3 text-sm leading-relaxed text-[#1A2B4B]">
-                  {set.segments.map((seg, i) => {
-                    if (seg.blankNumber) {
-                      const q = set.questions.find((q) => q.number === seg.blankNumber)!
-                      const ans = answers[seg.blankNumber]
-                      const choice = q.choices.find((c) => c.id === ans)
-                      const isCorrect = submitted && ans === q.correct
-                      const isWrong   = submitted && ans && ans !== q.correct
-                      return (
-                        <span
-                          key={i}
-                          className={`inline-block mx-1 px-2 py-0.5 rounded-lg font-semibold text-sm border transition-all
-                            ${isCorrect ? 'bg-green-100 border-green-400 text-green-700' :
-                              isWrong   ? 'bg-red-100 border-red-400 text-red-600' :
-                              ans       ? 'bg-[#EDE9FE] border-[#6366F1] text-[#6366F1]' :
-                                          'bg-gray-100 border-dashed border-gray-300 text-gray-400 min-w-[100px] text-center'}
-                          `}
-                        >
-                          {ans ? `(${ans}) ${choice?.text}` : `${seg.blankNumber}`}
-                        </span>
-                      )
-                    }
-                    return <span key={i} className="whitespace-pre-line">{seg.text}</span>
-                  })}
-                </div>
 
-                {/* 필기 캔버스 오버레이 */}
-                <CanvasOverlay
-                  ref={canvasRef}
-                  tool={drawing.tool}
-                  color={drawing.color}
-                  clearTrigger={clearTrigger}
-                  onDrawStart={handleDrawStart}
-                  onStrokeEnd={handleStrokeEnd}
-                />
+                {chunkingMode ? (
+                  <>
+                    <div className="border-t border-ybm-border pt-3 flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold text-[#6366F1] bg-[#F5F3FF] px-2 py-0.5 rounded-full">
+                        단어 사이 탭 → 끊기 표시 추가
+                      </p>
+                      {slashSet.size > 0 && (
+                        <button
+                          onClick={() => setSlashSet(new Set())}
+                          className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-sm leading-[2] text-[#1A2B4B] select-none">
+                      {passageWords.map((word, i) => {
+                        const canSlash = i > 0 && !isBlankToken(word) && !isBlankToken(passageWords[i - 1])
+                        return (
+                          <Fragment key={i}>
+                            {i > 0 && (canSlash ? (
+                              <button
+                                onClick={() => toggleSlash(i - 1)}
+                                className="inline-flex items-center mx-[1px] rounded cursor-pointer"
+                              >
+                                {slashSet.has(i - 1)
+                                  ? <span className="text-[#6366F1] font-black px-0.5"> / </span>
+                                  : <span className="text-gray-200 hover:text-gray-400 transition-colors px-0.5"> · </span>
+                                }
+                              </button>
+                            ) : (
+                              <span> </span>
+                            ))}
+                            <span className={isBlankToken(word) ? 'text-[#6366F1] font-semibold' : ''}>{word}</span>
+                          </Fragment>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="border-t border-ybm-border pt-3 text-sm leading-relaxed text-[#1A2B4B]">
+                      {set.segments.map((seg, i) => {
+                        if (seg.blankNumber) {
+                          const q = set.questions.find((q) => q.number === seg.blankNumber)!
+                          const ans = answers[seg.blankNumber]
+                          const choice = q.choices.find((c) => c.id === ans)
+                          const isCorrect = submitted && ans === q.correct
+                          const isWrong   = submitted && ans && ans !== q.correct
+                          return (
+                            <span
+                              key={i}
+                              className={`inline-block mx-1 px-2 py-0.5 rounded-lg font-semibold text-sm border transition-all
+                                ${isCorrect ? 'bg-green-100 border-green-400 text-green-700' :
+                                  isWrong   ? 'bg-red-100 border-red-400 text-red-600' :
+                                  ans       ? 'bg-[#EDE9FE] border-[#6366F1] text-[#6366F1]' :
+                                              'bg-gray-100 border-dashed border-gray-300 text-gray-400 min-w-[100px] text-center'}
+                              `}
+                            >
+                              {ans ? `(${ans}) ${choice?.text}` : `${seg.blankNumber}`}
+                            </span>
+                          )
+                        }
+                        return <span key={i} className="whitespace-pre-line">{seg.text}</span>
+                      })}
+                    </div>
+                    <CanvasOverlay
+                      ref={canvasRef}
+                      tool={drawing.tool}
+                      color={drawing.color}
+                      clearTrigger={clearTrigger}
+                      onDrawStart={handleDrawStart}
+                      onStrokeEnd={handleStrokeEnd}
+                    />
+                  </>
+                )}
               </div>
 
               {/* 문항 카드들 */}
@@ -275,21 +356,43 @@ export default function Part6Screen({ onEnd }: Props) {
           <AIChatPanel
             answers={answers}
             getCanvasImage={getCanvasImage}
+            getChunkingText={getChunkingText}
             isUserDrawing={isUserDrawing}
+            demoMode={demoMode}
           />
         </aside>
 
       </div>
 
-      {/* 하단 필기 툴바 */}
+      {/* 하단 툴바 */}
       <div className="shrink-0 border-t border-ybm-border bg-white">
-        <div className="flex items-center px-4 py-3 gap-2">
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <DrawingToolbar
-              onChange={setDrawing}
-              onClearAll={() => setClear((n) => n + 1)}
-            />
-          </div>
+        <div className="flex items-center px-4 py-2.5 gap-2">
+          {chunkingMode ? (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[11px] font-semibold text-[#6366F1]">
+                끊어읽기 모드 {slashSet.size > 0 ? `· ${slashSet.size}개 표시됨` : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <DrawingToolbar
+                onChange={setDrawing}
+                onClearAll={() => setClear((n) => n + 1)}
+              />
+            </div>
+          )}
+          <button
+            onClick={() => { setChunking(v => !v); setSlashSet(new Set()) }}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all
+              ${chunkingMode
+                ? 'bg-[#6366F1] text-white'
+                : 'border border-ybm-border text-ybm-text-sub hover:border-[#6366F1] hover:text-[#6366F1]'}`}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M1 6h10M6 1v10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+            끊어읽기
+          </button>
           <div className="h-5 w-px bg-ybm-border shrink-0" />
           <div className="flex items-center gap-1 shrink-0">
             <button

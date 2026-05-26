@@ -175,8 +175,7 @@ function BookSection({ book }: { book: BookData }) {
   const doneCount = book.lessons.filter(l => l.status === 'done').length
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]"
-      style={{ borderLeft: `3px solid ${book.accentColor}` }}>
+    <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
 
       {/* 책 헤더 */}
       <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
@@ -204,8 +203,8 @@ function BookSection({ book }: { book: BookData }) {
           /* 완료 */
           if (lesson.status === 'done') return (
             <div key={lesson.id} className="relative flex items-center gap-3 py-2.5">
-              <div className="relative z-10 w-5 h-5 rounded-full bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shrink-0">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div className="relative z-10 w-5 h-5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center shrink-0">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <span className="text-[13px] text-[#C4C9D4] line-through flex-1 min-w-0 truncate">{lesson.title}</span>
               {lesson.partLabel && <span className="text-[10px] bg-[#F9FAFB] text-[#D1D5DB] px-1.5 py-0.5 rounded-md shrink-0">{lesson.partLabel}</span>}
@@ -222,7 +221,7 @@ function BookSection({ book }: { book: BookData }) {
                       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-[#2563EB] shrink-0">
                         ▶ 오늘의 수업
                       </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] shrink-0">
                          지금 여기
                       </span>
                     </div>
@@ -388,10 +387,10 @@ export default function LessonsPage() {
             </div>
 
             {/* 오늘 수업 완료 뱃지 */}
-            <div className="flex items-center gap-2 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3.5 py-2.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-              <p className="text-[#15803D] text-[12px] font-semibold flex-1">오늘 수업 일정을 완료했어요!</p>
-              <button className="text-[11px] font-semibold text-[#16A34A] flex items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-2 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-3.5 py-2.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+              <p className="text-[#1D4ED8] text-[12px] font-semibold flex-1">오늘 수업 일정을 완료했어요!</p>
+              <button className="text-[11px] font-semibold text-[#2563EB] flex items-center gap-0.5 shrink-0">
                 완전보기
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
               </button>

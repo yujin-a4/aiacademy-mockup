@@ -31,7 +31,7 @@ export default function SpeakingRouter({ onEnd }: Props) {
     case 4: return <ScreenSP4 {...props} />
     case 5: return <ScreenSP5 {...props} />
     case 6: return <ScreenSP6 {...props} />
-    case 7: return <ScreenSP7 {...props} />
+    case 7: return <ScreenSP7 onComplete={onEnd} onEnd={onEnd} />
     default: return null
   }
 }

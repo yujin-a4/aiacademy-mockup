@@ -28,6 +28,8 @@ export interface LessonTurn {
   timerSeconds?: number
   /** 타이머 만료 시 이동할 turnId */
   onTimerExpire?: string
+  /** 음성 인식 언어. 미설정 시 'ko-KR'. 영어 단어/문장 답변 턴은 'en-US' */
+  lang?: string
 }
 
 /* ═══════════════════════════════════════════════
@@ -187,6 +189,7 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
       videoSrc: '/part5/P5_2_1.mp4',
       script: `Part 5에서는 문장 구조를 먼저 파악해야 해. 문장 보이면 무조건 주어랑 동사 먼저 찾아봐. 여기서 주어가 뭐야?`,
       inputType: 'voice',
+      lang: 'en-US',
       defaultNextTurnId: 's1_turn2a',
     },
     s1_turn2a: {

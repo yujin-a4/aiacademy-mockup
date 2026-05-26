@@ -84,6 +84,7 @@ export default function ScreenSP2({ onComplete, onEnd }: Props) {
           onReadyToListen={(s, st) => { startListeningRef.current = s; stopListeningRef.current = st }}
           onSpeechResult={handleVoice}
           onListeningChange={() => {}}
+          lang={currentTurn.lang ?? 'ko-KR'}
           actions={[]}
         />
       }

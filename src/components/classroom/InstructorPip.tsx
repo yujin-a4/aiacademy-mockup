@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { getMuted, setMuted, onMuteChange } from '@/lib/tts'
 
 interface InstructorPipProps {
   speech: string
@@ -25,6 +26,7 @@ export default function InstructorPip({
 }: InstructorPipProps) {
   const [displayed, setDisplayed] = useState('')
   const [isTyping, setIsTyping]   = useState(false)
+  const [muted, setMutedState]    = useState(() => getMuted())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   /* ── 드래그 상태 ── */
@@ -79,6 +81,8 @@ export default function InstructorPip({
     }
   }, [])
 
+  useEffect(() => onMuteChange(setMutedState), [])
+
   useEffect(() => {
     if (!speech || isLoading) { setDisplayed(''); setIsTyping(false); return }
     setDisplayed(''); setIsTyping(true)
@@ -115,22 +119,32 @@ export default function InstructorPip({
     >
       <style>{`@keyframes pipSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
       {/* 강사 얼굴 — 클릭하면 패널 다시 열기 */}
-      <button
-        onClick={onOpen}
-        aria-label="강사 패널 열기"
-        className="shrink-0 w-14 h-14 rounded-full overflow-hidden border-2 border-cr-accent/30 hover:border-cr-accent transition-colors"
-      >
-        {imageSrc ? (
-          <Image src={imageSrc} alt="강사" width={56} height={56} className="object-cover object-top w-full h-full" />
-        ) : (
-          <div className="w-full h-full bg-cr-accent-light flex items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="7" r="4" stroke="#2277F0" strokeWidth="1.5"/>
-              <path d="M3 18c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="#2277F0" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-        )}
-      </button>
+      <div className="relative shrink-0">
+        <button
+          onClick={onOpen}
+          aria-label="강사 패널 열기"
+          className="w-14 h-14 rounded-full overflow-hidden border-2 border-cr-accent/30 hover:border-cr-accent transition-colors"
+        >
+          {imageSrc ? (
+            <Image src={imageSrc} alt="강사" width={56} height={56} className="object-cover object-top w-full h-full" />
+          ) : (
+            <div className="w-full h-full bg-cr-accent-light flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="7" r="4" stroke="#2277F0" strokeWidth="1.5"/>
+                <path d="M3 18c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="#2277F0" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+          )}
+        </button>
+        {/* 음소거 버튼 — 아바타 우측 상단 */}
+        <button
+          onClick={() => setMuted(!muted)}
+          aria-label={muted ? '음소거 해제' : '음소거'}
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
+        >
+          {muted ? <PipVolumeOffIcon /> : <PipVolumeOnIcon />}
+        </button>
+      </div>
 
       {/* 발화 텍스트 */}
       <div className="flex-1 min-w-0">
@@ -196,6 +210,24 @@ function StopIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/>
+    </svg>
+  )
+}
+
+function PipVolumeOnIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M10.5 5.5c.8.6 1.3 1.5 1.3 2.5s-.5 1.9-1.3 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PipVolumeOffIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
 }

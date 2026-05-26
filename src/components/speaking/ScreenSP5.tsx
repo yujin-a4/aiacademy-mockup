@@ -8,7 +8,7 @@ import ScriptPanel from './ScriptPanel'
 import TimerRing from './TimerRing'
 import { useClassroomStore } from '@/store/classroomStore'
 import { SPEAKING_TURNS, OFFICE_PHOTO, OFFICE_SCRIPT } from '@/data/speakingScenario'
-import { waitForVideoEnd, notifyVideoEnded, speakTurn, fetchTTSAudio, playAndWait, stopCurrentAudio } from '@/lib/tts'
+import { waitForVideoEnd, notifyVideoEnded, speakTurn, speakTTS, stopCurrentAudio } from '@/lib/tts'
 import SpeakingNavBar from './SpeakingNavBar'
 
 type TurnId = 'sp5_t1' | 'sp5_t2' | 'sp5_t3'
@@ -38,11 +38,9 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
     setVideo(turn.videoSrc)
 
     if (id === 'sp5_t1') {
-      setSpeech('')
-      const audio = await fetchTTSAudio(turn.script, persona)
-      if (!mountedRef.current) return
       setSpeech(turn.script)
-      if (audio) await playAndWait(audio)
+      await speakTTS(turn.script, persona)
+      if (!mountedRef.current) return
     } else {
       setSpeech(turn.script)
       if (turn.videoSrc) await waitForVideoEnd()
@@ -100,6 +98,7 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
           onReadyToListen={(s, st) => { startListeningRef.current = s; stopListeningRef.current = st }}
           onSpeechResult={handleVoice}
           onListeningChange={() => {}}
+          lang={currentTurn.lang ?? 'ko-KR'}
           actions={[]}
         />
       }

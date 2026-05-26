@@ -46,6 +46,8 @@ interface InputBarProps {
   onReadyToListen?: (startFn: () => void, stopFn: () => void) => void
   onSpeechResult?: (text: string) => void
   onListeningChange?: (listening: boolean) => void
+  /** 음성 인식 언어. 기본값 'ko-KR' */
+  lang?: string
 }
 
 /* ── 파형 프로파일 (deterministic, 36개 바) ── */
@@ -65,6 +67,7 @@ export default function InputBar({
   onReadyToListen,
   onSpeechResult,
   onListeningChange,
+  lang = 'ko-KR',
 }: InputBarProps) {
   const [value, setValue]               = useState('')
   const [interimText, setInterim]       = useState('')
@@ -74,8 +77,10 @@ export default function InputBar({
   const inputRef             = useRef<HTMLInputElement>(null)
   const recognRef            = useRef<SpeechRecognitionInstance | null>(null)
   const handleMicRef         = useRef<() => void>(() => {})
+  const langRef              = useRef(lang)
   const onSpeechResultRef    = useRef(onSpeechResult)
   const onListeningChangeRef = useRef(onListeningChange)
+  useEffect(() => { langRef.current             = lang             }, [lang])
   useEffect(() => { onSpeechResultRef.current    = onSpeechResult    }, [onSpeechResult])
   useEffect(() => { onListeningChangeRef.current = onListeningChange }, [onListeningChange])
 
@@ -116,7 +121,7 @@ export default function InputBar({
     if (!Ctor) return
 
     const rec = new Ctor()
-    rec.lang           = 'ko-KR'
+    rec.lang           = lang
     rec.continuous     = true
     rec.interimResults = true
 
@@ -166,7 +171,7 @@ export default function InputBar({
       if (!Ctor) return
 
       const rec = new Ctor()
-      rec.lang           = 'ko-KR'
+      rec.lang           = langRef.current
       rec.continuous     = true
       rec.interimResults = true
 

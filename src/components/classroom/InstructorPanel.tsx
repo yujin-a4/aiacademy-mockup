@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { getMuted, setMuted, onMuteChange } from '@/lib/tts'
 
 interface InstructorPanelProps {
   speech: string
@@ -26,9 +27,18 @@ export default function InstructorPanel({
   const [videoError, setVideoError] = useState(false)
   const [displayed, setDisplayed]   = useState('')
   const [isTyping, setIsTyping]     = useState(false)
+  const [muted, setMutedState]      = useState(() => getMuted())
 
   /* videoSrc가 바뀌면 이전 에러 상태 초기화 */
   useEffect(() => { setVideoError(false) }, [videoSrc])
+
+  /* 음소거 상태 구독 */
+  useEffect(() => onMuteChange(setMutedState), [])
+
+  /* video 엘리먼트에 음소거 동기화 */
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted
+  }, [muted])
 
   const videoRef    = useRef<HTMLVideoElement | null>(null)
   const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -161,6 +171,15 @@ export default function InstructorPanel({
               </svg>
             </div>
           )}
+          {/* 음소거 버튼 */}
+          <button
+            onClick={() => setMuted(!muted)}
+            aria-label={muted ? '음소거 해제' : '음소거'}
+            className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+          >
+            {muted ? <VolumeOffIcon /> : <VolumeOnIcon />}
+          </button>
+
           <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
             <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
               YBM AI 어학원
@@ -248,5 +267,24 @@ function LoadingDots() {
         <span key={delay} className="w-2 h-2 bg-cr-accent rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
       ))}
     </div>
+  )
+}
+
+function VolumeOnIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M10.5 5.5c.8.6 1.3 1.5 1.3 2.5s-.5 1.9-1.3 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M12.5 3.5c1.3 1.1 2.1 2.7 2.1 4.5s-.8 3.4-2.1 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function VolumeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   )
 }

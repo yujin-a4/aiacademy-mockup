@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Part7AIScreen, { type Part7AIEndResult } from '@/components/part7/Part7AIScreen'
 import SessionEndFlow from '@/components/session/SessionEndFlow'
+import { stopCurrentAudio } from '@/lib/tts'
 
 export default function Part7AIPage() {
   const router   = useRouter()
@@ -19,12 +20,12 @@ export default function Part7AIPage() {
         correctCount={endData.correct}
         totalCount={endData.total}
         results={endData.results}
-        onNextLesson={() => router.push('/speaking')}
-        onReport={() => router.push('/status')}
-        onHome={() => router.push('/lessons')}
+        onNextLesson={() => { stopCurrentAudio(); router.push('/speaking') }}
+        onReport={() => { stopCurrentAudio(); router.push('/status') }}
+        onHome={() => { stopCurrentAudio(); router.push('/lessons') }}
       />
     )
   }
 
-  return <Part7AIScreen onEnd={(result) => setEndData(result)} />
+  return <Part7AIScreen onEnd={(result) => { stopCurrentAudio(); setEndData(result) }} />
 }

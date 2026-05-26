@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { getMuted, setMuted, onMuteChange } from '@/lib/tts'
 
 interface Props {
   speech: string
@@ -28,6 +29,7 @@ export default function MobileInstructorBar({
   const [displayed, setDisplayed] = useState('')
   const [isTyping, setIsTyping]   = useState(false)
   const [videoError, setVideoError] = useState(false)
+  const [muted, setMutedState]    = useState(() => getMuted())
 
   const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const videoRef   = useRef<HTMLVideoElement | null>(null)
@@ -36,6 +38,8 @@ export default function MobileInstructorBar({
 
   useEffect(() => { setVideoError(false) }, [videoSrc])
   useEffect(() => { speechRef.current = speech }, [speech])
+  useEffect(() => onMuteChange(setMutedState), [])
+  useEffect(() => { if (videoRef.current) videoRef.current.muted = muted }, [muted])
 
   // 말풍선 자동 스크롤
   useEffect(() => {
@@ -91,7 +95,7 @@ export default function MobileInstructorBar({
         <div className="flex gap-3 md:gap-5 px-3 py-3 md:px-5 md:py-4">
 
           {/* 강사 영상 or 이미지 */}
-          <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl overflow-hidden shrink-0 bg-cr-panel self-start">
+          <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-2xl overflow-hidden shrink-0 bg-cr-panel self-start">
             {videoSrc && !videoError ? (
               <video
                 ref={videoRef}
@@ -121,6 +125,14 @@ export default function MobileInstructorBar({
                 style={{ objectPosition: 'center top' }}
               />
             )}
+            {/* 음소거 버튼 */}
+            <button
+              onClick={() => setMuted(!muted)}
+              aria-label={muted ? '음소거 해제' : '음소거'}
+              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            >
+              {muted ? <MobileVolumeOffIcon /> : <MobileVolumeOnIcon />}
+            </button>
           </div>
 
           {/* 오른쪽: 말풍선 + inputSlot */}
@@ -217,5 +229,23 @@ export default function MobileInstructorBar({
         </button>
       )}
     </div>
+  )
+}
+
+function MobileVolumeOnIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M10.5 5.5c.8.6 1.3 1.5 1.3 2.5s-.5 1.9-1.3 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function MobileVolumeOffIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+      <path d="M2 5.5h2.5L8 2.5v11L4.5 10.5H2V5.5z" fill="currentColor" />
+      <path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   )
 }

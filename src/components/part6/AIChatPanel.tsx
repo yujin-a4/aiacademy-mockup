@@ -9,22 +9,38 @@ interface Message {
   text: string
 }
 
+/* ── 시연용 스크립트 ── */
+const DEMO_SCRIPT: { trigger: RegExp; response: string }[] = [
+  {
+    trigger: /끊어|첨삭|chunk/,
+    response: `'writing to follow'에서 끊으면 안 돼. 'follow up'은 숙어라서 붙여 읽어야 해. 그리고 'I am'이랑 'writing' 사이도 끊으면 안 돼 — 'I am writing'이 현재진행형 동사 덩어리거든. 'I am writing to follow up / on our meeting / last Tuesday.' 이렇게 다시 해봐.`,
+  },
+  {
+    trigger: /131|모르겠|어떻게|못 풀|힘들/,
+    response: `어휴 그것도 모르면 어떡해. 131번 보기 봐봐. 이건 동사의 시제를 묻는 문제지. 그럼 그 논의를 언제 했는지 봐야 해. 그 단서가 어디 있는 거 같아?`,
+  },
+]
+
 interface Props {
   answers: Record<number, string>
   getCanvasImage: () => Promise<{ base64: string; hint: string } | null>
+  getChunkingText?: () => string | null
   isUserDrawing?: boolean
   persona?: string
   initialMessage?: string
   quickQuestions?: string[]
+  demoMode?: boolean
 }
 
 export default function AIChatPanel({
   answers,
   getCanvasImage,
+  getChunkingText,
   isUserDrawing = false,
   persona = 'p6tutor',
   initialMessage = '131~133번 풀어봐. 모르는 거 있으면 물어봐.',
-  quickQuestions = ['131번 힌트 줘', '132번 왜 수동태야?', '133번 설명해줘'],
+  quickQuestions = ['131번 힌트 줘', '132번 왜 수동태야?', '133번 설명해줘', '끊어읽기 첨삭해줘'],
+  demoMode = false,
 }: Props) {
   const [mode, setMode]             = useState<ChatMode>('text')
   const [messages, setMessages]     = useState<Message[]>([
@@ -42,6 +58,7 @@ export default function AIChatPanel({
   const recognRef         = useRef<SpeechRecognition | null>(null)
   const gotResultRef      = useRef(false)   // onresult 수신 여부 (no-speech 재시작 판단)
   const sendMessageRef    = useRef<(t: string) => void>(() => {})
+  const demoStepRef       = useRef(0)
   /** 음성 모드에서 2초마다 갱신되는 최신 캔버스 스냅샷 */
   const liveSnapshotRef   = useRef<{ base64: string; hint: string } | null>(null)
   const snapshotTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -49,6 +66,10 @@ export default function AIChatPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  useEffect(() => {
+    if (demoMode) demoStepRef.current = 0
+  }, [demoMode])
 
   /* ── Google Cloud TTS ── */
   const speakTTS = useCallback(async (text: string, onEnd?: () => void) => {
@@ -115,19 +136,48 @@ export default function AIChatPanel({
     stopAudio()
     setIsSpeaking(false)
 
+    /* ── 시연 모드: 매칭 트리거 있으면 스크립트 응답 반환 ── */
+    if (demoMode) {
+      for (let i = demoStepRef.current; i < DEMO_SCRIPT.length; i++) {
+        if (DEMO_SCRIPT[i].trigger.test(userMsg)) {
+          demoStepRef.current = i + 1
+          await new Promise((r) => setTimeout(r, 800))
+          const demoReply = DEMO_SCRIPT[i].response
+          setMessages((prev) => [...prev, { role: 'ai', text: demoReply }])
+          setLoading(false)
+          if (mode === 'voice') {
+            setIsSpeaking(true)
+            await speakTTS(stripMarkdown(demoReply), () => {
+              setIsSpeaking(false)
+              startListening()
+            })
+          }
+          return
+        }
+      }
+      // 매칭 없으면 API로 fall-through
+    }
+
     const answerSummary =
       Object.entries(answers).map(([q, a]) => `${q}번: ${a || '미선택'}`).join(', ') || '아직 선택 없음'
 
-    // 음성 모드: 주기 스냅샷 사용 / 텍스트 모드: 요청 시 캡처
-    const imgResult = mode === 'voice'
+    const isChunkingRequest = /끊어|청킹|슬래시|chunk/.test(userMsg)
+    const chunkingText = isChunkingRequest ? (getChunkingText?.() ?? null) : null
+
+    // 끊어읽기 텍스트가 있으면 이미지 캡처 생략
+    const imgResult = chunkingText
+      ? null
+      : mode === 'voice'
       ? liveSnapshotRef.current
       : await getCanvasImage()
 
     const imageBase64    = imgResult?.base64 ?? null
     const positionHint   = imgResult?.hint   ?? null
 
-    const contextualMessage = imageBase64
-      ? `[학생 현재 답안: ${answerSummary}]\n\n${positionHint ? `[필기 위치 힌트: ${positionHint}]\n` : ''}${userMsg}\n\n※ 첨부 이미지는 학생이 지문에 직접 표시(밑줄·형광펜·동그라미)한 스크린샷입니다. 힌트에 명시된 단락의 해당 단어·문장 위에 색깔 있는 선/표시를 찾아 정확히 특정한 뒤 답변해 주세요.`
+    const contextualMessage = chunkingText
+      ? `[학생 현재 답안: ${answerSummary}]\n\n${userMsg}\n\n[학생 끊어읽기 표시]\n"${chunkingText}"\n\n/ 기호 위치가 학생의 청크 구분입니다. 각 구분이 올바른 청크 경계인지 확인하고, 틀린 부분만 짚어서 첨삭해주세요.`
+      : imageBase64
+      ? `[학생 현재 답안: ${answerSummary}]\n\n${positionHint ? `[필기 위치 힌트: ${positionHint}]\n` : ''}${userMsg}\n\n※ 첨부 이미지는 학생이 지문에 직접 필기한 스크린샷입니다. 밑줄·형광펜·동그라미 등의 표시를 찾아 문제와 연결해서 언급해 주세요.`
       : `[학생 현재 답안: ${answerSummary}]\n\n${userMsg}`
 
     try {

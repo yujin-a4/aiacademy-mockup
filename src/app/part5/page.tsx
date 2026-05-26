@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLessonStore } from '@/store/lessonStore'
 import LessonRouter from '@/components/lesson/LessonRouter'
 import SessionEndFlow from '@/components/session/SessionEndFlow'
+import { stopCurrentAudio } from '@/lib/tts'
 
 export default function Part5Page() {
   const router          = useRouter()
@@ -18,6 +19,7 @@ export default function Part5Page() {
   useEffect(() => { reset() }, [reset])
 
   const handleEnd = () => {
+    stopCurrentAudio()
     setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
     setShowEnd(true)
   }
@@ -33,9 +35,9 @@ export default function Part5Page() {
         correctCount={correctCount}
         totalCount={boolResults.length}
         results={boolResults}
-        onNextLesson={() => { reset(); router.push('/part7') }}
-        onReport={() => router.push('/status')}
-        onHome={() => { reset(); router.push('/lessons') }}
+        onNextLesson={() => { stopCurrentAudio(); reset(); router.push('/part7') }}
+        onReport={() => { stopCurrentAudio(); router.push('/status') }}
+        onHome={() => { stopCurrentAudio(); reset(); router.push('/lessons') }}
       />
     )
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import ClassroomLayout from '@/components/classroom/ClassroomLayout'
-import { speakTurn, stopCurrentAudio } from '@/lib/tts'
+import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { buildTurns } from '@/data/lessonScenario'
 import { useClassroomStore } from '@/store/classroomStore'
 import { useOnboardingStore } from '@/store/onboardingStore'
@@ -21,7 +21,7 @@ export default function Screen0({ onComplete, onEnd }: Screen0Props) {
   useEffect(() => {
     if (playedRef.current) return
     playedRef.current = true
-    speakTurn({ audioSrc: turn.audioSrc, script: turn.script, persona })
+    void speakTTS(turn.script, persona)
     return () => stopCurrentAudio()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

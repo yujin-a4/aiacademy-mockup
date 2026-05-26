@@ -8,8 +8,11 @@ interface Props {
   highlighted?: boolean
 }
 
+const TOTAL_SCREENS = 8
+
 export default function SpeakingNavBar({ onNext, highlighted = false }: Props) {
   const { currentScreen, prevScreen } = useSpeakingStore()
+  const isLast = currentScreen === TOTAL_SCREENS - 1
 
   return (
     <div className="flex items-center justify-between px-4 py-3">
@@ -40,10 +43,16 @@ export default function SpeakingNavBar({ onNext, highlighted = false }: Props) {
             : 'text-ybm-text hover:bg-ybm-bg'}
         `}
       >
-        다음 단계
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M5 3l5 4-5 4" stroke={highlighted ? 'white' : 'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        {isLast ? '학습 종료' : '다음 단계'}
+        {isLast ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2.5 7l3 3 6-6" stroke={highlighted ? 'white' : 'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M5 3l5 4-5 4" stroke={highlighted ? 'white' : 'currentColor'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
       </button>
     </div>
   )

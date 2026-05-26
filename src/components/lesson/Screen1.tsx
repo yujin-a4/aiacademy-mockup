@@ -279,6 +279,7 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
           }}
           onSpeechResult={handleVoice}
           onListeningChange={setIsListening}
+          lang={currentTurn.lang ?? 'ko-KR'}
           actions={[]}
         />
       }

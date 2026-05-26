@@ -3,6 +3,24 @@ let _currentAudio: HTMLAudioElement | null = null
 let _currentUnlockCleanup: (() => void) | null = null
 let _playbackToken = 0
 
+/** 음소거 상태 */
+let _muted = false
+let _muteListeners: Array<(muted: boolean) => void> = []
+
+export function getMuted(): boolean { return _muted }
+
+export function setMuted(muted: boolean) {
+  _muted = muted
+  if (_currentAudio) _currentAudio.muted = muted
+  _muteListeners.forEach((fn) => fn(muted))
+}
+
+/** 음소거 상태 변경 구독. 반환값은 unsubscribe 함수. */
+export function onMuteChange(fn: (muted: boolean) => void): () => void {
+  _muteListeners.push(fn)
+  return () => { _muteListeners = _muteListeners.filter((f) => f !== fn) }
+}
+
 /** 영상 종료를 기다리는 Promise resolver */
 let _videoEndedResolve: (() => void) | null = null
 
@@ -49,6 +67,7 @@ export async function playLocalAudio(src: string): Promise<void> {
 
   return new Promise((resolve) => {
     const audio = new Audio(src)
+    audio.muted = _muted
     _currentAudio = audio
     let settled = false
 
@@ -118,32 +137,61 @@ export async function fetchTTSAudio(text: string, persona: string): Promise<HTML
   return null
 }
 
-/** 이미 준비된 Audio 객체를 재생하고 종료까지 대기. */
+/** fetch 완료 후 재생 전에 취소 여부를 확인하고 싶을 때 사용. */
+export function getPlaybackToken(): number { return _playbackToken }
+
+/** 이미 준비된 Audio 객체를 재생하고 종료까지 대기.
+ *  autoplay 차단(NotAllowedError) 시 다음 사용자 제스처까지 대기 후 재시도. */
 export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
   stopCurrentAudio()
   const token = ++_playbackToken
+  audio.muted = _muted
   _currentAudio = audio
   return new Promise((resolve) => {
     let settled = false
+
+    const cleanupUnlock = () => {
+      document.removeEventListener('click', tryUnlock)
+      document.removeEventListener('touchstart', tryUnlock)
+      if (_currentUnlockCleanup === cleanupUnlock) _currentUnlockCleanup = null
+    }
+
     const done = () => {
       if (settled) return
       settled = true
+      cleanupUnlock()
       if (_currentAudio === audio && _playbackToken === token) _currentAudio = null
       resolve()
     }
+
+    const tryUnlock = () => {
+      cleanupUnlock()
+      if (_currentAudio !== audio || _playbackToken !== token) { done(); return }
+      audio.play().catch(done)
+    }
+
     audio.onended = done
     audio.onerror = done
-    audio.play().catch(done)
+    audio.play().catch((err) => {
+      if ((err as Error)?.name !== 'NotAllowedError') { done(); return }
+      // autoplay 차단 → 다음 클릭/터치 시 재시도
+      document.addEventListener('click', tryUnlock, { once: true })
+      document.addEventListener('touchstart', tryUnlock, { once: true })
+      _currentUnlockCleanup = cleanupUnlock
+    })
   })
 }
 
 /** fetchTTSAudio + playAndWait + speechSynthesis fallback.
- *  토큰을 fetch 완료 후에만 설정하므로 이전 화면 cleanup의 stopCurrentAudio()와 충돌하지 않는다. */
+ *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다. */
 export async function speakTTS(text: string, persona: string): Promise<void> {
+  const token = _playbackToken
   const audio = await fetchTTSAudio(text, persona)
+  if (_playbackToken !== token) return  // fetch 중 stopCurrentAudio 호출됨
   if (audio) {
     await playAndWait(audio)
   } else {
+    if (_playbackToken !== token) return
     await new Promise<void>((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return }
       window.speechSynthesis.cancel()
@@ -164,60 +212,39 @@ export async function speakAndWait(text: string, persona: string): Promise<void>
   stopCurrentAudio()
   const token = ++_playbackToken
 
-  return new Promise(async (resolve) => {
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, persona }),
-      })
-      const data = await res.json()
-
-      if (_playbackToken !== token) {
-        resolve()
-        return
-      }
-
-      if (!data.useNativeTts && data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        _currentAudio = audio
-        let settled = false
-        const done = () => {
-          if (settled) return
-          settled = true
-          if (_currentAudio === audio && _playbackToken === token) _currentAudio = null
-          resolve()
-        }
-        audio.onended = done
-        audio.onerror = done
-        await audio.play().catch(done)
-        return
-      }
-    } catch { /* fall through */ }
-
-    if (_playbackToken !== token) {
-      resolve()
-      return
+  let audio: HTMLAudioElement | null = null
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, persona }),
+    })
+    const data = await res.json()
+    if (!data.useNativeTts && data.audioContent) {
+      audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
     }
+  } catch { /* fall through to native */ }
 
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const utt = new SpeechSynthesisUtterance(text)
-      utt.lang = 'ko-KR'
-      utt.rate = persona === 'driller' ? 1.2 : 0.95
-      let settled = false
-      const done = () => {
-        if (settled) return
-        settled = true
-        resolve()
-      }
-      utt.onend = done
-      utt.onerror = done
-      // Chrome bug: speechSynthesis.onend sometimes doesn't fire
-      setTimeout(done, Math.max(4000, text.length * 200))
-      window.speechSynthesis.speak(utt)
-    } else {
-      resolve()
-    }
+  if (_playbackToken !== token) return
+
+  if (audio) {
+    // playAndWait handles autoplay unlock
+    await playAndWait(audio)
+    return
+  }
+
+  // native TTS fallback
+  if (!('speechSynthesis' in window)) return
+  await new Promise<void>((resolve) => {
+    window.speechSynthesis.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = 'ko-KR'
+    utt.rate = persona === 'driller' ? 1.2 : 0.95
+    let settled = false
+    const done = () => { if (settled) return; settled = true; resolve() }
+    utt.onend = done
+    utt.onerror = done
+    setTimeout(done, Math.max(4000, text.length * 200))
+    window.speechSynthesis.speak(utt)
   })
 }

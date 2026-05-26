@@ -75,7 +75,6 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      stopCurrentAudio()
       isRecordingRef.current = false
       try { recognRef.current?.stop() } catch (_) {}
     }

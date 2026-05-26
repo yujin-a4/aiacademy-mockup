@@ -9,6 +9,7 @@ import StepAction from './steps/StepAction'
 import { computeBadges } from '@/lib/sessionBadges'
 import { getPreviousScore, getTotalCompletions, saveSession } from '@/lib/sessionHistory'
 import type { PartKey } from '@/lib/sessionHistory'
+import { stopCurrentAudio } from '@/lib/tts'
 
 export interface SessionEndFlowProps {
   partKey: PartKey
@@ -43,6 +44,9 @@ export default function SessionEndFlow({
     { correctCount, totalCount, elapsedSeconds, previousScore, isFirstTime },
     results,
   )
+
+  // 진입 즉시 TTS 정지 (이전 화면 오디오 잔류 방지)
+  useEffect(() => { stopCurrentAudio() }, [])
 
   // 세션 결과를 딱 한 번 저장
   const savedRef = useRef(false)
