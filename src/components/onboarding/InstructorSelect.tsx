@@ -1,6 +1,21 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useConversation } from '@11labs/react'
 import { useOnboardingStore } from '@/store/onboardingStore'
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'elevenlabs-convai': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          'agent-id': string
+          'dynamic-variables'?: string
+        },
+        HTMLElement
+      >
+    }
+  }
+}
 
 const INSTRUCTORS = [
   {
@@ -40,6 +55,7 @@ const INSTRUCTORS = [
       '하루에 몇 시간 정도 공부해야 하나요?',
     ],
     greeting: '반가워요! 박혜원입니다. 점수, 단기간에 확 올릴 준비 됐나요? 궁금한 게 있으면 물어보세요.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'jang',
@@ -78,6 +94,7 @@ const INSTRUCTORS = [
       '장연지 선생님 수업만의 특징은 무엇인가요?',
     ],
     greeting: '안녕하세요! 장연지입니다. 토익 공부, 혼자 하기 많이 힘들었죠? 제가 옆에서 하나하나 꼼꼼하게 도와줄게요.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'kim',
@@ -116,6 +133,7 @@ const INSTRUCTORS = [
       '김토익 선생님의 실전 전략이 궁금합니다.',
     ],
     greeting: '반갑습니다. 김토익입니다. 우리는 시간 낭비 없이 딱 나올 것만 합니다. 현실적인 목표부터 세워볼까요?',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'jeong',
@@ -154,6 +172,7 @@ const INSTRUCTORS = [
       '정은순 선생님만의 감성 학습법이 궁금해요.',
     ],
     greeting: '안녕하세요, 정은순입니다. 토익, 어렵고 지치죠? 괜찮아요. 우리 같이 천천히, 그렇지만 확실하게 해봐요.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'lee',
@@ -192,6 +211,7 @@ const INSTRUCTORS = [
       '이인호 선생님의 데이터 학습법이 궁금합니다.',
     ],
     greeting: '안녕하세요, 이인호입니다. 감이 아닌 데이터로 공부해본 적 있나요? 한 번 해보면 다시는 예전 방식으로 못 돌아갑니다.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'oh',
@@ -229,12 +249,17 @@ const INSTRUCTORS = [
       '시험 당일 긴장되면 어떻게 마음을 잡나요?',
     ],
     greeting: '어이구, 왔어요? 나 오정자예요. 걱정 마요, 내가 다 설명해줄게요. 몇 번이고. 정말이에요, 몇 번이고.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
 ]
 
 
 export default function InstructorSelect({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
-  const { userName, setSelectedInstructor, targetScore, studyRange, examDate } = useOnboardingStore()
+  const {
+    userName, setSelectedInstructor,
+    targetScore, studyRange, examDate,
+    learningStyle, managementStyle, motivationType, studyPeriod, dailyTime,
+  } = useOnboardingStore()
 
   const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
   const visibleInstructors = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh')
@@ -248,14 +273,32 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   const [activeTab, setActiveTab] = useState<'proposal' | 'chat' | 'curriculum'>('proposal')
   const [selectedInst, setSelectedInst] = useState<(typeof INSTRUCTORS)[0] | null>(null)
-  const [isTalking, setIsTalking] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const [chatHistory, setChatHistory] = useState<{ role: 'instructor' | 'user'; text: string }[]>([])
-  const [sttText, setSttText] = useState('')
   const [isMuted, setIsMuted] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const recognitionRef = useRef<any>(null)
   const tabSectionRef = useRef<HTMLDivElement | null>(null)
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
+
+  const conversation = useConversation({
+    onMessage: (props: any) => {
+      const { source, message } = props
+      setChatMessages(prev => [...prev, { role: source === 'user' ? 'user' : 'ai', text: message }])
+    },
+  })
+
+  /* ── 채팅 메시지 자동 스크롤 ── */
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
+  }, [chatMessages])
+
+  /* ── 강사 변경 시 채팅 초기화 ── */
+  useEffect(() => {
+    setChatMessages([])
+    setChatInput('')
+    return () => { conversation.endSession() }
+  }, [selectedInst?.id])
 
   /* ── video autoplay on focus change ── */
   useEffect(() => {
@@ -300,14 +343,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     return () => window.removeEventListener('keydown', handleKey)
   }, [view, visibleInstructors.length])
 
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) audioRef.current.pause()
-      if (recognitionRef.current) recognitionRef.current.stop()
-      window.speechSynthesis.cancel()
-    }
-  }, [])
-
   const goPrev = () => setFocusedIndex(prev => (prev - 1 + visibleInstructors.length) % visibleInstructors.length)
   const goNext = () => setFocusedIndex(prev => (prev + 1) % visibleInstructors.length)
 
@@ -327,6 +362,44 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     else if (diff < -50) goPrev()
   }
 
+  const handleChatStart = async () => {
+    if (!selectedInst) return
+    await conversation.startSession({
+      agentId: selectedInst.agentId,
+      dynamicVariables: {
+        user_name: userName || '학생',
+        instructor_name: selectedInst.name,
+        instructor_greeting: selectedInst.greeting,
+        target_score: String(targetScore || ''),
+        study_range: studyRange || '',
+        exam_date: examDate || '',
+        study_period: studyPeriod || '',
+        daily_time: dailyTime || '',
+        learning_style: learningStyle || '',
+        management_style: managementStyle || '',
+        motivation_type: motivationType || '',
+        instructor_tag: selectedInst.tag,
+        instructor_plan: selectedInst.proposal.plan,
+        instructor_target: selectedInst.proposal.target,
+        instructor_comment: selectedInst.proposal.comment,
+      },
+    })
+  }
+
+  const handleChatSend = () => {
+    if (!chatInput.trim()) return
+    conversation.sendUserMessage(chatInput)
+    setChatInput('')
+  }
+
+  const handleQuestionClick = async (q: string) => {
+    if (!selectedInst) return
+    if (conversation.status !== 'connected') {
+      await handleChatStart()
+    }
+    conversation.sendUserMessage(q)
+  }
+
   const handleConfirm = (id: string) => {
     setSelectedInstructor(id)
     window.location.href = '/dashboard'
@@ -336,7 +409,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     setSelectedInst(inst)
     setView('detail')
     setActiveTab('proposal')
-    setChatHistory([{ role: 'instructor', text: inst.greeting }])
     window.scrollTo(0, 0)
   }
 
@@ -344,83 +416,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     setActiveTab(tab)
     if (tab === 'chat') {
       setTimeout(() => tabSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-    }
-    if (tab === 'chat' && chatHistory.length === 1 && selectedInst) {
-      setTimeout(() => playTTS(selectedInst.greeting, selectedInst.id), 500)
-    } else {
-      if (audioRef.current) audioRef.current.pause()
-      window.speechSynthesis.cancel()
-    }
-  }
-
-  const playTTS = async (text: string, persona: string) => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
-    window.speechSynthesis.cancel()
-    setIsTalking(true)
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, persona }),
-      })
-      const data = await res.json()
-      if (data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        audioRef.current = audio
-        audio.onended = () => setIsTalking(false)
-        audio.onerror = () => setIsTalking(false)
-        await audio.play()
-      } else {
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.lang = 'ko-KR'
-        utterance.onend = () => setIsTalking(false)
-        utterance.onerror = () => setIsTalking(false)
-        window.speechSynthesis.speak(utterance)
-      }
-    } catch { setIsTalking(false) }
-  }
-
-  const processConversation = async (userMsg: string) => {
-    if (!userMsg.trim() || isTalking || !selectedInst) return
-    setIsTalking(true)
-    const newHistory = [...chatHistory, { role: 'user' as const, text: userMsg }]
-    setChatHistory(newHistory)
-    setSttText('')
-    try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, persona: selectedInst.id, history: newHistory }),
-      })
-      const data = await res.json()
-      const instructorMsg = data.dialogue
-      setChatHistory(prev => [...prev, { role: 'instructor', text: instructorMsg }])
-      await playTTS(instructorMsg, selectedInst.id)
-    } catch { setIsTalking(false) }
-  }
-
-  const startRecording = () => {
-    if (isRecording || isTalking) return
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) { alert('이 브라우저는 음성 인식을 지원하지 않습니다.'); return }
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'ko-KR'
-    recognition.interimResults = true
-    recognition.onstart = () => setIsRecording(true)
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join('')
-      setSttText(transcript)
-    }
-    recognition.onend = () => setIsRecording(false)
-    recognition.onspeechend = () => recognition.stop()
-    recognitionRef.current = recognition
-    recognition.start()
-  }
-
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
-      setTimeout(() => { if (sttText) processConversation(sttText) }, 500)
     }
   }
 
@@ -619,7 +614,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
       {/* 헤더 */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#DBEAFE] sticky top-0 z-30 shadow-sm">
         <button
-          onClick={() => { setView('list'); setChatHistory([]); window.speechSynthesis.cancel() }}
+          onClick={() => { setView('list'); conversation.endSession(); setChatMessages([]); window.speechSynthesis.cancel() }}
           className="p-2 -ml-2 text-[#6B7280] hover:text-[#111318] transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -930,56 +925,130 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             )}
 
             {activeTab === 'chat' && (
-              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10 pb-20">
-                <div className="max-w-[600px] mx-auto space-y-8">
-                  <div className="text-center space-y-4">
-                    <div className="relative w-24 h-24 mx-auto">
-                      {isRecording && <div className="absolute inset-[-6px] rounded-full border-2 border-[#2563EB] animate-ping opacity-50" />}
-                      {isTalking && <div className="absolute inset-[-3px] rounded-full border-[3px] border-[#2563EB] animate-pulse opacity-20" />}
-                      <div className={`relative w-full h-full rounded-full overflow-hidden border-2 border-[#EFF6FF] bg-[#F3F4F6] transition-transform duration-500 ${isRecording ? 'scale-105' : 'scale-100'}`}>
-                        <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${isTalking ? 'bg-[#2563EB] animate-pulse' : 'bg-[#10B981]'}`} />
-                      <span className="text-[#6B7280] text-[13px] font-bold">
-                        {isTalking ? '선생님이 말씀하시는 중...' : isRecording ? '듣고 있어요...' : 'AI 온라인 대화 중'}
+              <div className="bg-white rounded-3xl border border-[#DBEAFE] overflow-hidden">
+                {/* 채팅 헤더 */}
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-[#DBEAFE] bg-[#F8FAFF]">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#DBEAFE] shrink-0">
+                    <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-[#1C1B33] text-[14px]">{selectedInst.name} 선생님</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full transition-colors ${conversation.status === 'connected' ? 'bg-[#10B981] animate-pulse' : 'bg-[#9CA3AF]'}`} />
+                      <span className="text-[12px] text-[#9CA3AF]">
+                        {conversation.status === 'connected'
+                          ? conversation.isSpeaking ? '말하는 중...' : 'Listening'
+                          : conversation.status === 'connecting' ? '연결 중...' : 'AI 온라인 상담 중'}
                       </span>
                     </div>
                   </div>
+                  {conversation.status === 'connected' && (
+                    <button
+                      onClick={() => conversation.endSession()}
+                      className="text-[#9CA3AF] hover:text-[#EF4444] transition-colors text-[12px] font-medium px-2 py-1 rounded-lg hover:bg-[#FEF2F2]"
+                    >
+                      종료
+                    </button>
+                  )}
+                </div>
 
-                  <div className="space-y-4 min-h-[200px]">
-                    {chatHistory.slice(-4).map((c, i) => (
-                      <div key={i} className={`flex ${c.role === 'instructor' ? 'justify-start' : 'justify-end'} animate-fade-in`}>
-                        <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium leading-relaxed shadow-sm ${
-                          c.role === 'instructor' ? 'bg-[#F8FAFF] border border-[#EFF6FF] text-[#1C1B33]' : 'bg-[#2563EB] text-white'
+                {/* 메시지 영역 */}
+                <div
+                  ref={messagesContainerRef}
+                  className="h-[360px] overflow-y-auto px-5 py-5 space-y-4"
+                >
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#DBEAFE]">
+                        <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
+                      </div>
+                      <p className="text-[#9CA3AF] text-[14px]">
+                        아래 버튼을 눌러<br />{selectedInst.name} 선생님과 대화를 시작하세요
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.role === 'ai' && (
+                          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#E5E7EB]">
+                            <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className={`max-w-[72%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-[#1C1B33] text-white rounded-br-sm'
+                            : 'bg-[#F3F4F6] text-[#1C1B33] rounded-bl-sm'
                         }`}>
-                          {c.text}
+                          {msg.text}
                         </div>
                       </div>
-                    ))}
-                    {sttText && (
-                      <div className="flex justify-end animate-fade-in">
-                        <div className="max-w-[85%] rounded-2xl px-5 py-3.5 text-[15px] font-medium bg-[#F3F4F6] text-[#6B7280] border border-[#D1D5DB]">
-                          {sttText}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    ))
+                  )}
+                </div>
 
-                  <div className="grid grid-cols-1 gap-2.5">
-                    <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest text-center mb-2">선생님께 물어보세요</p>
+                {/* 추천 질문 (대화 시작 전) */}
+                {chatMessages.length === 0 && (
+                  <div className="px-5 pb-4 space-y-2">
+                    <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest mb-2">이런 질문을 해보세요 — 클릭하면 바로 시작돼요</p>
                     {selectedInst.guideQuestions.map((q: string, i: number) => (
                       <button
                         key={i}
-                        onClick={() => processConversation(q)}
-                        disabled={isTalking || isRecording}
-                        className="w-full bg-white border border-[#DBEAFE] text-[#374151] px-5 py-4 rounded-2xl text-[14px] font-bold text-left hover:border-[#2563EB] hover:text-[#2563EB] transition-all active:scale-[0.98] disabled:opacity-50"
+                        onClick={() => handleQuestionClick(q)}
+                        className="w-full text-left bg-[#F8FAFF] border border-[#DBEAFE] text-[#374151] px-4 py-3 rounded-xl text-[13px] font-medium hover:bg-[#EFF6FF] hover:border-[#BFDBFE] transition-colors active:scale-[0.99] flex items-center justify-between group"
                       >
-                        &ldquo;{q}&rdquo;
+                        <span>&ldquo;{q}&rdquo;</span>
+                        <svg className="shrink-0 text-[#BFDBFE] group-hover:text-[#2563EB] transition-colors ml-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                        </svg>
                       </button>
                     ))}
                   </div>
+                )}
+
+                {/* 입력 영역 */}
+                <div className="border-t border-[#DBEAFE] px-5 py-4">
+                  {conversation.status === 'connected' ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleChatSend() }}
+                        placeholder="Send a message..."
+                        className="flex-1 bg-[#F3F4F6] rounded-xl px-4 py-2.5 text-[14px] text-[#1C1B33] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
+                      />
+                      <button
+                        onClick={handleChatSend}
+                        disabled={!chatInput.trim()}
+                        className="w-9 h-9 rounded-full bg-[#1C1B33] text-white flex items-center justify-center disabled:opacity-30 transition-opacity hover:bg-[#374151] active:scale-95"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleChatStart}
+                      disabled={conversation.status === 'connecting'}
+                      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-xl font-bold text-[15px] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {conversation.status === 'connecting' ? (
+                        <>
+                          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                          </svg>
+                          연결 중...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          {selectedInst.name} 선생님과 대화 시작하기
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
