@@ -277,6 +277,9 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const tabSectionRef = useRef<HTMLDivElement | null>(null)
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([])
   const [chatInput, setChatInput] = useState('')
+  const [isMicMuted, setIsMicMuted] = useState(false)
+  const gainNodeRef = useRef<GainNode | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement | null>(null)
 
   const conversation = useConversation({
@@ -364,6 +367,30 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   const handleChatStart = async () => {
     if (!selectedInst) return
+    setIsMicMuted(false)
+    gainNodeRef.current = null
+    audioCtxRef.current?.close()
+    audioCtxRef.current = null
+
+    // getUserMedia를 가로채서 GainNode를 끼운 processed stream을 ElevenLabs에 전달
+    const originalGUM = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      navigator.mediaDevices.getUserMedia = originalGUM
+      const rawStream = await originalGUM(constraints)
+      if (!rawStream.getAudioTracks().length) return rawStream
+
+      const audioCtx = new AudioContext()
+      audioCtxRef.current = audioCtx
+      const source = audioCtx.createMediaStreamSource(rawStream)
+      const gain = audioCtx.createGain()
+      gainNodeRef.current = gain
+      const dest = audioCtx.createMediaStreamDestination()
+      source.connect(gain)
+      gain.connect(dest)
+      rawStream.getVideoTracks().forEach(t => dest.stream.addTrack(t))
+      return dest.stream
+    }
+
     await conversation.startSession({
       agentId: selectedInst.agentId,
       dynamicVariables: {
@@ -388,7 +415,9 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   const handleChatSend = () => {
     if (!chatInput.trim()) return
-    conversation.sendUserMessage(chatInput)
+    const text = chatInput.trim()
+    setChatMessages(prev => [...prev, { role: 'user', text }])
+    conversation.sendUserMessage(text)
     setChatInput('')
   }
 
@@ -397,6 +426,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     if (conversation.status !== 'connected') {
       await handleChatStart()
     }
+    setChatMessages(prev => [...prev, { role: 'user', text: q }])
     conversation.sendUserMessage(q)
   }
 
@@ -943,12 +973,41 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     </div>
                   </div>
                   {conversation.status === 'connected' && (
-                    <button
-                      onClick={() => conversation.endSession()}
-                      className="text-[#9CA3AF] hover:text-[#EF4444] transition-colors text-[12px] font-medium px-2 py-1 rounded-lg hover:bg-[#FEF2F2]"
-                    >
-                      종료
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const next = !isMicMuted
+                          if (gainNodeRef.current) gainNodeRef.current.gain.value = next ? 0 : 1
+                          setIsMicMuted(next)
+                        }}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
+                          ${isMicMuted ? 'bg-[#FEF2F2] text-[#EF4444]' : 'text-[#9CA3AF] hover:text-[#1C1B33] hover:bg-[#F3F4F6]'}`}
+                        title={isMicMuted ? '마이크 켜기' : '마이크 음소거'}
+                      >
+                        {isMicMuted ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+                            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                          </svg>
+                        ) : (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => { conversation.endSession(); audioCtxRef.current?.close(); audioCtxRef.current = null; gainNodeRef.current = null }}
+                        className="text-[#9CA3AF] hover:text-[#EF4444] transition-colors text-[12px] font-medium px-2 py-1 rounded-lg hover:bg-[#FEF2F2]"
+                      >
+                        종료
+                      </button>
+                    </div>
                   )}
                 </div>
 
