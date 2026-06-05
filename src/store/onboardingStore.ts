@@ -3,9 +3,10 @@ import { persist } from "zustand/middleware";
 
 export interface UserProfile {
   userName: string;
-  learningStyle: string | null;
-  managementStyle: string | null;
-  motivationType: string | null;
+  rangeAxis: 'W' | 'N' | null;
+  rhythm: 'B' | 'G' | null;
+  difficulty: 'C' | 'S' | null;
+  motivation: 'R' | 'P' | null;
   targetScore: number | null;
   studyPeriod: string | null;
   examDate: string | null;
@@ -18,9 +19,10 @@ interface OnboardingState extends UserProfile {
   savedProfiles: UserProfile[];
 
   setUserName: (name: string) => void;
-  setLearningStyle: (style: string) => void;
-  setManagementStyle: (style: string) => void;
-  setMotivationType: (type: string) => void;
+  setRangeAxis: (axis: 'W' | 'N') => void;
+  setRhythm: (rhythm: 'B' | 'G') => void;
+  setDifficulty: (difficulty: 'C' | 'S') => void;
+  setMotivation: (motivation: 'R' | 'P') => void;
   setTargetScore: (score: number) => void;
   setStudyPeriod: (period: string) => void;
   setExamDate: (date: string) => void;
@@ -36,9 +38,10 @@ export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set, get) => ({
       userName: "",
-      learningStyle: null,
-      managementStyle: null,
-      motivationType: null,
+      rangeAxis: null,
+      rhythm: null,
+      difficulty: null,
+      motivation: null,
       targetScore: null,
       studyPeriod: null,
       examDate: null,
@@ -48,9 +51,10 @@ export const useOnboardingStore = create<OnboardingState>()(
       savedProfiles: [],
 
       setUserName: (name) => set({ userName: name }),
-      setLearningStyle: (style) => set({ learningStyle: style }),
-      setManagementStyle: (style) => set({ managementStyle: style }),
-      setMotivationType: (type) => set({ motivationType: type }),
+      setRangeAxis: (axis) => set({ rangeAxis: axis }),
+      setRhythm: (rhythm) => set({ rhythm }),
+      setDifficulty: (difficulty) => set({ difficulty }),
+      setMotivation: (motivation) => set({ motivation }),
       setTargetScore: (score) => set({ targetScore: score }),
       setStudyPeriod: (period) => set({ studyPeriod: period }),
       setExamDate: (date) => set({ examDate: date }),
@@ -59,9 +63,9 @@ export const useOnboardingStore = create<OnboardingState>()(
       setStudyRange: (range) => set({ studyRange: range }),
 
       saveCurrentProfile: () => {
-        const { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, savedProfiles } = get();
+        const { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, savedProfiles } = get();
         if (!userName) return;
-        const profile: UserProfile = { userName, learningStyle, managementStyle, motivationType, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange };
+        const profile: UserProfile = { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange };
         const idx = savedProfiles.findIndex((p) => p.userName === userName);
         if (idx >= 0) {
           const updated = [...savedProfiles];
