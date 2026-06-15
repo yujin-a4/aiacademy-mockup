@@ -496,9 +496,10 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         {/* Header */}
         <div className="pt-12 pb-4 px-5">
           <h1 className="text-[#111318] text-[18px] font-bold leading-snug text-center">
-            AI 추천 강사를 선택해 주세요.
+            {userName ? `${userName}님의 성향을 바탕으로` : '분석된 성향을 바탕으로'}
           </h1>
-          <p className="text-[#6B7280] text-[13px] mt-1 text-center">카드를 좌우로 넘겨보세요.</p>
+          <p className="text-[#374151] text-[14px] font-medium mt-0.5 text-center">각 코치가 맞춤 프로그램을 제안했어요.</p>
+          <p className="text-[#9CA3AF] text-[12px] mt-2 text-center">카드를 좌우로 넘겨 비교해보세요.</p>
         </div>
 
         {/* Card Slider */}
