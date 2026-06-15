@@ -48,7 +48,10 @@ export default function QuizCard({ onComplete }: Props) {
   const handlePick = (value: string) => {
     if (picked) return
     setPicked(value)
-    store[q.setter](value as any)
+    if (q.setter === 'setRangeAxis') store.setRangeAxis(value as 'W' | 'N')
+    else if (q.setter === 'setRhythm') store.setRhythm(value as 'B' | 'G')
+    else if (q.setter === 'setDifficulty') store.setDifficulty(value as 'C' | 'S')
+    else store.setMotivation(value as 'R' | 'P')
     setShowReaction(true)
 
     setTimeout(() => {
