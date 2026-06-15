@@ -17,9 +17,25 @@ declare global {
   }
 }
 
+// difficulty+motivation → persona type (임시 매핑, 강사 페르소나 확정 후 교체)
+const PERSONA_MAP: Record<string, string> = {
+  CR: 'park',  // 열정 부스터
+  CP: 'lee',   // 하드 트레이너
+  SR: 'jang',  // 다정 빌더
+  SP: 'kim',   // 현실 코치
+}
+
+const PERSONA_LABEL: Record<string, string> = {
+  CR: '열정 부스터',
+  CP: '하드 트레이너',
+  SR: '다정 빌더',
+  SP: '현실 코치',
+}
+
 const INSTRUCTORS = [
   {
     id: 'park',
+    persona: 'CR',
     name: '박혜원',
     tag: '#단기집중형',
     video: '/video/video-park.mp4',
@@ -59,6 +75,7 @@ const INSTRUCTORS = [
   },
   {
     id: 'jang',
+    persona: 'SR',
     name: '장연지',
     tag: '#꼼꼼관리형',
     video: '/video/video-jang.mp4',
@@ -98,6 +115,7 @@ const INSTRUCTORS = [
   },
   {
     id: 'kim',
+    persona: 'SP',
     name: '김토익',
     tag: '#균형코칭형',
     video: '/video/video-kim.mp4',
@@ -137,6 +155,7 @@ const INSTRUCTORS = [
   },
   {
     id: 'jeong',
+    persona: 'SR',
     name: '정은순',
     tag: '#감성멘토형',
     video: '/video/video-jung.mp4',
@@ -176,6 +195,7 @@ const INSTRUCTORS = [
   },
   {
     id: 'lee',
+    persona: 'CP',
     name: '이인호',
     tag: '#데이터기반형',
     video: '/video/video-lee.mp4',
@@ -215,6 +235,7 @@ const INSTRUCTORS = [
   },
   {
     id: 'oh',
+    persona: null,
     name: '오정자',
     tag: '#시니어맞춤형',
     video: '/video/video-6.mp4',
@@ -258,11 +279,17 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const {
     userName, setSelectedInstructor,
     targetScore, studyRange, examDate,
-    learningStyle, managementStyle, motivationType, studyPeriod, dailyTime,
+    difficulty, motivation, studyPeriod, dailyTime,
   } = useOnboardingStore()
 
+  const recommendedPersona = difficulty && motivation ? difficulty + motivation : null
+  const recommendedId = recommendedPersona ? (PERSONA_MAP[recommendedPersona] ?? null) : null
+
   const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
-  const visibleInstructors = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh')
+  const filtered = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh')
+  const visibleInstructors = recommendedId
+    ? [...filtered].sort((a, b) => a.id === recommendedId ? -1 : b.id === recommendedId ? 1 : 0)
+    : filtered
 
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [focusedIndex, setFocusedIndex] = useState(0)
@@ -402,9 +429,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         exam_date: examDate || '',
         study_period: studyPeriod || '',
         daily_time: dailyTime || '',
-        learning_style: learningStyle || '',
-        management_style: managementStyle || '',
-        motivation_type: motivationType || '',
+        difficulty: difficulty || '',
+        motivation: motivation || '',
         instructor_tag: selectedInst.tag,
         instructor_plan: selectedInst.proposal.plan,
         instructor_target: selectedInst.proposal.target,
@@ -560,14 +586,20 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     </div>
                   )}
 
-                  {/* Match 배지 */}
-                  <div className={`absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-bold pointer-events-none ${
-                    inst.id === 'park'
-                      ? 'bg-[#2563EB] text-white px-3 py-1 shadow-lg shadow-[#2563EB]/50'
-                      : 'bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px] font-medium'
-                  }`}>
-                    {`${inst.matching} Match`}
-                  </div>
+                  {/* 추천/매칭 배지 */}
+                  {inst.id === recommendedId ? (
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-bold pointer-events-none bg-[#2563EB] text-white px-3 py-1 shadow-lg shadow-[#2563EB]/50 flex items-center gap-1">
+                      <span>★</span>
+                      <span>AI 추천</span>
+                      {recommendedPersona && PERSONA_LABEL[recommendedPersona] && (
+                        <span className="opacity-75">· {PERSONA_LABEL[recommendedPersona]}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-medium pointer-events-none bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px]">
+                      {`${inst.matching} Match`}
+                    </div>
+                  )}
 
                   {/* 음소거 토글 버튼 */}
                   {isActive && showVideo && (

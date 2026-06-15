@@ -15,31 +15,20 @@ function dDayFrom(ds: string): string {
   return days > 0 ? `D-${days}` : days === 0 ? 'D-Day' : `D+${Math.abs(days)}`
 }
 
-const LEARN_LETTER: Record<string, string> = { '빠르게': 'F', '꼼꼼': 'T', '반복': 'R' }
-const MANAGE_LETTER: Record<string, string> = { '강하게': 'D', '스스로': 'I', '함께': 'G', '코칭': 'C' }
-const MOTIVE_LETTER: Record<string, string> = { '점수': 'P', '성취감': 'A', '재미': 'J', '습관': 'H' }
-const TIME_LETTER: Record<string, string> = { '15분': 'L', '30분': 'M', '1시간': 'N', '1시간 이상': 'X' }
-
-const LEARN_DESC: Record<string, string> = { '빠르게': '핵심 속공형', '꼼꼼': '꼼꼼 분석형', '반복': '반복 강화형' }
-const MANAGE_DESC: Record<string, string> = {
-  '강하게': '직접 피드백형', '스스로': '자기 주도형', '함께': '협력 선호형', '코칭': '코칭 수용형',
-}
-const MOTIVE_DESC: Record<string, string> = {
-  '점수': '점수 달성형', '성취감': '성취감 추구형', '재미': '즐거움 추구형', '습관': '습관 형성형',
-}
-const TIME_DESC: Record<string, string> = {
-  '15분': '스낵 학습형', '30분': '집중 단기형', '1시간': '균형 집중형', '1시간 이상': '몰입 심화형',
-}
+const RANGE_DESC: Record<string, string> = { 'W': '전체 범위형', 'N': '핵심 집중형' }
+const DIFF_DESC:  Record<string, string> = { 'C': '도전 선호형', 'S': '안전 선호형' }
+const RHYTHM_DESC: Record<string, string> = { 'B': '집중 몰아형', 'G': '꾸준 유지형' }
+const MOTIVE_DESC: Record<string, string> = { 'R': '보상 동기형', 'P': '압박 동기형' }
 
 const TYPE_NAMES: Record<string, string> = {
-  'FDPL': '틈새 속공형', 'FDPM': '단기 돌파형', 'FDPN': '직진 득점형', 'FDPX': '전력 질주형',
-  'FDAL': '틈새 파이터형', 'FDAM': '속공 달성형', 'FDAN': '직진 성취형', 'FDAX': '집중 돌파형',
-  'FIPL': '틈새 자율형', 'FIPM': '자율 속공형', 'FIPN': '독립 득점형', 'FIPX': '자율 몰입형',
-  'FIAL': '틈새 질주형', 'FIAM': '속공 성취형', 'FIAN': '자율 달성형', 'FIAX': '자율 정복형',
-  'TDPL': '틈새 분석형', 'TDPM': '정밀 득점형', 'TDPN': '꼼꼼 직진형', 'TDPX': '완벽 점수형',
-  'TDAL': '틈새 완성형', 'TDAM': '정밀 달성형', 'TDAN': '꼼꼼 정복형', 'TDAX': '완전 정복형',
-  'TIPL': '틈새 탐구형', 'TIPM': '자율 분석형', 'TIPN': '정밀 자율형', 'TIPX': '심화 분석형',
-  'TIAL': '틈새 정밀형', 'TIAM': '자율 완성형', 'TIAN': '탐구 달성형', 'TIAX': '심화 정복형',
+  'WCBR': '불꽃 올라운더',    'WCGR': '성장 덕후',
+  'NCBR': '돌파 헌터',        'NCGR': '집중 성장러',
+  'WCBP': '전방위 스파르타',  'WCGP': '자기관리 등반가',
+  'NCBP': '스나이퍼',         'NCGP': '목표 추격자',
+  'WSBR': '고밀도 안심러',    'WSGR': '모범 루틴러',
+  'NSBR': '효율 안심러',      'NSGR': '실속 루틴러',
+  'WSBP': '고밀도 안전러',    'WSGP': '성실 관리형',
+  'NSBP': '점수 사수러',      'NSGP': '최단거리 득점러',
 }
 
 const RANGE_LABEL: Record<string, string> = {
@@ -63,24 +52,24 @@ const GOAL_ITEMS = [
 
 export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
   const {
-    userName, learningStyle, managementStyle, motivationType,
+    userName, rangeAxis, difficulty, rhythm, motivation,
     targetScore, studyRange, examDate, studyPeriod, dailyTime,
   } = useOnboardingStore()
 
   const letters = [
-    LEARN_LETTER[learningStyle ?? ''] ?? '?',
-    MANAGE_LETTER[managementStyle ?? ''] ?? '?',
-    MOTIVE_LETTER[motivationType ?? ''] ?? '?',
-    TIME_LETTER[dailyTime ?? ''] ?? '?',
+    rangeAxis ?? '?',
+    difficulty ?? '?',
+    rhythm ?? '?',
+    motivation ?? '?',
   ]
   const typeKey = letters.join('')
   const typeName = TYPE_NAMES[typeKey] ?? '맞춤 학습형'
 
   const letterDetails = [
-    { letter: letters[0], label: LEARN_DESC[learningStyle ?? ''] ?? learningStyle ?? '-' },
-    { letter: letters[1], label: MANAGE_DESC[managementStyle ?? ''] ?? managementStyle ?? '-' },
-    { letter: letters[2], label: MOTIVE_DESC[motivationType ?? ''] ?? motivationType ?? '-' },
-    { letter: letters[3], label: TIME_DESC[dailyTime ?? ''] ?? dailyTime ?? '-' },
+    { letter: letters[0], label: RANGE_DESC[rangeAxis ?? ''] ?? '-' },
+    { letter: letters[1], label: DIFF_DESC[difficulty ?? ''] ?? '-' },
+    { letter: letters[2], label: RHYTHM_DESC[rhythm ?? ''] ?? '-' },
+    { letter: letters[3], label: MOTIVE_DESC[motivation ?? ''] ?? '-' },
   ]
 
   const dday = examDate ? dDayFrom(examDate) : null

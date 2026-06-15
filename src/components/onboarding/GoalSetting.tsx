@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
-const SCORE_OPTIONS = [600, 700, 750, 800, 900]
+const SCORE_OPTIONS = [600, 750, 850]
 const TIME_OPTIONS = ['15분', '30분', '1시간', '1시간 이상']
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -134,7 +134,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
                     : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
                 }`}
               >
-                {s === 900 ? '900+' : s}
+                {s}+
               </button>
             ))}
           </div>
