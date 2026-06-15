@@ -28,7 +28,7 @@ const QUESTIONS = [
     label: 'Q4. 공부가 싫어질 때 필요한 건?',
     left:  { text: '칭찬·보상이 있으면 다시 하게 된다', value: 'R' },
     right: { text: '목표까지 부족함을 확인하면 정신 차린다', value: 'P' },
-    reaction: '당신의 코치를 찾았어요!',
+    reaction: '성향 분석 완료! 코치들이 맞춤 프로그램을 준비할게요',
     setter: 'setMotivation' as const,
   },
 ]
