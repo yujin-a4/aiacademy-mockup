@@ -31,6 +31,8 @@ interface ClassroomLayoutProps {
   children: React.ReactNode
   toolbar?: React.ReactNode
   instructorInput?: React.ReactNode
+  /** 제공 시 데스크탑 강사 영역에 기본 InstructorPanel 대신 이 패널을 렌더 */
+  instructorPanel?: React.ReactNode
   onPipMic?: () => void
   pipListening?: boolean
   /** 외부에서 패널 열림/닫힘을 제어할 때 사용. 미제공 시 내부 토글 상태로 동작 */
@@ -51,6 +53,7 @@ export default function ClassroomLayout({
   children,
   toolbar,
   instructorInput,
+  instructorPanel,
   onPipMic,
   pipListening = false,
   panelOpen: controlledOpen,
@@ -121,13 +124,15 @@ export default function ClassroomLayout({
           `}
         >
           <div className="w-[320px] xl:w-[360px] h-full">
-            <InstructorPanel
-              speech={instructorSpeech}
-              isLoading={instructorLoading}
-              videoSrc={isDesktop ? instructorVideoSrc : undefined}
-              onVideoEnd={onInstructorVideoEnd}
-              inputSlot={instructorInput}
-            />
+            {instructorPanel ?? (
+              <InstructorPanel
+                speech={instructorSpeech}
+                isLoading={instructorLoading}
+                videoSrc={isDesktop ? instructorVideoSrc : undefined}
+                onVideoEnd={onInstructorVideoEnd}
+                inputSlot={instructorInput}
+              />
+            )}
           </div>
         </aside>
 
