@@ -113,7 +113,7 @@ const WHY_REASON_RAIL: TutorStep[] = [
     kind: 'checkpoint',
     objective: '그 해석과 가장 가까운 보기를 학생이 직접 고르게 한다. (정답 D로 유도하되 먼저 말하지 않는다)',
     keywords: ['d', '디', 'leaving', 'another country', '다른 나라', '떠나', '외국'],
-    reveal: Q148.evidence,
+    reveal: Q148.explanation,
     branches: [
       {
         keywords: ['에이', '히터', 'heater', '온도', 'temperature', '고장', '냉난방'],
