@@ -30,3 +30,14 @@ npm-debug.log*
 
 # archive (API test files - not part of project)
 /archive/
+
+# secrets (never commit!)
+client_secret_*.json
+*.apps.googleusercontent.com.json
+
+# planning / working materials (not app code)
+/reference/
+/scripts/
+/kb/
+gen_excel.py
+*.xlsx
