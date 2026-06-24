@@ -6,6 +6,7 @@ import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 import ElevenLabsConvAIPanel from './ElevenLabsConvAIPanel'
+import TypecastConvAIPanel from './TypecastConvAIPanel'
 import {
   PART7_SETS, DIRECTIONS,
   type Choice, type Question,
@@ -17,9 +18,12 @@ export interface Part7ConvAIEndResult {
   results: boolean[]
 }
 
-interface Props { onEnd: (result: Part7ConvAIEndResult) => void }
+interface Props {
+  onEnd: (result: Part7ConvAIEndResult) => void
+  engine?: 'elevenlabs' | 'typecast'
+}
 
-export default function Part7ConvAIScreen({ onEnd }: Props) {
+export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Props) {
   const set = PART7_SETS[0]
 
   const [answers, setAnswers]   = useState<Record<number, string>>({})
@@ -51,7 +55,7 @@ export default function Part7ConvAIScreen({ onEnd }: Props) {
       partName="PART 7 집중공략"
       totalProblems={1}
       instructorSpeech=""
-      instructorPanel={<ElevenLabsConvAIPanel />}
+      instructorPanel={engine === 'typecast' ? <TypecastConvAIPanel /> : <ElevenLabsConvAIPanel />}
       onEnd={handleEnd}
       toolbar={
         <div className="flex items-center px-4 py-2.5 gap-2">
