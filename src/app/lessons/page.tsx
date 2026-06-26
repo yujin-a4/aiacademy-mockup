@@ -2,35 +2,194 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
+import { useStreakDay } from '@/hooks/useStreakDay'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
+
+/* 레슨 학습 노트 — Screen5형 리치 노트 */
+interface NoteCompare {
+  leftTitle: string; leftFormula: string; leftSub?: string; leftExample: string
+  rightTitle: string; rightFormula: string; rightSub?: string; rightExample: string
+}
+interface NotePoint {
+  title: string; desc: string
+  examples?: { label: string; text: string }[]
+  chip?: string
+}
+interface StudyNote {
+  headline: string
+  formula?: string
+  compare?: NoteCompare
+  checkpoint?: string
+  points: NotePoint[]
+}
 interface Lesson {
   id: string; title: string; status: LessonStatus
   partLabel?: string; href?: string
+  note?: StudyNote
 }
-interface BookData {
+/* 코스 비법 노트 — 코스 내 전 레슨 완료 시 잠금 해제 */
+interface TipSection { label: string; points: string[] }
+interface TipNote { category: string; title?: string; summary: string; coach?: string; sections: TipSection[] }
+
+interface CourseData {
   id: number; emoji: string; accentColor: string
   title: string; duration: string; desc: string
   fullyLocked: boolean; lockReason?: string; lessons: Lesson[]
+  tipNote?: TipNote
 }
 
+/* 뷰어용 평탄화 아이템 */
+interface StudyNoteItem { id: string; partLabel: string; lessonTitle: string; note: StudyNote }
+interface TipItem { courseId: number; courseTitle: string; tip: TipNote }
+
 /* ── 커리큘럼 ── */
-const BOOKS: BookData[] = [
+const COURSES: CourseData[] = [
   {
     id: 1, emoji: '', accentColor: '#16A34A',
     title: '문법 기초 다지기', duration: '3주',
     desc: '수동태, 시제, 접속사 — 진단에서 약했던 영역 집중',
     fullyLocked: false,
     lessons: [
-      { id: 'l1', title: '수동태 기초 이해', status: 'done', partLabel: 'Part 5', href: '/part5' },
-      { id: 'l2', title: 'be + p.p. 형태 연습', status: 'done', partLabel: 'Part 5', href: '/part5' },
-      { id: 'l3', title: '수동태 vs 능동태 구별', status: 'current', partLabel: 'Part 5', href: '/part5' },
-      { id: 'l4', title: '수동태 시제 변화', status: 'upcoming', partLabel: 'Part 5', href: '/part5' },
-      { id: 'l5', title: '실전 문제 적용', status: 'locked', partLabel: 'Part 5' },
+      { id: 'l1', title: '수동태 기초 이해', status: 'done', partLabel: 'Part 5', href: '/part5',
+        note: {
+          headline: '수동태의 기본 형태',
+          formula: 'be + p.p. (과거분사)',
+          compare: {
+            leftTitle: '능동태 (Active Voice)', leftFormula: 'S + V + O', leftSub: '(목적어 명사 필수)',
+            leftExample: 'The manager reviewed the marketing budget. (매니저가 마케팅 예산을 검토했다.)',
+            rightTitle: '수동태 (Passive Voice)', rightFormula: 'S + be + p.p.', rightSub: '(+ by 행위자)',
+            rightExample: 'The marketing budget was reviewed (by the manager). (마케팅 예산이 검토되었다.)',
+          },
+          checkpoint: '동사 뒤에 목적어(명사)가 사라지고, 전치사구(by …)가 오거나 문장이 끝남.',
+          points: [
+            { title: '목적어 유무로 태 판별하기', desc: '빈칸 뒤에 목적어(명사)가 있으면 능동태, 없으면 수동태가 정답.',
+              examples: [
+                { label: '능동', text: 'The board approved the proposal.' },
+                { label: '수동', text: 'The proposal was approved (by the board).' },
+              ] },
+            { title: "전치사 'by'와의 연계", desc: '빈칸 뒤에 by + 사람/부서/기관이 보인다면 수동태일 확률이 압도적으로 높음.',
+              examples: [{ label: '예', text: 'The equipment was installed by the maintenance team.' }] },
+            { title: '수동태 불가 동사(자동사) 암기', desc: '자동사는 수동태(be + p.p.) 자체가 불가능하므로 보기에서 가장 먼저 제외!',
+              chip: 'appear, occur, remain, consist of, belong to, succeed, happen, exist 등' },
+          ],
+        } },
+      { id: 'l2', title: 'be + p.p. 형태 연습', status: 'done', partLabel: 'Part 5', href: '/part5',
+        note: {
+          headline: '과거분사(p.p.) 만들기',
+          formula: 'am / is / are / was / were + p.p.',
+          compare: {
+            leftTitle: '규칙 변화', leftFormula: '동사원형 + -ed', leftSub: '(대부분의 동사)',
+            leftExample: 'review → reviewed, install → installed, complete → completed',
+            rightTitle: '불규칙 변화', rightFormula: '형태 암기', rightSub: '(빈출 동사)',
+            rightExample: 'write → written, send → sent, build → built, hold → held',
+          },
+          checkpoint: 'be동사의 시제는 문장 전체 시제에 맞추고, p.p. 형태는 그대로 둔다.',
+          points: [
+            { title: '규칙 p.p. = 과거형과 동일', desc: '대부분의 동사는 -ed를 붙이면 과거형과 과거분사가 같다.',
+              examples: [{ label: '예', text: 'complete → completed → completed' }] },
+            { title: '불규칙 p.p. 빈출 암기', desc: '토익에 자주 나오는 불규칙 동사는 통째로 외워야 빠르다.',
+              chip: 'written, sent, built, held, made, given, taken, known, chosen' },
+            { title: 'be동사로 시제 싣기', desc: 'is/are(현재), was/were(과거)로 시제를 조절하고 p.p.는 고정.',
+              examples: [
+                { label: '현재', text: 'The form is signed.' },
+                { label: '과거', text: 'The form was signed.' },
+              ] },
+          ],
+        } },
+      { id: 'l3', title: '수동태 vs 능동태 구별', status: 'current', partLabel: 'Part 5', href: '/part5',
+        note: {
+          headline: '능동 · 수동 1초 판별법',
+          formula: '빈칸 뒤 목적어 유무 확인',
+          compare: {
+            leftTitle: '능동태 신호', leftFormula: '빈칸 + 명사', leftSub: '뒤에 목적어가 온다',
+            leftExample: 'The team ___ the report.  →  completed',
+            rightTitle: '수동태 신호', rightFormula: '빈칸 + by / 마침표', rightSub: '목적어가 없다',
+            rightExample: 'The report was ___ by the team.  →  completed',
+          },
+          checkpoint: '빈칸 뒤에 명사가 있으면 능동, 전치사·마침표면 수동.',
+          points: [
+            { title: '목적어부터 확인', desc: '의미보다 빈칸 바로 뒤 구조를 먼저 본다.',
+              examples: [
+                { label: '능동', text: 'will announce the results' },
+                { label: '수동', text: 'will be announced soon' },
+              ] },
+            { title: 'by 단서 잡기', desc: '빈칸 뒤 by + 행위자가 보이면 수동 확정에 가깝다.',
+              examples: [{ label: '예', text: 'was written by the author' }] },
+            { title: '의미로 최종 점검', desc: '주어가 행위를 하는지 / 당하는지로 한 번 더 확인.',
+              chip: '주어가 직접 한다 → 능동  /  주어가 당한다 → 수동' },
+          ],
+        } },
+      { id: 'l4', title: '수동태 시제 변화', status: 'upcoming', partLabel: 'Part 5', href: '/part5',
+        note: {
+          headline: '시제별 수동태 형태',
+          formula: 'be의 시제만 바꾸고 p.p.는 고정',
+          compare: {
+            leftTitle: '완료 수동', leftFormula: 'have/has been + p.p.', leftSub: '(과거 ~ 현재)',
+            leftExample: 'The report has been submitted.',
+            rightTitle: '미래 수동', rightFormula: 'will be + p.p.', rightSub: '(앞으로)',
+            rightExample: 'The results will be announced.',
+          },
+          checkpoint: '시제 정보는 be(또는 have been, will be)에 싣고 p.p.는 변하지 않는다.',
+          points: [
+            { title: '현재완료 수동', desc: '과거에 일어나 현재까지 영향을 주는 일.',
+              examples: [{ label: '예', text: 'has been approved by the manager' }] },
+            { title: '진행 수동', desc: 'be + being + p.p. — 지금 진행 중인 수동.',
+              examples: [{ label: '예', text: 'is being upgraded' }] },
+            { title: '조동사 수동', desc: '조동사 + be + p.p. — 의무·가능 등을 표현.',
+              chip: 'must be purchased, should be completed, can be found' },
+          ],
+        } },
+      { id: 'l5', title: '실전 문제 적용', status: 'locked', partLabel: 'Part 5', href: '/part5',
+        note: {
+          headline: '수동태 실전 풀이 순서',
+          formula: '① 목적어 → ② by → ③ 자동사 → ④ 시제',
+          checkpoint: '구조(태)를 먼저 가르고, 시제는 마지막에 맞춘다.',
+          points: [
+            { title: '1단계 — 자동사 제외', desc: '보기에 자동사가 있으면 수동태 불가이므로 즉시 소거.',
+              chip: 'appear, occur, remain, rise, happen, exist' },
+            { title: '2단계 — 태 판별', desc: '목적어 유무 + by 단서로 능동/수동을 결정.',
+              examples: [
+                { label: '능동', text: '___ the budget' },
+                { label: '수동', text: 'was ___ by the team' },
+              ] },
+            { title: '3단계 — 시제 일치', desc: '문장의 시간 표현(yesterday, since, will)에 be 시제를 맞춘다.',
+              examples: [{ label: '예', text: 'will be released next week' }] },
+          ],
+        } },
     ],
+    tipNote: {
+      category: '수동태',
+      title: '수동태 빠른 판별법',
+      summary: 'Part 5·6에서 매 회차 2~3문제 출제되는 핵심 문법. 형태 · 태 판별 · 시제를 한 번에 묶어 정리했어요.',
+      coach: '수동태는 의미 해석보다 "구조"가 먼저예요. 빈칸 뒤 목적어부터 보면 절반은 풀립니다.',
+      sections: [
+        { label: '핵심 개념', points: [
+          '수동태 = be동사 + p.p. 주어가 동작을 "당하는" 관계일 때 쓴다.',
+          '능동태의 목적어가 수동태의 주어로 올라간다. (The board approved it → It was approved.)',
+          '행위자는 "by + 명사"로 붙지만 시험 문장에선 대부분 생략된다.',
+        ] },
+        { label: '시험 풀이 스킬', points: [
+          '빈칸 뒤에 목적어(명사)가 있으면 능동, 없으면 수동 — 1초 판별법.',
+          '빈칸 뒤 "by + 사람·부서"가 보이면 수동태일 확률이 압도적.',
+          '보기에 능동·수동이 섞여 있으면 태부터 가르고, 시제는 그 다음에 본다.',
+        ] },
+        { label: '자주 나오는 함정', points: [
+          '자동사(appear, occur, remain, rise, happen)는 수동태 자체가 불가능 — 보기에서 먼저 제외.',
+          'be + -ing(진행)와 be + p.p.(수동)를 형태만 보고 헷갈리지 말 것 — 의미로 구분.',
+          '감정동사는 사람 주어면 p.p.(interested), 사물 주어면 -ing(interesting).',
+        ] },
+        { label: '시제별 형태 & 빈출 예문', points: [
+          '현재완료 수동: has/have been + p.p. — "The report has been submitted."',
+          '미래 수동: will be + p.p. — "The results will be announced on Friday."',
+          '진행 수동: is/are being + p.p. — "The system is being upgraded."',
+          '조동사 수동: must/should be + p.p. — "Tickets must be purchased in advance."',
+        ] },
+      ],
+    },
   },
   {
     id: 2, emoji: '', accentColor: '#F59E0B',
@@ -42,6 +201,26 @@ const BOOKS: BookData[] = [
       { id: 'l_p6_2', title: '이메일·공지 지문 분석', status: 'locked', partLabel: 'Part 6' },
       { id: 'l_p6_3', title: '문장 삽입 전략 완성', status: 'locked', partLabel: 'Part 6' },
     ],
+    tipNote: {
+      category: '장문 공란 (Part 6)',
+      summary: '빈칸이 문장 하나가 아니라 지문 전체 흐름 속에 있다는 점이 Part 5와의 결정적 차이.',
+      coach: '빈칸 하나에 매몰되지 마세요. 지문 전체 흐름을 잡으면 보기가 저절로 좁혀집니다.',
+      sections: [
+        { label: '풀이 순서', points: [
+          '빈칸 앞뒤 한 문장만 보지 말고 지문 전체 주제를 먼저 잡는다.',
+          '어휘·문법 빈칸은 그 자리에서, 문장 삽입은 맨 마지막에 푼다.',
+        ] },
+        { label: '연결어 스킬', points: [
+          'however/nevertheless = 앞뒤 대조, therefore/as a result = 인과 관계.',
+          'in addition/moreover = 첨가, for example = 예시 — 신호어로 흐름을 추적.',
+        ] },
+        { label: '문장 삽입 함정', points: [
+          '지시어(this, these, such)·연결어가 가리키는 대상이 바로 앞 문장에 있어야 자연스럽다.',
+          '대명사가 갑자기 등장하면 그 앞에 사람·사물이 먼저 나와야 한다.',
+          '삽입 문장의 시제·단복수가 앞뒤와 어긋나면 오답.',
+        ] },
+      ],
+    },
   },
   {
     id: 3, emoji: '', accentColor: '#2563EB',
@@ -57,6 +236,27 @@ const BOOKS: BookData[] = [
       { id: 'l8', title: '추론 독해 완성', status: 'locked', partLabel: 'Part 7' },
       { id: 'l9', title: '복수지문 분석', status: 'locked', partLabel: 'Part 7' },
     ],
+    tipNote: {
+      category: '독해 전략 (Part 7)',
+      summary: '시간 싸움. 지문을 전부 읽지 않고 질문이 묻는 곳만 빠르게 찾는 게 핵심이에요.',
+      coach: '모든 문장을 읽으려 하지 마세요. 질문이 가리키는 곳만 정확히 찾는 게 고득점의 시작이에요.',
+      sections: [
+        { label: '시간 관리', points: [
+          '질문을 먼저 읽고 키워드를 잡은 뒤 지문에서 위치를 스캔한다.',
+          '한 지문에 너무 오래 머물지 말 것 — 막히면 표시하고 넘어간다.',
+        ] },
+        { label: '문제 유형별 스킬', points: [
+          '주제·목적 문제는 첫 문단과 제목에 답이 있다.',
+          'NOT/EXCEPT 문제는 보기를 지문과 하나씩 대조해 소거.',
+          '추론(infer/suggest) 문제는 지문에 직접 쓰인 근거에서만 출발 — 상상 금지.',
+          '동의어(meaning) 문제는 반드시 문맥에 넣어 확인.',
+        ] },
+        { label: '복수지문(연계) 팁', points: [
+          '두 지문을 오가야 답이 나오는 연계 문제가 1~2개 숨어 있다.',
+          '이메일+공지, 일정표+변경안내 조합이 단골 패턴.',
+        ] },
+      ],
+    },
   },
   {
     id: 4, emoji: '', accentColor: '#7C3AED',
@@ -68,6 +268,25 @@ const BOOKS: BookData[] = [
       { id: 'l11', title: '인물·사물·배경 묘사 순서', status: 'locked', partLabel: 'Speaking' },
       { id: 'l12', title: '30초 즉흥 말하기 연습', status: 'locked', partLabel: 'Speaking' },
     ],
+    tipNote: {
+      category: '스피킹',
+      summary: '사진 묘사부터 즉흥 말하기까지, 템플릿을 외워두면 시험장에서 당황하지 않아요.',
+      coach: '완벽한 문장보다 끊기지 않는 흐름이 점수예요. 일단 입을 떼고 템플릿으로 채우세요.',
+      sections: [
+        { label: '사진 묘사 순서', points: [
+          '전체 장소·상황 → 중심 인물 → 사물·배경 순으로 묘사한다.',
+          '동작은 현재진행형(is + -ing)으로 표현.',
+        ] },
+        { label: '유용한 표현', points: [
+          '확신이 없을 때: "It seems that…", "It looks like…"',
+          '위치 표현: in the foreground/background, on the left/right.',
+        ] },
+        { label: '감점 줄이기', points: [
+          '발음보다 끊김 없이 말하는 유창성이 점수에 더 크게 작용한다.',
+          '모르는 단어에 멈추지 말고 아는 단어로 돌려 말하기.',
+        ] },
+      ],
+    },
   },
   {
     id: 5, emoji: '', accentColor: '#6B7280',
@@ -76,6 +295,10 @@ const BOOKS: BookData[] = [
     fullyLocked: true, lockReason: 'Book 1·2·3·4 완료 후 해제', lessons: [],
   },
 ]
+
+/* 코스 완료 여부 — 비법 노트 잠금 해제 기준 */
+const isCourseComplete = (c: CourseData) =>
+  c.lessons.length > 0 && c.lessons.every(l => l.status === 'done')
 
 /* ── 네비게이션 ── */
 const NAV = [
@@ -147,51 +370,300 @@ function BottomNav() {
   )
 }
 
-/* ── 책 섹션 ── */
-function BookSection({ book }: { book: BookData }) {
+/* ── 리치 학습 노트 카드 (Screen5 디자인) ── */
+function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partLabel: string; lessonTitle: string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+      {/* 헤더 */}
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-[#EEF2F7] bg-[#F7FAFF]">
+        <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
+          <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="12" height="14" rx="2" stroke="white" strokeWidth="1.5"/><path d="M5 5h6M5 8h6M5 11h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-[#94A3B8] font-semibold truncate">{partLabel} · {lessonTitle}</p>
+          <h2 className="text-[17px] font-bold text-[#2563EB] leading-tight">{note.headline}</h2>
+        </div>
+      </div>
+
+      <div className="p-4 md:p-5 flex flex-col gap-4">
+        {/* 공식 */}
+        {note.formula && (
+          <div className="bg-[#EEF4FF] border border-[#DBEAFE] rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-[11px] font-bold text-white bg-[#2563EB] px-2 py-1 rounded-md shrink-0">공식</span>
+            <span className="text-[15px] font-bold font-mono text-[#1C1B33]">{note.formula}</span>
+          </div>
+        )}
+
+        {/* 능동 / 수동 비교표 */}
+        {note.compare && (
+          <div className="rounded-xl border border-[#E5E7EB] overflow-hidden">
+            <div className="grid grid-cols-2">
+              <div className="p-3.5 bg-[#F4F6FB] border-r border-[#E5E7EB]">
+                <p className="text-[12px] font-bold text-[#475569] text-center mb-2">{note.compare.leftTitle}</p>
+                <p className="text-[14px] font-mono font-semibold text-center text-[#1C1B33]">{note.compare.leftFormula}</p>
+                {note.compare.leftSub && <p className="text-[11px] text-[#94A3B8] text-center mt-1">{note.compare.leftSub}</p>}
+              </div>
+              <div className="p-3.5 bg-[#F0FBF4]">
+                <p className="text-[12px] font-bold text-[#059669] text-center mb-2">{note.compare.rightTitle}</p>
+                <p className="text-[14px] font-mono font-semibold text-center text-[#1C1B33]">{note.compare.rightFormula}</p>
+                {note.compare.rightSub && <p className="text-[11px] text-[#10B981] text-center mt-1">{note.compare.rightSub}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 border-t border-[#E5E7EB]">
+              <div className="p-3 text-[12px] text-[#475569] leading-relaxed border-r border-[#E5E7EB]">{note.compare.leftExample}</div>
+              <div className="p-3 text-[12px] text-[#047857] leading-relaxed">{note.compare.rightExample}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Check Point */}
+        {note.checkpoint && (
+          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 flex items-start gap-2.5">
+            <span className="text-[10px] font-bold text-white bg-[#16A34A] px-2 py-0.5 rounded-md shrink-0 mt-0.5 whitespace-nowrap">Check point</span>
+            <p className="text-[13px] text-[#713F12] leading-relaxed flex-1">{note.checkpoint}</p>
+          </div>
+        )}
+
+        {/* 토익 빈출 포인트 */}
+        <div className="rounded-xl border border-[#FDE68A] bg-[#FFFDF5] overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-[#FDE68A] flex items-center gap-2 flex-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+            <p className="text-[13px] font-bold text-[#B45309]">토익 빈출 포인트</p>
+            <span className="text-[10px] text-[#D97706]">토익에서는 이렇게 출제됩니다!</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#FDE68A]">
+            {note.points.map((pt, i) => (
+              <div key={i} className="p-3.5">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-5 h-5 rounded-full bg-[#D97706] text-white text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                  <p className="text-[13px] font-bold text-[#1C1B33]">{pt.title}</p>
+                </div>
+                <p className="text-[12px] text-[#64748B] leading-relaxed mb-2">{pt.desc}</p>
+                {pt.examples && (
+                  <div className="space-y-1.5">
+                    {pt.examples.map((ex, j) => (
+                      <div key={j} className="flex items-start gap-1.5">
+                        <span className="text-[10px] font-bold text-[#94A3B8] bg-[#F1F5F9] px-1.5 py-0.5 rounded shrink-0">{ex.label}</span>
+                        <span className="text-[11px] font-mono text-[#334155] leading-relaxed">{ex.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {pt.chip && (
+                  <p className="mt-1.5 text-[11px] font-mono text-[#475569] bg-[#F1F5F9] rounded-lg px-2.5 py-1.5 leading-relaxed">{pt.chip}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── 비법 노트 카드 (AI 강사 프리미엄/스킬 톤) ── */
+function TipSkillCard({ tip, courseTitle }: { tip: TipNote; courseTitle: string }) {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-[#FDE68A] shadow-sm">
+      {/* 헤더 — 라이트 앰버 */}
+      <div className="bg-[#FFFBEB] border-b border-[#FDE68A] px-5 py-5 relative overflow-hidden">
+        <div className="absolute -right-8 -top-10 w-36 h-36 bg-[#F59E0B]/10 rounded-full" />
+        <div className="flex items-center gap-2 mb-3 relative z-10">
+          <span className="text-[10px] font-black tracking-[0.12em] text-[#B45309] bg-[#FEF3C7] border border-[#FDE68A] px-2 py-1 rounded-md">AI 강사 비법</span>
+          <span className="text-[11px] text-[#9CA3AF] truncate">{courseTitle}</span>
+        </div>
+        <h2 className="text-[20px] font-bold leading-snug text-[#1C1B33] relative z-10">{tip.category} 만점 공략</h2>
+        <p className="text-[12px] text-[#6B7280] mt-2 leading-relaxed relative z-10">{tip.summary}</p>
+        {tip.coach && (
+          <div className="mt-4 flex items-start gap-2.5 bg-white border border-[#FDE68A] rounded-xl p-3 relative z-10">
+            <div className="w-8 h-8 rounded-full bg-[#F59E0B] flex items-center justify-center text-[15px] shrink-0">🎯</div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-[#B45309] mb-0.5">강사의 한마디</p>
+              <p className="text-[12px] text-[#374151] leading-relaxed">{tip.coach}</p>
+            </div>
+          </div>
+        )}
+      </div>
+      {/* 섹션 — 스킬 카드 */}
+      <div className="bg-white p-4 flex flex-col gap-3">
+        {tip.sections.map((sec, si) => (
+          <div key={si} className="rounded-xl border border-[#E5E7EB] overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-[#F8FAFF] border-b border-[#EEF2F7]">
+              <span className="w-5 h-5 rounded-md bg-[#F59E0B] text-white text-[11px] font-black flex items-center justify-center shrink-0">{si + 1}</span>
+              <p className="text-[13px] font-bold text-[#1C1B33]">{sec.label}</p>
+            </div>
+            <div className="p-3.5 space-y-2.5">
+              {sec.points.map((pt, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="#F59E0B" className="shrink-0 mt-1"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+                  <p className="text-[13px] text-[#374151] leading-relaxed flex-1">{pt}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ── 노트 뷰어 (풀스크린 스와이프 캐러셀 + PDF) ── */
+function NoteViewer({ kind, startIndex, studyNotes, tipNotes, autoPrint, onClose }: {
+  kind: 'study' | 'tip'
+  startIndex: number
+  studyNotes: StudyNoteItem[]
+  tipNotes: TipItem[]
+  autoPrint?: boolean
+  onClose: () => void
+}) {
+  const pages = kind === 'study' ? studyNotes.length : tipNotes.length
+  const [index, setIndex] = useState(Math.min(Math.max(startIndex, 0), pages - 1))
+  const startX = useRef<number | null>(null)
+  const go = (d: number) => setIndex(i => Math.min(pages - 1, Math.max(0, i + d)))
+  const title = kind === 'study' ? '학습 노트' : 'AI 강사 비법 노트'
+
+  useEffect(() => {
+    if (autoPrint && pages > 0) {
+      const t = setTimeout(() => window.print(), 350)
+      return () => clearTimeout(t)
+    }
+  }, [autoPrint, pages])
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-[#0E1525] flex flex-col print:static print:bg-white print:block">
+
+      {/* 화면용 인터랙티브 뷰 */}
+      <div className="flex-1 flex flex-col min-h-0 print:hidden">
+        {/* 상단 바 */}
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10">
+          <button onClick={onClose} className="flex items-center gap-1.5 text-white/80 hover:text-white text-[13px] font-semibold">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            닫기
+          </button>
+          <div className="flex items-center gap-2 text-white">
+            <span className="text-[13px] font-bold">{title}</span>
+            <span className="text-[12px] text-white/50">{index + 1} / {pages}</span>
+          </div>
+          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-[12px] font-bold text-[#1C1B33] bg-white hover:bg-white/90 px-3 py-1.5 rounded-lg transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            PDF
+          </button>
+        </div>
+
+        {/* 캐러셀 */}
+        <div
+          className="flex-1 overflow-hidden relative"
+          onTouchStart={(e) => { startX.current = e.touches[0].clientX }}
+          onTouchEnd={(e) => {
+            if (startX.current == null) return
+            const dx = e.changedTouches[0].clientX - startX.current
+            if (dx < -50) go(1)
+            else if (dx > 50) go(-1)
+            startX.current = null
+          }}
+        >
+          <div className="flex h-full transition-transform duration-300 ease-out" style={{ transform: `translateX(-${index * 100}%)` }}>
+            {kind === 'study'
+              ? studyNotes.map((it, i) => (
+                  <div key={i} className="w-full shrink-0 h-full overflow-y-auto px-4 py-5">
+                    <div className="max-w-[640px] mx-auto pb-10">
+                      <RichNoteCard note={it.note} partLabel={it.partLabel} lessonTitle={it.lessonTitle} />
+                    </div>
+                  </div>
+                ))
+              : tipNotes.map((it, i) => (
+                  <div key={i} className="w-full shrink-0 h-full overflow-y-auto px-4 py-5">
+                    <div className="max-w-[640px] mx-auto pb-10">
+                      <TipSkillCard tip={it.tip} courseTitle={it.courseTitle} />
+                    </div>
+                  </div>
+                ))}
+          </div>
+
+          {/* 좌우 화살표 (데스크탑) */}
+          {index > 0 && (
+            <button onClick={() => go(-1)} className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white items-center justify-center shadow-lg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1B33" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+          )}
+          {index < pages - 1 && (
+            <button onClick={() => go(1)} className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white items-center justify-center shadow-lg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1B33" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          )}
+        </div>
+
+        {/* 하단 점 인디케이터 */}
+        <div className="shrink-0 flex items-center justify-center gap-1.5 py-3.5">
+          {Array.from({ length: pages }).map((_, i) => (
+            <button key={i} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all ${i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/35'}`} />
+          ))}
+        </div>
+      </div>
+
+      {/* 인쇄용 (현재 노트만) */}
+      <div className="hidden print:block p-6">
+        {kind === 'study' && studyNotes[index] && (
+          <RichNoteCard note={studyNotes[index].note} partLabel={studyNotes[index].partLabel} lessonTitle={studyNotes[index].lessonTitle} />
+        )}
+        {kind === 'tip' && tipNotes[index] && (
+          <TipSkillCard tip={tipNotes[index].tip} courseTitle={tipNotes[index].courseTitle} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── 코스 섹션 ── */
+function CourseSection({ course, onOpenStudy, onOpenTip }: {
+  course: CourseData
+  onOpenStudy: (lessonId: string) => void
+  onOpenTip: (courseId: number) => void
+}) {
   const router = useRouter()
 
-  if (book.fullyLocked) {
+  if (course.fullyLocked) {
     return (
       <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <span className="text-[22px] opacity-25 shrink-0">{book.emoji}</span>
+          <span className="text-[22px] opacity-25 shrink-0">{course.emoji}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-[#C4C9D4]">Book {book.id} · {book.title}</p>
-            <p className="text-[11px] text-[#D1D5DB] mt-0.5">{book.desc}</p>
+            <p className="text-[13px] font-bold text-[#C4C9D4]">Book {course.id} · {course.title}</p>
+            <p className="text-[11px] text-[#D1D5DB] mt-0.5">{course.desc}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {book.lockReason && <span className="text-[10px] text-[#D1D5DB]">0개</span>}
+            {course.lockReason && <span className="text-[10px] text-[#D1D5DB]">0개</span>}
             <div className="w-7 h-7 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] flex items-center justify-center">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
           </div>
         </div>
-        {book.lockReason && (
-          <p className="text-[10px] text-[#E5E7EB] mt-2.5 text-center bg-[#F9FAFB] rounded-lg py-1.5">{book.lockReason}</p>
+        {course.lockReason && (
+          <p className="text-[10px] text-[#E5E7EB] mt-2.5 text-center bg-[#F9FAFB] rounded-lg py-1.5">{course.lockReason}</p>
         )}
       </div>
     )
   }
 
-  const doneCount = book.lessons.filter(l => l.status === 'done').length
+  const doneCount = course.lessons.filter(l => l.status === 'done').length
+  const complete  = isCourseComplete(course)
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
 
-      {/* 책 헤더 */}
+      {/* 코스 헤더 */}
       <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
         <div className="flex items-start gap-3">
-          <span className="text-[22px] shrink-0 mt-0.5">{book.emoji}</span>
+          <span className="text-[22px] shrink-0 mt-0.5">{course.emoji}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <p className="text-[#1C1B33] font-bold text-[14px]">Book {book.id} · {book.title}</p>
+              <p className="text-[#1C1B33] font-bold text-[14px]">Book {course.id} · {course.title}</p>
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ECFEFF] text-[#0891B2] border border-[#A5F3FC] shrink-0">PRO</span>
             </div>
-            <p className="text-[#9CA3AF] text-[12px]">{book.desc}</p>
+            <p className="text-[#9CA3AF] text-[12px]">{course.desc}</p>
           </div>
           <div className="shrink-0 text-right pl-2">
-            <p className="text-[13px] font-black text-[#2563EB]">{doneCount} / {book.lessons.length}</p>
+            <p className="text-[13px] font-black text-[#2563EB]">{doneCount} / {course.lessons.length}</p>
             <p className="text-[10px] text-[#D1D5DB] font-medium">완료</p>
           </div>
         </div>
@@ -201,7 +673,7 @@ function BookSection({ book }: { book: BookData }) {
       <div className="relative px-4 py-2">
         <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
 
-        {book.lessons.map((lesson) => {
+        {course.lessons.map((lesson) => {
           /* 완료 */
           if (lesson.status === 'done') return (
             <div key={lesson.id} className="relative flex items-center gap-3 py-2.5">
@@ -209,6 +681,15 @@ function BookSection({ book }: { book: BookData }) {
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <span className="text-[13px] text-[#C4C9D4] line-through flex-1 min-w-0 truncate">{lesson.title}</span>
+              {lesson.note && (
+                <button
+                  onClick={() => onOpenStudy(lesson.id)}
+                  className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-1 rounded-md hover:bg-[#DBEAFE] transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  노트 보기
+                </button>
+              )}
               {lesson.partLabel && <span className="text-[10px] bg-[#F9FAFB] text-[#D1D5DB] px-1.5 py-0.5 rounded-md shrink-0">{lesson.partLabel}</span>}
             </div>
           )
@@ -274,34 +755,40 @@ function BookSection({ book }: { book: BookData }) {
           )
         })}
       </div>
-    </div>
-  )
-}
 
-/* ── AI 튜터 하단 바 ── */
-function AiTutorBar() {
-  const router = useRouter()
-  return (
-    <div className="fixed bottom-[72px] md:bottom-6 left-0 right-0 md:left-[56px] z-40 px-4 md:px-8 pointer-events-none">
-      <div className="max-w-[680px] mx-auto pointer-events-auto">
-        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-[0_8px_24px_rgba(37,99,235,0.14)]">
-          <div className="w-8 h-8 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+      {/* Book 비법 노트 — 전 레슨 완료 시 해제 */}
+      {course.tipNote && (
+        <div className="px-4 pb-4 pt-1">
+          <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5">
+            <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" className="shrink-0">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <p className="text-[13px] font-bold text-[#1C1B33]">강사의 비법 노트</p>
+              <span className="text-[11px] text-[#9CA3AF]">
+                {complete ? `비법 노트 ${course.tipNote.sections.length}개가 열렸어요` : '이번 Book을 완료하면 비법 노트가 열려요'}
+              </span>
+            </div>
+            {complete ? (
+              <button
+                onClick={() => onOpenTip(course.id)}
+                className="w-full flex items-center gap-2.5 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 text-left hover:bg-[#FEF3C7] transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#F59E0B" className="shrink-0"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+                <span className="text-[12px] font-bold text-[#1C1B33] flex-1 min-w-0 truncate">{course.tipNote.title ?? course.tipNote.category}</span>
+                <span className="text-[11px] font-bold text-[#B45309] shrink-0">열람하기</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            ) : (
+              <div className="w-full flex items-center gap-2.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span className="text-[12px] font-semibold text-[#6B7280] flex-1 min-w-0 truncate">{course.tipNote.title ?? course.tipNote.category}</span>
+                <span className="text-[11px] text-[#9CA3AF] shrink-0">완료 시 해제</span>
+              </div>
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[#1C1B33] font-bold text-[13px]">AI 튜터와 함께 풀기</p>
-            <p className="text-[#9CA3AF] text-[11px]">막힌 문제 바로 물어보세요</p>
-          </div>
-          <button
-            onClick={() => router.push('/part6')}
-            className="shrink-0 bg-[#2563EB] text-white hover:bg-[#1D4ED8] text-[12px] font-bold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
-          >
-            입장하기
-          </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -309,6 +796,60 @@ function AiTutorBar() {
 /* ── 메인 ── */
 export default function LessonsPage() {
   const { userName, targetScore, examDate } = useOnboardingStore()
+  const streakDay = useStreakDay()
+
+  const studyNotes = useMemo<StudyNoteItem[]>(
+    () => COURSES.flatMap(c =>
+      c.lessons
+        .filter(l => l.status === 'done' && l.note)
+        .map(l => ({ id: l.id, partLabel: l.partLabel ?? '학습 노트', lessonTitle: l.title, note: l.note! }))
+    ),
+    []
+  )
+  const tipNotes = useMemo<TipItem[]>(
+    () => COURSES
+      .filter(c => isCourseComplete(c) && c.tipNote)
+      .map(c => ({ courseId: c.id, courseTitle: c.title, tip: c.tipNote! })),
+    []
+  )
+
+  /* 진도율 — 전체 레슨 완료 수 기반 실계산 */
+  const { bookCount, totalLessons, doneLessons, overallPct } = useMemo(() => {
+    const lessons = COURSES.flatMap(c => c.lessons)
+    const done = lessons.filter(l => l.status === 'done').length
+    return {
+      bookCount: COURSES.length,
+      totalLessons: lessons.length,
+      doneLessons: done,
+      overallPct: lessons.length ? Math.round((done / lessons.length) * 100) : 0,
+    }
+  }, [])
+
+  /* 오늘 수업 일정 — 활성 Book에서 이미 들은 레슨 + 오늘 들을 레슨으로 실계산 */
+  const { todayDone, todayTotal, todayComplete } = useMemo(() => {
+    const activeBook = COURSES.find(c => c.lessons.some(l => l.status === 'current'))
+    const relevant = activeBook
+      ? activeBook.lessons.filter(l => l.status === 'done' || l.status === 'current')
+      : []
+    const done = relevant.filter(l => l.status === 'done').length
+    const total = relevant.length
+    return { todayDone: done, todayTotal: total, todayComplete: total > 0 && done === total }
+  }, [])
+
+  const [viewer, setViewer] = useState<{ kind: 'study' | 'tip'; index: number; autoPrint?: boolean } | null>(null)
+  const openStudy = (lessonId: string) => {
+    const i = studyNotes.findIndex(n => n.id === lessonId)
+    setViewer({ kind: 'study', index: i < 0 ? 0 : i })
+  }
+  const openTip = (courseId: number) => {
+    const i = tipNotes.findIndex(t => t.courseId === courseId)
+    setViewer({ kind: 'tip', index: i < 0 ? 0 : i })
+  }
+  /* 툴바 — 오늘 노트(최근 완료 노트) / 내 노트함(처음부터) / PDF 복습용(자동 인쇄) */
+  const hasNotes = studyNotes.length > 0
+  const openTodayNotes = () => hasNotes && setViewer({ kind: 'study', index: studyNotes.length - 1 })
+  const openNoteBox = () => hasNotes && setViewer({ kind: 'study', index: 0 })
+  const openPdf = () => hasNotes && setViewer({ kind: 'study', index: 0, autoPrint: true })
 
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
@@ -319,94 +860,160 @@ export default function LessonsPage() {
   }, [examDate])
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33]">
-      <Sidebar />
+    <>
+      <div className={`flex min-h-screen bg-[#FAFAFA] font-sans text-[#1C1B33] ${viewer ? 'print:hidden' : ''}`}>
+        <Sidebar />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* 모바일 헤더 */}
-        <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
-          <div className="flex items-center justify-between">
-            <p className="text-[#1C1B33] text-[20px] font-bold">내 학습</p>
+          {/* 모바일 헤더 */}
+          <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
+            <div className="flex items-center justify-between">
+              <p className="text-[#1C1B33] text-[20px] font-bold">내 학습</p>
+              <div className="flex items-center gap-2">
+                {ddayLabel && (
+                  <span className="text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-2.5 py-1 rounded-full">
+                    {ddayLabel}
+                  </span>
+                )}
+                <span className="text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-2.5 py-1 rounded-full">
+                   12일
+                </span>
+                <AccountMenu userName={userName ?? ''} />
+              </div>
+            </div>
+          </header>
+
+          {/* 데스크탑 헤더 */}
+          <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
+            <p className="text-[#1C1B33] font-bold text-[20px]">내 학습</p>
             <div className="flex items-center gap-2">
               {ddayLabel && (
-                <span className="text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-2.5 py-1 rounded-full">
-                  {ddayLabel}
+                <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-3 py-1.5 rounded-full">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  토익 {ddayLabel}
                 </span>
               )}
-              <span className="text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-2.5 py-1 rounded-full">
-                 12일
+              <span className="text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
+                 12일 연속
               </span>
               <AccountMenu userName={userName ?? ''} />
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* 데스크탑 헤더 */}
-        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
-          <p className="text-[#1C1B33] font-bold text-[20px]">내 학습</p>
-          <div className="flex items-center gap-2">
-            {ddayLabel && (
-              <span className="flex items-center gap-1.5 text-[12px] font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#C7D2FE] px-3 py-1.5 rounded-full">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                토익 {ddayLabel}
-              </span>
-            )}
-            <span className="text-[12px] font-bold text-[#F59E0B] bg-[#FEF9C3] border border-[#FDE68A] px-3 py-1.5 rounded-full">
-               12일 연속
-            </span>
-            <AccountMenu userName={userName ?? ''} />
-          </div>
-        </header>
+          <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
+            <div className="max-w-[680px] mx-auto w-full space-y-3">
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-40 md:pb-28">
-          <div className="max-w-[680px] mx-auto w-full space-y-3">
-
-            {/* 플랜 배너 — 블루 그라디언트 */}
-            <div className="bg-gradient-to-br from-[#2563EB] via-[#3B82F6] to-[#60A5FA] rounded-2xl px-5 py-5 flex items-center justify-between gap-3 relative overflow-hidden">
-              <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full" />
-              <div className="absolute right-20 bottom-0 w-16 h-16 bg-white/5 rounded-full" />
-              <div className="relative z-10">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">맞춤 학습 플랜</span>
-                  <span className="text-[10px] font-semibold bg-white/20 text-white/90 px-1.5 py-0.5 rounded">진단 결과 반영</span>
+              {/* 플랜 배너 — 블루 그라디언트 */}
+              <div className="bg-gradient-to-br from-[#2563EB] via-[#3B82F6] to-[#60A5FA] rounded-2xl px-5 py-5 relative overflow-hidden">
+                <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full" />
+                <div className="absolute right-24 bottom-2 w-16 h-16 bg-white/5 rounded-full" />
+                <div className="flex items-start justify-between gap-3 relative z-10">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                      <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded">맞춤 학습 플랜</span>
+                      <span className="text-[10px] font-semibold bg-white/15 text-white/90 px-1.5 py-0.5 rounded">진단 결과 반영</span>
+                      <span className="text-[10px] font-semibold bg-white/15 text-white/90 px-1.5 py-0.5 rounded">D-day 연동</span>
+                    </div>
+                    <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
+                      {userName ? `${userName}님의 플랜` : '나만의 플랜'}
+                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">{streakDay}일차</span>
+                      {targetScore && (
+                        <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">목표 {targetScore}점</span>
+                      )}
+                      {ddayLabel && (
+                        <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">토익 {ddayLabel}</span>
+                      )}
+                      <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">일 90분 가능</span>
+                    </div>
+                  </div>
+                  {/* 진도 링 */}
+                  <div className="relative w-[84px] h-[84px] shrink-0">
+                    <svg width="84" height="84" viewBox="0 0 84 84" className="absolute inset-0 -rotate-90">
+                      <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="7" />
+                      <circle cx="42" cy="42" r="34" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 34}
+                        strokeDashoffset={2 * Math.PI * 34 * (1 - overallPct / 100)} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-white text-[22px] font-black leading-none">{bookCount}</span>
+                      <span className="text-white/70 text-[10px] font-bold leading-none mt-0.5">Books</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
-                   {userName ? `${userName}님의 플랜` : '나만의 플랜'}
-                </p>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">3개월</span>
-                  {targetScore && (
-                    <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">목표 {targetScore}점</span>
-                  )}
-                  <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">꾸준히</span>
+                {/* 전체 진도 바 */}
+                <div className="flex items-center gap-2.5 mt-4 relative z-10">
+                  <span className="text-[11px] font-semibold text-white/80 shrink-0">전체 진도</span>
+                  <div className="flex-1 h-2 bg-white/25 rounded-full overflow-hidden">
+                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${overallPct}%` }} />
+                  </div>
+                  <span className="text-[12px] font-black text-white shrink-0">{overallPct}%</span>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl px-3.5 py-3 text-center shrink-0 min-w-[68px] relative z-10 shadow-sm">
-                <p className="text-[28px] leading-none mb-1"></p>
-                <p className="text-[10px] text-[#374151] font-bold">5 Books</p>
+
+              {/* 노트 툴바 */}
+              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-1.5 flex items-center shadow-[0_1px_10px_rgba(0,0,0,0.05)]">
+                {[
+                  { label: '오늘 노트 보기', onClick: openTodayNotes, icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  ) },
+                  { label: '내 노트함', onClick: openNoteBox, icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  ) },
+                  { label: 'PDF 복습용', onClick: openPdf, icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  ) },
+                ].map((b, i) => (
+                  <button key={b.label} onClick={b.onClick} disabled={!hasNotes}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-bold transition-colors ${i > 0 ? 'border-l border-[#F1F5F9]' : ''} ${hasNotes ? 'text-[#374151] hover:bg-[#F8FAFF] hover:text-[#2563EB]' : 'text-[#C4C9D4] cursor-not-allowed'}`}>
+                    {b.icon}
+                    <span className="whitespace-nowrap">{b.label}</span>
+                  </button>
+                ))}
               </div>
+
+              {/* 오늘 수업 일정 */}
+              <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${todayComplete ? 'bg-[#2563EB]' : 'bg-[#EFF6FF]'}`}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={todayComplete ? 'white' : '#60A5FA'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <p className="text-[#1C1B33] text-[13px] font-bold flex-1 min-w-0">
+                    {todayComplete
+                      ? '오늘 수업 일정을 완료했어요!'
+                      : `오늘 수업 일정 · ${todayTotal - todayDone}개 남았어요`}
+                  </p>
+                  <span className="text-[12px] font-bold text-[#2563EB] shrink-0">{todayDone}/{todayTotal} 완료</span>
+                </div>
+                <div className="h-1.5 bg-[#DBEAFE] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${todayTotal ? Math.round(todayDone / todayTotal * 100) : 0}%` }} />
+                </div>
+              </div>
+
+              {/* 코스 목록 */}
+              {COURSES.map((course) => (
+                <CourseSection key={course.id} course={course} onOpenStudy={openStudy} onOpenTip={openTip} />
+              ))}
+
             </div>
+          </main>
+        </div>
 
-            {/* 오늘 수업 완료 뱃지 */}
-            <div className="flex items-center gap-2 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-3.5 py-2.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-              <p className="text-[#1D4ED8] text-[12px] font-semibold flex-1">오늘 수업 일정을 완료했어요!</p>
-              <button className="text-[11px] font-semibold text-[#2563EB] flex items-center gap-0.5 shrink-0">
-                완전보기
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
-            </div>
-
-            {/* Books */}
-            {BOOKS.map((book) => <BookSection key={book.id} book={book} />)}
-
-          </div>
-        </main>
+        <BottomNav />
       </div>
 
-      <BottomNav />
-      <AiTutorBar />
-    </div>
+      {viewer && (
+        <NoteViewer
+          kind={viewer.kind}
+          startIndex={viewer.index}
+          studyNotes={studyNotes}
+          tipNotes={tipNotes}
+          autoPrint={viewer.autoPrint}
+          onClose={() => setViewer(null)}
+        />
+      )}
+    </>
   )
 }
