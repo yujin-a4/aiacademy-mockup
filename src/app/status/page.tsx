@@ -92,53 +92,6 @@ const BADGE_ICONS: Record<number, { node: JSX.Element; color: string; bg: string
   },
 }
 
-type TipColor = 'blue' | 'purple' | 'green' | 'amber'
-const TIP_COLORS: Record<TipColor, { bg: string; text: string }> = {
-  blue:   { bg: '#EFF6FF', text: '#2563EB' },
-  purple: { bg: '#EFF6FF', text: '#7C3AED' },
-  green:  { bg: '#F0FDF4', text: '#059669' },
-  amber:  { bg: '#FEF9C3', text: '#B45309' },
-}
-
-const TIPS: { id: number; category: string; color: TipColor; points: string[] }[] = [
-  {
-    id: 1, category: '수동태', color: 'blue',
-    points: [
-      'be + p.p 형태 — 주어가 행위를 "당하는" 관계일 때 사용',
-      '"by + 행위자"는 시험에서 대부분 생략됨',
-      '현재완료 수동: has/have been + p.p',
-      '미래 수동: will be + p.p',
-    ],
-  },
-  {
-    id: 2, category: '시제', color: 'purple',
-    points: [
-      'since + 과거시점 → 반드시 현재완료(has/have + p.p)',
-      'for + 기간 → 현재완료 또는 과거 둘 다 가능',
-      'last week, yesterday → 과거시제 (현재완료 사용 불가)',
-    ],
-  },
-  {
-    id: 3, category: '전치사', color: 'green',
-    points: [
-      'by: 마감 기한 (~까지 완료) — "submit by Friday"',
-      'until: 상태 지속 (~까지 계속) — "open until 6 PM"',
-      'during + 명사 ↔ while + 절 — 둘 다 "~하는 동안"',
-      'within: ~이내 / in: ~후 (미래 표현)',
-    ],
-  },
-  {
-    id: 4, category: '비즈니스 어휘', color: 'amber',
-    points: [
-      'accommodate: 수용하다, 편의를 제공하다',
-      'facilitate: 용이하게 하다, 촉진하다',
-      'implement: 시행하다, 이행하다',
-      'collaborate (with): ~와 협력하다',
-      'designated: 지정된 — "designated parking area"',
-    ],
-  },
-]
-
 type RankEntry = {
   rank: number; name: string; score: number; streak: number; target: number; isMe?: boolean
 }
@@ -238,36 +191,6 @@ const REPORT_SESSIONS = [
   { date: '5월 12일', part: 'Part 5 · 전치사', duration: '45분', score: '+2점' },
   { date: '5월 8일',  part: 'Part 7 · 독해',  duration: '60분', score: '+7점' },
   { date: '4월 28일', part: 'Part 6 · 어휘',  duration: '50분', score: '+5점' },
-]
-
-const MATERIALS = [
-  {
-    date: '2026-05-18', label: '오늘',
-    items: [
-      { type: 'PDF',  title: '수동태 핵심 패턴 워크시트',       meta: '2.1 MB' },
-      { type: '문제', title: 'Part 5 수동태 집중 연습 20선',    meta: '20문항' },
-    ],
-  },
-  {
-    date: '2026-05-15', label: '5월 15일 목',
-    items: [
-      { type: 'PDF',  title: '시제 총정리 핸드아웃',            meta: '1.8 MB' },
-      { type: '문제', title: 'Part 5·6 시제 연습',              meta: '24문항' },
-    ],
-  },
-  {
-    date: '2026-05-12', label: '5월 12일 월',
-    items: [
-      { type: 'PDF',  title: '전치사 패턴 카드 (by/until/during)', meta: '0.9 MB' },
-      { type: '영상', title: '전치사 특강 요약 클립',            meta: '8분' },
-    ],
-  },
-  {
-    date: '2026-05-08', label: '5월 8일 목',
-    items: [
-      { type: 'PDF',  title: '비즈니스 어휘 Top 100',           meta: '3.2 MB' },
-    ],
-  },
 ]
 
 /* ── 랭킹 행 ── */
@@ -441,25 +364,6 @@ function BottomNav() {
   )
 }
 
-/* ── 아이콘 ── */
-function MaterialIcon({ type }: { type: string }) {
-  if (type === 'PDF') return (
-    <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] flex items-center justify-center shrink-0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></svg>
-    </div>
-  )
-  if (type === '영상') return (
-    <div className="w-10 h-10 rounded-xl bg-[#ECFEFF] flex items-center justify-center shrink-0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891B2" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-    </div>
-  )
-  return (
-    <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-    </div>
-  )
-}
-
 /* ── 메인 ── */
 function getLastWeekRange() {
   const now = new Date()
@@ -476,8 +380,7 @@ export default function StatusPage() {
   const { userName, selectedInstructor, targetScore } = useOnboardingStore()
   const myTarget = targetScore ?? 750
   const league = LEAGUE_DATA[myTarget] ?? LEAGUE_DATA[750]
-  const [tab, setTab] = useState<'report' | 'badge' | 'tips' | 'materials' | 'ranking'>('report')
-  const [openTip, setOpenTip] = useState<number | null>(null)
+  const [tab, setTab] = useState<'report' | 'badge' | 'ranking'>('report')
 
   const lastWeekRange = getLastWeekRange()
 
@@ -582,8 +485,6 @@ export default function StatusPage() {
               {([
                 ['report',    '리포트'],
                 ['badge',     '배지'],
-                ['tips',      '비법노트'],
-                ['materials', '학습자료'],
                 ['ranking',   '랭킹'],
               ] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setTab(key)}
@@ -918,82 +819,6 @@ export default function StatusPage() {
                     )})}
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* ── 비법노트 ── */}
-            {tab === 'tips' && (
-              <div className="animate-fade-in space-y-3">
-                <p className="text-[13px] text-[#6B7280] leading-relaxed mb-1">
-                  AI 튜터가 과외 중 자주 틀린 유형을 분석해 정리한 핵심 노트예요.
-                </p>
-                {TIPS.map(tip => {
-                  const c = TIP_COLORS[tip.color]
-                  const isOpen = openTip === tip.id
-                  return (
-                    <div key={tip.id} className="bg-white border border-[#DBEAFE] rounded-2xl shadow-[0_1px_8px_rgba(37,99,235,0.06)] overflow-hidden">
-                      <button
-                        onClick={() => setOpenTip(isOpen ? null : tip.id)}
-                        className="w-full flex items-center gap-3 px-4 py-4 text-left"
-                      >
-                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0"
-                          style={{ background: c.bg, color: c.text }}>
-                          {tip.category}
-                        </span>
-                        <span className="flex-1 text-[13px] font-semibold text-[#1C1B33]">
-                          핵심 포인트 {tip.points.length}개
-                        </span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5"
-                          className={`shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
-                          <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                      </button>
-                      {isOpen && (
-                        <div className="px-4 pb-4">
-                          <div className="h-px bg-[#F3F4F6] mb-3" />
-                          <div className="space-y-2.5">
-                            {tip.points.map((pt, i) => (
-                              <div key={i} className="flex gap-2.5 items-start">
-                                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                                  style={{ background: c.bg, color: c.text }}>
-                                  {i + 1}
-                                </span>
-                                <p className="text-[13px] text-[#374151] leading-relaxed">{pt}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* ── 학습자료 ── */}
-            {tab === 'materials' && (
-              <div className="animate-fade-in space-y-6">
-                {MATERIALS.map(group => (
-                  <div key={group.date}>
-                    <p className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider px-1 mb-2.5">
-                      {group.label}
-                    </p>
-                    <div className="space-y-2">
-                      {group.items.map((item, i) => (
-                        <div key={i} className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                          <MaterialIcon type={item.type} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-semibold text-[#1C1B33] truncate">{item.title}</p>
-                            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{item.type} · {item.meta}</p>
-                          </div>
-                          <button className="shrink-0 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-3 py-1.5 rounded-lg hover:bg-[#E0E7FF] transition-colors whitespace-nowrap">
-                            보기
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
 

@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const SCORE_OPTIONS = [600, 750, 850]
-const TIME_OPTIONS = ['15분', '30분', '1시간', '1시간 이상']
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
 const TOEIC_DATES = [
@@ -39,13 +38,7 @@ function getTodayStr(): string {
   return toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
 }
 
-type SubStep = 'score' | 'range' | 'date' | 'time'
-
-const RANGE_OPTIONS: { value: 'LC+RC' | 'LC' | 'RC'; label: string; sub: string }[] = [
-  { value: 'LC+RC', label: 'LC + RC', sub: '듣기 + 읽기 전체' },
-  { value: 'LC',    label: 'LC만',    sub: '듣기 집중' },
-  { value: 'RC',    label: 'RC만',    sub: '읽기 집중' },
-]
+type SubStep = 'score' | 'date'
 
 /* 공통 레이아웃 래퍼 */
 function StepLayout({ children }: { children: React.ReactNode }) {
@@ -75,12 +68,10 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const store = useOnboardingStore()
   const [subStep, setSubStep] = useState<SubStep>('score')
   const [score, setScore] = useState<number | null>(store.targetScore)
-  const [range, setRange] = useState<'LC+RC' | 'LC' | 'RC' | null>(store.studyRange)
   const [examDate, setExamDate] = useState<string>(() => {
     const stored = store.examDate
     return (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
   })
-  const [time, setTime] = useState<string | null>(store.dailyTime)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [viewDate, setViewDate] = useState<Date>(() => {
     const stored = store.examDate
@@ -106,11 +97,11 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   }
 
   const handleComplete = () => {
-    if (!score || !range || !examDate || !time) return
+    if (!score || !examDate) return
     store.setTargetScore(score)
-    store.setStudyRange(range)
+    store.setStudyRange('LC+RC')
     store.setExamDate(examDate)
-    store.setDailyTime(time)
+    store.setDailyTime('1시간')
     const diff = new Date(examDate).getTime() - Date.now()
     const months = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24 * 30)))
     store.setStudyPeriod(`${months}개월`)
@@ -140,7 +131,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           </div>
         </div>
         <button
-          onClick={() => setSubStep('range')}
+          onClick={() => setSubStep('date')}
           disabled={!score}
           className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98] mt-6"
         >
@@ -150,38 +141,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     )
   }
 
-  /* ─── Step 2: 학습 영역 ─── */
-  if (subStep === 'range') {
-    return (
-      <StepLayout>
-        <div className="flex-1 flex flex-col justify-center">
-          <StepHeader icon="" title="학습할 영역을 선택해 주세요." subtitle="선택한 영역에 맞춰 커리큘럼이 구성돼요." />
-          <div className="flex flex-col gap-3">
-            {RANGE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setRange(opt.value)}
-                className={`w-full rounded-[10px] px-5 py-4 flex items-center justify-between transition-all border ${
-                  range === opt.value
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
-                }`}
-              >
-                <span className="text-[16px] font-semibold">{opt.label}</span>
-                <span className={`text-[13px] ${range === opt.value ? 'text-white/80' : 'text-[#9CA3AF]'}`}>{opt.sub}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2 pb-2">
-          <button onClick={() => setSubStep('date')} disabled={!range} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98]">다음</button>
-          <button onClick={() => setSubStep('score')} className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors">이전</button>
-        </div>
-      </StepLayout>
-    )
-  }
-
-  /* ─── Step 3: 시험 예정일 ─── */
+  /* ─── Step 2: 시험 예정일 ─── */
   if (subStep === 'date') {
     return (
       <StepLayout>
@@ -249,38 +209,12 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           )}
         </div>
         <div className="space-y-2 pb-2">
-          <button onClick={() => { setCalendarOpen(false); setSubStep('time') }} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]">다음</button>
+          <button onClick={() => { setCalendarOpen(false); handleComplete() }} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]">진단 결과 보기</button>
           <button onClick={() => setSubStep('score')} className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors">이전</button>
         </div>
       </StepLayout>
     )
   }
 
-  /* ─── Step 3: 학습 시간 ─── */
-  return (
-    <StepLayout>
-      <div className="flex-1 flex flex-col justify-center">
-        <StepHeader icon="" title={`하루에 얼마나\n공부할 수 있어요?`} subtitle="무리하지 않아도 괜찮아요. 솔직하게 알려 주세요." />
-        <div className="grid grid-cols-2 gap-2.5">
-          {TIME_OPTIONS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTime(t)}
-              className={`h-14 rounded-[10px] text-[15px] font-semibold transition-all border ${
-                time === t
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-primary hover:text-primary'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2 pb-2">
-        <button onClick={handleComplete} disabled={!time} className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] disabled:opacity-30 transition-colors active:scale-[0.98]">진단 결과 보기</button>
-        <button onClick={() => setSubStep('date')} className="w-full h-10 text-[#6B7280] font-medium text-sm hover:text-[#374151] transition-colors">이전</button>
-      </div>
-    </StepLayout>
-  )
+  return null
 }
