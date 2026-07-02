@@ -1,0 +1,397 @@
+'use client'
+
+/* Part 6 장문 공란 — 도입 → 수업(좌: 지문+빈칸문제 / 우: 강사 대화창) → 실전 → 정리
+   원래 P6_PASSAGES 데이터 그대로 사용. 지문에 빈칸(N)을 하이라이트. 색: #2277F0. */
+
+import React, { useEffect, useRef, useState } from 'react'
+import { P6_PASSAGES, type P6Passage } from '@/data/rcData'
+import LessonIntro from '@/components/lesson/LessonIntro'
+import { speakTTS, stopCurrentAudio } from '@/lib/tts'
+import { useClassroomStore } from '@/store/classroomStore'
+import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
+import { useConversation } from '@11labs/react'
+
+const LABELS = ['A', 'B', 'C', 'D']
+const TEACHER_IMG = '/image_reference/park-2.jpg'
+const INSTRUCTOR_PHOTO = '/image_reference/park-3.jpg'
+const AGENT_ID = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
+
+const P6_INTRO_SCRIPT =
+  '안녕하세요! 오늘은 Part 6 장문 공란을 배울 거예요. 빈칸 앞뒤 문맥과 문장 구조를 함께 보고 알맞은 말을 넣는 전략을 익혀볼게요. 준비됐죠? 😊'
+const P6_INTRO_POINTS = [
+  { text: '빈칸 앞뒤 문장까지 함께 읽기' },
+  { text: '빈칸 자리의 문법(태·품사·동사형) 파악' },
+  { text: '접속어·문맥 흐름으로 정답 확정' },
+]
+const SUMMARY_CARDS = [
+  { before: '장문 공란은 빈칸 ', blank: '앞뒤', after: ' 문장까지 함께 읽는다.', accept: ['앞뒤', '전후'] },
+  { before: '빈칸 자리의 ', blank: '문법', after: ' 구조(태·품사)를 먼저 본다.', accept: ['문법', '품사', '구조'] },
+  { before: '접속어와 ', blank: '문맥', after: ' 흐름으로 정답을 확정한다.', accept: ['문맥', '흐름'] },
+]
+const CLOSING_SUMMARY_SCRIPT =
+  '오늘 배운 Part 6 핵심! 빈칸 앞뒤를 함께 읽고, 빈칸 자리의 문법 구조를 파악하고, 접속어와 문맥 흐름으로 정답을 확정하세요. 수고 많았어요!'
+
+const STUDENT_VARS: Record<string, string> = {
+  user_name: '지윤', target_score: '900', study_range: '파트 식스 장문 공란',
+  exam_date: '다음 달', daily_time: '하루 한 시간', learning_style: '집중형', management_style: '주도형', motivation_type: '목표 달성형',
+  instructor_greeting: '자, 오늘은 파트 식스 장문 공란을 같이 풀어보자. 빈칸 하나씩 짚어줄게. 시작하자.',
+}
+
+interface Props { onEnd?: () => void }
+
+const blankPrompt = (n: number) => `빈칸 (${n})에 들어갈 가장 알맞은 것은?`
+
+/* ── 상단 phase 스텝퍼 ── */
+function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => void; extra?: React.ReactNode }) {
+  const labels = ['도입', '수업', '실전', '정리']
+  return (
+    <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-white border-b border-gray-100 shrink-0">
+      <button onClick={onEnd} className="p-1" aria-label="뒤로">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-7 md:h-7"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      </button>
+      <div className="flex items-center gap-1.5 md:gap-2.5">
+        {labels.map((label, i) => (
+          <div key={label} className="flex items-center gap-1.5 md:gap-2.5">
+            <div className={`px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[11px] md:text-[15px] font-bold ${i === active ? 'bg-[#2277F0] text-white' : i < active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>{label}</div>
+            {i < 3 && <svg viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="w-2.5 h-2.5 md:w-4 md:h-4"><path d="M9 18l6-6-6-6" /></svg>}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        {extra}
+        <button onClick={onEnd} className="text-[11px] md:text-sm text-gray-400 border border-gray-100 px-2.5 py-1 md:px-4 md:py-2 rounded-lg">종료</button>
+      </div>
+    </div>
+  )
+}
+
+/* ── 지문 (빈칸 하이라이트) ── */
+function PassageView({ passage, currentBlank, answeredBlanks }: { passage: P6Passage; currentBlank: number; answeredBlanks: Set<number> }) {
+  return (
+    <div className="h-full overflow-y-auto px-5 md:px-8 py-5 md:py-6">
+      <div className="inline-flex items-center gap-2 mb-4">
+        <span className="bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">지문</span>
+        <span className="text-xs md:text-sm text-gray-400">{passage.title}</span>
+      </div>
+      <div className="whitespace-pre-line leading-loose text-[#1A2B4B] text-sm md:text-base">
+        {passage.passage.split(/(\(\d\)_+)/g).map((part, i) => {
+          const m = part.match(/^\((\d)\)_+$/)
+          if (!m) return <span key={i}>{part}</span>
+          const num = Number(m[1])
+          const cls = num === currentBlank
+            ? 'bg-[#EFF6FF] text-[#2277F0] border-b-2 border-[#2277F0] font-bold'
+            : answeredBlanks.has(num) ? 'bg-[#F0FDF4] text-[#059669] font-bold' : 'bg-gray-100 text-gray-400 font-bold'
+          return <span key={i} className={`inline-block px-1.5 py-0.5 rounded mx-0.5 ${cls}`}>({num})</span>
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── 선택지 카드 ── */
+function ChoiceCard({ label, text, state, onClick, disabled }: {
+  label: string; text: string; state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed'; onClick: () => void; disabled: boolean
+}) {
+  const box = {
+    idle: 'bg-gray-50 border-gray-200 text-gray-700 hover:border-[#2277F0]/50 hover:bg-[#2277F0]/5',
+    'selected-correct': 'bg-green-50 border-green-400 text-green-800',
+    'selected-wrong': 'bg-red-50 border-red-400 text-red-800',
+    'reveal-correct': 'bg-green-50 border-green-400 text-green-800',
+    dimmed: 'bg-gray-50 border-gray-100 text-gray-400',
+  }[state]
+  const badge = {
+    idle: 'bg-gray-200 text-gray-500', 'selected-correct': 'bg-green-500 text-white', 'selected-wrong': 'bg-red-500 text-white', 'reveal-correct': 'bg-green-500 text-white', dimmed: 'bg-gray-200 text-gray-400',
+  }[state]
+  return (
+    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
+      <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
+      <span className="font-medium leading-snug">{text}</span>
+    </button>
+  )
+}
+
+/* ── 실전: 빈칸 탭 + 선택지 + 해설 ── */
+function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, isLast }: {
+  passage: P6Passage; qIndex: number; setQIndex: (i: number) => void; answers: Record<number, number>
+  onSelect: (choiceIdx: number) => void; onNext: () => void; isLast: boolean
+}) {
+  const q = passage.questions[qIndex]
+  const selected = answers[q.blankNum]
+  const answered = selected !== undefined
+  const isCorrect = answered && selected === q.answer
+  const answeredCount = passage.questions.filter((qq) => answers[qq.blankNum] !== undefined).length
+  return (
+    <div className="h-full flex flex-col min-h-0">
+      <div className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-3 border-b border-gray-100 shrink-0 overflow-x-auto">
+        {passage.questions.map((qq, i) => {
+          const done = answers[qq.blankNum] !== undefined
+          const active = i === qIndex
+          return (
+            <button key={qq.blankNum} onClick={() => setQIndex(i)}
+              className={`shrink-0 px-3 h-9 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${active ? 'bg-[#2277F0] text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+              빈칸 {qq.blankNum}
+            </button>
+          )
+        })}
+        <span className="ml-auto shrink-0 text-xs md:text-sm text-gray-400 font-medium">{answeredCount}/{passage.questions.length}</span>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5 min-h-0">
+        <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-4"><span className="text-[#2277F0] font-bold mr-1.5">({q.blankNum})</span>{blankPrompt(q.blankNum)}</p>
+        <div className="flex flex-col gap-2 md:gap-2.5">
+          {q.choices.map((choice, i) => {
+            let state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed' = 'idle'
+            if (answered) {
+              if (i === q.answer) state = i === selected ? 'selected-correct' : 'reveal-correct'
+              else if (i === selected) state = 'selected-wrong'
+              else state = 'dimmed'
+            }
+            return <ChoiceCard key={i} label={LABELS[i]} text={choice} state={state} disabled={answered} onClick={() => onSelect(i)} />
+          })}
+        </div>
+        {answered && (
+          <div className="mt-4 md:mt-5 rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
+              <span className="text-xs md:text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
+              <span className={`ml-auto text-[11px] md:text-xs font-bold px-2 py-0.5 rounded-md ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{isCorrect ? '✓ 정답' : '✕ 오답'}</span>
+            </div>
+            <p className="text-[13px] md:text-[15px] text-[#374151] leading-relaxed">{q.explanation}</p>
+          </div>
+        )}
+      </div>
+      <div className="px-4 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-white shrink-0">
+        <button onClick={onNext} disabled={!answered} className={`w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg font-bold transition-all ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 빈칸 →'}</button>
+      </div>
+    </div>
+  )
+}
+
+export default function Part6ReadingScreen({ onEnd }: Props) {
+  const passage = P6_PASSAGES[0]
+  const persona = useClassroomStore((s) => s.persona)
+  const [phase, setPhase] = useState<'intro' | 'lesson' | 'reading' | 'summary'>('intro')
+  const [qIndex, setQIndex] = useState(0)
+  const [answers, setAnswers] = useState<Record<number, number>>({})
+  const [lessonBlank, setLessonBlank] = useState(0)
+  const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
+  const [inputText, setInputText] = useState('')
+  const [topFrac, setTopFrac] = useState(0.5)
+  const [summaryInputs, setSummaryInputs] = useState(['', '', ''])
+  const [summaryChecked, setSummaryChecked] = useState(false)
+  const mainRef = useRef<HTMLDivElement>(null)
+  const resizingRef = useRef(false)
+  const draw = useDrawingTool()
+
+  const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
+  const conversation = useConversation({
+    onMessage: (p: { source: string; message: string }) => setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
+  })
+  const connected = conversation.status === 'connected'
+  const connecting = conversation.status === 'connecting'
+
+  const handleEnd = onEnd ?? (() => window.history.back())
+  const total = passage.questions.length
+  const isLast = qIndex === total - 1
+  const answeredBlanks = new Set(Object.keys(answers).map(Number))
+
+  useEffect(() => {
+    if (phase !== 'intro') return
+    // 도입 발화
+    void speakTTS(P6_INTRO_SCRIPT, persona)
+    return () => stopCurrentAudio()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+  useEffect(() => {
+    if (phase !== 'lesson' && conversation.status !== 'disconnected') { try { conversation.endSession() } catch { /* noop */ } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+  useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 도입 ──
+  if (phase === 'intro') {
+    return (
+      <LessonIntro tag="Part 6 장문 공란" script={P6_INTRO_SCRIPT} points={P6_INTRO_POINTS}
+        onStart={() => { stopCurrentAudio(); setMessages([]); setLessonBlank(0); setPhase('lesson') }} onEnd={handleEnd} />
+    )
+  }
+
+  // ── 수업 ──
+  if (phase === 'lesson') {
+    const q = passage.questions[lessonBlank]
+    const lastAi = [...messages].reverse().find((m) => m.role === 'ai')?.text ?? ''
+    const startAgent = () => { setMessages([]); conversation.startSession({ agentId: AGENT_ID, dynamicVariables: STUDENT_VARS }).catch(() => {}) }
+    const sendText = () => { const t = inputText.trim(); if (!t || !connected) return; conversation.sendUserMessage(t); setInputText('') }
+    const goReading = () => { try { conversation.endSession() } catch { /* noop */ } stopCurrentAudio(); setPhase('reading') }
+    const onResizeStart = (e: React.PointerEvent) => { resizingRef.current = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ } }
+    const onResizeMove = (e: React.PointerEvent) => { if (!resizingRef.current || !mainRef.current) return; const r = mainRef.current.getBoundingClientRect(); setTopFrac(Math.min(0.8, Math.max(0.25, (e.clientY - r.top) / r.height))) }
+    const onResizeEnd = () => { resizingRef.current = false }
+    return (
+      <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
+        <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
+        <DrawingOverlay {...draw} bounds={mainRef} />
+        <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
+          {/* 강사 대화창 */}
+          <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={TEACHER_IMG} alt="박혜원" className="w-7 h-7 rounded-full object-cover object-top border border-[#2277F0]/40" />
+                <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
+              </div>
+              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                <button onClick={() => setChatMode('text')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>텍스트</button>
+                <button onClick={() => setChatMode('voice')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>음성</button>
+              </div>
+            </div>
+            {!connected ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 min-h-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
+                <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
+                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
+              </div>
+            ) : chatMode === 'text' ? (
+              <>
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
+                  {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-3 py-3 border-t border-gray-100 flex items-center gap-2 shrink-0">
+                  <div className="flex-1 bg-gray-100 rounded-full px-4 py-2.5"><input className="w-full bg-transparent text-sm outline-none" placeholder="메시지 입력..." value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendText() }} /></div>
+                  <button onClick={sendText} disabled={!inputText.trim()} className="w-9 h-9 bg-[#2277F0] rounded-full flex items-center justify-center shrink-0 disabled:opacity-40" aria-label="전송"><svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg></button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center px-5 py-5 min-h-0">
+                <div className={`w-24 h-24 rounded-full overflow-hidden border-4 mb-3 ${conversation.isSpeaking ? 'border-[#2277F0] shadow-[0_0_24px_rgba(34,119,240,0.55)]' : 'border-[#2277F0]/25'}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
+                </div>
+                <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
+                {lastAi && <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
+                <p className="text-gray-400 text-[11px] mt-1">{conversation.isSpeaking ? '강사가 말하는 중…' : '말하면 강사가 들어요'}</p>
+                <button onClick={() => { try { conversation.endSession() } catch { /* noop */ } }} className="mt-4 text-[12px] font-semibold text-gray-400">통화 종료</button>
+              </div>
+            )}
+            <button onClick={goReading} className="shrink-0 border-t border-gray-100 py-3 text-[13px] font-bold text-[#2277F0] hover:bg-[#2277F0]/5">실전 문제 풀기 →</button>
+          </aside>
+
+          {/* 좌: 지문(위) / 빈칸 문제(아래) — 리사이즈 */}
+          <div ref={mainRef} className="flex-1 flex flex-col min-h-0 bg-white">
+            <div style={{ height: `${topFrac * 100}%` }} className="min-h-0">
+              <PassageView passage={passage} currentBlank={q.blankNum} answeredBlanks={answeredBlanks} />
+            </div>
+            <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd} className="h-4 shrink-0 flex items-center justify-center cursor-row-resize touch-none bg-gray-50 border-y border-gray-100 hover:bg-gray-100">
+              <div className="w-12 h-1 rounded-full bg-gray-300" />
+            </div>
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center gap-2 px-5 md:px-8 pt-3 pb-2 shrink-0">
+                {passage.questions.map((qq, i) => (
+                  <button key={qq.blankNum} onClick={() => setLessonBlank(i)} className={`px-3 h-9 rounded-full text-xs md:text-sm font-bold ${i === lessonBlank ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>빈칸 {qq.blankNum}</button>
+                ))}
+                <span className="ml-auto text-xs text-gray-400 font-medium">{lessonBlank + 1} / {total}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 md:px-8 pb-4 min-h-0">
+                <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-3"><span className="text-[#2277F0] font-bold mr-1.5">({q.blankNum})</span>{blankPrompt(q.blankNum)}</p>
+                <div className="flex flex-col gap-2 md:gap-2.5">
+                  {q.choices.map((c, i) => (<ChoiceCard key={i} label={LABELS[i]} text={c} state="idle" disabled onClick={() => {}} />))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 실전 ──
+  if (phase !== 'summary') {
+    const q = passage.questions[qIndex]
+    const select = (choiceIdx: number) => { if (answers[q.blankNum] !== undefined) return; setAnswers((a) => ({ ...a, [q.blankNum]: choiceIdx })) }
+    const goNext = () => { if (!isLast) setQIndex(qIndex + 1); else setPhase('summary') }
+    return (
+      <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
+        <PhaseStepper active={2} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
+        <DrawingOverlay {...draw} />
+        {/* 태블릿 가로/PC: 좌 지문 / 우 문항 */}
+        <div className="hidden lg:flex flex-1 flex-row min-h-0">
+          <div className="w-[48%] border-r border-gray-100 bg-white min-h-0"><PassageView passage={passage} currentBlank={q.blankNum} answeredBlanks={answeredBlanks} /></div>
+          <div className="flex-1 bg-white min-h-0"><QuestionView passage={passage} qIndex={qIndex} setQIndex={setQIndex} answers={answers} onSelect={select} onNext={goNext} isLast={isLast} /></div>
+        </div>
+        {/* 모바일/세로: 지문 위 + 문항 아래 */}
+        <div className="flex-1 flex flex-col min-h-0 lg:hidden">
+          <div className="h-[38%] shrink-0 border-b border-gray-100 bg-white"><PassageView passage={passage} currentBlank={q.blankNum} answeredBlanks={answeredBlanks} /></div>
+          <div className="flex-1 min-h-0 bg-white"><QuestionView passage={passage} qIndex={qIndex} setQIndex={setQIndex} answers={answers} onSelect={select} onNext={goNext} isLast={isLast} /></div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 정리 ──
+  const correct = passage.questions.filter((qq) => answers[qq.blankNum] === qq.answer).length
+  const results = SUMMARY_CARDS.map((c, i) => c.accept.some((a) => summaryInputs[i].replace(/\s/g, '').includes(a)))
+  const allFilled = summaryInputs.every((s) => s.trim().length > 0)
+  const correctCount = results.filter(Boolean).length
+  return (
+    <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
+      <PhaseStepper active={3} onEnd={handleEnd} />
+      <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
+        <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
+            <div className="flex-1 min-w-0"><h2 className="text-lg md:text-xl font-bold text-[#1A2B4B]">오늘 수업 완료!</h2><p className="text-xs md:text-sm text-gray-500">Part 6 장문 공란 · 실전 {correct}/{total} 정답</p></div>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2277F0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+            <p className="text-sm md:text-base font-bold text-[#1A2B4B]">핵심 요약 — 빈칸을 채워보세요</p>
+          </div>
+          <div className="space-y-3 mb-6">
+            {SUMMARY_CARDS.map((c, i) => {
+              const ok = results[i]
+              return (
+                <div key={i} className={`rounded-2xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                    <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
+                      {c.before}
+                      {summaryChecked
+                        ? <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-500 line-through'}`}>{summaryInputs[i].trim() || '　'}</span>
+                        : <input value={summaryInputs[i]} onChange={(e) => setSummaryInputs((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))} className="mx-1 w-28 text-center border-b-2 border-[#2277F0] bg-[#EFF6FF] rounded-sm px-1 py-0.5 font-bold text-[#2277F0] outline-none" placeholder="빈칸" />}
+                      {summaryChecked && !ok && <span className="font-bold text-green-700 mx-1">→ {c.blank}</span>}
+                      {c.after}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {!summaryChecked ? (
+            <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
+          ) : (
+            <>
+              <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SUMMARY_CARDS.length} 정답!</p>
+              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+                <div className="flex items-center gap-3 mb-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={INSTRUCTOR_PHOTO} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
+                  <div className="flex-1 min-w-0"><p className="text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사</p><p className="text-[11px] text-[#2277F0] font-semibold">오늘 학습 마무리 🎓</p></div>
+                  <button onClick={() => void speakTTS(CLOSING_SUMMARY_SCRIPT, persona)} className="w-9 h-9 rounded-full bg-white border border-[#BFD9FF] flex items-center justify-center text-[#2277F0]" title="다시 듣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" /></svg></button>
+                </div>
+                <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{CLOSING_SUMMARY_SCRIPT}</p>
+              </div>
+              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
+              <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs(['', '', '']) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

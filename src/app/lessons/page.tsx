@@ -615,20 +615,22 @@ function NoteViewer({ kind, startIndex, studyNotes, tipNotes, autoPrint, onClose
 }
 
 /* ── 코스 섹션 ── */
-function CourseSection({ course, onOpenStudy, onOpenTip }: {
+function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }: {
   course: CourseData
   onOpenStudy: (lessonId: string) => void
   onOpenTip: (courseId: number) => void
+  labelPrefix?: string
 }) {
   const router = useRouter()
+  // labelPrefix가 있으면 "Part 5 · 제목", 없으면 제목만 ("기존 콘텐츠")
+  const heading = labelPrefix ? `${labelPrefix} ${course.id} · ${course.title}` : course.title
 
   if (course.fullyLocked) {
     return (
       <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <span className="text-[22px] opacity-25 shrink-0">{course.emoji}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-[#C4C9D4]">Book {course.id} · {course.title}</p>
+            <p className="text-[13px] font-bold text-[#C4C9D4]">{heading}</p>
             <p className="text-[11px] text-[#D1D5DB] mt-0.5">{course.desc}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -654,11 +656,9 @@ function CourseSection({ course, onOpenStudy, onOpenTip }: {
       {/* 코스 헤더 */}
       <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
         <div className="flex items-start gap-3">
-          <span className="text-[22px] shrink-0 mt-0.5">{course.emoji}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <p className="text-[#1C1B33] font-bold text-[14px]">Book {course.id} · {course.title}</p>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ECFEFF] text-[#0891B2] border border-[#A5F3FC] shrink-0">PRO</span>
+              <p className="text-[#1C1B33] font-bold text-[14px]">{heading}</p>
             </div>
             <p className="text-[#9CA3AF] text-[12px]">{course.desc}</p>
           </div>
@@ -736,9 +736,6 @@ function CourseSection({ course, onOpenStudy, onOpenTip }: {
                 <div className="w-1.5 h-1.5 rounded-full bg-[#D1D5DB] group-hover:bg-[#6B7280] transition-colors" />
               </div>
               <span className="text-[13px] text-[#374151] flex-1 min-w-0 truncate group-hover:text-[#1C1B33] transition-colors">{lesson.title}</span>
-              {lesson.partLabel && (
-                <span className="text-[10px] bg-[#F3F4F6] text-[#9CA3AF] px-1.5 py-0.5 rounded-md shrink-0">{lesson.partLabel}</span>
-              )}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 group-hover:stroke-[#9CA3AF] transition-colors"><path d="M9 18l6-6-6-6"/></svg>
             </button>
           )
@@ -793,6 +790,33 @@ function CourseSection({ course, onOpenStudy, onOpenTip }: {
   )
 }
 
+/* ── 파트 기준 커리큘럼 (Book → Part 재구성) ──
+   각 레슨은 이미 partLabel('Part 5' 등)을 갖고 있어 partLabel로 그룹핑한다.
+   아직 수업이 없는 파트는 '준비 중'으로 표시. */
+const PART_META: { n: number; name: string; emoji: string; type: 'LC' | 'RC'; desc: string }[] = [
+  { n: 1, name: '사진 묘사', emoji: '📷', type: 'LC', desc: '장소·사람·사물을 묘사하는 문장 구조' },
+  { n: 2, name: '질문 응답', emoji: '💬', type: 'LC', desc: '다양한 의문문에 적절한 응답 고르기' },
+  { n: 3, name: '짧은 대화', emoji: '🗣️', type: 'LC', desc: '두 사람의 대화에서 주제·의도 파악' },
+  { n: 4, name: '설명문', emoji: '📢', type: 'LC', desc: '공지·안내·강연 등 담화의 핵심 정보' },
+  { n: 5, name: '단문 공란', emoji: '📝', type: 'RC', desc: 'AI 강사와 함께 수동태·시제 집중 공략' },
+  { n: 6, name: '장문 공란', emoji: '📄', type: 'RC', desc: '지문 흐름 속 빈칸 채우기 & 문장 삽입' },
+  { n: 7, name: '장문 독해', emoji: '📚', type: 'RC', desc: '단일·복수 지문 읽기 이해력 훈련' },
+]
+
+/* 실제 수업이 연결된 파트(파일럿). 나머지는 '준비 중'. */
+const ACTIVE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
+
+/* 새로 만든 파트별 수업(신규 화면)으로 직접 연결. 없으면 기존 COURSES 레슨 사용. */
+const NEW_LESSONS: Record<number, Lesson[]> = {
+  1: [{ id: 'new-p1', title: '사진 묘사 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 1', href: '/lc/1' }],
+  2: [{ id: 'new-p2', title: '질의응답 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 2', href: '/lc/2' }],
+  3: [{ id: 'new-p3', title: '짧은 대화 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 3', href: '/lc/3' }],
+  4: [{ id: 'new-p4', title: '설명문 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 4', href: '/lc/4' }],
+  5: [{ id: 'new-p5', title: '단문 공란 — 문장 빈칸 채우기', status: 'upcoming', partLabel: 'Part 5', href: '/part5-blank' }],
+  6: [{ id: 'new-p6', title: '장문 공란 — 지문 빈칸 채우기', status: 'upcoming', partLabel: 'Part 6', href: '/part6-reading' }],
+  7: [{ id: 'new-p7-reading', title: '장문 독해 — 지문 읽고 풀기', status: 'upcoming', partLabel: 'Part 7', href: '/part7-reading' }],
+}
+
 /* ── 메인 ── */
 export default function LessonsPage() {
   const { userName, targetScore, examDate } = useOnboardingStore()
@@ -804,6 +828,11 @@ export default function LessonsPage() {
         .filter(l => l.status === 'done' && l.note)
         .map(l => ({ id: l.id, partLabel: l.partLabel ?? '학습 노트', lessonTitle: l.title, note: l.note! }))
     ),
+    []
+  )
+  /* 내 노트함 — 노트가 있는 전 레슨 (완료=열림 / 미완료=잠김) */
+  const allNotes = useMemo(
+    () => COURSES.flatMap(c => c.lessons.filter(l => l.note).map(l => ({ id: l.id, partLabel: l.partLabel ?? '학습 노트', lessonTitle: l.title, locked: l.status !== 'done' }))),
     []
   )
   const tipNotes = useMemo<TipItem[]>(
@@ -837,6 +866,7 @@ export default function LessonsPage() {
   }, [])
 
   const [viewer, setViewer] = useState<{ kind: 'study' | 'tip'; index: number; autoPrint?: boolean } | null>(null)
+  const [notesTab, setNotesTab] = useState<'lessons' | 'notes'>('lessons')
   const openStudy = (lessonId: string) => {
     const i = studyNotes.findIndex(n => n.id === lessonId)
     setViewer({ kind: 'study', index: i < 0 ? 0 : i })
@@ -845,11 +875,6 @@ export default function LessonsPage() {
     const i = tipNotes.findIndex(t => t.courseId === courseId)
     setViewer({ kind: 'tip', index: i < 0 ? 0 : i })
   }
-  /* 툴바 — 오늘 노트(최근 완료 노트) / 내 노트함(처음부터) / PDF 복습용(자동 인쇄) */
-  const hasNotes = studyNotes.length > 0
-  const openTodayNotes = () => hasNotes && setViewer({ kind: 'study', index: studyNotes.length - 1 })
-  const openNoteBox = () => hasNotes && setViewer({ kind: 'study', index: 0 })
-  const openPdf = () => hasNotes && setViewer({ kind: 'study', index: 0, autoPrint: true })
 
   const ddayLabel = useMemo(() => {
     if (!examDate) return null
@@ -858,6 +883,59 @@ export default function LessonsPage() {
     const diff = Math.ceil((exam.getTime() - today.getTime()) / 86400000)
     return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : `D+${Math.abs(diff)}`
   }, [examDate])
+
+  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹.
+     파일럿: 우선 Part 5만 실제 수업에 연결하고 나머지는 '준비 중'. */
+  const partCourses = useMemo<CourseData[]>(() => {
+    return PART_META.map(p => {
+      const label = `Part ${p.n}`
+      const active = ACTIVE_PARTS.has(p.n)
+      const srcCourses = COURSES.filter(c => c.lessons.some(l => l.partLabel === label))
+      const lessons: Lesson[] = active
+        ? (NEW_LESSONS[p.n] ?? srcCourses.flatMap(c => c.lessons.filter(l => l.partLabel === label)))
+        : []
+      // 파트 완료 시 열리는 비법 노트 — 해당 파트가 속한 코스의 tipNote를 가져옴
+      const tipNote = active ? srcCourses.find(c => c.tipNote)?.tipNote : undefined
+      return {
+        id: p.n,
+        emoji: p.emoji,
+        accentColor: '#2563EB',
+        title: p.name,
+        duration: '',
+        desc: p.desc,
+        fullyLocked: lessons.length === 0,
+        lockReason: lessons.length === 0 ? '수업 준비 중이에요' : undefined,
+        lessons,
+        tipNote,
+      }
+    })
+  }, [])
+
+  /* 기존 콘텐츠 — 구버전 아카이브. 앞으로 새 버전을 수정해도 여기는 그대로 보존.
+     · 잠긴(locked) 레슨 제거
+     · 제목 중복 제거 (하나만)
+     · Part 5는 구버전 도입 화면으로: href '/part5' → '/part5-legacy' */
+  const legacyCourse = useMemo<CourseData>(() => {
+    const seen = new Set<string>()
+    const lessons = COURSES.flatMap(c => c.lessons)
+      .filter(l => {
+        if (l.status === 'locked') return false
+        if (seen.has(l.title)) return false
+        seen.add(l.title)
+        return true
+      })
+      .map(l => (l.href === '/part5' ? { ...l, href: '/part5-legacy' } : l))
+    return {
+      id: 0,
+      emoji: '📦',
+      accentColor: '#6B7280',
+      title: '기존 콘텐츠',
+      duration: '',
+      desc: '이전 버전 학습 콘텐츠 (구버전 보존)',
+      fullyLocked: false,
+      lessons,
+    }
+  }, [])
 
   return (
     <>
@@ -904,19 +982,27 @@ export default function LessonsPage() {
           <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
             <div className="max-w-[680px] mx-auto w-full space-y-3">
 
+              {/* 상단 탭 */}
+              <div className="flex border-b border-[#DBEAFE] mb-1">
+                {([['lessons', '학습'], ['notes', '내 노트함']] as const).map(([key, label]) => (
+                  <button key={key} onClick={() => setNotesTab(key)}
+                    className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${notesTab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                    {label}{key === 'notes' && allNotes.length > 0 ? ` (${allNotes.length})` : ''}
+                  </button>
+                ))}
+              </div>
+
+              {notesTab === 'lessons' ? (
+                <div className="space-y-3">
+
               {/* 플랜 배너 — 블루 그라디언트 */}
               <div className="bg-gradient-to-br from-[#2563EB] via-[#3B82F6] to-[#60A5FA] rounded-2xl px-5 py-5 relative overflow-hidden">
                 <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full" />
                 <div className="absolute right-24 bottom-2 w-16 h-16 bg-white/5 rounded-full" />
                 <div className="flex items-start justify-between gap-3 relative z-10">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                      <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded">맞춤 학습 플랜</span>
-                      <span className="text-[10px] font-semibold bg-white/15 text-white/90 px-1.5 py-0.5 rounded">진단 결과 반영</span>
-                      <span className="text-[10px] font-semibold bg-white/15 text-white/90 px-1.5 py-0.5 rounded">D-day 연동</span>
-                    </div>
                     <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
-                      {userName ? `${userName}님의 플랜` : '나만의 플랜'}
+                      지윤님의 플랜
                     </p>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">{streakDay}일차</span>
@@ -926,7 +1012,6 @@ export default function LessonsPage() {
                       {ddayLabel && (
                         <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">토익 {ddayLabel}</span>
                       )}
-                      <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">일 90분 가능</span>
                     </div>
                   </div>
                   {/* 진도 링 */}
@@ -953,27 +1038,6 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* 노트 툴바 */}
-              <div className="bg-white border border-[#E5E7EB] rounded-2xl p-1.5 flex items-center shadow-[0_1px_10px_rgba(0,0,0,0.05)]">
-                {[
-                  { label: '오늘 노트 보기', onClick: openTodayNotes, icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                  ) },
-                  { label: '내 노트함', onClick: openNoteBox, icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                  ) },
-                  { label: 'PDF 복습용', onClick: openPdf, icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  ) },
-                ].map((b, i) => (
-                  <button key={b.label} onClick={b.onClick} disabled={!hasNotes}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-bold transition-colors ${i > 0 ? 'border-l border-[#F1F5F9]' : ''} ${hasNotes ? 'text-[#374151] hover:bg-[#F8FAFF] hover:text-[#2563EB]' : 'text-[#C4C9D4] cursor-not-allowed'}`}>
-                    {b.icon}
-                    <span className="whitespace-nowrap">{b.label}</span>
-                  </button>
-                ))}
-              </div>
-
               {/* 오늘 수업 일정 */}
               <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
                 <div className="flex items-center gap-2 mb-2">
@@ -992,10 +1056,47 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* 코스 목록 */}
-              {COURSES.map((course) => (
-                <CourseSection key={course.id} course={course} onOpenStudy={openStudy} onOpenTip={openTip} />
+              {/* 파트 목록 (Part 1~7) */}
+              <p className="text-lg font-bold text-red-500">파트별 UI 수정 중</p>
+              {partCourses.map((course) => (
+                <CourseSection key={course.id} course={course} labelPrefix="Part" onOpenStudy={openStudy} onOpenTip={openTip} />
               ))}
+
+              {/* ── 기존 콘텐츠 — 이전 Book 콘텐츠 전체를 하나의 book으로 ── */}
+              <div className="pt-4">
+                <CourseSection course={legacyCourse} labelPrefix="" onOpenStudy={openStudy} onOpenTip={openTip} />
+              </div>
+                </div>
+              ) : (
+                /* ── 내 노트함 ── */
+                <div className="pt-2">
+                  {allNotes.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-16">아직 노트가 없어요. 수업을 완료하면 학습 노트가 열려요.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {allNotes.map((n) => n.locked ? (
+                        <div key={n.id} className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 opacity-80">
+                          <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center mb-2.5">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#9CA3AF] bg-[#F3F4F6] px-2 py-0.5 rounded-md">{n.partLabel}</span>
+                          <p className="text-[13px] font-semibold text-[#9CA3AF] mt-1.5 line-clamp-2">{n.lessonTitle}</p>
+                          <p className="text-[11px] text-[#C4C9D4] mt-2">완료 시 열려요</p>
+                        </div>
+                      ) : (
+                        <button key={n.id} onClick={() => openStudy(n.id)} className="text-left rounded-2xl border border-[#BFDBFE] bg-[#F8FAFF] p-4 hover:border-[#2563EB] hover:shadow-md transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center mb-2.5">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                          </div>
+                          <span className="text-[10px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 rounded-md">{n.partLabel}</span>
+                          <p className="text-[13px] font-semibold text-[#1C1B33] mt-1.5 line-clamp-2">{n.lessonTitle}</p>
+                          <p className="text-[11px] text-[#2563EB] font-bold mt-2">노트 열기 →</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
           </main>
