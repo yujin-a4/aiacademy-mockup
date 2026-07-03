@@ -1,24 +1,55 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 
-const PEN_COLORS = ['#2563EB', '#DC2626', '#059669', '#D97706', '#1C1B33']
+/* 필기 도구 — 벡터 스트로크 모델
+   · 색상: 주황 단색
+   · 그리기: 연필(pen) / 형광펜(highlighter)
+   · 지우개: 획 지우기(eraseStroke) / 그냥 지우기(erasePixel)
+   · 커서: 답 선택 가능(캔버스 통과) */
+
+const ORANGE = '#F97316'
+type Tool = 'pen' | 'highlighter' | 'eraseStroke' | 'erasePixel' | 'cursor'
+interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: number; y: number }[] }
 
 export function useDrawingTool() {
   const [drawMode, setDrawMode] = useState(false)
-  const [cursorMode, setCursorMode] = useState(false)
-  const [penColor, setPenColor] = useState('#2563EB')
-  const [eraserMode, setEraserMode] = useState(false)
+  const [tool, setTool] = useState<Tool>('pen')
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const strokesRef = useRef<Stroke[]>([])
+  const currentRef = useRef<Stroke | null>(null)
   const isDrawing = useRef(false)
-  const lastPos = useRef<{ x: number; y: number } | null>(null)
 
-  useEffect(() => {
-    if (!drawMode) return
+  const drawStroke = (ctx: CanvasRenderingContext2D, s: Stroke) => {
+    if (!s.points.length) return
+    ctx.save()
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    if (s.tool === 'erasePixel') {
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.lineWidth = 28
+    } else {
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.strokeStyle = ORANGE
+      if (s.tool === 'highlighter') { ctx.globalAlpha = 0.35; ctx.lineWidth = 18 }
+      else { ctx.lineWidth = 3 }
+    }
+    ctx.beginPath()
+    const p0 = s.points[0]
+    ctx.moveTo(p0.x, p0.y)
+    if (s.points.length === 1) ctx.lineTo(p0.x + 0.1, p0.y + 0.1)
+    else for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  const redraw = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-  }, [drawMode])
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    for (const s of strokesRef.current) drawStroke(ctx, s)
+    if (currentRef.current) drawStroke(ctx, currentRef.current)
+  }, [])
 
   const getPos = (e: MouseEvent | TouchEvent, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect()
@@ -27,85 +58,116 @@ export function useDrawingTool() {
     return { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top }
   }
 
+  const eraseAt = (pos: { x: number; y: number }) => {
+    const before = strokesRef.current.length
+    strokesRef.current = strokesRef.current.filter((s) =>
+      s.tool === 'erasePixel' ? true : !s.points.some((p) => Math.hypot(p.x - pos.x, p.y - pos.y) < 14)
+    )
+    if (strokesRef.current.length !== before) redraw()
+  }
+
   const startDraw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (tool === 'cursor') return
     const canvas = canvasRef.current
     if (!canvas) return
     e.preventDefault()
     isDrawing.current = true
-    lastPos.current = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
-  }, [])
+    const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
+    if (tool === 'eraseStroke') { eraseAt(pos); return }
+    currentRef.current = { tool, points: [pos] }
+    redraw()
+  }, [tool, redraw])
 
   const doDraw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing.current) return
     const canvas = canvasRef.current
-    const ctx = canvas?.getContext('2d')
-    if (!canvas || !ctx || !lastPos.current) return
+    if (!canvas) return
     e.preventDefault()
     const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
-    ctx.beginPath()
-    ctx.moveTo(lastPos.current.x, lastPos.current.y)
-    ctx.lineTo(pos.x, pos.y)
-    if (eraserMode) {
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.lineWidth = 24
-    } else {
-      ctx.globalCompositeOperation = 'source-over'
-      ctx.strokeStyle = penColor
-      ctx.lineWidth = 3
-    }
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.stroke()
-    lastPos.current = pos
-  }, [eraserMode, penColor])
+    if (tool === 'eraseStroke') { eraseAt(pos); return }
+    if (currentRef.current) { currentRef.current.points.push(pos); redraw() }
+  }, [tool, redraw])
 
   const endDraw = useCallback(() => {
+    if (currentRef.current) { strokesRef.current.push(currentRef.current); currentRef.current = null }
     isDrawing.current = false
-    lastPos.current = null
   }, [])
 
   const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current
-    const ctx = canvas?.getContext('2d')
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }, [])
+    strokesRef.current = []
+    currentRef.current = null
+    redraw()
+  }, [redraw])
 
   const toggleDraw = useCallback(() => {
-    setDrawMode(v => !v)
-    setEraserMode(false)
-    setCursorMode(false)
+    setDrawMode((v) => !v)
+    setTool('pen')
   }, [])
 
   return {
-    drawMode, cursorMode, setCursorMode,
-    penColor, setPenColor,
-    eraserMode, setEraserMode,
-    canvasRef, startDraw, doDraw, endDraw, clearCanvas, toggleDraw,
-    setDrawMode,
+    drawMode, setDrawMode, toggleDraw,
+    tool, setTool,
+    canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw,
   }
 }
 
 type DrawingOverlayProps = ReturnType<typeof useDrawingTool>
 
-export function DrawingOverlay(props: DrawingOverlayProps) {
-  const {
-    drawMode, cursorMode, setCursorMode,
-    penColor, setPenColor,
-    eraserMode, setEraserMode,
-    canvasRef, startDraw, doDraw, endDraw, clearCanvas, setDrawMode,
-  } = props
+/* 팔레트 버튼 */
+function ToolBtn({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`flex items-center gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold transition-colors ${active ? 'bg-[#F97316] text-white' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}
+    >
+      {children}
+    </button>
+  )
+}
 
-  if (!drawMode) return null
+export function DrawingOverlay({ bounds, ...props }: DrawingOverlayProps & { bounds?: React.RefObject<HTMLElement> }) {
+  const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw } = props
+  const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+
+  // 필기 영역 계산 (bounds 지정 시 그 영역만, 아니면 전체 화면)
+  useEffect(() => {
+    if (!drawMode) return
+    const el = bounds?.current ?? null
+    const update = () => {
+      if (el) { const r = el.getBoundingClientRect(); setRect({ left: r.left, top: r.top, width: r.width, height: r.height }) }
+      else setRect({ left: 0, top: 0, width: window.innerWidth, height: window.innerHeight })
+    }
+    update()
+    window.addEventListener('resize', update)
+    let ro: ResizeObserver | undefined
+    if (el && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(update); ro.observe(el) }
+    return () => { window.removeEventListener('resize', update); ro?.disconnect() }
+  }, [drawMode, bounds])
+
+  // 영역에 맞춰 캔버스 크기 지정 후 다시 그림
+  useEffect(() => {
+    if (!drawMode || !rect) return
+    const c = canvasRef.current
+    if (!c) return
+    c.width = rect.width
+    c.height = rect.height
+    redraw()
+  }, [drawMode, rect, canvasRef, redraw])
+
+  if (!drawMode || !rect) return null
 
   return (
     <>
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 z-40"
+        className="z-40"
         style={{
-          cursor: cursorMode ? 'default' : eraserMode ? 'cell' : 'crosshair',
+          position: 'fixed',
+          left: rect.left, top: rect.top, width: rect.width, height: rect.height,
+          cursor: tool === 'cursor' ? 'default' : tool === 'eraseStroke' || tool === 'erasePixel' ? 'cell' : 'crosshair',
           touchAction: 'none',
-          pointerEvents: cursorMode ? 'none' : 'auto',
+          pointerEvents: tool === 'cursor' ? 'none' : 'auto',
         }}
         onMouseDown={startDraw}
         onMouseMove={doDraw}
@@ -115,61 +177,50 @@ export function DrawingOverlay(props: DrawingOverlayProps) {
         onTouchMove={doDraw}
         onTouchEnd={endDraw}
       />
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-white rounded-2xl shadow-xl border border-[#DBEAFE] px-3 py-2">
-        {/* 커서 모드 */}
-        <button
-          onClick={() => { setCursorMode(v => !v); setEraserMode(false) }}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${cursorMode ? 'bg-[#2563EB] text-white' : 'text-[#9CA3AF] hover:bg-[#F3F4F6]'}`}
-          title="커서 모드 (답 선택 가능)"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 3l14 9-7 1-4 7L5 3z"/>
-          </svg>
-        </button>
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2">
+        {/* 커서 (답 선택) */}
+        <ToolBtn active={tool === 'cursor'} onClick={() => setTool('cursor')} title="커서 모드 (답 선택)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-7 1-4 7L5 3z" /></svg>
+        </ToolBtn>
+
         <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
-        {/* 색상 */}
-        {PEN_COLORS.map(color => (
-          <button
-            key={color}
-            onClick={() => { setPenColor(color); setEraserMode(false); setCursorMode(false) }}
-            className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-            style={{
-              background: color,
-              borderColor: !eraserMode && !cursorMode && penColor === color ? '#1C1B33' : 'transparent',
-              transform: !eraserMode && !cursorMode && penColor === color ? 'scale(1.2)' : undefined,
-            }}
-          />
-        ))}
+
+        {/* 연필 */}
+        <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+          연필
+        </ToolBtn>
+        {/* 형광펜 */}
+        <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6" /><path d="m17 7-1.5-1.5a2 2 0 0 0-3 0L9 8.5l4 4 3.5-3.5a2 2 0 0 0 .5-2z" /></svg>
+          형광펜
+        </ToolBtn>
+
+        {/* 주황 단색 표시 */}
+        <span className="w-4 h-4 rounded-full ml-0.5" style={{ background: ORANGE }} title="주황" />
+
         <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
-        {/* 지우개 */}
-        <button
-          onClick={() => { setEraserMode(v => !v); setCursorMode(false) }}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${eraserMode ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#9CA3AF] hover:bg-[#F3F4F6]'}`}
-          title="지우개"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 20H7L3 16l10-10 7 7-2.5 2.5"/><path d="M6.0 11.0 l7 7"/>
-          </svg>
-        </button>
+
+        {/* 획 지우기 */}
+        <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')} title="획 지우기 (선 전체)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
+          획 지우기
+        </ToolBtn>
+        {/* 그냥 지우기 */}
+        <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="그냥 지우기 (문지르기)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="14" width="18" height="6" rx="1" /><path d="M8 14l6-9 5 3-4 6" /></svg>
+          그냥 지우기
+        </ToolBtn>
         {/* 전체 지우기 */}
-        <button
-          onClick={clearCanvas}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors"
-          title="전체 지우기"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-          </svg>
+        <button onClick={clearCanvas} title="전체 지우기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
         </button>
+
+        <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
+
         {/* 닫기 */}
-        <button
-          onClick={() => { setDrawMode(false); setEraserMode(false); setCursorMode(false) }}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#F3F4F6] transition-colors ml-0.5"
-          title="닫기"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12"/>
-          </svg>
+        <button onClick={() => setDrawMode(false)} title="닫기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#F3F4F6] transition-colors">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
         </button>
       </div>
     </>
@@ -180,11 +231,11 @@ export function DrawToggleButton({ drawMode, toggleDraw }: { drawMode: boolean; 
   return (
     <button
       onClick={toggleDraw}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${drawMode ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'}`}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${drawMode ? 'bg-[#F97316] text-white' : 'bg-[#FFF7ED] text-[#F97316]'}`}
       title="필기 도구"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
     </button>
   )

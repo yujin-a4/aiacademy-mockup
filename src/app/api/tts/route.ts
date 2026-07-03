@@ -32,13 +32,17 @@ export async function POST(req: NextRequest) {
 
     const text = sanitizeForTts(rawText)
     const apiKey = process.env.ELEVENLABS_API_KEY
-    const voiceId = process.env.ELEVENLABS_VOICE_ID
+    // persona === 'listening' → 듣기 음원 목소리, 그 외 → 강사(기본) 목소리
+    const isListening = persona === 'listening'
+    const instructorVoice = process.env.ELEVENLABS_VOICE_ID
+    const audioVoice = process.env.ELEVENLABS_AUDIO_VOICE_ID ?? instructorVoice
+    const voiceId = isListening ? audioVoice : instructorVoice
 
     if (!apiKey || !voiceId) {
       return NextResponse.json({ useNativeTts: true, text })
     }
 
-    const { speed, stability, similarity_boost } = TTS_PARAMS[persona] ?? DEFAULT_TTS
+    const { speed, stability, similarity_boost } = isListening ? DEFAULT_TTS : (TTS_PARAMS[persona] ?? DEFAULT_TTS)
 
     const res = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
       method: 'POST',
