@@ -16,6 +16,12 @@ type TurnId =
   | 's1_turn1' | 's1_turn2a' | 's1_turn3'
   | 's1_turn4' | 's1_turn5' | 's1_turn6' | 's1_turn7'
 
+interface RemoteOption {
+  id: string
+  text: string
+  correct: boolean
+}
+
 interface Screen1Props {
   onComplete: () => void
   onEnd: () => void
@@ -40,6 +46,8 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
   const [warnMessage, setWarnMessage]     = useState('')
   const [strokeReset, setStrokeReset]     = useState(0)
   const [xMarkedChoices, setXMarked]      = useState<Set<string>>(new Set())
+  const [remoteOptions, setRemoteOptions] = useState<RemoteOption[] | null>(null)
+  const [remoteLoading, setRemoteLoading] = useState(false)
 
   const startListeningRef = useRef<() => void>(() => {})
   const stopListeningRef  = useRef<() => void>(() => {})
@@ -65,6 +73,8 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
     setClearInput((n) => n + 1)
     if (xTimerRef.current) { clearTimeout(xTimerRef.current); xTimerRef.current = null }
     setXMarked(new Set())
+    setRemoteOptions(null)
+    setRemoteLoading(false)
 
     /* 대사를 즉시 업데이트 → InstructorPanel 타이핑 즉시 시작 */
     setSpeech(turn.script)
@@ -89,6 +99,20 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
         console.log('[Screen1] starting mic now for turn:', turnId)
         startListeningRef.current()
       }, 300)
+    }
+
+    if (turn.inputType === 'remoteChoice' && turn.remoteChoiceId) {
+      setRemoteLoading(true)
+      try {
+        const res = await fetch(`/api/lesson-content/subject-choices?id=${turn.remoteChoiceId}`)
+        const data = await res.json()
+        if (!mountedRef.current) return
+        setRemoteOptions(Array.isArray(data.options) ? data.options : [])
+      } catch {
+        if (mountedRef.current) setRemoteOptions([])
+      } finally {
+        if (mountedRef.current) setRemoteLoading(false)
+      }
     }
   }, [TURNS, persona])
 
@@ -118,6 +142,25 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
 
     if (nextId) await enterTurn(nextId)
   }, [canInput, currentTurnId, TURNS, enterTurn])
+
+  /* ── DB에서 가져온 선택지 처리 (실험: 세부 질문용 remoteChoice) ── */
+  const handleRemoteChoice = useCallback(async (optionId: string) => {
+    if (!canInput) return
+    const turn = TURNS[currentTurnId]
+    if (turn.inputType !== 'remoteChoice') return
+    const picked = remoteOptions?.find((o) => o.id === optionId)
+    if (!picked) return
+
+    if (!picked.correct) {
+      showWarn('다시 생각해봐! 수식어구를 빼고 핵심 명사구를 찾아보세요')
+      return
+    }
+
+    setCanInput(false)
+    const nextId = turn.defaultNextTurnId as TurnId | undefined
+    if (nextId) await enterTurn(nextId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canInput, currentTurnId, TURNS, remoteOptions, enterTurn])
 
   /* ── 필기 첫 획 처리 ── */
   const handleFirstStroke = useCallback(async (relX: number, relY: number, screenX: number, screenY: number) => {
@@ -265,23 +308,32 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
       }}
       pipListening={pipListening}
       instructorInput={
-        <InputBar
-          placeholder={
-            !canInput                          ? '강사 설명 듣는 중...' :
-            currentTurn.inputType === 'voice'  ? '음성으로 대답해 보세요' :
-            currentTurn.inputType === 'draw'   ? (currentTurn.drawHint === 'underline' ? '문장에 밑줄을 그어 보세요' : currentTurn.drawHint === 'x' ? '틀린 선택지에 X 표시해 보세요' : '힌트에 동그라미를 쳐 보세요') :
-            currentTurn.inputType === 'button' ? '아래 버튼을 눌러주세요' : ''
-          }
-          clearTrigger={clearInput}
-          onReadyToListen={(start, stop) => {
-            startListeningRef.current = start
-            stopListeningRef.current  = stop
-          }}
-          onSpeechResult={handleVoice}
-          onListeningChange={setIsListening}
-          lang={currentTurn.lang ?? 'ko-KR'}
-          actions={[]}
-        />
+        currentTurn.inputType === 'remoteChoice' ? (
+          <RemoteChoiceBar
+            loading={remoteLoading}
+            options={remoteOptions}
+            disabled={!canInput}
+            onSelect={handleRemoteChoice}
+          />
+        ) : (
+          <InputBar
+            placeholder={
+              !canInput                          ? '강사 설명 듣는 중...' :
+              currentTurn.inputType === 'voice'  ? '음성으로 대답해 보세요' :
+              currentTurn.inputType === 'draw'   ? (currentTurn.drawHint === 'underline' ? '문장에 밑줄을 그어 보세요' : currentTurn.drawHint === 'x' ? '틀린 선택지에 X 표시해 보세요' : '힌트에 동그라미를 쳐 보세요') :
+              currentTurn.inputType === 'button' ? '아래 버튼을 눌러주세요' : ''
+            }
+            clearTrigger={clearInput}
+            onReadyToListen={(start, stop) => {
+              startListeningRef.current = start
+              stopListeningRef.current  = stop
+            }}
+            onSpeechResult={handleVoice}
+            onListeningChange={setIsListening}
+            lang={currentTurn.lang ?? 'ko-KR'}
+            actions={[]}
+          />
+        )
       }
     >
       <ProblemContent
@@ -458,6 +510,44 @@ function ProblemContent({
         )}
       </div>
 
+    </div>
+  )
+}
+
+/* ── DB에서 가져온 선택지 바 (실험: 세부 질문용 remoteChoice) ── */
+function RemoteChoiceBar({
+  loading,
+  options,
+  disabled,
+  onSelect,
+}: {
+  loading: boolean
+  options: RemoteOption[] | null
+  disabled: boolean
+  onSelect: (id: string) => void
+}) {
+  if (loading || !options) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3.5 text-sm text-ybm-text-sub">
+        <span className="w-4 h-4 rounded-full border-2 border-[#2277F0]/30 border-t-[#2277F0] animate-spin" />
+        DB에서 선택지 불러오는 중...
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          disabled={disabled}
+          onClick={() => onSelect(opt.id)}
+          className="px-4 py-2.5 rounded-xl border-2 border-ybm-border bg-white text-sm font-semibold text-ybm-text
+            hover:border-[#2277F0]/50 hover:bg-[#2277F0]/5 active:scale-95 transition-all
+            disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {opt.text}
+        </button>
+      ))}
     </div>
   )
 }

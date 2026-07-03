@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       })
 
       const contextual = `${buildFacts(q)}\n\n${TURN_RULES}\n\n${stepInstruction(steps[0])}`
-      return NextResponse.json({ sessionId: id, fadingLevel: level, contextual })
+      return NextResponse.json({ sessionId: id, fadingLevel: level, contextual, quickReplies: steps[0].quickReplies })
     }
 
     // ── 학생 답변 처리 (체크포인트 채점 + 단계 전진/힌트, S-XTAZHH) ──
@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
           done: nxt.done,
           contextual: nxt.done ? nxt.contextual : `${lead}${nxt.contextual}`,
           fadingLevel: s.fadingLevel,
+          quickReplies: nxt.done ? undefined : s.steps[s.stepIdx].quickReplies,
         })
       }
 
@@ -165,6 +166,7 @@ export async function POST(req: NextRequest) {
           done: false,
           attempts: s.attempts,
           contextual: branch.directive,
+          quickReplies: cur.quickReplies,
         })
       }
 
@@ -179,6 +181,7 @@ export async function POST(req: NextRequest) {
           attempts: s.attempts,
           contextual:
             `학생 답이 핵심을 빗나갔다. 정답을 먼저 말하지 말고, 아래 힌트 하나만 네 말투로 짧게 주고 같은 걸 다시 물어라:\n힌트: ${hint}`,
+          quickReplies: cur.quickReplies,
         })
       }
 
@@ -191,6 +194,7 @@ export async function POST(req: NextRequest) {
         contextual:
           `학생이 계속 막힌다. 근거만 공개해라: DB 원문 "${reveal}" 을(를) 인용하고 한 줄로 이유를 설명해라. 그 다음 ${nxt.done ? '수업을 마무리해라.' : '아래로 진행:\n' + nxt.contextual}`,
         fadingLevel: s.fadingLevel,
+        quickReplies: nxt.done ? undefined : s.steps[s.stepIdx].quickReplies,
       })
     }
 

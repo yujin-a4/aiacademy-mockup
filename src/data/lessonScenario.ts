@@ -1,6 +1,6 @@
 import type { VoiceBranch } from '@/lib/matchBranch'
 
-export type InputType = 'voice' | 'draw' | 'choice' | 'button' | 'none'
+export type InputType = 'voice' | 'draw' | 'choice' | 'button' | 'none' | 'remoteChoice'
 export type DrawHint = 'underline' | 'circle' | 'x'
 
 export interface LessonTurn {
@@ -30,6 +30,8 @@ export interface LessonTurn {
   onTimerExpire?: string
   /** 음성 인식 언어. 미설정 시 'ko-KR'. 영어 단어/문장 답변 턴은 'en-US' */
   lang?: string
+  /** inputType이 'remoteChoice'일 때 — /api/lesson-content/subject-choices에서 조회할 row id (DB 실험용) */
+  remoteChoiceId?: string
 }
 
 /* ═══════════════════════════════════════════════
@@ -188,8 +190,8 @@ export function buildTurns(userName: string): Record<string, LessonTurn> {
       screen: 1,
       videoSrc: '/part5/P5_2_1.mp4',
       script: `Part 5에서는 문장 구조를 먼저 파악해야 해. 문장 보이면 무조건 주어랑 동사 먼저 찾아봐. 여기서 주어가 뭐야?`,
-      inputType: 'voice',
-      lang: 'en-US',
+      inputType: 'remoteChoice',
+      remoteChoiceId: 'q148_subject',
       defaultNextTurnId: 's1_turn2a',
     },
     s1_turn2a: {
