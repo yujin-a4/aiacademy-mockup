@@ -66,7 +66,17 @@ function ChoiceCard({ label, text, state, onClick, disabled, audioOnly, onReplay
         ? (onReplay
           ? <span className="flex items-center gap-2 text-sm text-gray-500 font-medium"><span onClick={(e) => { e.stopPropagation(); onReplay() }} role="button" aria-label="보기 다시 듣기" className="w-8 h-8 rounded-full bg-white border border-[#BFD9FF] flex items-center justify-center text-[#2277F0] hover:bg-[#EFF6FF]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" /></svg></span>다시 듣기</span>
           : <span className="text-sm text-gray-400 font-medium">🔊 음성 보기</span>)
-        : <span className="font-medium leading-snug">{text}</span>}
+        : <span className="font-medium leading-snug flex-1">{text}</span>}
+      {state === 'correct' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      {state === 'wrong' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </span>
+      )}
     </button>
   )
 }

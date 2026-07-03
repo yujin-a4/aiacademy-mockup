@@ -125,7 +125,17 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
     <button onClick={onClick} disabled={disabled}
       className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
-      <span className="font-medium leading-snug">{text}</span>
+      <span className="font-medium leading-snug flex-1">{text}</span>
+      {(state === 'selected-correct' || state === 'reveal-correct') && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      {state === 'selected-wrong' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </span>
+      )}
     </button>
   )
 }
