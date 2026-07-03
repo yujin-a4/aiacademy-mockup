@@ -313,7 +313,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
               <span className="ml-auto text-xs md:text-sm text-gray-400 font-medium">{Object.keys(answers).length}/{total}</span>
             </div>
 
-            {isPhoto ? (
+            {part.media.kind === 'photo' ? (
               <div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={q.imageUrl ?? photoFallback} alt="문제 사진" className="w-full rounded-2xl object-cover border border-gray-100" style={{ maxHeight: 300 }} />
