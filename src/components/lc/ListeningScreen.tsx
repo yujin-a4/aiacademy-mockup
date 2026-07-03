@@ -317,9 +317,14 @@ export default function ListeningScreen({ part, onEnd }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
             <div className="flex items-center gap-2">
-              {part.questions.map((_, i) => (
-                <button key={i} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${i === qIndex ? 'bg-[#2277F0] text-white' : answers[i] !== undefined ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>Q{i + 1}</button>
-              ))}
+              {part.questions.map((qq, i) => {
+                const ans = answers[i]
+                const tabCls = i === qIndex
+                  ? 'bg-[#2277F0] text-white'
+                  : ans === undefined ? 'bg-gray-100 text-gray-400'
+                  : ans === qq.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                return <button key={i} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${tabCls}`}>Q{i + 1}</button>
+              })}
               <span className="ml-auto text-xs md:text-sm text-gray-400 font-medium">{Object.keys(answers).length}/{total}</span>
             </div>
 

@@ -160,13 +160,15 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
     <div className="h-full flex flex-col min-h-0">
       <div className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-3 border-b border-gray-100 shrink-0 overflow-x-auto">
         {passage.questions.map((qq, i) => {
-          const done = answers[qq.id] !== undefined
+          const ans = answers[qq.id]
           const active = i === qIndex
+          const tabCls = active
+            ? 'bg-[#2277F0] text-white'
+            : ans === undefined ? 'bg-gray-100 text-gray-400'
+            : ans === qq.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
           return (
             <button key={qq.id} onClick={() => setQIndex(i)}
-              className={`shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${
-                active ? 'bg-[#2277F0] text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
-              }`}>
+              className={`shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${tabCls}`}>
               Q{i + 1}
             </button>
           )
