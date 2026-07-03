@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 
 export interface SubjectChoiceOption {
   id: string
@@ -19,6 +19,9 @@ export interface SubjectChoiceRow {
  * 테이블 스키마/시드는 docs 또는 대화 기록의 SQL 참고 (id/question_number/prompt/options(jsonb)/evidence).
  */
 export async function getSubjectChoiceRow(id: string): Promise<SubjectChoiceRow | null> {
+  const supabase = getSupabase()
+  if (!supabase) return null
+
   const { data, error } = await supabase
     .from('subject_choices')
     .select('id, question_number, prompt, options, evidence')
