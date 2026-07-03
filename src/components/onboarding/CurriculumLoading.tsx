@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const LOAD_STEPS = [
-  { name: '박혜원', action: '학습 성향을 분석하고 있습니다', thumb: '/image_reference/park-2.jpg' },
-  { name: '장연지', action: '맞춤형 커리큘럼을 설계하고 있습니다', thumb: '/image_reference/jang.png' },
-  { name: '김토익', action: '핵심 문제 유형을 선별하고 있습니다', thumb: '/image_reference/kim.png' },
+  { name: '박혜원', action: (n: string) => `${n}님의 성향을 보고 프로그램을 구성하고 있어요`, thumb: '/image_reference/park-2.jpg' },
+  { name: '장연지', action: (n: string) => `${n}님에게 맞는 커리큘럼을 설계하고 있어요`, thumb: '/image_reference/jang.png' },
+  { name: '김토익', action: (n: string) => `${n}님께 제안할 프로그램을 완성하고 있어요`, thumb: '/image_reference/kim.png' },
 ]
 
 function DotLoader() {
@@ -29,10 +29,10 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setCurrent(1), 400),
-      setTimeout(() => setCurrent(2), 2200),
-      setTimeout(() => setCurrent(3), 4000),
-      setTimeout(() => setDone(true), 5600),
+      setTimeout(() => setCurrent(1), 500),
+      setTimeout(() => setCurrent(2), 4500),
+      setTimeout(() => setCurrent(3), 8500),
+      setTimeout(() => setDone(true), 12000),
     ]
     return () => timers.forEach(clearTimeout)
   }, [])
@@ -91,7 +91,7 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
                 <div className="flex-1">
                   <p className="text-[#374151] text-[13px] leading-snug">
                     <span className="font-bold text-[#111318]">{step.name} 쌤</span>이{' '}
-                    {step.action}
+                    {step.action(userName ?? '고객')}
                     {isActive && <DotLoader />}
                     {isCompleted && (
                       <span className="ml-1 text-emerald-500 font-semibold text-[12px]">완료 ✓</span>
@@ -111,7 +111,7 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
                 </svg>
               </div>
               <p className="text-[#111318] font-bold text-[15px]">
-                생성이 완료되었습니다!
+                {userName}님을 위한 프로그램이 준비됐어요!
               </p>
             </div>
           )}
