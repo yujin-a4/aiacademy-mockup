@@ -125,7 +125,17 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
     <button onClick={onClick} disabled={disabled}
       className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
-      <span className="font-medium leading-snug">{text}</span>
+      <span className="font-medium leading-snug flex-1">{text}</span>
+      {(state === 'selected-correct' || state === 'reveal-correct') && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      {state === 'selected-wrong' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </span>
+      )}
     </button>
   )
 }
@@ -150,13 +160,15 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
     <div className="h-full flex flex-col min-h-0">
       <div className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-3 border-b border-gray-100 shrink-0 overflow-x-auto">
         {passage.questions.map((qq, i) => {
-          const done = answers[qq.id] !== undefined
+          const ans = answers[qq.id]
           const active = i === qIndex
+          const tabCls = active
+            ? 'bg-[#2277F0] text-white'
+            : ans === undefined ? 'bg-gray-100 text-gray-400'
+            : ans === qq.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
           return (
             <button key={qq.id} onClick={() => setQIndex(i)}
-              className={`shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${
-                active ? 'bg-[#2277F0] text-white' : done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
-              }`}>
+              className={`shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${tabCls}`}>
               Q{i + 1}
             </button>
           )

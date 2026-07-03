@@ -66,7 +66,17 @@ function ChoiceCard({ label, text, state, onClick, disabled, audioOnly, onReplay
         ? (onReplay
           ? <span className="flex items-center gap-2 text-sm text-gray-500 font-medium"><span onClick={(e) => { e.stopPropagation(); onReplay() }} role="button" aria-label="보기 다시 듣기" className="w-8 h-8 rounded-full bg-white border border-[#BFD9FF] flex items-center justify-center text-[#2277F0] hover:bg-[#EFF6FF]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" /></svg></span>다시 듣기</span>
           : <span className="text-sm text-gray-400 font-medium">🔊 음성 보기</span>)
-        : <span className="font-medium leading-snug">{text}</span>}
+        : <span className="font-medium leading-snug flex-1">{text}</span>}
+      {state === 'correct' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      {state === 'wrong' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </span>
+      )}
     </button>
   )
 }
@@ -307,9 +317,14 @@ export default function ListeningScreen({ part, onEnd }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
             <div className="flex items-center gap-2">
-              {part.questions.map((_, i) => (
-                <button key={i} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${i === qIndex ? 'bg-[#2277F0] text-white' : answers[i] !== undefined ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>Q{i + 1}</button>
-              ))}
+              {part.questions.map((qq, i) => {
+                const ans = answers[i]
+                const tabCls = i === qIndex
+                  ? 'bg-[#2277F0] text-white'
+                  : ans === undefined ? 'bg-gray-100 text-gray-400'
+                  : ans === qq.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                return <button key={i} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold transition-all ${tabCls}`}>Q{i + 1}</button>
+              })}
               <span className="ml-auto text-xs md:text-sm text-gray-400 font-medium">{Object.keys(answers).length}/{total}</span>
             </div>
 

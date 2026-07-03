@@ -1,40 +1,44 @@
 'use client'
 
 /* Part 5 단문 공란 — 도입 → 수업(좌: 문장+빈칸 / 우: 강사 대화창) → 실전 → 정리
-   원래 P5_QUESTIONS 데이터 그대로 사용. 지문 없이 문장별 빈칸. 색: #2277F0. */
+   원래 lessonScenario.ts 데이터 그대로 사용 (도입 멘트·문제·요약·마무리 멘트 전부 원본). 색: #2277F0. */
 
 import React, { useEffect, useRef, useState } from 'react'
-import { P5_QUESTIONS } from '@/data/rcData'
+import { SCREEN1_PROBLEM, SCREEN3_PROBLEMS, SCREEN4_CARDS, buildTurns } from '@/data/lessonScenario'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
+import { useOnboardingStore } from '@/store/onboardingStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 import { useConversation } from '@11labs/react'
 
-const LABELS = ['A', 'B', 'C', 'D']
 const TEACHER_IMG = '/image_reference/park-2.jpg'
 const INSTRUCTOR_PHOTO = '/image_reference/park-3.jpg'
 const AGENT_ID = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
-const SET = P5_QUESTIONS.slice(0, 5)
 
-const P5_INTRO_SCRIPT =
-  '안녕하세요! 오늘은 Part 5 단문 공란을 배울 거예요. 빈칸 자리의 문법과 문맥을 보고 알맞은 단어를 고르는 전략을 익혀볼게요. 준비됐죠? 😊'
+/* 실전 문제(SCREEN3_PROBLEMS)에 원본 words/blankIndex 방식 그대로 사용 */
+type P5Question = typeof SCREEN3_PROBLEMS[number]
+const LESSON_QUESTION: P5Question = {
+  number: '1단계',
+  words: SCREEN1_PROBLEM.words,
+  blankIndex: SCREEN1_PROBLEM.blankIndex,
+  correctAnswer: SCREEN1_PROBLEM.correctAnswer,
+  choices: SCREEN1_PROBLEM.choices,
+  explanation: '주어(issues)가 복수이므로 단수형 was handled는 제외. 문제(issues)가 처리되는 대상이므로 수동태 were handled가 정답이에요.',
+}
+
 const P5_INTRO_POINTS = [
-  { text: '빈칸 자리의 품사·문장 성분 파악' },
-  { text: '태·시제·수일치 등 문법 단서 확인' },
-  { text: '문맥·어휘로 최종 확정' },
+  { text: '주어와 행위의 관계(능동/수동) 확인하기' },
+  { text: '동사 뒤 목적어 유무로 태 판별하기' },
+  { text: '주어의 수와 시간 부사로 시제 확정하기' },
 ]
-const SUMMARY_CARDS = [
-  { before: '단문 공란은 빈칸 자리의 ', blank: '품사', after: '부터 확인한다.', accept: ['품사', '문법'] },
-  { before: '', blank: '태·시제', after: ' 같은 문법 단서를 본다.', accept: ['태', '시제', '문법'] },
-  { before: '남으면 ', blank: '문맥', after: '과 어휘로 확정한다.', accept: ['문맥', '어휘'] },
-]
-const CLOSING_SUMMARY_SCRIPT =
-  '오늘 배운 Part 5 핵심! 빈칸 자리의 품사를 먼저 잡고, 태와 시제, 수일치 같은 문법 단서를 보고, 문맥으로 확정하세요. 수고 많았어요!'
+/* 원본 마무리 멘트 (s5_closing) */
+const CLOSING_SUMMARY_SCRIPT = '수고했어. 오늘 배운 거 요약 노트로 저장해둬. 나중에 헷갈릴 때 꺼내봐. MY PAGE에 쌓이니까 틈틈이 복습해.'
+
 const STUDENT_VARS: Record<string, string> = {
-  user_name: '지윤', target_score: '900', study_range: '파트 파이브 단문 공란',
+  user_name: '지윤', target_score: '900', study_range: '파트 파이브 수동태',
   exam_date: '다음 달', daily_time: '하루 한 시간', learning_style: '집중형', management_style: '주도형', motivation_type: '목표 달성형',
-  instructor_greeting: '자, 오늘은 파트 파이브 단문 공란을 같이 풀어보자. 빈칸 하나씩 짚어줄게. 시작하자.',
+  instructor_greeting: '자, 오늘은 파트 파이브 수동태를 같이 풀어보자. 빈칸 하나씩 짚어줄게. 시작하자.',
 }
 
 interface Props { onEnd?: () => void }
@@ -62,14 +66,19 @@ function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => v
   )
 }
 
-/* 문장 (빈칸 하이라이트 + 선택 단어 채움) */
-function SentenceView({ sentence, filled }: { sentence: string; filled?: string }) {
-  const parts = sentence.split('_______')
+/* 문장 (words 배열 + blankIndex 기준으로 빈칸 렌더) */
+function SentenceView({ q, filledText }: { q: P5Question; filledText?: string }) {
   return (
     <p className="text-base md:text-xl leading-loose text-[#1A2B4B] font-medium">
-      {parts[0]}
-      <span className={`inline-block min-w-[100px] text-center font-bold px-2 py-0.5 rounded border-b-2 mx-1 ${filled ? 'border-[#2277F0] text-[#2277F0] bg-[#EFF6FF]' : 'border-gray-300 text-transparent'}`}>{filled || '　'}</span>
-      {parts[1]}
+      {q.words.map((w, i) => (
+        <span key={i}>
+          {i === q.blankIndex ? (
+            <span className={`inline-block min-w-[110px] text-center font-bold px-2 py-0.5 rounded border-b-2 mx-1 ${filledText ? 'border-[#2277F0] text-[#2277F0] bg-[#EFF6FF]' : 'border-gray-300 text-transparent'}`}>{filledText || '　'}</span>
+          ) : (
+            <>{w}{' '}</>
+          )}
+        </span>
+      ))}
     </p>
   )
 }
@@ -88,20 +97,42 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
   return (
     <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
-      <span className="font-medium leading-snug">{text}</span>
+      <span className="font-medium leading-snug flex-1">{text}</span>
+      {(state === 'selected-correct' || state === 'reveal-correct') && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      {state === 'selected-wrong' && (
+        <span className="ml-auto shrink-0 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </span>
+      )}
     </button>
   )
 }
 
+/* [  A  ] 형식의 다중 빈칸 요약 카드 파싱 */
+type Segment = string | { blank: string }
+function parseSummaryPrompt(prompt: string): Segment[] {
+  const parts = prompt.split(/\[\s*([A-Z])\s*\]/g)
+  return parts.map((p, i) => (i % 2 === 1 ? { blank: p } : p)).filter((s) => s !== '')
+}
+
 export default function Part5BlankScreen({ onEnd }: Props) {
   const persona = useClassroomStore((s) => s.persona)
+  const userName = useOnboardingStore((s) => s.userName) || '민주'
+  const introScript = buildTurns(userName).s0_intro.script
+
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'reading' | 'summary'>('intro')
   const [qIndex, setQIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
-  const [lessonQIndex, setLessonQIndex] = useState(0)
+  const [lessonAnswered, setLessonAnswered] = useState(false)
+  const [lessonSelected, setLessonSelected] = useState<number | undefined>(undefined)
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const [inputText, setInputText] = useState('')
-  const [summaryInputs, setSummaryInputs] = useState(['', '', ''])
+  // 카드별 · 블랭크별 입력값
+  const [summaryInputs, setSummaryInputs] = useState<Record<string, string>>({})
   const [summaryChecked, setSummaryChecked] = useState(false)
   const draw = useDrawingTool()
   const mainRef = useRef<HTMLDivElement>(null)
@@ -114,12 +145,11 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   const connecting = conversation.status === 'connecting'
 
   const handleEnd = onEnd ?? (() => window.history.back())
-  const total = SET.length
-  const isLast = qIndex === total - 1
+  const total = SCREEN3_PROBLEMS.length
 
   useEffect(() => {
     if (phase !== 'intro') return
-    void speakTTS(P5_INTRO_SCRIPT, persona)
+    void speakTTS(introScript, persona)
     return () => stopCurrentAudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
@@ -132,50 +162,23 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   // ── 도입 ──
   if (phase === 'intro') {
     return (
-      <LessonIntro tag="Part 5 단문 공란" script={P5_INTRO_SCRIPT} points={P5_INTRO_POINTS}
-        onStart={() => { stopCurrentAudio(); setMessages([]); setLessonQIndex(0); setPhase('lesson') }} onEnd={handleEnd} />
+      <LessonIntro tag="Part 5 수동태" script={introScript} points={P5_INTRO_POINTS}
+        onStart={() => { stopCurrentAudio(); setMessages([]); setLessonAnswered(false); setLessonSelected(undefined); setPhase('lesson') }} onEnd={handleEnd} />
     )
   }
 
-  // 문항 카드 (수업/실전 공용)
-  const QuestionBlock = ({ q, selected, answered, onSelect }: { q: typeof SET[number]; selected?: number; answered: boolean; onSelect: (i: number) => void }) => (
-    <div className="space-y-4">
-      <span className="inline-block bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">{q.category}</span>
-      <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 md:p-5">
-        <SentenceView sentence={q.sentence} filled={selected !== undefined ? q.choices[selected] : undefined} />
-      </div>
-      <div className="flex flex-col gap-2 md:gap-2.5">
-        {q.choices.map((c, i) => {
-          let state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed' = 'idle'
-          if (answered) {
-            if (i === q.answer) state = i === selected ? 'selected-correct' : 'reveal-correct'
-            else if (i === selected) state = 'selected-wrong'
-            else state = 'dimmed'
-          }
-          return <ChoiceCard key={i} label={LABELS[i]} text={c} state={state} disabled={answered} onClick={() => onSelect(i)} />
-        })}
-      </div>
-      {answered && (
-        <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
-          <div className="flex items-center gap-2 mb-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
-            <span className="text-xs md:text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
-            <span className={`ml-auto text-[11px] md:text-xs font-bold px-2 py-0.5 rounded-md ${selected === q.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{selected === q.answer ? '✓ 정답' : '✕ 오답'}</span>
-          </div>
-          <p className="text-[13px] md:text-[15px] text-[#374151] leading-relaxed">{q.explanation}</p>
-        </div>
-      )}
-    </div>
-  )
+  const isLast = qIndex === total - 1
+  const correctIndexOf = (q: P5Question) => q.choices.findIndex((c) => c.text === q.correctAnswer)
 
   // ── 수업 ──
   if (phase === 'lesson') {
-    const q = SET[lessonQIndex]
+    const q = LESSON_QUESTION
+    const correctIdx = correctIndexOf(q)
     const lastAi = [...messages].reverse().find((m) => m.role === 'ai')?.text ?? ''
     const startAgent = () => { setMessages([]); conversation.startSession({ agentId: AGENT_ID, dynamicVariables: STUDENT_VARS }).catch(() => {}) }
     const sendText = () => { const t = inputText.trim(); if (!t || !connected) return; conversation.sendUserMessage(t); setInputText('') }
     const goReading = () => { try { conversation.endSession() } catch { /* noop */ } stopCurrentAudio(); setPhase('reading') }
+    const select = (i: number) => { if (lessonAnswered) return; setLessonSelected(i); setLessonAnswered(true) }
     return (
       <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
         <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
@@ -232,16 +235,35 @@ export default function Part5BlankScreen({ onEnd }: Props) {
             <button onClick={goReading} className="shrink-0 border-t border-gray-100 py-3 text-[13px] font-bold text-[#2277F0] hover:bg-[#2277F0]/5">실전 문제 풀기 →</button>
           </aside>
 
-          {/* 좌: 문장 + 빈칸 문제 (문항 탭) */}
+          {/* 좌: 문장 + 빈칸 문제 */}
           <div ref={mainRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
             <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
-              <div className="flex items-center gap-2">
-                {SET.map((_, i) => (
-                  <button key={i} onClick={() => setLessonQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold ${i === lessonQIndex ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>Q{i + 1}</button>
-                ))}
-                <span className="ml-auto text-xs text-gray-400 font-medium">{lessonQIndex + 1} / {total}</span>
+              <span className="inline-block bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">{SCREEN1_PROBLEM.partLabel}</span>
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 md:p-5">
+                <SentenceView q={q} filledText={lessonSelected !== undefined ? q.choices[lessonSelected].text : undefined} />
               </div>
-              <QuestionBlock q={q} answered={false} onSelect={() => {}} />
+              <div className="flex flex-col gap-2 md:gap-2.5">
+                {q.choices.map((c, i) => {
+                  let state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed' = 'idle'
+                  if (lessonAnswered) {
+                    if (i === correctIdx) state = i === lessonSelected ? 'selected-correct' : 'reveal-correct'
+                    else if (i === lessonSelected) state = 'selected-wrong'
+                    else state = 'dimmed'
+                  }
+                  return <ChoiceCard key={c.id} label={c.id} text={c.text} state={state} disabled={lessonAnswered} onClick={() => select(i)} />
+                })}
+              </div>
+              {lessonAnswered && (
+                <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
+                    <span className="text-xs md:text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
+                    <span className={`ml-auto text-[11px] md:text-xs font-bold px-2 py-0.5 rounded-md ${lessonSelected === correctIdx ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{lessonSelected === correctIdx ? '✓ 정답' : '✕ 오답'}</span>
+                  </div>
+                  <p className="text-[13px] md:text-[15px] text-[#374151] leading-relaxed">{q.explanation}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -251,7 +273,8 @@ export default function Part5BlankScreen({ onEnd }: Props) {
 
   // ── 실전 ──
   if (phase !== 'summary') {
-    const q = SET[qIndex]
+    const q = SCREEN3_PROBLEMS[qIndex]
+    const correctIdx = correctIndexOf(q)
     const selected = answers[qIndex]
     const answered = selected !== undefined
     const select = (i: number) => { if (answered) return; setAnswers((a) => ({ ...a, [qIndex]: i })) }
@@ -263,12 +286,43 @@ export default function Part5BlankScreen({ onEnd }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
             <div className="flex items-center gap-2">
-              {SET.map((_, i) => (
-                <button key={i} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold ${i === qIndex ? 'bg-[#2277F0] text-white' : answers[i] !== undefined ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>Q{i + 1}</button>
-              ))}
+              {SCREEN3_PROBLEMS.map((p, i) => {
+                const ans = answers[i]
+                const tabCls = i === qIndex
+                  ? 'bg-[#2277F0] text-white'
+                  : ans === undefined ? 'bg-gray-100 text-gray-400'
+                  : ans === correctIndexOf(p) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                return <button key={p.number} onClick={() => setQIndex(i)} className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-xs md:text-sm font-bold ${tabCls}`}>{p.number}</button>
+              })}
               <span className="ml-auto text-xs md:text-sm text-gray-400 font-medium">{Object.keys(answers).length}/{total}</span>
             </div>
-            <QuestionBlock q={q} selected={selected} answered={answered} onSelect={select} />
+
+            <span className="inline-block bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">Part 5 · 수동태</span>
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 md:p-5">
+              <SentenceView q={q} filledText={selected !== undefined ? q.choices[selected].text : undefined} />
+            </div>
+            <div className="flex flex-col gap-2 md:gap-2.5">
+              {q.choices.map((c, i) => {
+                let state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed' = 'idle'
+                if (answered) {
+                  if (i === correctIdx) state = i === selected ? 'selected-correct' : 'reveal-correct'
+                  else if (i === selected) state = 'selected-wrong'
+                  else state = 'dimmed'
+                }
+                return <ChoiceCard key={c.id} label={c.id} text={c.text} state={state} disabled={answered} onClick={() => select(i)} />
+              })}
+            </div>
+            {answered && (
+              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
+                  <span className="text-xs md:text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
+                  <span className={`ml-auto text-[11px] md:text-xs font-bold px-2 py-0.5 rounded-md ${selected === correctIdx ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{selected === correctIdx ? '✓ 정답' : '✕ 오답'}</span>
+                </div>
+                <p className="text-[13px] md:text-[15px] text-[#374151] leading-relaxed">{q.explanation}</p>
+              </div>
+            )}
             <button onClick={next} disabled={!answered} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 문제 →'}</button>
           </div>
         </div>
@@ -276,11 +330,18 @@ export default function Part5BlankScreen({ onEnd }: Props) {
     )
   }
 
-  // ── 정리 ──
-  const correct = SET.filter((_, i) => answers[i] === SET[i].answer).length
-  const results = SUMMARY_CARDS.map((c, i) => c.accept.some((a) => summaryInputs[i].replace(/\s/g, '').includes(a)))
-  const allFilled = summaryInputs.every((s) => s.trim().length > 0)
-  const correctCount = results.filter(Boolean).length
+  // ── 정리 (원본 SCREEN4_CARDS 다중 빈칸) ──
+  const correct = SCREEN3_PROBLEMS.filter((p, i) => answers[i] === correctIndexOf(p)).length
+  const cardResults = SCREEN4_CARDS.map((card) =>
+    card.blanks.every((b) => {
+      const val = (summaryInputs[`${card.id}_${b}`] ?? '').replace(/\s/g, '')
+      const keywords = card.keywords[b as keyof typeof card.keywords] as string[]
+      return keywords.some((k) => val.includes(k.replace(/\s/g, '')))
+    })
+  )
+  const allFilled = SCREEN4_CARDS.every((card) => card.blanks.every((b) => (summaryInputs[`${card.id}_${b}`] ?? '').trim().length > 0))
+  const correctCount = cardResults.filter(Boolean).length
+
   return (
     <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
       <PhaseStepper active={3} onEnd={handleEnd} />
@@ -289,26 +350,48 @@ export default function Part5BlankScreen({ onEnd }: Props) {
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
-            <div className="flex-1 min-w-0"><h2 className="text-lg md:text-xl font-bold text-[#1A2B4B]">오늘 수업 완료!</h2><p className="text-xs md:text-sm text-gray-500">Part 5 단문 공란 · 실전 {correct}/{total} 정답</p></div>
+            <div className="flex-1 min-w-0"><h2 className="text-lg md:text-xl font-bold text-[#1A2B4B]">오늘 수업 완료!</h2><p className="text-xs md:text-sm text-gray-500">Part 5 수동태 · 실전 {correct}/{total} 정답</p></div>
           </div>
           <div className="flex items-center gap-2 mb-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2277F0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             <p className="text-sm md:text-base font-bold text-[#1A2B4B]">핵심 요약 — 빈칸을 채워보세요</p>
           </div>
           <div className="space-y-3 mb-6">
-            {SUMMARY_CARDS.map((c, i) => {
-              const ok = results[i]
+            {SCREEN4_CARDS.map((card, ci) => {
+              const segments = parseSummaryPrompt(card.prompt)
+              const ok = cardResults[ci]
               return (
-                <div key={i} className={`rounded-2xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                <div key={card.id} className={`rounded-2xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-3">
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{ci + 1}</span>
                     <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
-                      {c.before}
-                      {summaryChecked
-                        ? <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-500 line-through'}`}>{summaryInputs[i].trim() || '　'}</span>
-                        : <input value={summaryInputs[i]} onChange={(e) => setSummaryInputs((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))} className="mx-1 w-28 text-center border-b-2 border-[#2277F0] bg-[#EFF6FF] rounded-sm px-1 py-0.5 font-bold text-[#2277F0] outline-none" placeholder="빈칸" />}
-                      {summaryChecked && !ok && <span className="font-bold text-green-700 mx-1">→ {c.blank}</span>}
-                      {c.after}
+                      {segments.map((seg, si) =>
+                        typeof seg === 'string' ? <span key={si}>{seg}</span> : (
+                          <span key={si}>
+                            {summaryChecked ? (
+                              (() => {
+                                const key = `${card.id}_${seg.blank}`
+                                const val = (summaryInputs[key] ?? '').replace(/\s/g, '')
+                                const kw = card.keywords[seg.blank as keyof typeof card.keywords] as string[]
+                                const blankOk = kw.some((k) => val.includes(k.replace(/\s/g, '')))
+                                return (
+                                  <>
+                                    <span className={`font-bold ${blankOk ? 'text-green-700' : 'text-red-500 line-through'}`}>{summaryInputs[key]?.trim() || '　'}</span>
+                                    {!blankOk && <span className="font-bold text-green-700 mx-1">→ {card.answers[seg.blank as keyof typeof card.answers]}</span>}
+                                  </>
+                                )
+                              })()
+                            ) : (
+                              <input
+                                value={summaryInputs[`${card.id}_${seg.blank}`] ?? ''}
+                                onChange={(e) => setSummaryInputs((prev) => ({ ...prev, [`${card.id}_${seg.blank}`]: e.target.value }))}
+                                className="mx-1 w-20 text-center border-b-2 border-[#2277F0] bg-[#EFF6FF] rounded-sm px-1 py-0.5 font-bold text-[#2277F0] outline-none"
+                                placeholder={seg.blank}
+                              />
+                            )}
+                          </span>
+                        )
+                      )}
                     </p>
                   </div>
                 </div>
@@ -319,7 +402,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
             <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
           ) : (
             <>
-              <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SUMMARY_CARDS.length} 정답!</p>
+              <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SCREEN4_CARDS.length} 정답!</p>
               <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -330,7 +413,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{CLOSING_SUMMARY_SCRIPT}</p>
               </div>
               <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
-              <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs(['', '', '']) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
+              <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs({}) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
             </>
           )}
         </div>
