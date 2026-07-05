@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useConversation } from '@11labs/react'
 
 const AGENT_ID = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
-const QUESTION_NUMBER = 148
+// Supabase questions.question_code — 문항 사실(지문·보기·정답·근거·오답태그)은 전부 DB에서 온다
+const QUESTION_CODE = 'RC-P7-03-Q006' // Part7 자동차 광고 148번 (why 이유)
 const STUDENT_ID = 'demo'
 const INSTRUCTOR_NAME = '박혜원'
 const INSTRUCTOR_IMG  = '/instructor/park.png'
@@ -84,7 +85,7 @@ export default function ElevenLabsConvAIPanel() {
     if (connected && !ctxSentRef.current) {
       ctxSentRef.current = true
       ;(async () => {
-        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionNumber: QUESTION_NUMBER })
+        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionCode: QUESTION_CODE })
         if (res.sessionId) sessionIdRef.current = res.sessionId
         if (res.contextual) sendContextual(res.contextual)
       })()

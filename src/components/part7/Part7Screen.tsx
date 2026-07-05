@@ -11,6 +11,7 @@ import {
   PART7_SETS, DIRECTIONS, P7_TURNS,
   type Choice, type Question,
 } from '@/data/part7Scenario'
+import { useDbQuestions, toPart7Set, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 import { waitForVideoEnd, notifyVideoEnded, speakTurn, stopCurrentAudio } from '@/lib/tts'
 
 type TurnId = keyof typeof P7_TURNS
@@ -30,7 +31,12 @@ interface Props { onEnd: (result: Part7EndResult) => void }
 
 export default function Part7Screen({ onEnd }: Props) {
   const persona = useClassroomStore((s) => s.persona)
-  const set     = PART7_SETS[0]
+  // 문항은 Supabase DB에서 로드 (실패 시 하드코딩 폴백) — 대사(P7_TURNS)는 스크립트 수업이라 코드 유지
+  const set = useDbQuestions(
+    useStableCodes(Q_CODES.p7CarAd),
+    (rows) => toPart7Set(rows, PART7_SETS[0]),
+    PART7_SETS[0],
+  )
 
   const [turnId, setTurnId]     = useState<TurnId>('p7_t1')
   const [speech, setSpeech]     = useState('')

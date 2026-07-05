@@ -329,6 +329,17 @@ const PASSIVE_VOICE_QUESTION: TutorQuestion = {
   grammarType: 'RC-P5-08',
 }
 
+/**
+ * DB question_code → 손질된 레일(유형학습 진행 순서) 매핑.
+ * 문항 사실(지문·보기·정답·근거·오답이유)은 전부 Supabase DB에서 오고,
+ * 여기는 "진행 순서 + 채점 키워드 + 힌트"만 남는다.
+ * TODO: 시트의 유형학습 설계가 확정되면 lecture_steps 테이블로 이관.
+ */
+export const TUTOR_RAILS: Record<string, TutorStep[]> = {
+  'RC-P7-03-Q006': WHY_REASON_RAIL,   // Part7 자동차 광고 148번 (why 이유)
+  'RC-P5-08-Q002': PASSIVE_VOICE_RAIL, // Part5 수동태 (technical issues)
+}
+
 export const TUTOR_QUESTIONS: TutorQuestion[] = [
   {
     number: 148,

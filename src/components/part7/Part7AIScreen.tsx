@@ -8,6 +8,7 @@ import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 import { PART7_SETS, DIRECTIONS, type Question, type Choice } from '@/data/part7Scenario'
+import { useDbQuestions, toPart7Set, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 
 export interface Part7AIEndResult {
   correct: number
@@ -19,7 +20,12 @@ interface Props { onEnd: (result: Part7AIEndResult) => void }
 
 export default function Part7AIScreen({ onEnd }: Props) {
   const router = useRouter()
-  const set = PART7_SETS[0]
+  // 문항은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
+  const set = useDbQuestions(
+    useStableCodes(Q_CODES.p7CarAd),
+    (rows) => toPart7Set(rows, PART7_SETS[0]),
+    PART7_SETS[0],
+  )
 
   const [answers, setAnswers]       = useState<Record<number, string>>({})
   const [submitted, setSubmitted]   = useState(false)

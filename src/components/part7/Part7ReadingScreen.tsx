@@ -10,6 +10,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { P7_PASSAGES, type P7Passage } from '@/data/rcData'
 import { PART7_SETS } from '@/data/part7Scenario'
+import { useDbQuestions, toPart7Set, toP7Passage, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
@@ -51,8 +52,8 @@ const STUDENT_VARS: Record<string, string> = {
   instructor_greeting: '자, 오늘은 파트 세븐 백사십팔 번 문제 같이 풀어볼 거야. 차를 왜 파는지 묻는 문제야. 준비됐지? 바로 시작하자.',
 }
 
-/* 수업 지문·문제 = 에이전트가 가르치는 세트 (중고차, 147·148) */
-const LESSON_SET = PART7_SETS[0]
+/* 수업 지문·문제 = 에이전트가 가르치는 세트 (중고차, 147·148) — DB 로드 실패 시 폴백 */
+const FALLBACK_LESSON_SET = PART7_SETS[0]
 
 interface Props {
   onEnd?: () => void
@@ -219,7 +220,17 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
 }
 
 export default function Part7ReadingScreen({ onEnd }: Props) {
-  const passage = P7_PASSAGES[0]
+  // 문항(수업 세트 + 실전 지문)은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
+  const LESSON_SET = useDbQuestions(
+    useStableCodes(Q_CODES.p7CarAd),
+    (rows) => toPart7Set(rows, FALLBACK_LESSON_SET),
+    FALLBACK_LESSON_SET,
+  )
+  const passage = useDbQuestions(
+    useStableCodes(Q_CODES.p7Greenwood),
+    (rows) => toP7Passage(rows, P7_PASSAGES[0]),
+    P7_PASSAGES[0],
+  )
   const persona = useClassroomStore((s) => s.persona)
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'reading' | 'summary'>('intro')
 
