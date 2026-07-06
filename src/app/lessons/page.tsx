@@ -887,16 +887,30 @@ export default function LessonsPage() {
     return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : `D+${Math.abs(diff)}`
   }, [examDate])
 
-  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹.
-     파일럿: 우선 Part 5만 실제 수업에 연결하고 나머지는 '준비 중'. */
+  /* DB 유형학습 수업 — Supabase lectures/questions 기반 자동 목록.
+     시트에 강의+문항이 추가되면(동기화 후) 코드 수정 없이 해당 Part 카드 안에 수업이 늘어난다.
+     각 수업은 /lesson/[lectureCode] — 파트별 문항 UI + 시트 레일(lecture_steps) 음성 수업. */
+  const dbLectures = useDbLectures()
+
+  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹 + DB 강의를 파트별로 합류. */
   const partCourses = useMemo<CourseData[]>(() => {
     return PART_META.map(p => {
       const label = `Part ${p.n}`
       const active = ACTIVE_PARTS.has(p.n)
       const srcCourses = COURSES.filter(c => c.lessons.some(l => l.partLabel === label))
-      const lessons: Lesson[] = active
+      const baseLessons: Lesson[] = active
         ? (NEW_LESSONS[p.n] ?? srcCourses.flatMap(c => c.lessons.filter(l => l.partLabel === label)))
         : []
+      const dbLessons: Lesson[] = dbLectures
+        .filter((lec) => lec.part === p.n)
+        .map((lec) => ({
+          id: `db-${lec.code}`,
+          title: `${lec.title} · 문항 ${lec.questionCount}개`,
+          status: 'upcoming' as LessonStatus,
+          partLabel: label,
+          href: `/lesson/${lec.code}`,
+        }))
+      const lessons = [...baseLessons, ...dbLessons]
       // 파트 완료 시 열리는 비법 노트 — 해당 파트가 속한 코스의 tipNote를 가져옴
       const tipNote = active ? srcCourses.find(c => c.tipNote)?.tipNote : undefined
       return {
@@ -912,30 +926,6 @@ export default function LessonsPage() {
         tipNote,
       }
     })
-  }, [])
-
-  /* DB 유형학습 수업 — Supabase lectures/questions 기반 자동 목록.
-     시트에 강의+문항이 추가되면(동기화 후) 코드 수정 없이 여기 수업이 늘어난다.
-     각 수업은 /lesson/[lectureCode] — 파트별 문항 UI + 시트 레일(lecture_steps) 음성 수업. */
-  const dbLectures = useDbLectures()
-  const dbCourse = useMemo<CourseData | null>(() => {
-    if (dbLectures.length === 0) return null
-    return {
-      id: 99,
-      emoji: '🗄️',
-      accentColor: '#0EA5E9',
-      title: 'DB 유형학습 수업 (자동 생성)',
-      duration: '',
-      desc: '문항 DB에 등록된 강의가 자동으로 나타나요 — 시트에 문항을 추가해 보세요',
-      fullyLocked: false,
-      lessons: dbLectures.map((lec) => ({
-        id: `db-${lec.code}`,
-        title: `${lec.title} · 문항 ${lec.questionCount}개`,
-        status: 'upcoming' as LessonStatus,
-        partLabel: `Part ${lec.part}`,
-        href: `/lesson/${lec.code}`,
-      })),
-    }
   }, [dbLectures])
 
   /* 기존 콘텐츠 — 구버전 아카이브. 앞으로 새 버전을 수정해도 여기는 그대로 보존.
@@ -1083,12 +1073,7 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* ── DB 유형학습 수업 — Supabase 강의·문항 기반 자동 목록 ── */}
-              {dbCourse && (
-                <CourseSection course={dbCourse} labelPrefix="" onOpenStudy={openStudy} onOpenTip={openTip} />
-              )}
-
-              {/* 파트 목록 (Part 1~7) */}
+              {/* 파트 목록 (Part 1~7) — DB 강의(있으면)가 각 파트 카드 안에 자동 합류됨 */}
               <p className="text-lg font-bold text-red-500">파트별 UI 수정 중</p>
               {partCourses.map((course) => (
                 <CourseSection key={course.id} course={course} labelPrefix="Part" onOpenStudy={openStudy} onOpenTip={openTip} />
