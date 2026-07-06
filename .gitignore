@@ -42,3 +42,9 @@ client_secret_*.json
 /kb/
 gen_excel.py
 *.xlsx
+
+# Google API credentials & temporary files
+credentials.json
+credentials.json.json
+scripts/temp-slides.md
+

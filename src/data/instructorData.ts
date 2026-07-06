@@ -1,53 +1,53 @@
 export const INST_NAME: Record<string, string> = {
-  park: '박혜원',
-  jang: '장연지',
-  kim: '김토익',
-  jeong: '정은순',
-  lee: '이인호',
-  oh: '오정자',
+  park_hyewon: '박혜원',
+  jang_yeonji: '장연지',
+  kim_toeic: '김토익',
+  jeong_eunsoon: '정은순',
+  lee_inho: '이인호',
+  oh_jungja: '오정자',
 }
 
 export const INST_THUMBS: Record<string, string> = {
-  park: '/image_reference/park-2.jpg',
-  jang: '/image_reference/jang.png',
-  kim: '/image_reference/kim.png',
-  jeong: '/image_reference/jung.png',
-  lee: '/image_reference/lee.png',
-  oh: '/image_reference/ojungja.jpg',
+  park_hyewon: '/image_reference/park-2.jpg',
+  jang_yeonji: '/image_reference/jang.png',
+  kim_toeic: '/image_reference/kim.png',
+  jeong_eunsoon: '/image_reference/jung.png',
+  lee_inho: '/image_reference/lee.png',
+  oh_jungja: '/image_reference/ojungja.jpg',
 }
 
 export const INST_WEAK_COMMENTS: Record<string, Partial<Record<string, string>>> = {
-  park: {
+  park_hyewon: {
     P5: 'P5에서 시간 다 쓰면 뒤가 무너져. 품사 자리부터 바로 파악하는 훈련 해.',
     P6: 'P6는 앞 문장 꼭 읽어. 문맥 놓치면 다 틀려. 흐름 파악이 먼저야.',
     P7: 'P7은 문제 먼저 읽어. 지문 다 읽고 찾으면 시간 끝나. 전략이 실력이야.',
     P3: '짧은 대화는 첫 문장이 핵심이야. 첫 줄 놓치면 흐름 다 놓쳐.',
   },
-  jang: {
+  jang_yeonji: {
     P5: 'P5 단문은 패턴이 있어요. 빈칸 앞뒤만 읽어도 답 나와요 😊',
     P6: 'P6는 앞 문장 연결이 핵심이에요. 천천히 읽으면 답이 보여요 ✨',
     P7: 'P7은 질문 먼저 읽고 지문에서 찾아요. 전체 다 읽으려 하지 마요 🌸',
     P3: '대화 흐름만 따라가면 돼요. 첫 문장 집중해서 들어봐요.',
   },
-  kim: {
+  kim_toeic: {
     P5: 'P5는 10분 컷이 목표. 품사→시제→어휘 순서로 접근하세요.',
     P6: 'P6 문맥 파악이 약점. 단락 간 접속어와 연결 표현 리스트 따로 정리하세요.',
     P7: 'P7 시간 배분이 관건. 질문 먼저 읽고 해당 부분만 스캔하세요.',
     P3: '짧은 대화는 첫 발화에 핵심이 있습니다. 집중도를 높이세요.',
   },
-  jeong: {
+  jeong_eunsoon: {
     P5: '어렵지 않아요 💜 빈칸 앞뒤 문맥만 보면 돼요. 할 수 있어요!',
     P6: 'P6는 지문을 한 번만 더 읽어봐요. 흐름만 잡아도 반은 맞아요 💜',
     P7: 'P7 길어 보여도 겁먹지 마요! 질문 먼저 보고 답 찾는 연습부터 해요 💪',
     P3: '대화 첫 문장 집중하면 돼요. 긴장하지 않아도 괜찮아요!',
   },
-  lee: {
+  lee_inho: {
     P5: 'P5 정답률이 기준 미달. 품사 자리 판단 속도를 높여야 합니다. 반복 드릴 필요.',
     P6: 'P6 정답률 문제. 단락 간 연결 논리가 핵심. 접속사 패턴 암기 필요.',
     P7: 'P7 정답률 부족. 스캐닝 훈련이 필요합니다. 타이머 켜고 질문 선독 연습.',
     P3: '짧은 대화 집중도 저하. 첫 발화 포커싱 훈련 필요합니다.',
   },
-  oh: {
+  oh_jungja: {
     P5: 'P5는 천천히 읽어봐요. 빈칸 앞 단어 보고 품사 먼저 찾으면 돼요.',
     P6: 'P6는 앞에서부터 한 문장씩 보면 돼요. 서두르지 않아도 돼요.',
     P7: 'P7 긴 지문이라 힘들죠. 질문 보고 찾아 읽는 방법 같이 해봐요.',
@@ -56,7 +56,7 @@ export const INST_WEAK_COMMENTS: Record<string, Partial<Record<string, string>>>
 }
 
 export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string[] }> = {
-  park: {
+  park_hyewon: {
     dashboard: [
       '오늘 Part 5 딱 10문제만 해. 그거면 충분해. 작은 게 쌓이는 거야.',
       '지금 바로 켜. 고민하는 시간에 이미 한 문제 풀 수 있어.',
@@ -72,7 +72,7 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '7일 중 5일 접속. 2일 공백이 있었어. 다음 주엔 7일 채워봐. 습관이 실력을 만들어.',
     ],
   },
-  jang: {
+  jang_yeonji: {
     dashboard: [
       '오늘 못 풀어도 괜찮아요 😊 한번 읽기만 해도 오늘은 성공이에요.',
       '시작이 반이에요. 앱 켠 것만으로도 이미 훌륭해요 🌸',
@@ -88,7 +88,7 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '7일 동안 꾸준히 해준 것 봤어요 💜 이 페이스 그대로 유지하면 목표 점수 금방이에요!',
     ],
   },
-  kim: {
+  kim_toeic: {
     dashboard: [
       '바쁘면 5분만요. Part 5 한 섹션만 봐도 오늘 학습은 진짜 성공이에요.',
       '토익은 전략이에요. 빈칸 먼저 읽고 품사 확인 — 이것만 해도 5점 올라요.',
@@ -104,7 +104,7 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '이번 주 학습 연속일 5일. 2일 공백이 있었어요. 다음 주 7일 완주하면 예측 점수 올라가요.',
     ],
   },
-  jeong: {
+  jeong_eunsoon: {
     dashboard: [
       '틀려도 괜찮아요 💜 오늘 한 단어만 기억해도 충분해요. 응원해요!',
       '오늘도 화면 켜준 것만으로 대단해요! 같이 한 문제씩 가봐요 💪',
@@ -120,7 +120,7 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '이번 주 학습량 정말 열심히 했어요. 다음 주도 이 페이스면 반드시 결과가 나와요 😊',
     ],
   },
-  lee: {
+  lee_inho: {
     dashboard: [
       '데이터 보니까 분사구문이 약점이야. 딱 이거 하나만 잡자. 빠르게.',
       '3일 연속 학습하면 기억 정착률 47% 올라가. 오늘 빠지면 리셋이야.',
@@ -136,7 +136,7 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
       '이번 주 분석 완료. 빠른 돌파구: Part 5 품사 자리 반사 판단 훈련. 이것만 잡으면 10점 즉각 상승 예측.',
     ],
   },
-  oh: {
+  oh_jungja: {
     dashboard: [
       '오늘도 왔네요. 자, 화장실 먼저 다녀오고 시작해요.',
       '서두르지 말아요. 천천히 한 문제씩 하면 돼요.',

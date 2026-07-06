@@ -11,16 +11,23 @@ import DiagnosisResult from '@/components/onboarding/DiagnosisResult'
 import CurriculumLoading from '@/components/onboarding/CurriculumLoading'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import { createClient } from '@/lib/supabase'
+import { saveProfileToSupabase } from '@/lib/profile'
 
 // step 1=Name 2=Quiz 3=Goal 4=DiagnosisLoading 5=Diagnosis 6=CurriculumLoading 7=Instructor 8=Curriculum
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1) // 홈에서 버튼을 누르고 오므로 바로 이름 입력(1)부터 시작
+  const [step, setStep] = useState(1)
   const router = useRouter()
   const store = useOnboardingStore()
 
+  const handleLogout = async () => {
+    await createClient().auth.signOut()
+    router.replace('/')
+  }
+
   const next = () => setStep((s) => s + 1)
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     store.setUserName('토익초보')
     store.setTargetScore(750)
     store.setStudyRange('LC+RC')
@@ -30,17 +37,16 @@ export default function OnboardingPage() {
     store.setMotivation('R')
     store.setDailyTime('1시간')
 
-    // 기본 시험일 설정 (약 3개월 후)
     const threeMonthsLater = new Date()
     threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3)
     const examDate = threeMonthsLater.toISOString().split('T')[0]
     store.setExamDate(examDate)
     store.setStudyPeriod('3개월')
     store.setSelectedInstructor('park')
-    
-    // 프로필 저장
+
     store.saveCurrentProfile()
-    
+    await saveProfileToSupabase(useOnboardingStore.getState()).catch(e => console.error('[skip] 저장 실패:', e))
+
     router.push('/dashboard')
   }
 
@@ -87,6 +93,12 @@ export default function OnboardingPage() {
       {/* 건너뛰기 버튼 그룹 */}
       {step < 6 && (
         <div className="absolute top-6 right-6 z-50 flex items-center gap-2">
+          <button
+            onClick={handleLogout}
+            className="text-[#9CA3AF] text-[12px] font-medium hover:text-[#EF4444] transition-colors bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-[#E5E7EB]"
+          >
+            로그아웃
+          </button>
           <button
             onClick={handleSkipToInstructor}
             className="text-[#9CA3AF] text-[12px] font-medium hover:text-[#6B7280] transition-colors bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-[#E5E7EB]"

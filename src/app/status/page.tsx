@@ -388,11 +388,11 @@ export default function StatusPage() {
   const [typingDone, setTypingDone] = useState(false)
   const [msgIdx, setMsgIdx] = useState(0)
 
-  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.status ?? []
-  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
-  const instThumb = (selectedInstructor ?? 'park') === 'park'
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park_hyewon']?.status ?? []
+  const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
+  const instThumb = (selectedInstructor ?? 'park_hyewon') === 'park_hyewon'
     ? '/image_reference/park-report.png'
-    : INST_THUMBS[selectedInstructor ?? 'park']
+    : INST_THUMBS[selectedInstructor ?? 'park_hyewon']
 
   const [callState, setCallState] = useState<'idle' | 'ringing' | 'log'>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
@@ -401,7 +401,7 @@ export default function StatusPage() {
   const handleReject = () => {
     setCallLog(prev => [...prev, {
       id: Date.now().toString(),
-      instructorKey: selectedInstructor ?? 'park',
+      instructorKey: selectedInstructor ?? 'park_hyewon',
       instructorName: instName,
       instructorThumb: instThumb,
       time: new Date(),
@@ -648,7 +648,7 @@ export default function StatusPage() {
                   <section className="flex flex-col">
                     <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">강사 처방전</p>
                     {(() => {
-                      const instKey = selectedInstructor ?? 'park'
+                      const instKey = selectedInstructor ?? 'park_hyewon'
                       const weakParts = PART_STATS.filter(p => p.accuracy < 70)
                       const comments = INST_WEAK_COMMENTS[instKey] ?? {}
                       return (

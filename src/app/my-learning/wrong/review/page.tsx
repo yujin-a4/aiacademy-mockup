@@ -10,9 +10,9 @@ const LABELS = ['A', 'B', 'C', 'D']
 
 const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익' }
 const INST_COLOR: Record<string, { bg: string; tc: string; border: string }> = {
-  park:  { bg: '#FEF3C7', tc: '#B45309', border: '#FDE68A' },
-  jang:  { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
-  kim:   { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
+  park_hyewon:  { bg: '#FEF3C7', tc: '#B45309', border: '#FDE68A' },
+  jang_yeonji:  { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
+  kim_toeic:    { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
 }
 
 function ReviewInner() {
@@ -37,8 +37,8 @@ function ReviewInner() {
   const [done, setDone]         = useState(false)
   const drawing = useDrawingTool()
 
-  const inst      = instructor ?? 'park'
-  const instColor = INST_COLOR[inst] ?? INST_COLOR.park
+  const inst      = instructor ?? 'park_hyewon'
+  const instColor = INST_COLOR[inst] ?? INST_COLOR.park_hyewon
 
   const titleLabel = category
     ? `${category} 집중 복습`

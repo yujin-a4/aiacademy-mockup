@@ -63,14 +63,14 @@ function OjjDashboard() {
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
-  const ojjName = INST_NAME['oh']
-  const ojjThumb = INST_THUMBS['oh']
+  const ojjName = INST_NAME['oh_jungja']
+  const ojjThumb = INST_THUMBS['oh_jungja']
   const handlePhoneClick = () => setCallState('ringing')
   const handleAnswer = () => setCallState('idle')
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
-      instructorKey: 'oh',
+      instructorKey: 'oh_jungja',
       instructorName: ojjName,
       instructorThumb: ojjThumb,
       time: new Date(),
@@ -566,8 +566,8 @@ function RegularDashboard() {
   const { userName, selectedInstructor, examDate } = useOnboardingStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const streakDay = useStreakDay()
-  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
-  const instThumb = INST_THUMBS[selectedInstructor ?? 'park'] ?? ''
+  const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
+  const instThumb = INST_THUMBS[selectedInstructor ?? 'park_hyewon'] ?? ''
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
@@ -577,7 +577,7 @@ function RegularDashboard() {
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
-      instructorKey: selectedInstructor ?? 'park',
+      instructorKey: selectedInstructor ?? 'park_hyewon',
       instructorName: instName,
       instructorThumb: instThumb,
       time: new Date(),
@@ -590,7 +590,7 @@ function RegularDashboard() {
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
   const [msgIdx, setMsgIdx] = useState(0)
-  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.dashboard ?? []
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park_hyewon']?.dashboard ?? []
 
   useEffect(() => { setMsgIdx(0) }, [selectedInstructor])
 
@@ -645,7 +645,7 @@ function RegularDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 md:pt-16 pb-28 md:pb-8">
           <div className="max-w-[1100px] mx-auto w-full space-y-4">
 
             {/* 데스크탑 상단 바 */}
@@ -674,11 +674,11 @@ function RegularDashboard() {
 
                 {/* 강사 사진 */}
                 <div className="absolute left-0 bottom-0 w-[44%] h-full flex items-end justify-center">
-                  {(selectedInstructor ?? 'park') === 'park' ? (
+                  {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
                     <img src="/image_reference/park-report.png" alt={instName}
                       className="h-full w-auto object-contain drop-shadow-md" />
                   ) : (
-                    <img src={INST_THUMBS[selectedInstructor ?? 'park']} alt={instName}
+                    <img src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']} alt={instName}
                       className="h-full w-full object-cover object-top"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   )}
@@ -802,6 +802,6 @@ function RegularDashboard() {
 /* ── 대시보드 라우터 ── */
 export default function Dashboard() {
   const { selectedInstructor } = useOnboardingStore()
-  if (selectedInstructor === 'oh') return <OjjDashboard />
+  if (selectedInstructor === 'oh_jungja') return <OjjDashboard />
   return <RegularDashboard />
 }
