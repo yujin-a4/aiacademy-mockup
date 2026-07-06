@@ -3,6 +3,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useState, useMemo } from 'react'
 import { P5_QUESTIONS, P6_PASSAGES, P7_PASSAGES } from '@/data/rcData'
 import type { RCChoices } from '@/data/rcData'
+import { useDbQuestions, useDbQuestionsByPassage, toP5Questions, toP6Passage, toP7Passage, Q_CODES, Q_ANCHORS, useStableCodes } from '@/data/db/questionStore'
 import ExitConfirmModal from '@/components/ExitConfirmModal'
 import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
@@ -89,31 +90,34 @@ export default function PartPracticePage() {
 
   const partInfo = PART_INFO[partId]
 
+  // 문항 데이터는 Supabase DB에서 로드 (실패 시 rcData 하드코딩 폴백)
+  const p5Bank = useDbQuestions(useStableCodes(Q_CODES.p5Bank), (r) => toP5Questions(r, P5_QUESTIONS), P5_QUESTIONS)
+  const p6Passage = useDbQuestionsByPassage(Q_ANCHORS.p6Memo, (r) => toP6Passage(r, P6_PASSAGES[0]), P6_PASSAGES[0])
+  const p7Passage = useDbQuestionsByPassage(Q_ANCHORS.p7Greenwood, (r) => toP7Passage(r, P7_PASSAGES[0]), P7_PASSAGES[0])
+
   const items: PracticeItem[] = useMemo(() => {
     const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5)
 
     if (partId === 'p5') {
-      return shuffle(P5_QUESTIONS).map(q => ({
+      return shuffle(p5Bank).map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         category: q.category, sentence: q.sentence,
       }))
     }
     if (partId === 'p6') {
-      const passage = P6_PASSAGES[Math.floor(Math.random() * P6_PASSAGES.length)]
-      return shuffle(passage.questions.map(q => ({
+      return shuffle(p6Passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         category: q.category, blankNum: q.blankNum,
       })))
     }
     if (partId === 'p7') {
-      const passage = P7_PASSAGES[Math.floor(Math.random() * P7_PASSAGES.length)]
-      return shuffle(passage.questions.map(q => ({
+      return shuffle(p7Passage.questions.map(q => ({
         choices: q.choices, answer: q.answer, explanation: q.explanation,
         question: q.question,
       })))
     }
     return []
-  }, [partId])
+  }, [partId, p5Bank, p6Passage, p7Passage])
 
   if (!partInfo || items.length === 0) {
     return (
@@ -151,8 +155,8 @@ export default function PartPracticePage() {
         category: current.category,
         explanation: current.explanation,
         passageTitle:
-          partId === 'p6' ? P6_PASSAGES[0].title :
-          partId === 'p7' ? P7_PASSAGES[0].title : undefined,
+          partId === 'p6' ? p6Passage.title :
+          partId === 'p7' ? p7Passage.title : undefined,
       })
     }
   }
@@ -336,14 +340,14 @@ export default function PartPracticePage() {
           <div className="md:flex-1 md:min-w-0 flex flex-col min-h-0">
             <div className="bg-white rounded-3xl p-5 md:p-6 shadow-lg border border-[#DBEAFE] max-h-[40vh] md:max-h-none md:flex-1 md:overflow-y-auto overflow-y-auto">
               <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-3">
-                {partId === 'p6' ? P6_PASSAGES[0].title : P7_PASSAGES[0].title}
+                {partId === 'p6' ? p6Passage.title : p7Passage.title}
               </p>
               {partId === 'p6' && current.blankNum !== undefined && (
-                <P6PassageView passage={P6_PASSAGES[0].passage} currentBlankNum={current.blankNum} />
+                <P6PassageView passage={p6Passage.passage} currentBlankNum={current.blankNum} />
               )}
               {partId === 'p7' && (
                 <p className="text-[13px] text-[#374151] leading-[1.8] whitespace-pre-line">
-                  {P7_PASSAGES[0].passage}
+                  {p7Passage.passage}
                 </p>
               )}
             </div>

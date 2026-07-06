@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { SCREEN1_PROBLEM, SCREEN3_PROBLEMS, SCREEN4_CARDS, buildTurns } from '@/data/lessonScenario'
+import { useDbQuestions, toBlankProblem, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
@@ -15,7 +16,7 @@ import { useConversation } from '@11labs/react'
 const TEACHER_IMG = '/image_reference/park-2.jpg'
 const INSTRUCTOR_PHOTO = '/image_reference/park-3.jpg'
 const AGENT_ID = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
-const TUTOR_QUESTION_NUMBER = 5008 // src/data/tutorContent.ts PASSIVE_VOICE_QUESTION
+const TUTOR_QUESTION_CODE = 'RC-P5-08-Q002' // Supabase questions.question_code — 수동태 (technical issues)
 const STUDENT_ID = 'demo'
 
 /*
@@ -142,6 +143,18 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   const userName = useOnboardingStore((s) => s.userName) || '민주'
   const introScript = buildTurns(userName).s0_intro.script
 
+  // 수업·실전 문항은 Supabase DB에서 로드 (실패 시 lessonScenario 하드코딩 폴백)
+  const lessonQuestion = useDbQuestions(
+    useStableCodes([Q_CODES.p5Lesson]),
+    (rows) => ({ ...toBlankProblem(rows[0], LESSON_QUESTION.number), explanation: LESSON_QUESTION.explanation }),
+    LESSON_QUESTION,
+  )
+  const practiceProblems = useDbQuestions(
+    useStableCodes(Q_CODES.p5Practice),
+    (rows) => rows.map((r, i) => toBlankProblem(r, `Q${i + 1}`)),
+    SCREEN3_PROBLEMS as P5Question[],
+  )
+
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'reading' | 'summary'>('intro')
   const [qIndex, setQIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
@@ -195,7 +208,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   }
 
   const handleEnd = onEnd ?? (() => window.history.back())
-  const total = SCREEN3_PROBLEMS.length
+  const total = practiceProblems.length
 
   useEffect(() => {
     if (phase !== 'intro') return
@@ -214,7 +227,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
     if (connected && !ctxSentRef.current) {
       ctxSentRef.current = true
       ;(async () => {
-        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionNumber: TUTOR_QUESTION_NUMBER })
+        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionCode: TUTOR_QUESTION_CODE })
         if (res.sessionId) sessionIdRef.current = res.sessionId
         if (res.contextual) sendContextual(res.contextual)
         pendingQuickRepliesRef.current = res.quickReplies
@@ -261,7 +274,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
 
   // ── 수업 ──
   if (phase === 'lesson') {
-    const q = LESSON_QUESTION
+    const q = lessonQuestion
     const correctIdx = correctIndexOf(q)
     const lastAi = [...messages].reverse().find((m) => m.role === 'ai')?.text ?? ''
     const startAgent = () => {
@@ -400,7 +413,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
 
   // ── 실전 ──
   if (phase !== 'summary') {
-    const q = SCREEN3_PROBLEMS[qIndex]
+    const q = practiceProblems[qIndex]
     const correctIdx = correctIndexOf(q)
     const selected = answers[qIndex]
     const answered = selected !== undefined
@@ -413,7 +426,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
             <div className="flex items-center gap-2">
-              {SCREEN3_PROBLEMS.map((p, i) => {
+              {practiceProblems.map((p, i) => {
                 const ans = answers[i]
                 const tabCls = i === qIndex
                   ? 'bg-[#2277F0] text-white'
@@ -458,7 +471,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   }
 
   // ── 정리 (원본 SCREEN4_CARDS 다중 빈칸) ──
-  const correct = SCREEN3_PROBLEMS.filter((p, i) => answers[i] === correctIndexOf(p)).length
+  const correct = practiceProblems.filter((p, i) => answers[i] === correctIndexOf(p)).length
   const cardResults = SCREEN4_CARDS.map((card) =>
     card.blanks.every((b) => {
       const val = (summaryInputs[`${card.id}_${b}`] ?? '').replace(/\s/g, '')
