@@ -5,6 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
+import { useDbLectures } from '@/data/db/questionStore'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -913,6 +914,30 @@ export default function LessonsPage() {
     })
   }, [])
 
+  /* DB 유형학습 수업 — Supabase lectures/questions 기반 자동 목록.
+     시트에 강의+문항이 추가되면(동기화 후) 코드 수정 없이 여기 수업이 늘어난다.
+     각 수업은 /lesson/[lectureCode] — 파트별 문항 UI + 시트 레일(lecture_steps) 음성 수업. */
+  const dbLectures = useDbLectures()
+  const dbCourse = useMemo<CourseData | null>(() => {
+    if (dbLectures.length === 0) return null
+    return {
+      id: 99,
+      emoji: '🗄️',
+      accentColor: '#0EA5E9',
+      title: 'DB 유형학습 수업 (자동 생성)',
+      duration: '',
+      desc: '문항 DB에 등록된 강의가 자동으로 나타나요 — 시트에 문항을 추가해 보세요',
+      fullyLocked: false,
+      lessons: dbLectures.map((lec) => ({
+        id: `db-${lec.code}`,
+        title: `${lec.title} · 문항 ${lec.questionCount}개`,
+        status: 'upcoming' as LessonStatus,
+        partLabel: `Part ${lec.part}`,
+        href: `/lesson/${lec.code}`,
+      })),
+    }
+  }, [dbLectures])
+
   /* 기존 콘텐츠 — 구버전 아카이브. 앞으로 새 버전을 수정해도 여기는 그대로 보존.
      · 잠긴(locked) 레슨 제거
      · 제목 중복 제거 (하나만)
@@ -1057,6 +1082,11 @@ export default function LessonsPage() {
                   <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${todayTotal ? Math.round(todayDone / todayTotal * 100) : 0}%` }} />
                 </div>
               </div>
+
+              {/* ── DB 유형학습 수업 — Supabase 강의·문항 기반 자동 목록 ── */}
+              {dbCourse && (
+                <CourseSection course={dbCourse} labelPrefix="" onOpenStudy={openStudy} onOpenTip={openTip} />
+              )}
 
               {/* 파트 목록 (Part 1~7) */}
               <p className="text-lg font-bold text-red-500">파트별 UI 수정 중</p>

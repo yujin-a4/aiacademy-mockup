@@ -10,8 +10,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const INSTRUCTOR_NAME = '박혜원'
 const INSTRUCTOR_IMG  = '/instructor/park.png'
 const PERSONA         = 'p7tutor'
-const QUESTION_NUMBER = 148
+const QUESTION_NUMBER = 148 // 기본값 (part7-vertex-convai 레거시 화면용)
 const STUDENT_ID      = 'demo'
+
+interface PanelProps {
+  /** DB question_code — 지정 시 legacy questionNumber 대신 이 문항으로 세션 시작 */
+  questionCode?: string
+  /** 'lesson'(유형학습 레일) | 'practice'(실전 태그 코칭). 미지정 시 엔진 기본 동작 */
+  lessonType?: 'lesson' | 'practice'
+}
 
 interface ChatMessage {
   role: 'user' | 'ai'
@@ -42,7 +49,7 @@ async function renderDirective(directive: string): Promise<string> {
   return data.dialogue ?? '음, 잠시만.'
 }
 
-export default function VertexConvAIPanel() {
+export default function VertexConvAIPanel({ questionCode, lessonType }: PanelProps = {}) {
   const [started, setStarted]       = useState(false)
   const [messages, setMessages]     = useState<ChatMessage[]>([])
   const [listening, setListening]   = useState(false)   // 녹음 중
@@ -204,7 +211,10 @@ export default function VertexConvAIPanel() {
     sessionDoneRef.current = false
 
     const { sessionId, contextual } = await callTutor({
-      action: 'start', studentId: STUDENT_ID, questionNumber: QUESTION_NUMBER,
+      action: 'start', studentId: STUDENT_ID,
+      ...(questionCode
+        ? { questionCode, ...(lessonType ? { lessonType } : {}) }
+        : { questionNumber: QUESTION_NUMBER }),
     })
     sessionIdRef.current = sessionId ?? null
     setThinking(false)
@@ -218,7 +228,7 @@ export default function VertexConvAIPanel() {
     setMessages([{ role: 'ai', text: greeting }])
     setSpeaking(true)
     speak(greeting, () => { setSpeaking(false); startListeningRef.current() })
-  }, [speak])
+  }, [speak, questionCode, lessonType])
 
   const endCall = useCallback(() => {
     stopAudio()
