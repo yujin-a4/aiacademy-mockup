@@ -3,7 +3,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useState, useMemo } from 'react'
 import { P5_QUESTIONS, P6_PASSAGES, P7_PASSAGES } from '@/data/rcData'
 import type { RCChoices } from '@/data/rcData'
-import { useDbQuestions, toP5Questions, toP6Passage, toP7Passage, Q_CODES, useStableCodes } from '@/data/db/questionStore'
+import { useDbQuestions, useDbQuestionsByPassage, toP5Questions, toP6Passage, toP7Passage, Q_CODES, Q_ANCHORS, useStableCodes } from '@/data/db/questionStore'
 import ExitConfirmModal from '@/components/ExitConfirmModal'
 import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
@@ -92,8 +92,8 @@ export default function PartPracticePage() {
 
   // 문항 데이터는 Supabase DB에서 로드 (실패 시 rcData 하드코딩 폴백)
   const p5Bank = useDbQuestions(useStableCodes(Q_CODES.p5Bank), (r) => toP5Questions(r, P5_QUESTIONS), P5_QUESTIONS)
-  const p6Passage = useDbQuestions(useStableCodes(Q_CODES.p6Memo), (r) => toP6Passage(r, P6_PASSAGES[0]), P6_PASSAGES[0])
-  const p7Passage = useDbQuestions(useStableCodes(Q_CODES.p7Greenwood), (r) => toP7Passage(r, P7_PASSAGES[0]), P7_PASSAGES[0])
+  const p6Passage = useDbQuestionsByPassage(Q_ANCHORS.p6Memo, (r) => toP6Passage(r, P6_PASSAGES[0]), P6_PASSAGES[0])
+  const p7Passage = useDbQuestionsByPassage(Q_ANCHORS.p7Greenwood, (r) => toP7Passage(r, P7_PASSAGES[0]), P7_PASSAGES[0])
 
   const items: PracticeItem[] = useMemo(() => {
     const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5)

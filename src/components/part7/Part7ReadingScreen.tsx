@@ -10,7 +10,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { P7_PASSAGES, type P7Passage } from '@/data/rcData'
 import { PART7_SETS } from '@/data/part7Scenario'
-import { useDbQuestions, toPart7Set, toP7Passage, Q_CODES, useStableCodes } from '@/data/db/questionStore'
+import { useDbQuestionsByPassage, toPart7Set, toP7Passage, Q_ANCHORS } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
@@ -221,13 +221,13 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
 
 export default function Part7ReadingScreen({ onEnd }: Props) {
   // 문항(수업 세트 + 실전 지문)은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
-  const LESSON_SET = useDbQuestions(
-    useStableCodes(Q_CODES.p7CarAd),
+  const LESSON_SET = useDbQuestionsByPassage(
+    Q_ANCHORS.p7CarAd,
     (rows) => toPart7Set(rows, FALLBACK_LESSON_SET),
     FALLBACK_LESSON_SET,
   )
-  const passage = useDbQuestions(
-    useStableCodes(Q_CODES.p7Greenwood),
+  const passage = useDbQuestionsByPassage(
+    Q_ANCHORS.p7Greenwood,
     (rows) => toP7Passage(rows, P7_PASSAGES[0]),
     P7_PASSAGES[0],
   )
