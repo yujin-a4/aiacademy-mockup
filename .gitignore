@@ -39,7 +39,17 @@ gcp-vertex-key.json
 
 # planning / working materials (not app code)
 /reference/
-/scripts/
 /kb/
 gen_excel.py
 *.xlsx
+
+# scripts/ 은 이제 실제 인프라 코드(마이그레이션 실행, 시트 동기화 등)라서 커밋함.
+# 단, OAuth 토큰과 시트 원본 덤프(대용량/파생 데이터)는 계속 제외.
+scripts/token.json
+scripts/dump/
+
+# GCP deploy secrets (never commit!)
+gcp/**/env.yaml
+
+# 시트 PDF 내보내기 (참고용, 용량 큼 - docs/scaffolding-sheet-structure.md로 대체됨)
+/AI어학원 콘텐츠.pdf

@@ -12,6 +12,7 @@ import {
   PART7_SETS, DIRECTIONS,
   type Choice, type Question,
 } from '@/data/part7Scenario'
+import { useDbQuestions, toPart7Set, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 
 export interface Part7ConvAIEndResult {
   correct: number
@@ -25,7 +26,12 @@ interface Props {
 }
 
 export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Props) {
-  const set = PART7_SETS[0]
+  // 문항(지문·보기·정답·해설)은 Supabase DB에서 로드 — 튜터 엔진과 같은 원천. 실패 시 하드코딩 폴백.
+  const set = useDbQuestions(
+    useStableCodes(Q_CODES.p7CarAd),
+    (rows) => toPart7Set(rows, PART7_SETS[0]),
+    PART7_SETS[0],
+  )
 
   const [answers, setAnswers]   = useState<Record<number, string>>({})
   const [revealed, setRevealed] = useState(false)
