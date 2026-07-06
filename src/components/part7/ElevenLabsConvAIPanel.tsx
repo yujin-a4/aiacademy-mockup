@@ -186,29 +186,20 @@ export default function ElevenLabsConvAIPanel() {
   return (
     <div className="flex flex-col h-full bg-cr-panel">
 
-      {/* ── 강사 이미지 ── */}
-      <div className="relative w-full shrink-0 lg:pt-[68px]">
-        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={INSTRUCTOR_IMG}
-            alt={INSTRUCTOR_NAME}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: 'center top' }}
-          />
-          {connected && (
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-red-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-              LIVE
-            </div>
-          )}
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-              YBM AI 어학원
-            </span>
-            <span className="bg-black/30 text-white text-[10px] px-2 py-0.5 rounded-full">{INSTRUCTOR_NAME}</span>
-          </div>
+      {/* ── 헤더 (강사 아바타 + 엔진 표시) ── */}
+      <div className="shrink-0 px-4 py-3 border-b border-ybm-border flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={INSTRUCTOR_IMG} alt={INSTRUCTOR_NAME} className="w-7 h-7 rounded-full object-cover object-top shrink-0 border border-red-200" />
+        <div>
+          <p className="text-xs font-black text-[#1A2B4B] leading-none">AI 튜터 · {INSTRUCTOR_NAME}</p>
+          <p className="text-[10px] text-ybm-text-sub leading-none mt-0.5">ElevenLabs ConvAI</p>
         </div>
+        {connected && (
+          <span className="ml-auto flex items-center gap-1 bg-red-50 text-red-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+            LIVE
+          </span>
+        )}
       </div>
 
       {/* ── 상태 표시줄 ── */}
@@ -303,6 +294,14 @@ export default function ElevenLabsConvAIPanel() {
             )}
           </button>
         )}
+      </div>
+
+      {/* ── 테스트 정보: 이 엔진이 어떻게 동작하는지 ── */}
+      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+        <p className="font-bold text-ybm-text mb-1">이 화면 구조: ElevenLabs ConvAI</p>
+        <p>학생 발화 → ElevenLabs 자체 STT → <code className="px-1 bg-white rounded">/api/tutor</code>(DB 레일 엔진)가 채점·진행 결정
+          → 그 지시를 <code className="px-1 bg-white rounded">sendContextualUpdate</code>로 에이전트에 주입 → ElevenLabs 자체 LLM이 문장을 만들어 자체 TTS로 발화.
+          턴마다 DB가 개입하지만, 마지막 "어떻게 말할지"는 ElevenLabs 쪽 블랙박스가 결정.</p>
       </div>
     </div>
   )

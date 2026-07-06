@@ -11,6 +11,7 @@
   "dependencies": {
     "@11labs/react": "^0.2.0",
     "@elevenlabs/client": "^1.9.0",
+    "@google/genai": "^2.10.0",
     "@supabase/supabase-js": "^2.110.0",
     "elevenlabs": "^1.59.0",
     "firebase": "^10.11.0",

@@ -232,6 +232,8 @@ const COURSES: CourseData[] = [
       { id: 'l6', title: '장문 독해 — 단일지문', status: 'upcoming', partLabel: 'Part 7', href: '/part7' },
       { id: 'l_p7_convai', title: '일레븐랩스 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-convai' },
       { id: 'l_p7_typecast', title: '타입캐스트 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-typecast' },
+      { id: 'l_p7_vertex', title: 'Vertex AI 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-vertex' },
+      { id: 'l_p7_vertex_convai', title: 'Vertex AI 음성 대화 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-vertex-convai' },
       { id: 'l7', title: 'Why 문제 풀이 전략', status: 'locked', partLabel: 'Part 7' },
       { id: 'l8', title: '추론 독해 완성', status: 'locked', partLabel: 'Part 7' },
       { id: 'l9', title: '복수지문 분석', status: 'locked', partLabel: 'Part 7' },

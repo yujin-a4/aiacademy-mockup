@@ -7,6 +7,7 @@ import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 import ElevenLabsConvAIPanel from './ElevenLabsConvAIPanel'
 import TypecastConvAIPanel from './TypecastConvAIPanel'
+import VertexConvAIPanel from './VertexConvAIPanel'
 import {
   PART7_SETS, DIRECTIONS,
   type Choice, type Question,
@@ -20,7 +21,7 @@ export interface Part7ConvAIEndResult {
 
 interface Props {
   onEnd: (result: Part7ConvAIEndResult) => void
-  engine?: 'elevenlabs' | 'typecast'
+  engine?: 'elevenlabs' | 'typecast' | 'vertex'
 }
 
 export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Props) {
@@ -55,7 +56,11 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
       partName="PART 7 집중공략"
       totalProblems={1}
       instructorSpeech=""
-      instructorPanel={engine === 'typecast' ? <TypecastConvAIPanel /> : <ElevenLabsConvAIPanel />}
+      instructorPanel={
+        engine === 'typecast' ? <TypecastConvAIPanel />
+        : engine === 'vertex' ? <VertexConvAIPanel />
+        : <ElevenLabsConvAIPanel />
+      }
       onEnd={handleEnd}
       toolbar={
         <div className="flex items-center px-4 py-2.5 gap-2">

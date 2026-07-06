@@ -15,9 +15,17 @@ export interface Part7AIEndResult {
   results: boolean[]
 }
 
-interface Props { onEnd: (result: Part7AIEndResult) => void }
+interface Props {
+  onEnd: (result: Part7AIEndResult) => void
+  /** 백엔드 엔진 테스트용 — 기본은 /api/gemini, Vertex AI 테스트 화면에서 /api/tutor-vertex로 교체 */
+  apiEndpoint?: string
+  engineLabel?: string
+  footerNote?: { title: string; body: string }
+}
 
-export default function Part7AIScreen({ onEnd }: Props) {
+export default function Part7AIScreen({
+  onEnd, apiEndpoint = '/api/gemini', engineLabel = 'Gemini 2.0 Flash', footerNote,
+}: Props) {
   const router = useRouter()
   const set = PART7_SETS[0]
 
@@ -255,6 +263,9 @@ export default function Part7AIScreen({ onEnd }: Props) {
             persona="p7tutor"
             initialMessage="147, 148번 풀어봐. 모르는 거 있으면 물어봐."
             quickQuestions={['147번 힌트 줘', '148번 왜 D야?', 'going overseas 뜻이 뭐야?', '끊어읽기 첨삭해줘']}
+            apiEndpoint={apiEndpoint}
+            engineLabel={engineLabel}
+            footerNote={footerNote}
           />
         </aside>
 

@@ -30,6 +30,12 @@ interface Props {
   initialMessage?: string
   quickQuestions?: string[]
   demoMode?: boolean
+  /** 백엔드 엔진 테스트용 — /api/gemini(기본) 대신 다른 엔드포인트로 교체 (예: /api/tutor-vertex) */
+  apiEndpoint?: string
+  /** 헤더에 표시할 엔진 이름 (기본 "Gemini 2.0 Flash") */
+  engineLabel?: string
+  /** 하단에 표시할 엔진 구조 설명 (없으면 표시 안 함) */
+  footerNote?: { title: string; body: string }
 }
 
 export default function AIChatPanel({
@@ -41,6 +47,9 @@ export default function AIChatPanel({
   initialMessage = '131~133번 풀어봐. 모르는 거 있으면 물어봐.',
   quickQuestions = ['131번 힌트 줘', '132번 왜 수동태야?', '133번 설명해줘', '끊어읽기 첨삭해줘'],
   demoMode = false,
+  apiEndpoint = '/api/gemini',
+  engineLabel = 'Gemini 2.0 Flash',
+  footerNote,
 }: Props) {
   const [mode, setMode]             = useState<ChatMode>('text')
   const [messages, setMessages]     = useState<Message[]>([
@@ -181,7 +190,7 @@ export default function AIChatPanel({
       : `[학생 현재 답안: ${answerSummary}]\n\n${userMsg}`
 
     try {
-      const res = await fetch('/api/gemini', {
+      const res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -341,7 +350,7 @@ export default function AIChatPanel({
         <img src="/instructor/park.png" alt="AI 튜터" className="w-7 h-7 rounded-full object-cover object-top shrink-0 border border-violet-200" />
         <div>
           <p className="text-xs font-black text-[#1A2B4B] leading-none">AI 튜터 · 박혜원</p>
-          <p className="text-[10px] text-ybm-text-sub leading-none mt-0.5">Gemini 2.0 Flash</p>
+          <p className="text-[10px] text-ybm-text-sub leading-none mt-0.5">{engineLabel}</p>
         </div>
 
         {/* 모드 토글 */}
@@ -525,6 +534,13 @@ export default function AIChatPanel({
             </button>
           </div>
         </>
+      )}
+
+      {footerNote && (
+        <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+          <p className="font-bold text-ybm-text mb-1">{footerNote.title}</p>
+          <p>{footerNote.body}</p>
+        </div>
       )}
 
       <style>{`
