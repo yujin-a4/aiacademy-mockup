@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
-const TYPE_DUMP = path.join(__dirname, 'dump', '[공통] 스케폴딩 기본 설계 (유형학습).json');
+// 시트 탭 이름이 (유형학습) → (유형학습_G)로 변경됨 (2026-07-06 확인)
+const TYPE_DUMP = path.join(__dirname, 'dump', '[공통] 스케폴딩 기본 설계 (유형학습_G).json');
 const PRACTICE_DUMP = path.join(__dirname, 'dump', '[공통] 스케폴딩 기본 설계 (실전문제) 수정중.json');
 
 // ---------- 1. step_types (S1~S7) : 안정적인 고정 데이터라 직접 명시 ----------
