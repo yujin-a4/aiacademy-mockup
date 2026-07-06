@@ -85,6 +85,73 @@ export function useDbQuestions<T>(codes: string[], adapt: (rows: UiDbQuestion[])
   return data
 }
 
+/**
+ * anchorCode(문항 코드 하나) 기준으로, "같은 지문(passage_text)에 속한 문항 전체"를 조회.
+ * — 시트에 같은 지문에 새 문항을 추가하면, 화면 코드를 안 건드려도 자동으로 뜨게 하려는 목적.
+ *
+ * 주의: 한 강의(lecture_id)에 지문이 여러 개 들어있을 수 있어서(예: RC-P7-03 안에
+ * Greenwood 지문 4문항 + 자동차광고 지문 2문항이 같이 있음), lecture_id만으로 묶으면
+ * 서로 다른 지문의 문항이 섞인다. 그래서 anchor의 passage_text와 정확히 같은 행만 추린다.
+ * passage_text가 없는 Part(예: Part5의 독립 문장형 문항)는 lecture_id 전체를 그대로 묶는다.
+ */
+export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<UiDbQuestion[] | null> {
+  const supabase = getSupabase()
+  if (!supabase) return null
+
+  const { data: anchorRow, error: anchorErr } = await supabase
+    .from('questions')
+    .select('lecture_id, content')
+    .eq('question_code', anchorCode)
+    .maybeSingle()
+  if (anchorErr || !anchorRow) return null
+
+  const passageText = (anchorRow.content as Record<string, string>)?.passage_text
+  let query = supabase
+    .from('questions')
+    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence)')
+    .eq('lecture_id', anchorRow.lecture_id as number)
+  if (passageText) query = query.eq('content->>passage_text', passageText)
+
+  const { data, error } = await query
+  if (error || !data || data.length === 0) return null
+
+  const rows: UiDbQuestion[] = (data as any[])
+    .map((row) => ({
+      code: row.question_code,
+      part: row.part,
+      content: (row.content as Record<string, string>) ?? {},
+      options: ((row.question_options as any[]) ?? [])
+        .sort((a, b) => String(a.option_label).localeCompare(String(b.option_label)))
+        .map((o) => ({
+          label: o.option_label,
+          text: o.option_text,
+          correct: o.is_correct,
+          explanation: o.option_explanation,
+          evidence: o.correct_evidence,
+        })),
+    }))
+    .filter((q) => q.options.length > 0)
+    .sort((a, b) => a.code.localeCompare(b.code))
+
+  return rows.length ? rows : null
+}
+
+/** 범용 훅: anchorCode 기준으로 같은 지문의 문항 전체를 로드. 실패 시 fallback */
+export function useDbQuestionsByPassage<T>(anchorCode: string, adapt: (rows: UiDbQuestion[]) => T, fallback: T): T {
+  const [data, setData] = useState<T>(fallback)
+  useEffect(() => {
+    let alive = true
+    fetchQuestionsBySamePassage(anchorCode)
+      .then((rows) => {
+        if (alive && rows) setData(adapt(rows))
+      })
+      .catch(() => { /* 폴백 유지 */ })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchorCode])
+  return data
+}
+
 /* ── 어댑터: DB 행 → 화면별 기존 데이터 모양 ── */
 
 function correctOf(q: UiDbQuestion): UiDbOption {
@@ -186,18 +253,97 @@ export function toBlankProblem(q: UiDbQuestion, number: string): BlankProblem {
   }
 }
 
-/** 자주 쓰는 코드 묶음 */
+/** 자주 쓰는 코드 묶음 (지문 자동 확장이 안 되는/의미 없는 경우 — 하드코딩 유지) */
 export const Q_CODES = {
-  p7CarAd: ['RC-P7-03-Q005', 'RC-P7-03-Q006'],
-  p7Greenwood: ['RC-P7-03-Q001', 'RC-P7-03-Q002', 'RC-P7-03-Q003', 'RC-P7-03-Q004'],
-  p6Memo: ['RC-P6-01-Q001', 'RC-P6-01-Q002', 'RC-P6-01-Q003', 'RC-P6-01-Q004'],
   p5Lesson: 'RC-P5-08-Q002',
   p5Practice: ['RC-P5-08-Q003', 'RC-P5-08-Q004', 'RC-P5-08-Q005'],
+  // 강의 8개를 하나씩 뽑은 큐레이션(대표 문항 모음) — 지문/강의 단위 자동 확장과 무관, 편집 판단이라 유지
   p5Bank: ['RC-P5-08-Q001', 'RC-P5-07-Q001', 'RC-P5-02-Q001', 'RC-P5-11-Q001', 'RC-P5-16-Q001', 'RC-P5-12-Q001', 'RC-P5-06-Q001', 'RC-P5-13-Q001'],
+} as const
+
+/**
+ * 지문 자동 확장용 앵커 코드 — 문항 하나만 지정하면 같은 지문(passage_text)의 문항 전체가 자동으로 딸려옴.
+ * 시트에서 같은 지문에 새 문항을 추가해도, 여기 코드를 안 건드려도 화면에 자동 반영됨.
+ * (Part5는 지문 공유 개념이 없어서(독립 문장형) 대상 아님 — Q_CODES/p5* 그대로 사용)
+ */
+export const Q_ANCHORS = {
+  p7CarAd: 'RC-P7-03-Q006',
+  p7Greenwood: 'RC-P7-03-Q001',
+  p6Memo: 'RC-P6-01-Q001',
 } as const
 
 /** memo 없이 배열 리터럴을 넘겨도 refetch가 반복되지 않도록 안정화한 편의 훅 */
 export function useStableCodes(codes: readonly string[]): string[] {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(() => [...codes], [codes.join(',')])
+}
+
+/* ── DB 기반 수업 목록 (유형학습): 문항이 1개 이상 있는 강의만 ── */
+
+export interface DbLecture {
+  code: string
+  title: string
+  part: number
+  lcRc: string
+  questionCount: number
+}
+
+/** 문항이 있는 강의 목록 (part → code 순 정렬). 실패 시 빈 배열 */
+export async function fetchLecturesWithQuestions(): Promise<DbLecture[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('questions')
+    .select('question_code, lectures(lecture_code, title, part, lc_rc)')
+  if (error || !data) return []
+
+  const byCode = new Map<string, DbLecture>()
+  for (const row of data as any[]) {
+    const lec = row.lectures
+    if (!lec) continue
+    const cur = byCode.get(lec.lecture_code)
+    if (cur) cur.questionCount += 1
+    else byCode.set(lec.lecture_code, {
+      code: lec.lecture_code, title: lec.title, part: lec.part, lcRc: lec.lc_rc, questionCount: 1,
+    })
+  }
+  return Array.from(byCode.values()).sort((a, b) => a.part - b.part || a.code.localeCompare(b.code))
+}
+
+export function useDbLectures(): DbLecture[] {
+  const [data, setData] = useState<DbLecture[]>([])
+  useEffect(() => {
+    let alive = true
+    fetchLecturesWithQuestions().then((rows) => { if (alive) setData(rows) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  return data
+}
+
+/** 강의의 문항 전체 (code 순). 수업 화면은 첫 문항을 대표로 쓴다 */
+export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQuestion[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('questions')
+    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence), lectures!inner(lecture_code)')
+    .eq('lectures.lecture_code', lectureCode)
+  if (error || !data) return []
+  return (data as any[])
+    .map((row) => ({
+      code: row.question_code,
+      part: row.part,
+      content: (row.content as Record<string, string>) ?? {},
+      options: ((row.question_options as any[]) ?? [])
+        .sort((a, b) => String(a.option_label).localeCompare(String(b.option_label)))
+        .map((o) => ({
+          label: o.option_label,
+          text: o.option_text,
+          correct: o.is_correct,
+          explanation: o.option_explanation,
+          evidence: o.correct_evidence,
+        })),
+    }))
+    .filter((q) => q.options.length > 0)
+    .sort((a, b) => a.code.localeCompare(b.code))
 }

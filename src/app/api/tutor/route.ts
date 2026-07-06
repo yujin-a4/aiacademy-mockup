@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTutorQuestion, TUTOR_RAILS, type TutorStep } from '@/data/tutorContent'
 import {
-  loadDbQuestion, loadStepTypes, logAnswer, countPriorTagWrongs, normalizeLearnerId,
-  type DbTutorQuestion, type DbOption, type StepTypeInfo,
+  loadDbQuestion, loadStepTypes, loadLectureSteps, logAnswer, countPriorTagWrongs, normalizeLearnerId,
+  type DbTutorQuestion, type DbOption, type StepTypeInfo, type LectureStep,
 } from '@/lib/tutorDb'
 
 /**
@@ -12,12 +12,16 @@ import {
  * 에이전트(ElevenLabs)는 여기서 내려주는 directive(말투 렌더용 지시)만 받아 발화한다.
  * 모든 사실(지문·보기·정답·근거·오답이유·태그)은 Supabase DB 원문 인용만 (S-CHNXPN).
  *
- * 두 가지 수업 모드:
- *  - rail 모드 (유형학습): 문항별로 손질된 레일(TUTOR_RAILS)이 있으면 그 순서로 진행.
- *    ※ 레일 자체는 아직 코드에 있음 — 추후 lecture_steps 테이블로 이관 예정.
- *  - tag 모드 (실전문제): 레일이 없는 모든 DB 문항에 적용. 시트 설계 그대로
+ * 세 가지 수업 모드 (start의 lessonType으로 선택):
+ *  - rail 모드 (유형학습·손질): 문항별로 손질된 레일(TUTOR_RAILS)이 있으면 그 순서로 진행.
+ *    keywords/hints/branches 채점 장치 포함 — 대표 문항용.
+ *  - sheetRail 모드 (유형학습·시트): lessonType='lesson'이고 손질 레일이 없으면,
+ *    강의의 lecture_steps(시트 유형학습_G 탭 이관분)를 순서대로 진행.
+ *    채점 장치가 없어 학생 반응마다 다음 단계로 전진하는 "진행 지시"형.
+ *  - tag 모드 (실전문제): lessonType='practice' 또는 레일이 전혀 없을 때. 시트 설계 그대로
  *    S0 자력풀이 → 정답: S5 축약 종료 / 오답: 태그 조회 → 태그의 단계 시퀀스 실행.
  *    동일 태그 반복 오답 시 repeat_extra_step의 단계를 추가한다.
+ *  lessonType 미지정 시 기존 동작 유지: TUTOR_RAILS 있으면 rail, 없으면 tag.
  */
 
 // 기존 화면들이 쓰던 legacy questionNumber → DB question_code 매핑
@@ -61,7 +65,18 @@ interface TagSession {
   stepIdx: number
 }
 
-type Session = RailSession | TagSession
+interface SheetRailSession {
+  mode: 'sheetRail'
+  id: string
+  learnerId: string
+  questionCode: string
+  q: DbTutorQuestion
+  steps: LectureStep[]
+  stepIdx: number
+  done: boolean
+}
+
+type Session = RailSession | TagSession | SheetRailSession
 
 // mockup용 인메모리 저장소 (dev 단일 프로세스 기준)
 const sessions = new Map<string, Session>()
@@ -223,6 +238,31 @@ const S0_DIRECTIVE = [
   '문제를 짧게 소개하고 "몇 번일 것 같아?" 정도로만 묻고 멈춰라. 정답·근거는 절대 언급하지 마라.',
 ].join('\n')
 
+/* ── sheetRail 모드 (유형학습: lecture_steps 시트 레일) ── */
+
+function sheetStepDirective(s: SheetRailSession, step: LectureStep): string {
+  const lines = [
+    `지금 단계: ${step.code} — ${step.rule}`,
+  ]
+  if (step.dbFields && !step.dbFields.startsWith('(없음')) {
+    lines.push(`이 단계에서 참조할 문항 정보: ${step.dbFields} — 세션 자료(위 수업 자료)의 해당 값만 인용하고 새로 지어내지 마라.`)
+  }
+  const code = step.code
+  if (/S6/.test(code)) {
+    const wrongs = s.q.options.filter((o) => !o.correct)
+      .map((o) => `${o.label}) "${o.explanation ?? ''}"${o.tag ? ` [${o.tag.name}]` : ''}`).join(' / ')
+    lines.push(`보기별 오답 이유(DB 원문 인용만): ${wrongs}`)
+  }
+  if (/S5/.test(code)) {
+    lines.push(`근거 공개를 허용한다. 정답 ${s.q.answerLabel}) ${s.q.answerText} 와 근거를 연결해라: "${s.q.evidence}"`)
+  } else if (!/S6/.test(code)) {
+    lines.push('정답·근거는 아직 말하지 마라.')
+  }
+  if (step.freeExpression) lines.push(`(말투·표현만 자유: ${step.freeExpression})`)
+  lines.push('이 한 가지만 짧게 진행해라. 한두 문장으로 말하고 멈춰서 학생 반응을 기다려라.')
+  return lines.join('\n')
+}
+
 /* ── 핸들러 ── */
 
 export async function POST(req: NextRequest) {
@@ -245,8 +285,26 @@ export async function POST(req: NextRequest) {
       }
 
       const facts = buildFacts(q)
-      const rail = TUTOR_RAILS[questionCode]
+      // lessonType: 'lesson'(유형학습) | 'practice'(실전문제) | 미지정(기존 동작)
+      const lessonType: string | undefined = body.lessonType
+      const rail = lessonType === 'practice' ? undefined : TUTOR_RAILS[questionCode]
       const id = crypto.randomUUID()
+
+      // 유형학습 요청 + 손질 레일 없음 → 강의의 시트 레일(lecture_steps)로 진행
+      if (lessonType === 'lesson' && !rail) {
+        const steps = await loadLectureSteps(q.lectureCode)
+        if (steps.length) {
+          const session: SheetRailSession = {
+            mode: 'sheetRail', id, learnerId, questionCode, q, steps, stepIdx: 0, done: false,
+          }
+          sessions.set(id, session)
+          const contextual = `${facts.text}\n\n${TURN_RULES}\n\n${sheetStepDirective(session, steps[0])}`
+          return NextResponse.json({
+            sessionId: id, mode: 'sheetRail', lectureCode: q.lectureCode,
+            steps: steps.map((st) => st.code), contextual,
+          })
+        }
+      }
 
       if (rail) {
         const level = fadingLevelFor(learnerId, q.lectureCode)
@@ -273,7 +331,9 @@ export async function POST(req: NextRequest) {
       const s = sessions.get(body.sessionId)
       if (!s) return NextResponse.json({ error: 'session not found' }, { status: 404 })
       const text: string = String(body.text ?? '')
-      return s.mode === 'rail' ? answerRail(s, text) : await answerTag(s, text)
+      if (s.mode === 'rail') return answerRail(s, text)
+      if (s.mode === 'sheetRail') return answerSheetRail(s)
+      return await answerTag(s, text)
     }
 
     if (action === 'hint') {
@@ -363,6 +423,29 @@ function answerRail(s: RailSession, text: string) {
     contextual: `학생이 계속 막힌다. 근거만 공개해라: DB 원문 "${reveal}" 을(를) 인용하고 한 줄로 이유를 설명해라. 그 다음 ${nxt.done ? '수업을 마무리해라.' : '아래로 진행:\n' + nxt.contextual}`,
     fadingLevel: s.fadingLevel,
     quickReplies: nxt.done ? undefined : s.steps[s.stepIdx].quickReplies,
+  })
+}
+
+/* ── sheetRail 모드 답변 처리: 채점 장치가 없으므로 학생 반응마다 다음 단계로 전진 ── */
+
+function answerSheetRail(s: SheetRailSession) {
+  if (s.done) {
+    return NextResponse.json({
+      grade: 'done', done: true,
+      contextual: '수업은 이미 끝났다. 학생의 말에 가볍게 응답하며 마무리 인사만 해라.',
+    })
+  }
+  s.stepIdx += 1
+  if (s.stepIdx >= s.steps.length) {
+    s.done = true
+    return NextResponse.json({
+      grade: 'done', done: true,
+      contextual: '모든 단계 완료. 학생이 오늘 배운 유형에서 뭘 먼저 봐야 하는지 한 문장으로 말하게 하고, 짧게 확인해 주며 수업을 마무리해라.',
+    })
+  }
+  return NextResponse.json({
+    grade: 'progress', done: false, step: s.steps[s.stepIdx].code,
+    contextual: sheetStepDirective(s, s.steps[s.stepIdx]),
   })
 }
 

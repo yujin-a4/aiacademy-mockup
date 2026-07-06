@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { P6_PASSAGES, type P6Passage } from '@/data/rcData'
-import { useDbQuestions, toP6Passage, Q_CODES, useStableCodes } from '@/data/db/questionStore'
+import { useDbQuestionsByPassage, toP6Passage, Q_ANCHORS } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
@@ -184,8 +184,8 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
 
 export default function Part6ReadingScreen({ onEnd }: Props) {
   // 지문·문항은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
-  const passage = useDbQuestions(
-    useStableCodes(Q_CODES.p6Memo),
+  const passage = useDbQuestionsByPassage(
+    Q_ANCHORS.p6Memo,
     (rows) => toP6Passage(rows, P6_PASSAGES[0]),
     P6_PASSAGES[0],
   )

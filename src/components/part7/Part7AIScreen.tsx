@@ -8,7 +8,7 @@ import CanvasOverlay from '@/components/classroom/CanvasOverlay'
 import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 import { PART7_SETS, DIRECTIONS, type Question, type Choice } from '@/data/part7Scenario'
-import { useDbQuestions, toPart7Set, Q_CODES, useStableCodes } from '@/data/db/questionStore'
+import { useDbQuestionsByPassage, toPart7Set, Q_ANCHORS } from '@/data/db/questionStore'
 
 export interface Part7AIEndResult {
   correct: number
@@ -16,13 +16,21 @@ export interface Part7AIEndResult {
   results: boolean[]
 }
 
-interface Props { onEnd: (result: Part7AIEndResult) => void }
+interface Props {
+  onEnd: (result: Part7AIEndResult) => void
+  /** 백엔드 엔진 테스트용 — 기본은 /api/gemini, Vertex AI 테스트 화면에서 /api/tutor-vertex로 교체 */
+  apiEndpoint?: string
+  engineLabel?: string
+  footerNote?: { title: string; body: string }
+}
 
-export default function Part7AIScreen({ onEnd }: Props) {
+export default function Part7AIScreen({
+  onEnd, apiEndpoint = '/api/gemini', engineLabel = 'Gemini 2.0 Flash', footerNote,
+}: Props) {
   const router = useRouter()
   // 문항은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
-  const set = useDbQuestions(
-    useStableCodes(Q_CODES.p7CarAd),
+  const set = useDbQuestionsByPassage(
+    Q_ANCHORS.p7CarAd,
     (rows) => toPart7Set(rows, PART7_SETS[0]),
     PART7_SETS[0],
   )
@@ -261,6 +269,9 @@ export default function Part7AIScreen({ onEnd }: Props) {
             persona="p7tutor"
             initialMessage="147, 148번 풀어봐. 모르는 거 있으면 물어봐."
             quickQuestions={['147번 힌트 줘', '148번 왜 D야?', 'going overseas 뜻이 뭐야?', '끊어읽기 첨삭해줘']}
+            apiEndpoint={apiEndpoint}
+            engineLabel={engineLabel}
+            footerNote={footerNote}
           />
         </aside>
 

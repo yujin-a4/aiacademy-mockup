@@ -5,6 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
+import { useDbLectures } from '@/data/db/questionStore'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -232,6 +233,8 @@ const COURSES: CourseData[] = [
       { id: 'l6', title: '장문 독해 — 단일지문', status: 'upcoming', partLabel: 'Part 7', href: '/part7' },
       { id: 'l_p7_convai', title: '일레븐랩스 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-convai' },
       { id: 'l_p7_typecast', title: '타입캐스트 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-typecast' },
+      { id: 'l_p7_vertex', title: 'Vertex AI 에이전트 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-vertex' },
+      { id: 'l_p7_vertex_convai', title: 'Vertex AI 음성 대화 테스트', status: 'upcoming', partLabel: 'Part 7', href: '/part7-vertex-convai' },
       { id: 'l7', title: 'Why 문제 풀이 전략', status: 'locked', partLabel: 'Part 7' },
       { id: 'l8', title: '추론 독해 완성', status: 'locked', partLabel: 'Part 7' },
       { id: 'l9', title: '복수지문 분석', status: 'locked', partLabel: 'Part 7' },
@@ -884,16 +887,30 @@ export default function LessonsPage() {
     return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : `D+${Math.abs(diff)}`
   }, [examDate])
 
-  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹.
-     파일럿: 우선 Part 5만 실제 수업에 연결하고 나머지는 '준비 중'. */
+  /* DB 유형학습 수업 — Supabase lectures/questions 기반 자동 목록.
+     시트에 강의+문항이 추가되면(동기화 후) 코드 수정 없이 해당 Part 카드 안에 수업이 늘어난다.
+     각 수업은 /lesson/[lectureCode] — 파트별 문항 UI + 시트 레일(lecture_steps) 음성 수업. */
+  const dbLectures = useDbLectures()
+
+  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹 + DB 강의를 파트별로 합류. */
   const partCourses = useMemo<CourseData[]>(() => {
     return PART_META.map(p => {
       const label = `Part ${p.n}`
       const active = ACTIVE_PARTS.has(p.n)
       const srcCourses = COURSES.filter(c => c.lessons.some(l => l.partLabel === label))
-      const lessons: Lesson[] = active
+      const baseLessons: Lesson[] = active
         ? (NEW_LESSONS[p.n] ?? srcCourses.flatMap(c => c.lessons.filter(l => l.partLabel === label)))
         : []
+      const dbLessons: Lesson[] = dbLectures
+        .filter((lec) => lec.part === p.n)
+        .map((lec) => ({
+          id: `db-${lec.code}`,
+          title: `${lec.title} · 문항 ${lec.questionCount}개`,
+          status: 'upcoming' as LessonStatus,
+          partLabel: label,
+          href: `/lesson/${lec.code}`,
+        }))
+      const lessons = [...baseLessons, ...dbLessons]
       // 파트 완료 시 열리는 비법 노트 — 해당 파트가 속한 코스의 tipNote를 가져옴
       const tipNote = active ? srcCourses.find(c => c.tipNote)?.tipNote : undefined
       return {
@@ -909,7 +926,7 @@ export default function LessonsPage() {
         tipNote,
       }
     })
-  }, [])
+  }, [dbLectures])
 
   /* 기존 콘텐츠 — 구버전 아카이브. 앞으로 새 버전을 수정해도 여기는 그대로 보존.
      · 잠긴(locked) 레슨 제거
@@ -1056,7 +1073,7 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* 파트 목록 (Part 1~7) */}
+              {/* 파트 목록 (Part 1~7) — DB 강의(있으면)가 각 파트 카드 안에 자동 합류됨 */}
               <p className="text-lg font-bold text-red-500">파트별 UI 수정 중</p>
               {partCourses.map((course) => (
                 <CourseSection key={course.id} course={course} labelPrefix="Part" onOpenStudy={openStudy} onOpenTip={openTip} />

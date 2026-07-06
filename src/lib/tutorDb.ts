@@ -120,6 +120,32 @@ export async function loadDbQuestion(questionCode: string): Promise<DbTutorQuest
   }
 }
 
+export interface LectureStep {
+  order: number
+  code: string          // 'S2', 'S2+S3', 'S5①' 등 시트 원문
+  rule: string          // AI가 따라야 할 규칙 (고정)
+  dbFields: string | null
+  freeExpression: string | null
+}
+
+/** 강의별 유형학습 레일 (lecture_steps — 시트 유형학습_G 탭 이관분). 없으면 빈 배열 */
+export async function loadLectureSteps(lectureCode: string): Promise<LectureStep[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('lecture_steps')
+    .select('step_order, step_code, fixed_rule, db_fields, free_expression, lectures!inner(lecture_code)')
+    .eq('lectures.lecture_code', lectureCode)
+    .order('step_order')
+  return (data ?? []).map((s: any) => ({
+    order: s.step_order,
+    code: s.step_code,
+    rule: s.fixed_rule,
+    dbFields: s.db_fields,
+    freeExpression: s.free_expression,
+  }))
+}
+
 let stepTypesCache: Map<string, StepTypeInfo> | null = null
 
 export async function loadStepTypes(): Promise<Map<string, StepTypeInfo>> {
