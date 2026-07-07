@@ -7,10 +7,12 @@ import DrawingToolbar from '@/components/classroom/toolbar/DrawingToolbar'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 import ElevenLabsConvAIPanel from './ElevenLabsConvAIPanel'
 import TypecastConvAIPanel from './TypecastConvAIPanel'
+import VertexConvAIPanel from './VertexConvAIPanel'
 import {
   PART7_SETS, DIRECTIONS,
   type Choice, type Question,
 } from '@/data/part7Scenario'
+import { useDbQuestionsByPassage, toPart7Set, Q_ANCHORS } from '@/data/db/questionStore'
 
 export interface Part7ConvAIEndResult {
   correct: number
@@ -20,11 +22,16 @@ export interface Part7ConvAIEndResult {
 
 interface Props {
   onEnd: (result: Part7ConvAIEndResult) => void
-  engine?: 'elevenlabs' | 'typecast'
+  engine?: 'elevenlabs' | 'typecast' | 'vertex'
 }
 
 export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Props) {
-  const set = PART7_SETS[0]
+  // 문항(지문·보기·정답·해설)은 Supabase DB에서 로드 — 튜터 엔진과 같은 원천. 실패 시 하드코딩 폴백.
+  const set = useDbQuestionsByPassage(
+    Q_ANCHORS.p7CarAd,
+    (rows) => toPart7Set(rows, PART7_SETS[0]),
+    PART7_SETS[0],
+  )
 
   const [answers, setAnswers]   = useState<Record<number, string>>({})
   const [revealed, setRevealed] = useState(false)
@@ -55,7 +62,11 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
       partName="PART 7 집중공략"
       totalProblems={1}
       instructorSpeech=""
-      instructorPanel={engine === 'typecast' ? <TypecastConvAIPanel /> : <ElevenLabsConvAIPanel />}
+      instructorPanel={
+        engine === 'typecast' ? <TypecastConvAIPanel />
+        : engine === 'vertex' ? <VertexConvAIPanel />
+        : <ElevenLabsConvAIPanel />
+      }
       onEnd={handleEnd}
       toolbar={
         <div className="flex items-center px-4 py-2.5 gap-2">

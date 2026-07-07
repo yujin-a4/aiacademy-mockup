@@ -1,0 +1,15 @@
+{
+  "name": "sync-questions-fn",
+  "version": "1.0.0",
+  "description": "문항입력 시트 → Supabase 동기화 Cloud Function (Cloud Scheduler로 주기 실행)",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0",
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^144.0.0",
+    "pg": "^8.11.0"
+  }
+}

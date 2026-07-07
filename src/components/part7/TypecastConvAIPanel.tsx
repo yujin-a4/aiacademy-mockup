@@ -19,27 +19,20 @@ export default function TypecastConvAIPanel() {
   return (
     <div className="flex flex-col h-full bg-cr-panel">
 
-      {/* ── 강사 이미지 ── */}
-      <div className="relative w-full shrink-0 lg:pt-[68px]">
-        <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={INSTRUCTOR_IMG}
-            alt={INSTRUCTOR_NAME}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: 'center top' }}
-          />
-          <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-[#FF5A36]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-            <span className="w-1.5 h-1.5 bg-white rounded-full" />
-            TYPECAST · NEONA
-          </div>
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <span className="bg-cr-accent/90 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-              YBM AI 어학원
-            </span>
-            <span className="bg-black/30 text-white text-[10px] px-2 py-0.5 rounded-full">{INSTRUCTOR_NAME}</span>
-          </div>
+      {/* ── 헤더 (강사 아바타 + 엔진 표시) ── */}
+      <div className="shrink-0 px-4 py-3 border-b border-ybm-border flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={INSTRUCTOR_IMG} alt={INSTRUCTOR_NAME} className="w-7 h-7 rounded-full object-cover object-top shrink-0 border border-orange-200" />
+        <div>
+          <p className="text-xs font-black text-[#1A2B4B] leading-none">AI 튜터 · {INSTRUCTOR_NAME}</p>
+          <p className="text-[10px] text-ybm-text-sub leading-none mt-0.5">Typecast · Neona</p>
         </div>
+        {started && (
+          <span className="ml-auto flex items-center gap-1 bg-orange-50 text-[#FF5A36] text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 bg-[#FF5A36] rounded-full animate-pulse" />
+            LIVE
+          </span>
+        )}
       </div>
 
       {/* ── 본문: 네오나 공유 링크 임베드 ── */}
@@ -95,6 +88,14 @@ export default function TypecastConvAIPanel() {
             </a>
           </>
         )}
+      </div>
+
+      {/* ── 테스트 정보: 이 엔진이 어떻게 동작하는지 ── */}
+      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+        <p className="font-bold text-ybm-text mb-1">이 화면 구조: Typecast · Neona (iframe 임베드)</p>
+        <p>Neona가 호스팅하는 에이전트 화면을 그대로 iframe으로 띄운 것 — STT·LLM·TTS 전부 Neona 내부에서 처리되고,
+          우리 <code className="px-1 bg-white rounded">/api/tutor</code>(DB 레일 엔진)와는 연결돼 있지 않음.
+          시작 시 통짜 system_prompt 하나로 전체 수업이 진행되는 자율주행 방식. 턴마다 DB가 개입하는 채널 없음.</p>
       </div>
     </div>
   )

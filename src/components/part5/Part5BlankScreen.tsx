@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { SCREEN1_PROBLEM, SCREEN3_PROBLEMS, SCREEN4_CARDS, buildTurns } from '@/data/lessonScenario'
+import { useDbQuestions, toBlankProblem, Q_CODES, useStableCodes } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
@@ -15,6 +16,24 @@ import { useConversation } from '@11labs/react'
 const TEACHER_IMG = '/image_reference/park-2.jpg'
 const INSTRUCTOR_PHOTO = '/image_reference/park-3.jpg'
 const AGENT_ID = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
+const TUTOR_QUESTION_CODE = 'RC-P5-08-Q002' // Supabase questions.question_code — 수동태 (technical issues)
+const STUDENT_ID = 'demo'
+
+/*
+ * 수업 흐름(S1~S7 rail)·정오판정·단계전진·힌트는 전부 백엔드(/api/tutor)가 소유한다.
+ * 이 화면은 학생 발화를 엔진에 보내고, 돌려받은 directive를 에이전트에 주입(말투 렌더)만 한다.
+ * (이전의 정규식 텍스트 트리거 실험은 "지금 무슨 질문 중인지"를 텍스트에서 추론해야 해서
+ *  무관한 문장에서 오탐이 났음 — /api/tutor의 세션 stepIdx가 상태를 갖는 이 방식으로 대체.)
+ */
+async function callTutor(payload: Record<string, unknown>): Promise<{ contextual?: string; sessionId?: string; done?: boolean; quickReplies?: string[] }> {
+  const res = await fetch('/api/tutor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) return {}
+  return res.json()
+}
 
 /* 실전 문제(SCREEN3_PROBLEMS)에 원본 words/blankIndex 방식 그대로 사용 */
 type P5Question = typeof SCREEN3_PROBLEMS[number]
@@ -124,6 +143,18 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   const userName = useOnboardingStore((s) => s.userName) || '민주'
   const introScript = buildTurns(userName).s0_intro.script
 
+  // 수업·실전 문항은 Supabase DB에서 로드 (실패 시 lessonScenario 하드코딩 폴백)
+  const lessonQuestion = useDbQuestions(
+    useStableCodes([Q_CODES.p5Lesson]),
+    (rows) => ({ ...toBlankProblem(rows[0], LESSON_QUESTION.number), explanation: LESSON_QUESTION.explanation }),
+    LESSON_QUESTION,
+  )
+  const practiceProblems = useDbQuestions(
+    useStableCodes(Q_CODES.p5Practice),
+    (rows) => rows.map((r, i) => toBlankProblem(r, `Q${i + 1}`)),
+    SCREEN3_PROBLEMS as P5Question[],
+  )
+
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'reading' | 'summary'>('intro')
   const [qIndex, setQIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
@@ -138,14 +169,46 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   const mainRef = useRef<HTMLDivElement>(null)
 
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
+  // 지금 단계(stepIdx)의 버튼 후보 — 세션 상태 기준으로 서버가 내려줌 (텍스트 정규식 추측 X)
+  const [quickReplies, setQuickReplies] = useState<string[] | undefined>(undefined)
+  const ctxSentRef = useRef(false)
+  const sessionIdRef = useRef<string | null>(null) // /api/tutor 세션
+  const prevLenRef = useRef(0) // 이미 처리한 메시지 개수
+  // 엔진이 돌려준 quickReplies는 "이번 directive에 대한 버튼"일 뿐, 에이전트가 그걸 실제로
+  // 말하기 전까진 화면에 띄우면 안 된다. 그래서 일단 여기 보류해뒀다가, 에이전트의 다음 발화가
+  // 도착한 시점(= 실제로 그 질문을 한 시점)에 화면 state로 옮긴다.
+  const pendingQuickRepliesRef = useRef<string[] | undefined>(undefined)
+  // 세션 시작 시 첫 AI 발화는 항상 고정 인삿말(instructor_greeting)이라 버튼을 붙이면 안 된다 — 그 한 턴만 건너뛴다.
+  const seenFirstAiTurnRef = useRef(false)
   const conversation = useConversation({
-    onMessage: (p: { source: string; message: string }) => setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
+    onMessage: (p: { source: string; message: string }) => {
+      setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }])
+      if (p.source !== 'user') {
+        if (!seenFirstAiTurnRef.current) {
+          seenFirstAiTurnRef.current = true
+        } else {
+          setQuickReplies(pendingQuickRepliesRef.current)
+        }
+      }
+    },
   })
+  const sendContextual = (text: string) => {
+    try {
+      ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void }).sendContextualUpdate?.(text)
+    } catch { /* noop */ }
+  }
   const connected = conversation.status === 'connected'
   const connecting = conversation.status === 'connecting'
+  const pickQuickReply = (label: string) => {
+    if (!connected) return
+    setQuickReplies(undefined)
+    // sendText와 동일한 이유로 로컬 echo가 필요하다 (onMessage가 되돌려주지 않음).
+    setMessages((prev) => [...prev, { role: 'user', text: label }])
+    conversation.sendUserMessage(label)
+  }
 
   const handleEnd = onEnd ?? (() => window.history.back())
-  const total = SCREEN3_PROBLEMS.length
+  const total = practiceProblems.length
 
   useEffect(() => {
     if (phase !== 'intro') return
@@ -158,6 +221,45 @@ export default function Part5BlankScreen({ onEnd }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
   useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 연결되면 튜터 엔진 세션을 시작하고, 엔진이 만든 첫 directive(S1 단계 목표)를 주입
+  useEffect(() => {
+    if (connected && !ctxSentRef.current) {
+      ctxSentRef.current = true
+      ;(async () => {
+        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionCode: TUTOR_QUESTION_CODE })
+        if (res.sessionId) sessionIdRef.current = res.sessionId
+        if (res.contextual) sendContextual(res.contextual)
+        pendingQuickRepliesRef.current = res.quickReplies
+      })()
+    }
+    if (!connected) {
+      ctxSentRef.current = false
+      sessionIdRef.current = null
+      seenFirstAiTurnRef.current = false
+      pendingQuickRepliesRef.current = undefined
+      setQuickReplies(undefined)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected])
+
+  // 학생이 답할 때마다 엔진에 채점/전진(S1→S3→S4→S2→S6→S5→S7)을 요청하고, 돌려받은 directive만 주입
+  useEffect(() => {
+    if (messages.length <= prevLenRef.current) {
+      prevLenRef.current = messages.length
+      return
+    }
+    const last = messages[messages.length - 1]
+    prevLenRef.current = messages.length
+    if (!connected || last.role !== 'user' || !sessionIdRef.current) return
+    setQuickReplies(undefined)
+    ;(async () => {
+      const res = await callTutor({ action: 'answer', sessionId: sessionIdRef.current, text: last.text })
+      if (res.contextual) sendContextual(res.contextual)
+      pendingQuickRepliesRef.current = res.quickReplies
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, connected])
 
   // ── 도입 ──
   if (phase === 'intro') {
@@ -172,11 +274,25 @@ export default function Part5BlankScreen({ onEnd }: Props) {
 
   // ── 수업 ──
   if (phase === 'lesson') {
-    const q = LESSON_QUESTION
+    const q = lessonQuestion
     const correctIdx = correctIndexOf(q)
     const lastAi = [...messages].reverse().find((m) => m.role === 'ai')?.text ?? ''
-    const startAgent = () => { setMessages([]); conversation.startSession({ agentId: AGENT_ID, dynamicVariables: STUDENT_VARS }).catch(() => {}) }
-    const sendText = () => { const t = inputText.trim(); if (!t || !connected) return; conversation.sendUserMessage(t); setInputText('') }
+    const startAgent = () => {
+      setMessages([])
+      seenFirstAiTurnRef.current = false
+      pendingQuickRepliesRef.current = undefined
+      setQuickReplies(undefined)
+      conversation.startSession({ agentId: AGENT_ID, dynamicVariables: STUDENT_VARS }).catch(() => {})
+    }
+    const sendText = () => {
+      const t = inputText.trim()
+      if (!t || !connected) return
+      // @11labs/react의 onMessage는 로컬에서 sendUserMessage로 보낸 텍스트를 되돌려주지 않는다
+      // (에이전트 응답·실제 음성 STT만 콜백된다) — 그래서 직접 화면에 echo 해줘야 한다.
+      setMessages((prev) => [...prev, { role: 'user', text: t }])
+      conversation.sendUserMessage(t)
+      setInputText('')
+    }
     const goReading = () => { try { conversation.endSession() } catch { /* noop */ } stopCurrentAudio(); setPhase('reading') }
     const select = (i: number) => { if (lessonAnswered) return; setLessonSelected(i); setLessonAnswered(true) }
     return (
@@ -210,10 +326,20 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5 min-h-0">
                   {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                   {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                     </div>
                   ))}
+                  {!!quickReplies?.length && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickReplies.map((label) => (
+                        <button key={label} onClick={() => pickQuickReply(label)}
+                          className="px-3 py-1.5 rounded-lg border border-[#2277F0]/30 bg-white text-[#2277F0] text-xs font-semibold hover:bg-[#2277F0]/5">
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="px-3 py-3 border-t border-gray-100 flex items-center gap-2 shrink-0">
                   <div className="flex-1 bg-gray-100 rounded-full px-4 py-2.5"><input className="w-full bg-transparent text-sm outline-none" placeholder="메시지 입력..." value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') sendText() }} /></div>
@@ -227,7 +353,21 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                   <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
                 </div>
                 <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
-                {lastAi && <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
+                {lastAi && (
+                  <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
+                    <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
+                  </div>
+                )}
+                {!!quickReplies?.length && (
+                  <div className="flex flex-wrap justify-center gap-1.5 mb-2">
+                    {quickReplies.map((label) => (
+                      <button key={label} onClick={() => pickQuickReply(label)}
+                        className="px-3 py-1.5 rounded-lg border border-[#2277F0]/30 bg-white text-[#2277F0] text-xs font-semibold hover:bg-[#2277F0]/5">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="text-gray-400 text-[11px] mt-1">{conversation.isSpeaking ? '강사가 말하는 중…' : '말하면 강사가 들어요'}</p>
                 <button onClick={() => { try { conversation.endSession() } catch { /* noop */ } }} className="mt-4 text-[12px] font-semibold text-gray-400">통화 종료</button>
               </div>
@@ -273,7 +413,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
 
   // ── 실전 ──
   if (phase !== 'summary') {
-    const q = SCREEN3_PROBLEMS[qIndex]
+    const q = practiceProblems[qIndex]
     const correctIdx = correctIndexOf(q)
     const selected = answers[qIndex]
     const answered = selected !== undefined
@@ -286,7 +426,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
             <div className="flex items-center gap-2">
-              {SCREEN3_PROBLEMS.map((p, i) => {
+              {practiceProblems.map((p, i) => {
                 const ans = answers[i]
                 const tabCls = i === qIndex
                   ? 'bg-[#2277F0] text-white'
@@ -331,7 +471,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   }
 
   // ── 정리 (원본 SCREEN4_CARDS 다중 빈칸) ──
-  const correct = SCREEN3_PROBLEMS.filter((p, i) => answers[i] === correctIndexOf(p)).length
+  const correct = practiceProblems.filter((p, i) => answers[i] === correctIndexOf(p)).length
   const cardResults = SCREEN4_CARDS.map((card) =>
     card.blanks.every((b) => {
       const val = (summaryInputs[`${card.id}_${b}`] ?? '').replace(/\s/g, '')
