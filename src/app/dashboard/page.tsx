@@ -566,8 +566,8 @@ function RegularDashboard() {
   const { userName, selectedInstructor, examDate } = useOnboardingStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const streakDay = useStreakDay()
-  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
-  const instThumb = INST_THUMBS[selectedInstructor ?? 'park'] ?? ''
+  const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
+  const instThumb = INST_THUMBS[selectedInstructor ?? 'park_hyewon'] ?? ''
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
@@ -577,7 +577,7 @@ function RegularDashboard() {
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
-      instructorKey: selectedInstructor ?? 'park',
+      instructorKey: selectedInstructor ?? 'park_hyewon',
       instructorName: instName,
       instructorThumb: instThumb,
       time: new Date(),
@@ -590,7 +590,7 @@ function RegularDashboard() {
   const [typedMsg, setTypedMsg] = useState('')
   const [typingDone, setTypingDone] = useState(false)
   const [msgIdx, setMsgIdx] = useState(0)
-  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park']?.dashboard ?? []
+  const currentMessages = INST_MESSAGES[selectedInstructor ?? 'park_hyewon']?.dashboard ?? []
 
   useEffect(() => { setMsgIdx(0) }, [selectedInstructor])
 
@@ -677,7 +677,7 @@ function RegularDashboard() {
 
                   {/* 강사 사진 */}
                   <div className="relative overflow-hidden h-full">
-                    {(selectedInstructor ?? 'park') === 'park' ? (
+                    {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
                       <img
                         src="/image_reference/park-report.png"
                         alt={instName}
@@ -686,7 +686,7 @@ function RegularDashboard() {
                       />
                     ) : (
                       <img
-                        src={INST_THUMBS[selectedInstructor ?? 'park']}
+                        src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']}
                         alt={instName}
                         className="absolute bottom-0 left-0 drop-shadow-lg"
                         style={{ maxHeight: '320px', width: 'auto', objectFit: 'contain' }}
@@ -737,14 +737,23 @@ function RegularDashboard() {
               <div className="flex flex-col gap-3 w-[200px] shrink-0">
 
                 <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-[14px]">🔥</span>
+                  <div className="flex items-center justify-between mb-1">
                     <p className="text-[11px] font-semibold text-[#6B7280]">연속 학습</p>
+                    <span className="text-[16px]">🔥</span>
                   </div>
                   <p className="text-[40px] font-black text-[#D97706] leading-none">
                     {streakDay}<span className="text-[18px] font-bold ml-1">일</span>
                   </p>
-                  <p className="text-[11px] text-[#9CA3AF] mt-2">연속 학습 중이에요 🔥</p>
+                  <div className="flex gap-[3px] mt-3">
+                    {Array.from({ length: 7 }, (_, i) => {
+                      const done = i < Math.min(streakDay % 7 || 7, 7)
+                      return (
+                        <div key={i} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold shrink-0 transition-colors ${done ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]' : 'bg-[#F9FAFB] border-[#E5E7EB] text-transparent'}`}>
+                          ✓
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
@@ -761,35 +770,6 @@ function RegularDashboard() {
               </div>
             </div>
 
-            {/* ── ③ 배지 카드 — 상태별 조건부 렌더링 (상호 배타적) ── */}
-            {(() => {
-              const isReturning = streakDay === 0
-              const badgeChevron = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
-                  {isReturning ? (
-                    <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-[#DBEAFE] transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0 text-[22px]">👋</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] text-[#2563EB]">오랜만에 오셨네요!</p>
-                        <p className="text-[11px] text-[#6B7280] mt-0.5 leading-snug">다시 시작하는 오늘, 응원할게요!</p>
-                      </div>
-                      {badgeChevron}
-                    </div>
-                  ) : (
-                    <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-[#FEE2E2] transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0 text-[22px]">⚠️</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] text-[#DC2626]">오늘 빠지면 연속 기록 놓쳐요</p>
-                        <p className="text-[11px] text-[#6B7280] mt-0.5 leading-snug">하루만 더! 연속 기록을 지켜봐요.</p>
-                      </div>
-                      {badgeChevron}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
 
           </div>
         </main>

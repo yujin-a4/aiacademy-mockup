@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 const MENU = [
   { icon: '', label: '학습 설정', href: '/settings/learning' },
@@ -10,6 +12,13 @@ const MENU = [
 export default function AccountMenu({ userName }: { userName: string }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.replace('/')
+  }
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -58,6 +67,15 @@ export default function AccountMenu({ userName }: { userName: string }) {
                 <span className="text-[13px] font-medium text-[#374151]">{item.label}</span>
               </Link>
             ))}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-[#FEF2F2] transition-colors border-t border-[#F3F4F6] mt-1"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              <span className="text-[13px] font-medium text-[#EF4444]">로그아웃</span>
+            </button>
           </div>
         </div>
       )}
