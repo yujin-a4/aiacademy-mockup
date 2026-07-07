@@ -7,7 +7,6 @@ import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS, INST_MESSAGES } from '@/data/instructorData'
-import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
 
 type CallState = 'idle' | 'ringing' | 'active' | 'log'
@@ -64,14 +63,14 @@ function OjjDashboard() {
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
-  const ojjName = INST_NAME['oh_jungja']
-  const ojjThumb = INST_THUMBS['oh_jungja']
+  const ojjName = INST_NAME['oh']
+  const ojjThumb = INST_THUMBS['oh']
   const handlePhoneClick = () => setCallState('ringing')
   const handleAnswer = () => setCallState('idle')
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
-      instructorKey: 'oh_jungja',
+      instructorKey: 'oh',
       instructorName: ojjName,
       instructorThumb: ojjThumb,
       time: new Date(),
@@ -572,9 +571,8 @@ function RegularDashboard() {
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
-  const [surveyOpen, setSurveyOpen] = useState(false)
 
-  const handlePhoneClick = () => setSurveyOpen(true)
+  const handlePhoneClick = () => setCallState('ringing')
   const handleAnswer = () => setCallState('idle')
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
@@ -613,7 +611,7 @@ function RegularDashboard() {
         setTypedMsg(msg.slice(0, i))
         if (i >= msg.length) { setTypingDone(true); clearInterval(intervalId) }
       }, 36)
-    }, 900)
+    }, 400)
     return () => { clearTimeout(timeoutId); clearInterval(intervalId) }
   }, [selectedInstructor, msgIdx, currentMessages])
 
@@ -647,7 +645,7 @@ function RegularDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 md:pt-16 pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-8">
           <div className="max-w-[1100px] mx-auto w-full space-y-4">
 
             {/* 데스크탑 상단 바 */}
@@ -664,64 +662,93 @@ function RegularDashboard() {
               <AccountMenu userName={userName ?? ''} />
             </div>
 
-            {/* ── 메인 그리드: 강사카드 + 오른쪽 컬럼 ── */}
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-4">
+            {/* ── 메인 레이아웃: 코칭 카드 + 오른쪽 스탯 카드 ── */}
+            <div className="flex gap-4 items-stretch" style={{ maxWidth: '1080px' }}>
 
-              {/* ① 강사 카드 */}
-              <div className="relative rounded-xl overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #E8EFFF 0%, #DBEAFE 50%, #C7D7FD 100%)', minHeight: '360px' }}>
-                {/* 배경 장식 */}
-                <div className="absolute top-6 right-[35%] w-24 h-24 rounded-full bg-white/20 pointer-events-none" />
-                <div className="absolute top-4 right-[48%] w-10 h-10 rounded-full border-2 border-white/30 pointer-events-none" />
+              {/* ① 코칭 카드 (사진 35% + 말풍선·CTA 65%) */}
+              <div
+                className="flex-1 rounded-3xl overflow-hidden shadow-lg relative"
+                style={{
+                  background: 'linear-gradient(135deg, #E8EFFF 0%, #DBEAFE 55%, #C7D7FD 100%)',
+                  height: '400px',
+                }}
+              >
+                <div className="h-full grid" style={{ gridTemplateColumns: '35% 65%' }}>
 
-                {/* 강사 사진 */}
-                <div className="absolute left-0 bottom-0 w-[44%] h-full flex items-end justify-center">
-                  {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
-                    <img src="/image_reference/park-report.png" alt={instName}
-                      className="h-full w-auto object-contain drop-shadow-md" />
-                  ) : (
-                    <img src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']} alt={instName}
-                      className="h-full w-full object-cover object-top"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                  )}
-                </div>
+                  {/* 강사 사진 */}
+                  <div className="relative overflow-hidden h-full">
+                    {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
+                      <img
+                        src="/image_reference/park-report.png"
+                        alt={instName}
+                        className="absolute bottom-0 left-0 drop-shadow-lg"
+                        style={{ maxHeight: '320px', width: 'auto', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <img
+                        src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']}
+                        alt={instName}
+                        className="absolute bottom-0 left-0 drop-shadow-lg"
+                        style={{ maxHeight: '320px', width: 'auto', objectFit: 'contain' }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    )}
+                  </div>
 
-                {/* 말풍선 영역 */}
-                <div className="absolute right-0 top-0 bottom-0 w-[60%] flex flex-col justify-center px-6 py-7">
-                  <div className="bg-white rounded-xl px-6 py-5 shadow-lg">
-                    <p className="text-[32px] text-[#93C5FD] font-serif leading-none mb-1 -ml-1">"</p>
-                    <p className="text-[11px] font-bold text-[#2563EB] mb-3">{instName} 선생님의 한마디</p>
-                    <p className="text-[15px] font-bold text-[#1C1B33] leading-relaxed">
-                      {typedMsg}
-                      {!typingDone && <span className="inline-block w-[2px] h-[1em] bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />}
-                    </p>
-                    <div className="flex justify-end mt-3">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BFDBFE" strokeWidth="2" strokeLinecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  {/* 말풍선 + CTA */}
+                  <div className="flex flex-col justify-center gap-5 py-10 pr-8 pl-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-white/60 flex items-center justify-center">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                      </div>
+                      <span className="text-[12px] font-bold text-[#4B5494]">{instName} 선생님의 오늘 코칭</span>
                     </div>
+
+                    <div className="bg-white rounded-2xl px-5 py-4 shadow-md">
+                      <p className="text-[15px] font-semibold text-[#1C1B33] leading-relaxed">
+                        {typedMsg}
+                        {!typingDone && (
+                          <span className="inline-block w-[2px] h-[1em] bg-[#2563EB] animate-pulse ml-0.5 align-middle rounded-full" />
+                        )}
+                      </p>
+                    </div>
+
+                    <a
+                      href="/part5"
+                      className="flex items-center justify-between bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white px-5 py-3.5 rounded-xl font-bold text-[15px] transition-all shadow-lg shadow-[#2563EB]/25"
+                      style={{ maxWidth: '340px' }}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </div>
+                        1:1 학습 시작하기
+                      </div>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </a>
                   </div>
-                  {/* 강사 서명 */}
-                  <div className="mt-3 pl-1">
-                    <p className="text-[13px] text-[#6B7280] italic">{instName} 선생님</p>
-                    <div className="mt-1 h-[2px] w-16 bg-[#93C5FD] rounded-full" />
-                  </div>
+
                 </div>
               </div>
 
-              {/* ② 오른쪽 컬럼 */}
-              <div className="flex flex-col gap-3">
+              {/* ② 오른쪽: 스탯 카드 2개 */}
+              <div className="flex flex-col gap-3 w-[200px] shrink-0">
 
-                {/* 연속 학습일 카드 */}
-                <div className="bg-white rounded-xl border border-[#F3F4F6] p-5 shadow-sm">
+                <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[12px] font-semibold text-[#6B7280]">연속 학습일</p>
-                    <span className="text-[20px]">🔥</span>
+                    <p className="text-[11px] font-semibold text-[#6B7280]">연속 학습</p>
+                    <span className="text-[16px]">🔥</span>
                   </div>
-                  <p className="text-[44px] font-black text-[#D97706] leading-none">{streakDay}일</p>
-                  <div className="flex gap-1.5 mt-3">
-                    {Array.from({ length: 8 }, (_, i) => {
-                      const done = i < Math.min(streakDay % 8 || 8, 8) && i < 7
+                  <p className="text-[40px] font-black text-[#D97706] leading-none">
+                    {streakDay}<span className="text-[18px] font-bold ml-1">일</span>
+                  </p>
+                  <div className="flex gap-[3px] mt-3">
+                    {Array.from({ length: 7 }, (_, i) => {
+                      const done = i < Math.min(streakDay % 7 || 7, 7)
                       return (
-                        <div key={i} className={`w-[26px] h-[26px] rounded-full border-2 flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors ${done ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]' : 'bg-[#F9FAFB] border-[#E5E7EB] text-transparent'}`}>
+                        <div key={i} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold shrink-0 transition-colors ${done ? 'bg-[#EFF6FF] border-[#2563EB] text-[#2563EB]' : 'bg-[#F9FAFB] border-[#E5E7EB] text-transparent'}`}>
                           ✓
                         </div>
                       )
@@ -729,61 +756,20 @@ function RegularDashboard() {
                   </div>
                 </div>
 
-                {/* D-day 카드 */}
-                {ddayLabel && (
-                  <div className="bg-white rounded-xl border border-[#F3F4F6] p-5 shadow-sm">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[12px] font-semibold text-[#6B7280]">토익 시험</p>
-                      <span className="text-[20px]">📅</span>
-                    </div>
-                    <p className="text-[44px] font-black text-[#2563EB] leading-none">{ddayLabel}</p>
+                <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-[14px]">📅</span>
+                    <p className="text-[11px] font-semibold text-[#6B7280]">토익 시험</p>
                   </div>
-                )}
-
-                {/* CTA 버튼 */}
-                <a href="/part5"
-                  className="mt-auto flex items-center justify-between bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-4 rounded-xl font-black text-[15px] transition-colors shadow-lg shadow-[#2563EB]/25 active:scale-[0.98]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    </div>
-                    1:1 학습 시작하기
-                  </div>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                </a>
+                  <p className="text-[40px] font-black text-[#2563EB] leading-none">
+                    {ddayLabel ?? 'D-?'}
+                  </p>
+                  <p className="text-[11px] text-[#9CA3AF] mt-2">목표 점수까지 화이팅! 💪</p>
+                </div>
 
               </div>
             </div>
 
-            {/* ── ③ 배지 카드 — 상태별 조건부 렌더링 (상호 배타적) ── */}
-            {(() => {
-              const isReturning = streakDay === 0
-              const badgeChevron = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
-                  {isReturning ? (
-                    <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-[#DBEAFE] transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-[#DBEAFE] flex items-center justify-center shrink-0 text-[22px]">👋</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] text-[#2563EB]">오랜만에 오셨네요!</p>
-                        <p className="text-[11px] text-[#6B7280] mt-0.5 leading-snug">다시 시작하는 오늘, 응원할게요!</p>
-                      </div>
-                      {badgeChevron}
-                    </div>
-                  ) : (
-                    <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-[#FEE2E2] transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0 text-[22px]">⚠️</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[13px] text-[#DC2626]">오늘 빠지면 연속 기록 놓쳐요</p>
-                        <p className="text-[11px] text-[#6B7280] mt-0.5 leading-snug">하루만 더! 연속 기록을 지켜봐요.</p>
-                      </div>
-                      {badgeChevron}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
 
           </div>
         </main>
@@ -797,13 +783,6 @@ function RegularDashboard() {
       {callState === 'log' && (
         <CallLogSheet entries={callLog} onClose={handleCloseLog} />
       )}
-      {surveyOpen && (
-        <CallSurvey
-          instructorName={instName}
-          instructorThumb={instThumb}
-          onClose={() => setSurveyOpen(false)}
-        />
-      )}
     </div>
   )
 }
@@ -811,6 +790,6 @@ function RegularDashboard() {
 /* ── 대시보드 라우터 ── */
 export default function Dashboard() {
   const { selectedInstructor } = useOnboardingStore()
-  if (selectedInstructor === 'oh_jungja') return <OjjDashboard />
+  if (selectedInstructor === 'oh') return <OjjDashboard />
   return <RegularDashboard />
 }

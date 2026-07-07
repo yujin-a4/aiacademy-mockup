@@ -58,7 +58,7 @@ export default function LoginPage() {
   const loginWith = async (email: string, pw: string) => {
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw })
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password: pw })
     if (error) {
       setError('아이디 또는 비밀번호가 올바르지 않아요.')
       setLoading(false)
@@ -67,7 +67,7 @@ export default function LoginPage() {
     setShowWelcome(true)
     setWelcomeProgress(30)
     setTimeout(() => setWelcomeProgress(70), 600)
-    const profile = await loadProfileFromSupabase().catch(() => null)
+    const profile = await loadProfileFromSupabase(signInData.user?.id).catch(() => null)
     if (profile?.userName) {
       if (profile.userName) store.setUserName(profile.userName)
       if (profile.rangeAxis) store.setRangeAxis(profile.rangeAxis)

@@ -34,16 +34,19 @@ export async function saveProfileToSupabase(profile: UserProfile) {
   else console.log('[profile] 저장 완료:', user.email)
 }
 
-export async function loadProfileFromSupabase(): Promise<UserProfile | null> {
+export async function loadProfileFromSupabase(userId?: string): Promise<UserProfile | null> {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) return null
-  const user = session.user
+  let uid = userId
+  if (!uid) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return null
+    uid = session.user.id
+  }
 
   const { data } = await supabase
     .from('user_profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', uid)
     .maybeSingle()
 
   if (!data) return null
