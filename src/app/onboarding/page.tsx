@@ -12,7 +12,6 @@ import CurriculumLoading from '@/components/onboarding/CurriculumLoading'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { createClient } from '@/lib/supabase'
-import { saveProfileToSupabase } from '@/lib/profile'
 
 // step 1=Name 2=Quiz 3=Goal 4=DiagnosisLoading 5=Diagnosis 6=CurriculumLoading 7=Instructor 8=Curriculum
 export default function OnboardingPage() {
@@ -26,29 +25,6 @@ export default function OnboardingPage() {
   }
 
   const next = () => setStep((s) => s + 1)
-
-  const handleSkip = async () => {
-    store.setUserName('토익초보')
-    store.setTargetScore(750)
-    store.setStudyRange('LC+RC')
-    store.setRangeAxis('W')
-    store.setRhythm('G')
-    store.setDifficulty('S')
-    store.setMotivation('R')
-    store.setDailyTime('1시간')
-
-    const threeMonthsLater = new Date()
-    threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3)
-    const examDate = threeMonthsLater.toISOString().split('T')[0]
-    store.setExamDate(examDate)
-    store.setStudyPeriod('3개월')
-    store.setSelectedInstructor('park')
-
-    store.saveCurrentProfile()
-    await saveProfileToSupabase(useOnboardingStore.getState()).catch(e => console.error('[skip] 저장 실패:', e))
-
-    router.push('/dashboard')
-  }
 
   const handleSkipToDiagnosis = () => {
     store.setUserName('토익초보')
@@ -110,12 +86,6 @@ export default function OnboardingPage() {
             className="text-[#9CA3AF] text-[12px] font-medium hover:text-[#6B7280] transition-colors bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-[#E5E7EB]"
           >
             진단결과 바로가기
-          </button>
-          <button
-            onClick={handleSkip}
-            className="text-[#9CA3AF] text-[12px] font-medium hover:text-[#6B7280] transition-colors bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-[#E5E7EB]"
-          >
-            바로 시작하기
           </button>
         </div>
       )}
