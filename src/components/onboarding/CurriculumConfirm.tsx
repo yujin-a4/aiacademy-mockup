@@ -1,16 +1,17 @@
 'use client'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import { saveProfileToSupabase } from '@/lib/profile'
 
 const INST_INFO: Record<string, { name: string; msg: (n: string, s: number | null, p: string | null) => string }> = {
-  park: {
+  park_hyewon: {
     name: '박혜원',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 포기하지 마세요!`,
   },
-  jang: {
+  jang_yeonji: {
     name: '장연지',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 저만 믿으세요!`,
   },
-  kim: {
+  kim_toeic: {
     name: '김토익',
     msg: (n, s, p) => `${p ?? '2개월'} 플랜이면 ${s ?? 700}점 충분히 가능해요, ${n}님.`,
   },
@@ -24,8 +25,21 @@ const CURRICULUM: Record<string, string[]> = {
 }
 
 export default function CurriculumConfirm({ onComplete }: { onComplete: () => void }) {
-  const { userName, selectedInstructor, targetScore, studyPeriod, saveCurrentProfile } = useOnboardingStore()
-  const inst = INST_INFO[selectedInstructor ?? 'jang'] ?? INST_INFO.jang
+  const { userName, selectedInstructor, targetScore, studyPeriod, saveCurrentProfile, ...profileFields } = useOnboardingStore()
+
+  const handleComplete = async () => {
+    console.log('[CurriculumConfirm] handleComplete called')
+    try {
+      saveCurrentProfile()
+      const store = useOnboardingStore.getState()
+      console.log('[CurriculumConfirm] store state:', store.userName, store.selectedInstructor)
+      await saveProfileToSupabase(store)
+    } catch (e) {
+      console.error('[CurriculumConfirm] 저장 중 예외:', e)
+    }
+    onComplete()
+  }
+  const inst = INST_INFO[selectedInstructor ?? 'jang_yeonji'] ?? INST_INFO.jang_yeonji
   const curriculum = CURRICULUM[studyPeriod ?? '2개월'] ?? CURRICULUM['2개월']
 
   return (
@@ -86,7 +100,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
       <div className="p-4 bg-white border-t border-[#D1D5DB] fixed bottom-0 left-0 w-full z-20">
         <div className="max-w-[390px] mx-auto space-y-2">
           <button
-            onClick={() => { saveCurrentProfile(); onComplete(); }}
+            onClick={handleComplete}
             className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]"
           >
             확인하고 시작하기

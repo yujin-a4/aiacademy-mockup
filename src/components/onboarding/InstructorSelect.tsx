@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useConversation } from '@11labs/react'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import { saveProfileToSupabase } from '@/lib/profile'
 
 declare global {
   namespace JSX {
@@ -19,10 +20,10 @@ declare global {
 
 // difficulty+motivation → persona type (임시 매핑, 강사 페르소나 확정 후 교체)
 const PERSONA_MAP: Record<string, string> = {
-  CR: 'park',  // 열정 부스터
-  CP: 'lee',   // 하드 트레이너
-  SR: 'jang',  // 다정 빌더
-  SP: 'kim',   // 현실 코치
+  CR: 'park_hyewon',
+  CP: 'park_hyewon',
+  SR: 'park_hyewon',
+  SP: 'park_hyewon',
 }
 
 const PERSONA_LABEL: Record<string, string> = {
@@ -34,13 +35,13 @@ const PERSONA_LABEL: Record<string, string> = {
 
 const INSTRUCTORS = [
   {
-    id: 'park',
+    id: 'park_hyewon',
     persona: 'CR',
     name: '박혜원',
     tag: '#단기집중형',
-    video: '/video/video-park.mp4',
-    videoJiyun: '/video/video-park2.mp4',
-    thumbnail: '/image_reference/park-2.jpg',
+    video: '/video/video-park4.mp4',
+    videoJiyun: '/video/video-park4.mp4',
+    thumbnail: '/instructor/teacher.png',
     badge: '단기 목표 전문',
     desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
     quote: '"이거 또 틀렸네. 패턴 외워."',
@@ -74,7 +75,7 @@ const INSTRUCTORS = [
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'jang',
+    id: 'jang_yeonji',
     persona: 'SR',
     name: '장연지',
     tag: '#꼼꼼관리형',
@@ -114,7 +115,7 @@ const INSTRUCTORS = [
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'kim',
+    id: 'kim_toeic',
     persona: 'SP',
     name: '김토익',
     tag: '#균형코칭형',
@@ -154,7 +155,7 @@ const INSTRUCTORS = [
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'jeong',
+    id: 'jeong_eunsoon',
     persona: 'SR',
     name: '정은순',
     tag: '#감성멘토형',
@@ -194,7 +195,7 @@ const INSTRUCTORS = [
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'lee',
+    id: 'lee_inho',
     persona: 'CP',
     name: '이인호',
     tag: '#데이터기반형',
@@ -234,7 +235,7 @@ const INSTRUCTORS = [
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'oh',
+    id: 'oh_jungja',
     persona: null,
     name: '오정자',
     tag: '#시니어맞춤형',
@@ -286,7 +287,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const recommendedId = recommendedPersona ? (PERSONA_MAP[recommendedPersona] ?? null) : null
 
   const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
-  const filtered = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh')
+  const filtered = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh_jungja')
   const visibleInstructors = recommendedId
     ? [...filtered].sort((a, b) => a.id === recommendedId ? -1 : b.id === recommendedId ? 1 : 0)
     : filtered
@@ -295,7 +296,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({})
   const [isTablet, setIsTablet] = useState(false)
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>(new Array(INSTRUCTORS.length).fill(null)) // 최대 크기로 고정
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>(new Array(INSTRUCTORS.length).fill(null))
+  const videoInitialized = useRef(false)
   const touchStartX = useRef(0)
 
   const [activeTab, setActiveTab] = useState<'proposal' | 'chat' | 'curriculum'>('proposal')
@@ -332,19 +334,26 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   /* ── video autoplay on focus change ── */
   useEffect(() => {
-    videoRefs.current.forEach((v, i) => {
-      if (!v) return
-      if (i === focusedIndex) {
-        v.muted = isMuted
-        v.currentTime = 0
-        v.play().catch(() => {
-          v.muted = true
-          v.play().catch(() => {})
-        })
-      } else {
-        v.pause()
-      }
-    })
+    const play = () => {
+      videoRefs.current.forEach((v, i) => {
+        if (!v) return
+        if (i === focusedIndex) {
+          v.muted = isMuted
+          v.currentTime = 0
+          v.play().catch(() => { v.muted = true; v.play().catch(() => {}) })
+        } else {
+          v.pause()
+        }
+      })
+    }
+
+    if (!videoInitialized.current) {
+      videoInitialized.current = true
+      const t = setTimeout(play, 1000)
+      return () => clearTimeout(t)
+    } else {
+      play()
+    }
   }, [focusedIndex])
 
   /* ── mute 토글 시 현재 영상에 즉시 반영 ── */
@@ -456,8 +465,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     conversation.sendUserMessage(q)
   }
 
-  const handleConfirm = (id: string) => {
+  const handleConfirm = async (id: string) => {
     setSelectedInstructor(id)
+    // setSelectedInstructor is synchronous, so getState() reflects the new value immediately
+    console.log('[InstructorSelect] handleConfirm 저장 시작, instructor:', id)
+    await saveProfileToSupabase(useOnboardingStore.getState()).catch(e =>
+      console.error('[InstructorSelect] 저장 실패:', e)
+    )
     window.location.href = '/dashboard'
   }
 
@@ -481,7 +495,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   if (view === 'list') {
     const focused = visibleInstructors[focusedIndex]
     return (
-      <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#EAF1FF] via-[#F3F4F6] to-[#F0F0F8] overflow-hidden select-none relative">
+      <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#C7D9FF] via-[#E8EFFE] to-[#F5F7FF] overflow-hidden select-none relative">
         {onBack && (
           <button
             onClick={onBack}
@@ -504,8 +518,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
         {/* Card Slider */}
         <div
-          className="relative flex-shrink-0"
-          style={{ height: isTablet ? '420px' : '340px' }}
+          className="relative flex-shrink-0 mt-8"
+          style={{ height: isTablet ? '480px' : '400px' }}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -515,9 +529,9 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             const isActive = offset === 0
             const isVisible = isTablet ? absOffset <= 2 : absOffset <= 1
 
-            const cardW = isTablet ? 220 : 220
-            const cardH = isTablet ? 360 : 300
-            const spacing = isTablet ? 215 : 200
+            const cardW = isTablet ? 250 : 245
+            const cardH = isTablet ? 420 : 355
+            const spacing = isTablet ? 240 : 230
             const scale = isActive ? 1 : absOffset === 1 ? 0.85 : 0.70
             const opacity = isActive ? 1 : absOffset === 1 ? 0.65 : 0.40
             const blur = isActive ? 'none' : absOffset === 1 ? 'blur(1.5px)' : 'blur(2.5px)'
@@ -543,6 +557,25 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 }}
                 onClick={() => { if (!isActive) setFocusedIndex(i) }}
               >
+                {/* 추천/매칭 배지 — overflow-hidden 바깥에 위치 */}
+                {inst.id === recommendedId ? (
+                  <div className="absolute -top-[40px] left-1/2 -translate-x-1/2 z-20 pointer-events-none whitespace-nowrap">
+                    <div className="bg-[#2563EB] text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md shadow-[#2563EB]/40">
+                      <span>★</span>
+                      <span>AI 추천</span>
+                      {recommendedPersona && PERSONA_LABEL[recommendedPersona] && (
+                        <span className="opacity-75">· {PERSONA_LABEL[recommendedPersona]}</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute -top-[40px] left-1/2 -translate-x-1/2 z-20 pointer-events-none whitespace-nowrap">
+                    <div className="bg-gray-700 text-white/80 text-[11px] font-semibold px-2.5 py-1 rounded-full">
+                      {`${inst.matching} MATCH`}
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className={`w-full h-full rounded-[22px] overflow-hidden relative group ${
                     isActive
@@ -584,21 +617,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       >
                         바로 선택하기
                       </button>
-                    </div>
-                  )}
-
-                  {/* 추천/매칭 배지 */}
-                  {inst.id === recommendedId ? (
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-bold pointer-events-none bg-[#2563EB] text-white px-3 py-1 shadow-lg shadow-[#2563EB]/50 flex items-center gap-1">
-                      <span>★</span>
-                      <span>AI 추천</span>
-                      {recommendedPersona && PERSONA_LABEL[recommendedPersona] && (
-                        <span className="opacity-75">· {PERSONA_LABEL[recommendedPersona]}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-full text-[11px] font-medium pointer-events-none bg-black/40 backdrop-blur-sm text-white/65 px-2.5 py-[3px]">
-                      {`${inst.matching} Match`}
                     </div>
                   )}
 
@@ -646,9 +664,9 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         </div>
 
         {/* Instructor name + tag */}
-        <div className="text-center mt-5 px-6 transition-all duration-300">
+        <div className="text-center mt-4 px-6 transition-all duration-300">
           <h2 className="text-[#111318] text-[22px] font-bold">{focused.name}</h2>
-          <p className="text-[#2563EB] text-[14px] font-semibold mt-1">{focused.tag}</p>
+          <span className="inline-block mt-1.5 text-[12px] font-semibold text-[#2563EB] bg-[#EFF6FF] px-3 py-1 rounded-full">{focused.tag}</span>
         </div>
 
         {/* Indicator dots */}
@@ -784,7 +802,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     이 강사 선택하기
                   </button>
                   <button
-                    onClick={() => { setSelectedInstructor(selectedInst.id); window.location.href = '/lessons' }}
+                    onClick={async () => {
+                      setSelectedInstructor(selectedInst.id)
+                      await saveProfileToSupabase(useOnboardingStore.getState()).catch(e =>
+                        console.error('[InstructorSelect] 저장 실패:', e)
+                      )
+                      window.location.href = '/lessons'
+                    }}
                     className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
                   >
                     샘플 수업 시작하기

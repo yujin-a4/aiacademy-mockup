@@ -177,10 +177,10 @@ function MyLearningInner() {
   const [filter, setFilter] = useState<'전체' | 'LC' | 'RC'>('전체')
   const [wrongSubTab, setWrongSubTab] = useState<'유형별' | '파트별' | 'AI 추천'>('유형별')
 
-  const instName = INST_NAME[selectedInstructor ?? 'park'] ?? '박혜원'
-  const instThumb = (selectedInstructor ?? 'park') === 'park'
+  const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
+  const instThumb = (selectedInstructor ?? 'park_hyewon') === 'park_hyewon'
     ? '/image_reference/park-2.jpg'
-    : INST_THUMBS[selectedInstructor ?? 'park']
+    : INST_THUMBS[selectedInstructor ?? 'park_hyewon']
   const [callState, setCallState] = useState<'idle' | 'ringing' | 'log'>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
   const handlePhoneClick = () => setCallState('ringing')
@@ -188,7 +188,7 @@ function MyLearningInner() {
   const handleReject = () => {
     setCallLog(prev => [...prev, {
       id: Date.now().toString(),
-      instructorKey: selectedInstructor ?? 'park',
+      instructorKey: selectedInstructor ?? 'park_hyewon',
       instructorName: instName,
       instructorThumb: instThumb,
       time: new Date(),

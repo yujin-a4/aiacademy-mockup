@@ -7,11 +7,10 @@ export function useStreakDay() {
     const stored = localStorage.getItem(key)
     const today = new Date(); today.setHours(0, 0, 0, 0)
     if (!stored) {
-      const defaultStart = '2026-05-10T00:00:00.000Z'
-      localStorage.setItem(key, defaultStart)
-      const start = new Date(defaultStart); start.setHours(0, 0, 0, 0)
-      const diff = Math.floor((today.getTime() - start.getTime()) / 86400000) + 1
-      setStreakDay(Math.max(1, diff))
+      const defaultStart = new Date(today)
+      defaultStart.setDate(defaultStart.getDate() - 2)
+      localStorage.setItem(key, defaultStart.toISOString())
+      setStreakDay(3)
     } else {
       const start = new Date(stored); start.setHours(0, 0, 0, 0)
       const diff = Math.floor((today.getTime() - start.getTime()) / 86400000) + 1
