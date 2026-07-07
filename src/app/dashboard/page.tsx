@@ -7,6 +7,7 @@ import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS, INST_MESSAGES } from '@/data/instructorData'
+import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
 
 type CallState = 'idle' | 'ringing' | 'active' | 'log'
@@ -571,8 +572,9 @@ function RegularDashboard() {
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
+  const [surveyOpen, setSurveyOpen] = useState(false)
 
-  const handlePhoneClick = () => setCallState('ringing')
+  const handlePhoneClick = () => setSurveyOpen(true)
   const handleAnswer = () => setCallState('idle')
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
@@ -794,6 +796,13 @@ function RegularDashboard() {
       )}
       {callState === 'log' && (
         <CallLogSheet entries={callLog} onClose={handleCloseLog} />
+      )}
+      {surveyOpen && (
+        <CallSurvey
+          instructorName={instName}
+          instructorThumb={instThumb}
+          onClose={() => setSurveyOpen(false)}
+        />
       )}
     </div>
   )
