@@ -122,7 +122,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-[#F0F4FF] flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-[860px] min-h-[540px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] min-h-[648px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
 
         {/* ── 좌측: 비주얼 영역 ── */}
         <div className="relative md:w-[55%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-between overflow-hidden">
@@ -174,7 +174,7 @@ export default function LoginPage() {
             {/* 아이디 입력 */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[#374151] text-[12px] font-semibold">아이디</label>
-              <div className={`flex items-center h-12 rounded-xl border bg-white transition-all ${id ? 'border-[#2563EB] ring-2 ring-[#2563EB]/15' : 'border-[#E5E7EB]'}`}>
+              <div className={`flex items-center h-12 rounded-xl border bg-white transition-all overflow-hidden ${id ? 'border-[#2563EB] ring-2 ring-[#2563EB]/15' : 'border-[#E5E7EB]'}`}>
                 <input
                   type="text"
                   value={id}
@@ -230,7 +230,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <p className="mt-4 text-[#D1D5DB] text-[11px] text-center">© 2026 YBM AI 어학원 · 데모 버전</p>
+          <p className="mt-4 text-[#D1D5DB] text-[11px] text-center">© 2026. YBM Inc. All rights reserved. (Demo Ver.)</p>
         </div>
       </div>
     </main>
