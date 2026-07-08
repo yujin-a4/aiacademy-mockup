@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 export interface UserProfile {
   userName: string;
   rangeAxis: 'W' | 'N' | null;
-  rhythm: 'B' | 'G' | null;
+  rhythm: 'D' | 'M' | null;
   difficulty: 'C' | 'S' | null;
   motivation: 'R' | 'P' | null;
   targetScore: number | null;
@@ -20,7 +20,7 @@ interface OnboardingState extends UserProfile {
 
   setUserName: (name: string) => void;
   setRangeAxis: (axis: 'W' | 'N') => void;
-  setRhythm: (rhythm: 'B' | 'G') => void;
+  setRhythm: (rhythm: 'D' | 'M') => void;
   setDifficulty: (difficulty: 'C' | 'S') => void;
   setMotivation: (motivation: 'R' | 'P') => void;
   setTargetScore: (score: number) => void;

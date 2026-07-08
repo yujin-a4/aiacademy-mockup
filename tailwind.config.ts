@@ -70,6 +70,7 @@ const config: Config = {
         'svg-draw': 'svgDraw 3s ease-in-out forwards',
         'fill-in': 'fillIn 0.8s ease-in-out forwards 2s',
         'cta-pulse':    'ctaPulse 1.8s ease-in-out infinite',
+        'slide-in-right': 'slideInRight 0.38s cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in-up':  'fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         'particle-fly':'particleFly 0.7s ease-out both',
         'pop-badge':   'popBadge 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
@@ -117,6 +118,10 @@ const config: Config = {
         fadeInUp: {
           '0%':   { opacity: '0', transform: 'translateY(20px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          '0%':   { opacity: '0', transform: 'translateX(48px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
         },
         particleFly: {
           '0%':   { transform: 'translate(0, 0) scale(1)', opacity: '1' },

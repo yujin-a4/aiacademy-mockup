@@ -18,235 +18,188 @@ declare global {
   }
 }
 
-// difficulty+motivation → persona type (임시 매핑, 강사 페르소나 확정 후 교체)
-const PERSONA_MAP: Record<string, string> = {
-  CR: 'park_hyewon',
-  CP: 'park_hyewon',
-  SR: 'park_hyewon',
-  SP: 'park_hyewon',
+// 강사별 핵심 매칭 코드 (C/S = 난이도, R/P = 동기유지)
+const INST_CORE: Record<string, { difficulty: 'C' | 'S'; motivation: 'R' | 'P' }> = {
+  park_hyewon: { difficulty: 'C', motivation: 'P' },
+  yun_daeun:   { difficulty: 'S', motivation: 'P' },
+  lee_doyun:   { difficulty: 'C', motivation: 'R' },
+  seo_jian:    { difficulty: 'S', motivation: 'R' },
 }
 
-const PERSONA_LABEL: Record<string, string> = {
-  CR: '열정 부스터',
-  CP: '하드 트레이너',
-  SR: '다정 빌더',
-  SP: '현실 코치',
+function getMatchScore(userDiff: string | null, userMot: string | null, instId: string): number {
+  const core = INST_CORE[instId]
+  if (!core) return 50
+  let score = 50 // W/N(25) + D/M(25) 항상 충족
+  if (userDiff && userDiff === core.difficulty) score += 30
+  if (userMot && userMot === core.motivation) score += 20
+  return score
 }
 
 const INSTRUCTORS = [
   {
     id: 'park_hyewon',
-    persona: 'CR',
     name: '박혜원',
-    tag: '#단기집중형',
+    tag: '#스파르타압축형',
     video: '/video/video-park4.mp4',
     videoJiyun: '/video/video-park4.mp4',
-    thumbnail: '/instructor/teacher.png',
-    badge: '단기 목표 전문',
-    desc: '빠르고 집중적인 반복 훈련으로 단기 점수 상승을 이끌어냅니다.',
-    quote: '"이거 또 틀렸네. 패턴 외워."',
+    thumbnail: '/instructor/park-2.jpg',
+    badge: '목표 자극 전문',
+    desc: '어려운 문제도 점수로 연결하는 오답 소거·압축 전략. 단호하지만 확실한 코칭.',
+    quote: '"이 선택지 왜 고른 거야. 소거 기준부터 다시."',
     badgeCls: 'bg-[#FEF9C3] text-[#B45309]',
-    matching: '99%',
-    matchingDesc: '계획적인 학습 습관과 빠른 피드백을 선호하는 성향이 잘 맞아요.',
+    matchingDesc: '도전적인 문제를 즐기고 목표 자극으로 동기를 찾는 성향에 딱 맞아요.',
     recommendations: [
-      '단기간에 점수를 올리고 싶은 분',
-      '문법과 어휘에서 자주 틀리는 분',
-      '반복 훈련으로 확실히 잡고 싶은 분',
+      '목표 점수까지 강하게 드라이브 걸고 싶은 분',
+      '어려운 문제에 도전해야 실력이 느는 분',
+      '팩폭도 감수하고 결과를 내고 싶은 분',
     ],
     stats: { satisfaction: '4.9/5', students: '8,200+', avgIncrease: '+145점' },
     proposal: {
-      plan: '4주 초집중 스피드 팩',
-      target: 'Part 5 정답률 95% 달성',
-      comment: '빠르고 집중적인 반복 훈련으로 Part 5 문법 약점과 빈출 어휘를 단기간에 잡아주는 튜터예요.',
-      tags: ['#스파르타', '#연어', '#문법패턴', '#고득점전략', '#파트5전문'],
+      plan: '4주 초집중 스파르타 팩',
+      target: '오답 소거력 완성 + 실전 압축 코칭',
+      comment: '선택지 소거 기준을 먼저 잡아줄게요. 어려운 문제도 점수로 연결하는 방법, 저랑 함께 훈련해요.',
+      tags: ['#스파르타', '#오답소거', '#압축전략', '#목표자극', '#고득점'],
     },
     curriculum: [
-      { week: '1주차', title: '핵심 빈출 어휘 정복', detail: '가장 많이 출제되는 Part 5 어휘와 연어(collocation)를 집중 암기합니다.', part: 'Part 5 어휘', goal: '정답률 65%+' },
-      { week: '2주차', title: '문법 패턴 훈련', detail: '자주 틀리는 문법 패턴을 공식화하여 기계적으로 풀어내는 연습을 합니다.', part: 'Part 5 문법', goal: '정답률 70%+' },
-      { week: '3주차', title: '오답 소거법 마스터', detail: '오답의 함정을 피하고 빠르게 소거하는 실전 노하우를 습득합니다.', part: 'Part 6/7 독해', goal: '정답률 75%+' },
-      { week: '4주차', title: '실전 모의고사 3회', detail: '시간 제한 내에 풀이하는 강도 높은 실전 훈련으로 마무리합니다.', part: '실전 전 파트', goal: '750점 도달' },
+      { week: '1주차', title: '오답 소거 기준 잡기', detail: '풀기 전에 소거할 선택지를 먼저 판단하는 기준을 만들어요.', part: 'Part 5/6', goal: '소거 정확도 70%+' },
+      { week: '2주차', title: '시간 압축 훈련', detail: 'Part 5 10분 컷을 목표로 풀이 속도를 압축하는 훈련을 합니다.', part: 'Part 5', goal: '풀이 속도 단축' },
+      { week: '3주차', title: '고난도 문제 공략', detail: '레벨보다 한 단계 어려운 문제를 소거 기준으로 뚫는 훈련을 합니다.', part: 'Part 6/7', goal: '정답률 75%+' },
+      { week: '4주차', title: '실전 모의고사', detail: '시간 제한 내 풀이 + 오답 원인 즉시 분석으로 마무리합니다.', part: '전 파트', goal: '목표 점수 도달' },
     ],
     guideQuestions: [
-      '선생님만의 단기 점수 상승 비결이 뭔가요?',
-      '제가 기초가 많이 부족한데 따라갈 수 있을까요?',
-      '하루에 몇 시간 정도 공부해야 하나요?',
+      '선생님, 오답 소거 기준 어떻게 잡아야 하나요?',
+      '어려운 문제에서 자꾸 시간을 잃는데, 어떻게 해야 하나요?',
+      '목표 점수까지 가장 빠른 길이 뭔가요?',
     ],
-    greeting: '반가워요! 박혜원입니다. 점수, 단기간에 확 올릴 준비 됐나요? 궁금한 게 있으면 물어보세요.',
+    greeting: '반가워요, 박혜원입니다. 점수, 확실히 올릴 준비 됐나요? 어려운 문제도 소거 기준만 잡으면 돼요. 궁금한 거 물어보세요.',
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'jang_yeonji',
-    persona: 'SR',
-    name: '장연지',
-    tag: '#꼼꼼관리형',
+    id: 'yun_daeun',
+    name: '윤다은',
+    tag: '#하이텐션핵심형',
     video: '/video/video-jang.mp4',
-    videoJiyun: '/video/video-jang2.mp4',
+    videoJiyun: '/video/video-jang.mp4',
     thumbnail: '/image_reference/jang.png',
-    badge: '꼼꼼 관리형',
-    desc: '친근하고 꼼꼼한 코칭으로 기초 개념부터 탄탄하게 다져주는 파트너입니다.',
-    quote: '"헷갈릴 수 있어, 같이 보자."',
-    badgeCls: 'bg-[#EFF6FF] text-[#2563EB]',
-    matching: '88%',
-    matchingDesc: '꼼꼼하고 차근차근 배우고 싶어하는 성향에 잘 맞아요.',
+    badge: '핵심 포인트 전문',
+    desc: 'LC 정답 타이밍과 RC 근거 키워드를 빠르게 짚어주는 에너지 넘치는 코칭.',
+    quote: '"여기서 잡아야 할 건 딱 이 부분이에요!"',
+    badgeCls: 'bg-[#FFF0F3] text-[#E11D48]',
+    matchingDesc: '안정적으로 쌓아가면서 목표 자극으로 동기를 찾는 성향에 딱 맞아요.',
     recommendations: [
-      '기초부터 탄탄히 쌓고 싶은 분',
-      '꼼꼼한 피드백이 필요한 분',
-      '혼자 공부하기 어려운 분',
+      'LC 정답 타이밍을 자주 놓치는 분',
+      'RC에서 근거 키워드를 못 잡는 분',
+      '핵심만 빠르게 짚어주는 코칭이 필요한 분',
     ],
-    stats: { satisfaction: '4.8/5', students: '6,100+', avgIncrease: '+120점' },
+    stats: { satisfaction: '4.8/5', students: '6,500+', avgIncrease: '+128점' },
     proposal: {
-      plan: '8주 탄탄 개념 코스',
-      target: '문법 기초 완벽 마스터',
-      comment: '모르는 건 부끄러운 게 아니에요. 하나씩 짚어가며 튼튼한 점수를 만들어봐요.',
-      tags: ['#개념위주', '#친절코칭', '#기초탄탄'],
+      plan: '5주 핵심 포인트 집중 코스',
+      target: 'LC 정답 타이밍 + RC 근거 키워드 완성',
+      comment: '군더더기 없이 핵심만 빠르게요. LC는 타이밍, RC는 근거 키워드 — 이것만 잡으면 점수 올라가요!',
+      tags: ['#핵심포인트', '#정답타이밍', '#근거키워드', '#하이텐션', '#빠른피드백'],
     },
     curriculum: [
-      { week: '1~2주차', title: '동사와 시제 기초', detail: '문장의 뼈대가 되는 동사의 성질과 시제의 기본 개념을 확실히 잡습니다.', part: 'Part 5', goal: '정답률 60%+' },
-      { week: '3~4주차', title: '품사 완벽 분해', detail: '명사, 대명사, 형용사, 부사의 쓰임과 위치를 구조적으로 이해합니다.', part: 'Part 5', goal: '정답률 65%+' },
-      { week: '5~6주차', title: '문장의 확장', detail: '전치사구, 접속사, 관계대명사를 활용하여 길고 복잡한 문장을 분석합니다.', part: 'Part 6', goal: '정답률 70%+' },
-      { week: '7~8주차', title: '독해 적용 훈련', detail: '배운 문법 개념을 Part 6, 7의 지문 속에서 실제로 확인하고 해석합니다.', part: 'Part 7', goal: '정답률 75%+' },
+      { week: '1주차', title: 'LC 정답 타이밍 훈련', detail: '어디서 답이 나오는지 타이밍을 먼저 파악하는 훈련을 합니다.', part: 'Part 1~4', goal: 'LC 정답률 75%+' },
+      { week: '2주차', title: 'RC 근거 키워드 찾기', detail: '정답 근거가 되는 키워드를 빠르게 표시하는 연습을 합니다.', part: 'Part 5/6', goal: '근거 파악 속도 향상' },
+      { week: '3~4주차', title: '핵심 포인트 실전 적용', detail: 'LC 타이밍과 RC 근거를 실전 문제에 바로 적용하는 훈련을 합니다.', part: '전 파트', goal: '정답률 78%+' },
+      { week: '5주차', title: '실전 모의고사 마무리', detail: '전체 흐름으로 풀고 핵심 포인트를 놓친 문제만 집중 보강합니다.', part: '전 파트', goal: '목표 점수 도달' },
     ],
     guideQuestions: [
-      '공부하다가 모르는 게 생기면 어떻게 질문하나요?',
-      '의지가 약한데 잘 이끌어 주실 수 있나요?',
-      '장연지 선생님 수업만의 특징은 무엇인가요?',
+      '선생님, LC에서 정답 타이밍 잡는 법 알려주세요!',
+      'RC에서 근거 키워드를 못 찾겠어요, 어떻게 해야 하나요?',
+      '윤다은 선생님 코칭 스타일이 궁금해요!',
     ],
-    greeting: '안녕하세요! 장연지입니다. 토익 공부, 혼자 하기 많이 힘들었죠? 제가 옆에서 하나하나 꼼꼼하게 도와줄게요.',
+    greeting: '안녕하세요 윤다은입니다! 빠르게 핵심만 가요. LC는 타이밍, RC는 키워드 — 딱 이것만 잡으면 점수 나와요!',
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
-    id: 'kim_toeic',
-    persona: 'SP',
-    name: '김토익',
-    tag: '#균형코칭형',
-    video: '/video/video-kim.mp4',
-    videoJiyun: '/video/video-kim2.mp4',
-    thumbnail: '/image_reference/kim.png',
-    badge: '균형 코칭형',
-    desc: '바쁜 일상 속에서도 현실적인 목표와 가장 효율적인 가성비 전략을 제공합니다.',
-    quote: '"틀렸어, 근데 이건 잘하고 있어."',
-    badgeCls: 'bg-[#F0FDF4] text-[#059669]',
-    matching: '85%',
-    matchingDesc: '현실적이고 효율을 중시하는 성향에 잘 맞아요.',
-    recommendations: [
-      '바쁜 직장인·학생',
-      '가성비 좋은 공부법을 원하는 분',
-      '균형 잡힌 LC+RC 향상이 필요한 분',
-    ],
-    stats: { satisfaction: '4.7/5', students: '9,400+', avgIncrease: '+130점' },
-    proposal: {
-      plan: '6주 실용 득점 전략',
-      target: '가성비 위주 핵심 공략',
-      comment: '나올 것만 합니다. 바쁜 시간 쪼개서 하는 공부, 가장 효율적으로 점수 내드릴게요.',
-      tags: ['#효율극대화', '#핵심요약', '#가성비토익'],
-    },
-    curriculum: [
-      { week: '1주차', title: 'LC/RC 약점 진단', detail: '정밀한 진단 평가를 통해 가장 빠르고 효율적으로 점수를 올릴 파트를 탐색합니다.', part: '전 파트', goal: '약점 파악' },
-      { week: '2~3주차', title: '핵심 득점 파트 집중', detail: '개인별 강점에 맞춰 점수 올리기 쉬운 파트(예: Part 2, 5)부터 공략합니다.', part: 'Part 2/5', goal: '정답률 75%+' },
-      { week: '4~5주차', title: '오답 데이터 분석', detail: 'AI 리포트를 기반으로 반복적으로 틀리는 오답 유형만 집중적으로 리뷰합니다.', part: 'Part 6/7', goal: '정답률 70%+' },
-      { week: '6주차', title: '실전 페이스 조절', detail: '2시간 연속 풀이 체력을 기르고, 시험장과 동일한 환경에서 전략을 점검합니다.', part: '전 파트', goal: '목표 점수 도달' },
-    ],
-    guideQuestions: [
-      '직장인(학생)인데 가장 효율적인 공부법이 뭘까요?',
-      '어떤 파트부터 집중적으로 공략해야 할까요?',
-      '김토익 선생님의 실전 전략이 궁금합니다.',
-    ],
-    greeting: '반갑습니다. 김토익입니다. 우리는 시간 낭비 없이 딱 나올 것만 합니다. 현실적인 목표부터 세워볼까요?',
-    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
-  },
-  {
-    id: 'jeong_eunsoon',
-    persona: 'SR',
-    name: '정은순',
-    tag: '#감성멘토형',
-    video: '/video/video-jung.mp4',
-    videoJiyun: '/video/video-jung2.mp4',
-    thumbnail: '/image_reference/jung.png',
-    badge: '감성 멘토형',
-    desc: '공감과 격려로 학습 동기를 꾸준히 유지시켜주는 따뜻한 멘토입니다.',
-    quote: '"틀려도 괜찮아. 같이 다시 해보자."',
-    badgeCls: 'bg-[#FFF7ED] text-[#C2410C]',
-    matching: '89%',
-    matchingDesc: '감정적 지지와 꾸준한 동기부여를 원하는 성향에 잘 맞아요.',
-    recommendations: [
-      '포기했다 다시 시작하는 분',
-      '스트레스 없이 천천히 쌓고 싶은 분',
-      '어휘를 이야기로 외우고 싶은 분',
-    ],
-    stats: { satisfaction: '4.9/5', students: '7,300+', avgIncrease: '+115점' },
-    proposal: {
-      plan: '10주 감성 몰입 코스',
-      target: '어휘·독해 자신감 완성',
-      comment: '암기가 아니라 이해로, 이해가 아니라 감각으로 토익을 익히는 방법을 알려드릴게요.',
-      tags: ['#스토리텔링', '#감성학습', '#어휘완성', '#꾸준함'],
-    },
-    curriculum: [
-      { week: '1~2주차', title: '연상 어휘 훈련', detail: '단어를 이야기와 이미지로 연결해 장기 기억에 자연스럽게 새깁니다.', part: 'Part 5/6', goal: '어휘 정확도 70%+' },
-      { week: '3~4주차', title: '감정 독해법', detail: '지문의 흐름과 감정선을 파악하며 빠르게 핵심을 잡는 훈련을 합니다.', part: 'Part 7', goal: '독해 속도 향상' },
-      { week: '5~7주차', title: '반복 패턴 내재화', detail: '자주 나오는 출제 패턴을 감각적으로 익혀 무의식적으로 반응하게 합니다.', part: 'Part 5/6', goal: '정답률 75%+' },
-      { week: '8~10주차', title: '실전 적용 마무리', detail: '실전 모의고사와 오답 분석을 통해 실력을 점수로 전환합니다.', part: '전 파트', goal: '목표 점수 도달' },
-    ],
-    guideQuestions: [
-      '어휘가 너무 안 외워지는데 어떻게 해야 할까요?',
-      '공부하다 지칠 때 어떻게 동기 유지를 하나요?',
-      '정은순 선생님만의 감성 학습법이 궁금해요.',
-    ],
-    greeting: '안녕하세요, 정은순입니다. 토익, 어렵고 지치죠? 괜찮아요. 우리 같이 천천히, 그렇지만 확실하게 해봐요.',
-    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
-  },
-  {
-    id: 'lee_inho',
-    persona: 'CP',
-    name: '이인호',
-    tag: '#데이터기반형',
+    id: 'lee_doyun',
+    name: '이도윤',
+    tag: '#직청직독형',
     video: '/video/video-lee.mp4',
-    videoJiyun: '/video/video-lee2.mp4',
+    videoJiyun: '/video/video-lee.mp4',
     thumbnail: '/image_reference/lee.png',
-    badge: '데이터 기반형',
-    desc: '출제 패턴 분석과 통계 기반 전략으로 최단 경로를 설계하는 전략가입니다.',
-    quote: '"패턴이 보이면 점수가 보인다."',
+    badge: '직청직독 전문',
+    desc: '영어를 영어 어순 그대로 처리하는 직청직독 방식으로 처리 속도와 점수를 동시에 올립니다.',
+    quote: '"번역하려고 멈추는 순간 이미 늦어요."',
     badgeCls: 'bg-[#EFF6FF] text-[#1D4ED8]',
-    matching: '87%',
-    matchingDesc: '논리적이고 체계적인 학습을 선호하는 성향에 잘 맞아요.',
+    matchingDesc: '도전적인 문제를 즐기고 성취 보상으로 동기를 찾는 성향에 딱 맞아요.',
     recommendations: [
-      '이미 기초는 있지만 점수가 안 오르는 분',
-      '왜 틀리는지 정확히 알고 싶은 분',
-      '전략적으로 고득점을 노리는 분',
+      '번역 습관 때문에 속도가 느린 분',
+      '어려운 문장을 바로 이해하고 싶은 분',
+      '처리 속도 향상을 성취감으로 느끼고 싶은 분',
     ],
-    stats: { satisfaction: '4.8/5', students: '5,600+', avgIncrease: '+160점' },
+    stats: { satisfaction: '4.8/5', students: '7,100+', avgIncrease: '+138점' },
     proposal: {
-      plan: '5주 데이터 드리븐 전략',
-      target: '최빈 출제 유형 완전 정복',
-      comment: '감으로 푸는 시대는 끝났어요. 출제 데이터와 오답 패턴으로 최단 경로를 짜드립니다.',
-      tags: ['#패턴분석', '#데이터학습', '#고득점전략', '#오답제로'],
+      plan: '6주 직청직독 집중 코스',
+      target: 'LC/RC 처리 속도 2배 향상',
+      comment: '영어를 한국어로 바꾸지 않고 바로 이해하는 방법이 있어요. 의미 덩어리로 처리하면 속도와 정확도가 동시에 올라가요.',
+      tags: ['#직청직독', '#의미덩어리', '#처리속도', '#고난도정복', '#논리형코칭'],
     },
     curriculum: [
-      { week: '1주차', title: '출제 빈도 분석', detail: '최근 3년 기출 데이터를 분석해 고빈도 유형만 선별하여 학습 범위를 최소화합니다.', part: '전 파트', goal: '전략 수립' },
-      { week: '2주차', title: 'LC 패턴 집중 공략', detail: '반복 출제되는 LC 함정 유형을 데이터로 정리해 오답 확률을 낮춥니다.', part: 'Part 1~4', goal: '정답률 80%+' },
-      { week: '3~4주차', title: 'RC 공식 마스터', detail: '통계적으로 가장 자주 나오는 문법·어휘 공식을 체계적으로 정복합니다.', part: 'Part 5/6', goal: '정답률 85%+' },
-      { week: '5주차', title: '오답 제로 마무리', detail: '개인 오답 데이터를 기반으로 취약 유형만 압축 반복해 실전에서 실수를 없앱니다.', part: '전 파트', goal: '목표 점수 도달' },
+      { week: '1~2주차', title: '의미 덩어리 읽기 훈련', detail: '영어를 끊어 읽고 덩어리째 이해하는 훈련을 합니다.', part: 'Part 6/7', goal: '독해 속도 향상' },
+      { week: '3주차', title: 'LC 직청 훈련', detail: '들리는 순서대로 의미를 파악하는 직청 훈련을 합니다.', part: 'Part 3/4', goal: 'LC 정답률 78%+' },
+      { week: '4~5주차', title: '고난도 문장 처리', detail: '복잡한 문장도 의미 덩어리로 빠르게 처리하는 실전 훈련을 합니다.', part: '전 파트', goal: '처리 속도 2배' },
+      { week: '6주차', title: '실전 속독 마무리', detail: '시간 제한 내 직청직독으로 전 파트를 풀고 속도를 점검합니다.', part: '전 파트', goal: '목표 점수 도달' },
     ],
     guideQuestions: [
-      '기출 패턴 분석, 어디서부터 시작하면 될까요?',
-      '점수가 오르다가 정체되는 이유가 뭔가요?',
-      '이인호 선생님의 데이터 학습법이 궁금합니다.',
+      '직청직독, 어떻게 시작해야 하나요?',
+      '긴 문장이 나오면 번역하게 되는데 어떻게 해야 하나요?',
+      '이도윤 선생님만의 직청직독 비법이 궁금해요.',
     ],
-    greeting: '안녕하세요, 이인호입니다. 감이 아닌 데이터로 공부해본 적 있나요? 한 번 해보면 다시는 예전 방식으로 못 돌아갑니다.',
+    greeting: '안녕하세요, 이도윤입니다. 영어를 한국어 어순으로 끌고 오면 늦어요. 들리는 순서, 읽히는 순서 그대로 이해하는 법, 같이 훈련해봐요.',
+    agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
+  },
+  {
+    id: 'seo_jian',
+    name: '서지안',
+    tag: '#흐름구조형',
+    video: '/video/video-jung.mp4',
+    videoJiyun: '/video/video-jung.mp4',
+    thumbnail: '/image_reference/jung.png',
+    badge: '흐름 구조화 전문',
+    desc: '3단계 청취 흐름과 RC 글 구조화로 단계별 성취감을 쌓아가는 차분한 코칭.',
+    quote: '"흐름을 잡으면 답이 보여요."',
+    badgeCls: 'bg-[#F0FDF4] text-[#059669]',
+    matchingDesc: '안정적으로 쌓아가면서 성취 보상으로 동기를 찾는 성향에 딱 맞아요.',
+    recommendations: [
+      '체계적으로 차근차근 공부하고 싶은 분',
+      'LC 전체 흐름을 놓치는 분',
+      'RC에서 글 구조를 잘 못 잡는 분',
+    ],
+    stats: { satisfaction: '4.9/5', students: '5,800+', avgIncrease: '+122점' },
+    proposal: {
+      plan: '6주 흐름 구조화 코스',
+      target: 'LC 3단계 청취 + RC 글 구조 파악 완성',
+      comment: 'LC는 전체 상황→핵심 정보→정답 단서, RC는 목적·전개·근거 위치 — 흐름만 잡으면 답이 보여요.',
+      tags: ['#흐름구조', '#3단계청취', '#글구조화', '#성취감누적', '#차분한코칭'],
+    },
+    curriculum: [
+      { week: '1~2주차', title: 'LC 3단계 청취 훈련', detail: '전체 상황→핵심 정보→정답 단서 순서로 듣는 훈련을 합니다.', part: 'Part 3/4', goal: 'LC 정답률 75%+' },
+      { week: '3~4주차', title: 'RC 글 구조 파악', detail: '지문의 목적·전개·근거 위치를 구조화해서 읽는 훈련을 합니다.', part: 'Part 6/7', goal: '구조 파악 속도 향상' },
+      { week: '5주차', title: '흐름 오류 교정', detail: '어느 단계에서 흐름을 놓쳤는지 찾아 교정하는 집중 훈련을 합니다.', part: '전 파트', goal: '정답률 77%+' },
+      { week: '6주차', title: '실전 흐름 적용', detail: '실전 문제에서 흐름 구조를 그대로 적용하며 마무리합니다.', part: '전 파트', goal: '목표 점수 도달' },
+    ],
+    guideQuestions: [
+      'LC에서 흐름을 잡는 게 어려운데 어떻게 해야 하나요?',
+      'RC 지문이 길면 구조를 어떻게 파악해야 하나요?',
+      '서지안 선생님의 단계별 학습법이 궁금해요.',
+    ],
+    greeting: '안녕하세요, 서지안입니다. 차분하게, 단계적으로 가요. LC는 흐름, RC는 구조 — 이것만 잡으면 토익은 생각보다 어렵지 않아요.',
     agentId: 'agent_6101kshnwxb7e5jbshccv5a3c9wa',
   },
   {
     id: 'oh_jungja',
-    persona: null,
     name: '오정자',
     tag: '#시니어맞춤형',
     video: '/video/video-6.mp4',
+    videoJiyun: '/video/video-6.mp4',
     thumbnail: '/image_reference/ojungja.jpg',
     badge: '시니어 전용',
     desc: '30년 경력 국어 교사 출신. 절대 서두르지 않고, 절대 포기시키지 않는 토익계의 할머니.',
     quote: '"급하면 체해요. 천천히, 같이 봐요."',
     badgeCls: 'bg-[#FAF5FF] text-[#7C3AED]',
-    matching: '99%',
-    matchingDesc: '느긋한 설명과 무한한 인내심이 필요한 모든 분께 99% 이상 맞아요. (나머지 1%는 선생님이 졸릴 때)',
+    matchingDesc: '느긋한 설명과 무한한 인내심이 필요한 모든 분께 99% 이상 맞아요.',
     recommendations: [
       '몇 번을 물어봐도 눈치 보기 싫은 분',
       '빠른 강의가 무서운 분',
@@ -261,8 +214,8 @@ const INSTRUCTORS = [
     },
     curriculum: [
       { week: '1~2주차', title: '알파벳은 알죠? 그럼 됐어요', detail: '영어 문장 구조를 그림과 한글 풀이로 완전히 이해합니다. 절대 외우라고 안 해요.', part: '기초 문법', goal: '문장 읽기 가능' },
-      { week: '3~5주차', title: '자주 나오는 단어 100개만', detail: '딱 100개만 해요. 100개. 매일 10개씩, 매번 복습. 나머지는 어차피 몰라도 돼요.', part: 'Part 5 어휘', goal: '핵심 어휘 암기' },
-      { week: '6~9주차', title: '듣기는 천천히 들으면 돼요', detail: 'LC는 두 번 틀어드려요. 한 번은 그냥 듣고, 한 번은 받아쓰고. 요즘 세상 참 좋아졌어요.', part: 'Part 1~4', goal: 'LC 정답률 60%+' },
+      { week: '3~5주차', title: '자주 나오는 단어 100개만', detail: '딱 100개만 해요. 매일 10개씩, 매번 복습. 나머지는 어차피 몰라도 돼요.', part: 'Part 5 어휘', goal: '핵심 어휘 암기' },
+      { week: '6~9주차', title: '듣기는 천천히 들으면 돼요', detail: 'LC는 두 번 틀어드려요. 한 번은 그냥 듣고, 한 번은 받아쓰고.', part: 'Part 1~4', goal: 'LC 정답률 60%+' },
       { week: '10~12주차', title: '실전 모의고사 (화장실 먼저 다녀오고)', detail: '실제 시험 시간 맞춰 풀어봐요. 2시간 앉아있는 연습이 제일 중요해요.', part: '전 파트', goal: '500점 이상 달성' },
     ],
     guideQuestions: [
@@ -283,14 +236,14 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     difficulty, motivation, studyPeriod, dailyTime,
   } = useOnboardingStore()
 
-  const recommendedPersona = difficulty && motivation ? difficulty + motivation : null
-  const recommendedId = recommendedPersona ? (PERSONA_MAP[recommendedPersona] ?? null) : null
-
   const showOjungja = targetScore === 600 && studyRange === 'LC' && examDate === '2026-12-27'
-  const filtered = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh_jungja')
-  const visibleInstructors = recommendedId
-    ? [...filtered].sort((a, b) => a.id === recommendedId ? -1 : b.id === recommendedId ? 1 : 0)
-    : filtered
+  const baseList = showOjungja ? INSTRUCTORS : INSTRUCTORS.filter(i => i.id !== 'oh_jungja')
+
+  // 동적 매칭: C/S(30점) + R/P(20점) + 기본 50점
+  const matchScores: Record<string, number> = {}
+  for (const inst of baseList) matchScores[inst.id] = getMatchScore(difficulty, motivation, inst.id)
+  const visibleInstructors = [...baseList].sort((a, b) => (matchScores[b.id] ?? 0) - (matchScores[a.id] ?? 0))
+  const recommendedId = visibleInstructors[0]?.id ?? null
 
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [focusedIndex, setFocusedIndex] = useState(0)
@@ -563,15 +516,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     <div className="bg-[#2563EB] text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md shadow-[#2563EB]/40">
                       <span>★</span>
                       <span>AI 추천</span>
-                      {recommendedPersona && PERSONA_LABEL[recommendedPersona] && (
-                        <span className="opacity-75">· {PERSONA_LABEL[recommendedPersona]}</span>
-                      )}
+                      <span className="opacity-75">· {matchScores[inst.id] ?? 50}% 매칭</span>
                     </div>
                   </div>
                 ) : (
                   <div className="absolute -top-[40px] left-1/2 -translate-x-1/2 z-20 pointer-events-none whitespace-nowrap">
                     <div className="bg-gray-700 text-white/80 text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                      {`${inst.matching} MATCH`}
+                      {`${matchScores[inst.id] ?? 50}% MATCH`}
                     </div>
                   </div>
                 )}
@@ -748,7 +699,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div className="bg-[#EFF6FF] rounded-2xl p-5 border border-[#EDE9FE]">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-[#2563EB] font-black text-[16px]">
-                      {userName}님의 성향과 {selectedInst.matching} 매칭
+                      {userName}님의 성향과 {matchScores[selectedInst.id] ?? 50}% 매칭
                     </span>
                     <span className="text-[16px]"></span>
                   </div>

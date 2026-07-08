@@ -35,33 +35,36 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
   }, [onNext])
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFF]">
-      <header className="flex items-center px-6 md:px-12 py-4 md:py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <img src="/logo.svg" alt="YBM" className="w-4 h-4 brightness-0 invert"
-              onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
-          </div>
-          <span className="text-[#374151] text-[13px] font-bold hidden sm:block">YBM AI 어학원</span>
+    <div className="min-h-screen bg-[#F0F4FF] flex flex-col items-center justify-center p-4 gap-4">
+      {/* 헤더 */}
+      <div className="w-full max-w-[1032px] flex items-center gap-2.5">
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+          <img src="/logo.svg" alt="YBM" className="w-4 h-4 brightness-0 invert"
+            onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
         </div>
-      </header>
+        <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
+      </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 pb-10">
-        <div className="w-full max-w-[560px] space-y-8">
+      <div className="w-full max-w-[1032px] min-h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+        {/* ── 좌측 ── */}
+        <div className="relative md:w-[45%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-center overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-[#1D4ED8]/40 rounded-full blur-3xl pointer-events-none" />
 
-          {/* 타이틀 */}
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-[12px] font-black px-4 py-1.5 rounded-full mb-5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white text-[12px] font-black px-4 py-1.5 rounded-full mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               AI 진단 중
             </div>
-            <h2 className="text-[#0F172A] text-[26px] md:text-[32px] font-black leading-tight">
-              {userName}님의<br />학습 유형을 분석 중이에요
+            <h2 className="text-white text-[28px] md:text-[34px] font-black leading-tight">
+              {userName}님의<br />학습 유형을<br />분석 중이에요
             </h2>
           </div>
+        </div>
 
-          {/* 진행 카드 */}
-          <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl p-6 space-y-4">
+        {/* ── 우측 ── */}
+        <div className="md:w-[55%] bg-white flex flex-col justify-center px-8 md:px-10 py-10">
+          <div className="bg-[#F8FAFF] border-2 border-[#E5E7EB] rounded-2xl p-6 space-y-4">
             {STEPS.map((text, i) => {
               if (current <= i) return null
               const isActive = current === i + 1 && !done
@@ -99,7 +102,6 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </div>
