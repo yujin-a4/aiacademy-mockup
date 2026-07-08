@@ -52,11 +52,11 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
           <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-[#1D4ED8]/40 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white text-[12px] font-black px-4 py-1.5 rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white text-[12px] font-semibold px-4 py-1.5 rounded-full mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               AI 진단 중
             </div>
-            <h2 className="text-white text-[28px] md:text-[34px] font-black leading-tight">
+            <h2 className="text-white text-[28px] md:text-[34px] font-bold leading-tight tracking-tight">
               {userName}님의<br />학습 유형을<br />분석 중이에요
             </h2>
           </div>

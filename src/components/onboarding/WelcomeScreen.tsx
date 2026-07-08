@@ -27,7 +27,7 @@ export default function WelcomeScreen({ onNext }: { onNext: () => void }) {
         </div>
 
         <div>
-          <h1 className="text-white text-[26px] font-black leading-tight">
+          <h1 className="text-white text-[26px] font-bold leading-tight">
             YBM AI 어학원에<br />오신 것을 환영해요
           </h1>
           <p className="text-white/60 text-[14px] mt-3">잠시만 기다려주세요...</p>

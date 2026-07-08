@@ -61,10 +61,10 @@ function TwoColCard({
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-[#1D4ED8]/40 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
-            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-6 uppercase">
+            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] font-semibold px-3.5 py-1 rounded-full tracking-widest mb-6 uppercase">
               {step}
             </span>
-            <h2 className="text-white text-[28px] md:text-[34px] font-black leading-tight whitespace-pre-line">
+            <h2 className="text-white text-[28px] md:text-[34px] font-bold leading-tight tracking-tight whitespace-pre-line">
               {title}
             </h2>
             {subtitle && (
@@ -85,7 +85,8 @@ function TwoColCard({
 export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const store = useOnboardingStore()
   const [subStep, setSubStep] = useState<'score' | 'date'>('score')
-  const [score, setScore] = useState<number | null>(store.targetScore)
+  const [selectedScore, setSelectedScore] = useState<number | null>(null)
+  const [score, setScore] = useState<number | null>(null)
   const [examDate, setExamDate] = useState(() => {
     const stored = store.examDate
     return (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
@@ -134,27 +135,48 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   if (subStep === 'score') return (
     <TwoColCard step="STEP 5" title={'목표 점수는\n얼마인가요?'}>
       <div className="animate-fade-in">
-        <div className="grid grid-cols-3 gap-3 md:gap-4">
+        <div className="flex flex-col gap-4">
           {SCORE_OPTIONS.map((opt) => {
-            const isSelected = score === opt.score
+            const isSelected = selectedScore === opt.score
+            const isDimmed = selectedScore !== null && !isSelected
             return (
               <button
                 key={opt.score}
-                onClick={() => { setScore(opt.score); store.setTargetScore(opt.score); setSubStep('date') }}
-                className={`flex flex-col items-center gap-3 p-5 md:p-6 rounded-2xl border-2 text-center transition-all duration-200 ${
+                disabled={selectedScore !== null}
+                onClick={() => {
+                  if (selectedScore !== null) return
+                  setSelectedScore(opt.score)
+                  setScore(opt.score)
+                  store.setTargetScore(opt.score)
+                  setTimeout(() => { setSelectedScore(null); setSubStep('date') }, 420)
+                }}
+                className={`relative flex items-start gap-4 p-6 md:p-7 rounded-2xl border-2 text-left transition-all duration-200 ${
                   isSelected
                     ? 'bg-primary border-primary shadow-xl shadow-primary/25 scale-[1.02]'
-                    : 'bg-white border-[#E5E7EB] hover:border-primary/40 hover:shadow-md hover:scale-[1.01]'
+                    : isDimmed
+                    ? 'bg-[#F3F4F6] border-[#E9EBEF] opacity-40 cursor-default'
+                    : 'bg-white border-[#E5E7EB] hover:border-primary/40 hover:shadow-lg hover:shadow-primary/8 hover:scale-[1.01] cursor-pointer'
                 }`}
               >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-[22px] ${
                   isSelected ? 'bg-white/20' : 'bg-[#EEF2FF]'
                 }`}>
                   {opt.emoji}
                 </div>
-                <p className={`text-[20px] md:text-[22px] font-black ${isSelected ? 'text-white' : 'text-[#0F172A]'}`}>
-                  {opt.title}
-                </p>
+                <div className="flex-1 pt-0.5">
+                  <p className={`text-[22px] md:text-[24px] font-normal ${
+                    isSelected ? 'text-white' : 'text-[#0F172A]'
+                  }`}>
+                    {opt.title}
+                  </p>
+                </div>
+                {isSelected && (
+                  <div className="absolute top-4 right-4 w-6 h-6 bg-white/25 rounded-full flex items-center justify-center">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                )}
               </button>
             )
           })}

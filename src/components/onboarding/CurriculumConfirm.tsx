@@ -59,7 +59,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
         <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
-              <span className="text-primary font-black text-base">{inst.name.slice(0, 1)}</span>
+              <span className="text-primary font-bold text-base">{inst.name.slice(0, 1)}</span>
             </div>
             <div>
               <p className="text-[#111318] font-bold text-[15px]">{inst.name} 선생님</p>

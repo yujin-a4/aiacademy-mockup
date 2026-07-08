@@ -420,11 +420,14 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
   const handleConfirm = async (id: string) => {
     setSelectedInstructor(id)
-    // setSelectedInstructor is synchronous, so getState() reflects the new value immediately
     console.log('[InstructorSelect] handleConfirm 저장 시작, instructor:', id)
-    await saveProfileToSupabase(useOnboardingStore.getState()).catch(e =>
+    try {
+      await saveProfileToSupabase(useOnboardingStore.getState())
+    } catch (e: any) {
       console.error('[InstructorSelect] 저장 실패:', e)
-    )
+      alert(`프로필 저장 실패 (개발 디버그)\n${e?.message ?? e}`)
+      return
+    }
     window.location.href = '/dashboard'
   }
 
@@ -682,7 +685,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
               {/* 정보 */}
               <div className="flex-1 space-y-6">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-[28px] font-black text-[#1C1B33]">{selectedInst.name}</h2>
+                  <h2 className="text-[28px] font-bold text-[#1C1B33]">{selectedInst.name}</h2>
                   <span className={`text-[12px] px-2.5 py-0.5 rounded-full font-bold ${selectedInst.badgeCls}`}>
                     {selectedInst.badge}
                   </span>
@@ -698,7 +701,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 <div className="bg-[#EFF6FF] rounded-2xl p-5 border border-[#EDE9FE]">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[#2563EB] font-black text-[16px]">
+                    <span className="text-[#2563EB] font-semibold text-[16px]">
                       {userName}님의 성향과 {matchScores[selectedInst.id] ?? 50}% 매칭
                     </span>
                     <span className="text-[16px]"></span>
@@ -800,7 +803,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
               <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
                 <div className="max-w-[720px] space-y-10">
                   <section>
-                    <h4 className="text-[#1C1B33] font-black text-[20px] mb-4">학습 제안 배경</h4>
+                    <h4 className="text-[#1C1B33] font-bold text-[20px] mb-4">학습 제안 배경</h4>
                     <p className="text-[#5B5A72] text-[16px] leading-relaxed">
                       {userName}님의 학습 패턴은 단기간에 집중하여 성과를 내는 것에 최적화되어 있습니다.
                       따라서 불필요한 이론 설명보다는 실전에서 바로 활용 가능한 패턴 위주의 학습을 제안합니다.
@@ -809,11 +812,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                   <section className="grid grid-cols-2 gap-8">
                     <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
                       <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">추천 플랜</span>
-                      <p className="text-[#1C1B33] text-[18px] font-black">{selectedInst.proposal.plan}</p>
+                      <p className="text-[#1C1B33] text-[18px] font-bold">{selectedInst.proposal.plan}</p>
                     </div>
                     <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
                       <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">목표 달성</span>
-                      <p className="text-[#2563EB] text-[18px] font-black">{selectedInst.proposal.target}</p>
+                      <p className="text-[#2563EB] text-[18px] font-bold">{selectedInst.proposal.target}</p>
                     </div>
                   </section>
                 </div>
@@ -825,7 +828,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 {/* ── 교재 카드 ── */}
                 <div>
-                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">맞춤 교재</h4>
+                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">맞춤 교재</h4>
                   <p className="text-[#9CA3AF] text-[14px] mb-6">{userName}님을 위해 구성된 전용 교재예요.</p>
 
                   <div className="flex gap-7 items-start">
@@ -872,7 +875,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     <div className="flex-1 space-y-4">
                       <div>
                         <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-wide">교재명</p>
-                        <p className="text-[#1C1B33] font-black text-[17px] leading-snug mt-0.5">
+                        <p className="text-[#1C1B33] font-bold text-[17px] leading-snug mt-0.5">
                           {userName}님의 TOEIC {targetScore} 완성 교재
                         </p>
                       </div>
@@ -910,7 +913,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 {/* ── 목차 (로드맵) ── */}
                 <div>
-                  <h4 className="text-[#1C1B33] font-black text-[20px] mb-1">목차</h4>
+                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">목차</h4>
                   <p className="text-[#9CA3AF] text-[14px] mb-6">단계별로 실력을 확실히 끌어올리는 학습 로드맵이에요.</p>
                   <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
                     <table className="w-full text-left border-collapse">
@@ -926,7 +929,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                         {selectedInst.curriculum.map((item: any, idx: number) => (
                           <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
                             <td className="px-6 py-6 text-center">
-                              <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-black text-[13px] flex items-center justify-center mx-auto">
+                              <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center mx-auto">
                                 {idx + 1}
                               </div>
                               <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>

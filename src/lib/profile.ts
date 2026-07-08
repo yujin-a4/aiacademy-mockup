@@ -24,14 +24,16 @@ export async function saveProfileToSupabase(profile: UserProfile) {
     difficulty: profile.difficulty,
     motivation: profile.motivation,
     target_score: profile.targetScore,
-    study_period: profile.studyPeriod,
     exam_date: profile.examDate,
     selected_instructor: profile.selectedInstructor,
     updated_at: new Date().toISOString(),
   })
 
-  if (error) console.error('[profile] 저장 실패:', error.message, error)
-  else console.log('[profile] 저장 완료:', user.email)
+  if (error) {
+    console.error('[profile] 저장 실패:', error.message, error.code, error)
+    throw new Error(`[profile] ${error.code}: ${error.message}`)
+  }
+  console.log('[profile] 저장 완료:', user.email)
 }
 
 export interface PartAnswerStat {
@@ -133,10 +135,10 @@ export async function loadProfileFromSupabase(userId?: string): Promise<UserProf
     difficulty: data.difficulty,
     motivation: data.motivation,
     targetScore: data.target_score,
-    studyPeriod: data.study_period,
     examDate: data.exam_date,
-    dailyTime: data.daily_time,
     selectedInstructor: data.selected_instructor,
-    studyRange: data.study_range,
+    studyPeriod: null,
+    dailyTime: null,
+    studyRange: null,
   }
 }

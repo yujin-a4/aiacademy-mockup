@@ -91,7 +91,7 @@ export default function OnboardingPage() {
       )}
 
       {step === 1 && <NameInput onNext={next} />}
-      {step === 2 && <QuizCard onComplete={next} />}
+      {step === 2 && <QuizCard onComplete={next} onBack={() => setStep(1)} />}
       {step === 3 && <GoalSetting onNext={next} />}
       {step === 4 && <DiagnosisLoading onNext={next} />}
       {step === 5 && <DiagnosisResult onNext={next} onBack={() => setStep(3)} />}
