@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase'
 import { loadProfileFromSupabase } from '@/lib/profile'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
+const TYPING_PHRASES = [
+  '고민하지 마세요.',
+  'AI가 분석해드려요.',
+  '지금 시작해보세요.',
+]
+
 const FEATURES = [
   {
     icon: (
@@ -47,6 +53,9 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(true)
   const [showWelcome, setShowWelcome] = useState(false)
   const [welcomeProgress, setWelcomeProgress] = useState(0)
+  const [typedText, setTypedText] = useState('')
+  const [phraseIdx, setPhraseIdx] = useState(0)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -54,6 +63,28 @@ export default function LoginPage() {
       else setChecking(false)
     })
   }, [])
+
+  useEffect(() => {
+    const phrase = TYPING_PHRASES[phraseIdx]
+    if (!isDeleting && typedText === phrase) {
+      const t = setTimeout(() => setIsDeleting(true), 2000)
+      return () => clearTimeout(t)
+    }
+    if (isDeleting && typedText === '') {
+      const t = setTimeout(() => {
+        setIsDeleting(false)
+        setPhraseIdx(i => (i + 1) % TYPING_PHRASES.length)
+      }, 400)
+      return () => clearTimeout(t)
+    }
+    const t = setTimeout(() => {
+      setTypedText(isDeleting
+        ? typedText.slice(0, -1)
+        : phrase.slice(0, typedText.length + 1)
+      )
+    }, isDeleting ? 45 : 85)
+    return () => clearTimeout(t)
+  }, [typedText, isDeleting, phraseIdx])
 
   const loginWith = async (email: string, pw: string) => {
     setError('')
@@ -142,7 +173,8 @@ export default function LoginPage() {
 
             <h1 className="text-white text-[28px] md:text-[32px] font-black leading-tight mb-2">
               토익 공부,<br />오늘 뭐 할지<br />
-              <span className="text-white/70">고민하지 마세요.</span>
+              <span className="text-white/70">{typedText}</span>
+              <span className="inline-block w-[2px] h-[0.85em] bg-white/50 ml-0.5 align-middle animate-pulse" />
             </h1>
             <p className="text-white/60 text-[13px] leading-relaxed mt-3">
               AI가 약점을 분석하고<br />YBM 강사 스타일로 맞춤 루틴을 제안해요.
