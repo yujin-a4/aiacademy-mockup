@@ -181,9 +181,9 @@ export default function LoginPage() {
                   onChange={e => setId(e.target.value.replace(/\s/g, ''))}
                   placeholder="guest01"
                   required
-                  className="flex-1 h-full px-4 text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none bg-transparent rounded-l-xl"
+                  className="flex-1 min-w-0 h-full px-4 text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none bg-transparent rounded-l-xl"
                 />
-                <span className="text-[#9CA3AF] text-[13px] pr-4 select-none whitespace-nowrap">@ybm.co.kr</span>
+                <span className="text-[#9CA3AF] text-[13px] pr-4 select-none whitespace-nowrap shrink-0">@ybm.co.kr</span>
               </div>
             </div>
 
