@@ -162,7 +162,7 @@ Part별 7개 탭(`문항입력_P1`~`문항입력_P7`), **한 행 = 문항 1개�
 
 | Part | 전용 컬럼 |
 |---|---|
-| P1 사진묘사 | `photo_type`, `key_elements` |
+| P1 사진묘사 | `photo_type`, `key_elements`, `image_url`, `audio_url`, `stage`, `question_number` |
 | P2 질문응답 | `question_type`, `question_text` |
 | P3 대화 | `dialogue_open`, `dialogue_mid`, `dialogue_end` |
 | P4 담화 | `talk_open`, `talk_mid`, `talk_end` |
@@ -170,9 +170,11 @@ Part별 7개 탭(`문항입력_P1`~`문항입력_P7`), **한 행 = 문항 1개�
 | P6 장문빈칸 | `passage_context`, `blank_type` |
 | P7 독해 | `passage_type`, `passage_structure`, `evidence_sentence` |
 
-예) `문항입력_P1` 헤더 행: `question_id, lecture_code, difficulty, photo_type, key_elements, option_label, option_text, is_correct, option_error_tag, correct_evidence, notes`
+예) `문항입력_P1` 헤더 행: `question_id, lecture_code, difficulty, photo_type, key_elements, image_url, audio_url, stage, question_number, question_text, option_label, option_text, is_correct, option_error_tag, option_explanation, correct_evidence, notes`
 
 이 탭들이 실제로 "주기적 동기화" 파이프라인의 소스가 됨. 마스터 데이터(`[공통]` 탭)는 자주 안 바뀌므로 1회성 import로 처리.
+
+> **사진/음원 문항 지원 (2026-07-07 추가)**: `sync-questions.js`는 공통 컬럼을 제외한 모든 컬럼을 `content` JSONB에 그대로 넣으므로, 시트에 `image_url`·`audio_url`·`stage`(실전=`practice`)·`question_number` 컬럼만 추가하면 코드 수정 없이 그 값들이 content에 반영된다. 단 **음원 mp3 파일 생성은 별도**(`scripts/gen_part1_practice_audio.js`) — 시트엔 경로 문자열만 넣는다. Part1 12문항(LC-P1-01/02, 유형 Q001~3 + 실전 P001~3)은 이 컬럼들로 시트에 backfill되어 시트가 정본 소스가 됨.
 
 **별도 스프레드시트로 생성함** (원본 `AI어학원 콘텐츠` 시트는 건드리지 않음):
 - URL: https://docs.google.com/spreadsheets/d/1VUGfsCvqvg1QNN9QTISfJWMUtPPim2Cz04KHO190fpY/edit

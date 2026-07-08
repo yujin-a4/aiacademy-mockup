@@ -80,6 +80,9 @@ type Session = RailSession | TagSession | SheetRailSession
 
 // mockup용 인메모리 저장소 (dev 단일 프로세스 기준)
 const sessions = new Map<string, Session>()
+// Server Tool용: (학생+문항) 키 → sessionId. 에이전트가 sessionId를 들고 다니지 않아도 세션을 찾게 함.
+const sessionByKey = new Map<string, string>()
+const sessionKey = (learnerId: string, questionCode: string) => `${learnerId}:${questionCode}`
 // 강의코드별 연속 완료 누적 → Fading 판정 (rail 모드)
 const mastery = new Map<string, number>()
 
@@ -289,6 +292,7 @@ export async function POST(req: NextRequest) {
       const lessonType: string | undefined = body.lessonType
       const rail = lessonType === 'practice' ? undefined : TUTOR_RAILS[questionCode]
       const id = crypto.randomUUID()
+      sessionByKey.set(sessionKey(learnerId, questionCode), id) // Server Tool이 sessionId 없이 세션 찾게
 
       // 유형학습 요청 + 손질 레일 없음 → 강의의 시트 레일(lecture_steps)로 진행
       if (lessonType === 'lesson' && !rail) {
@@ -328,9 +332,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'answer') {
-      const s = sessions.get(body.sessionId)
+      // sessionId 직접 전달(클라이언트) 또는 학생+문항 키로 조회(Server Tool)
+      let sid: string | undefined = body.sessionId
+      if (!sid && body.studentId && body.questionCode) {
+        sid = sessionByKey.get(sessionKey(normalizeLearnerId(body.studentId), String(body.questionCode)))
+      }
+      const s = sid ? sessions.get(sid) : undefined
       if (!s) return NextResponse.json({ error: 'session not found' }, { status: 404 })
-      const text: string = String(body.text ?? '')
+      // Server Tool은 student_reply, 클라이언트는 text 로 학생 발화를 넘긴다
+      const text: string = String(body.text ?? body.student_reply ?? '')
       if (s.mode === 'rail') return answerRail(s, text)
       if (s.mode === 'sheetRail') return answerSheetRail(s)
       return await answerTag(s, text)
@@ -426,6 +436,12 @@ function answerRail(s: RailSession, text: string) {
   })
 }
 
+/* 이 단계가 "선택지를 듣는" 단계인지 — 단계 규칙/역할 문구로 판정.
+   맞으면 클라이언트가 이 시점에 듣기 음원을 재생한다("적절한 때"= 스캐폴딩이 정한 듣기 단계). */
+function stepWantsAudio(text: string | null | undefined): boolean {
+  return /들으|들어|듣기|음원/.test(text ?? '')
+}
+
 /* ── sheetRail 모드 답변 처리: 채점 장치가 없으므로 학생 반응마다 다음 단계로 전진 ── */
 
 function answerSheetRail(s: SheetRailSession) {
@@ -443,9 +459,11 @@ function answerSheetRail(s: SheetRailSession) {
       contextual: '모든 단계 완료. 학생이 오늘 배운 유형에서 뭘 먼저 봐야 하는지 한 문장으로 말하게 하고, 짧게 확인해 주며 수업을 마무리해라.',
     })
   }
+  const step = s.steps[s.stepIdx]
   return NextResponse.json({
-    grade: 'progress', done: false, step: s.steps[s.stepIdx].code,
-    contextual: sheetStepDirective(s, s.steps[s.stepIdx]),
+    grade: 'progress', done: false, step: step.code,
+    playAudio: stepWantsAudio(step.rule), // 듣기 단계에 도달하면 클라이언트가 음원 재생
+    contextual: sheetStepDirective(s, step),
   })
 }
 
@@ -506,6 +524,7 @@ async function answerTag(s: TagSession, text: string) {
     return NextResponse.json({
       grade: 'wrong', done: false,
       diagnosis: { tag: tag.name, category: tag.diagnosticName, steps: codes, repeated: prior >= 1 },
+      playAudio: stepWantsAudio(s.coach[0].role),
       contextual: coachDirective(s, s.coach[0], true),
     })
   }
@@ -521,6 +540,7 @@ async function answerTag(s: TagSession, text: string) {
   }
   return NextResponse.json({
     grade: 'coaching', done: false,
+    playAudio: stepWantsAudio(s.coach[s.stepIdx].role),
     contextual: coachDirective(s, s.coach[s.stepIdx], false),
   })
 }
