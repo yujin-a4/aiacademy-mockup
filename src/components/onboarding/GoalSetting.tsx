@@ -40,21 +40,43 @@ function getTodayStr() {
   return toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
 }
 
-/* 공통 레이아웃 */
-function PageLayout({ children }: { children: React.ReactNode }) {
+function TwoColCard({
+  step, title, subtitle, children,
+}: {
+  step: string; title: string; subtitle?: string; children: React.ReactNode
+}) {
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFF]">
-      <header className="flex items-center px-6 md:px-12 py-4 md:py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
-            <img src="/logo.svg" alt="YBM" className="w-4 h-4 brightness-0 invert"
-              onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
-          </div>
-          <span className="text-[#374151] text-[13px] font-bold hidden sm:block">YBM AI 어학원</span>
+    <div className="min-h-screen bg-[#F0F4FF] flex flex-col items-center justify-center p-4 gap-4">
+      <div className="w-full max-w-[1032px] flex items-center gap-2.5">
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-sm">
+          <img src="/logo.svg" alt="YBM" className="w-4 h-4 brightness-0 invert"
+            onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
         </div>
-      </header>
-      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 pb-10">
-        {children}
+        <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
+      </div>
+
+      <div className="w-full max-w-[1032px] h-[620px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+        {/* 좌측 */}
+        <div className="relative md:w-[45%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-center overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-[#1D4ED8]/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-6 uppercase">
+              {step}
+            </span>
+            <h2 className="text-white text-[28px] md:text-[34px] font-black leading-tight whitespace-pre-line">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-white/65 text-[14px] leading-relaxed mt-4">{subtitle}</p>
+            )}
+          </div>
+        </div>
+
+        {/* 우측 */}
+        <div className="md:w-[55%] bg-white flex flex-col px-8 md:px-10 py-8 overflow-y-auto justify-center">
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -101,8 +123,6 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     store.setTargetScore(score)
     store.setStudyRange('LC+RC')
     store.setDailyTime('1시간')
-    // examDate/studyPeriod는 handleSelectDate에서 이미 저장됨
-    // 혹시 안 됐을 경우를 위한 보험
     store.setExamDate(examDate)
     const diff = new Date(examDate).getTime() - Date.now()
     const months = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24 * 30)))
@@ -112,24 +132,15 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
 
   /* ─── 목표 점수 ─── */
   if (subStep === 'score') return (
-    <PageLayout>
-      <div className="w-full max-w-[640px] animate-fade-in">
-        <div className="text-center mb-8 md:mb-10">
-          <span className="inline-block bg-primary text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-4 uppercase">
-            STEP 5
-          </span>
-          <h2 className="text-[#0F172A] text-[26px] md:text-[32px] font-black leading-tight">
-            목표 점수는<br />얼마인가요?
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6">
+    <TwoColCard step="STEP 5" title={'목표 점수는\n얼마인가요?'}>
+      <div className="animate-fade-in">
+        <div className="grid grid-cols-3 gap-3 md:gap-4">
           {SCORE_OPTIONS.map((opt) => {
             const isSelected = score === opt.score
             return (
               <button
                 key={opt.score}
-                onClick={() => { setScore(opt.score); store.setTargetScore(opt.score) }}
+                onClick={() => { setScore(opt.score); store.setTargetScore(opt.score); setSubStep('date') }}
                 className={`flex flex-col items-center gap-3 p-5 md:p-6 rounded-2xl border-2 text-center transition-all duration-200 ${
                   isSelected
                     ? 'bg-primary border-primary shadow-xl shadow-primary/25 scale-[1.02]'
@@ -144,45 +155,24 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
                 <p className={`text-[20px] md:text-[22px] font-black ${isSelected ? 'text-white' : 'text-[#0F172A]'}`}>
                   {opt.title}
                 </p>
-                {isSelected && (
-                  <div className="absolute top-3 right-3 w-5 h-5 bg-white/25 rounded-full flex items-center justify-center hidden">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </div>
-                )}
               </button>
             )
           })}
         </div>
-
-        <button
-          onClick={() => setSubStep('date')}
-          disabled={!score}
-          className="w-full h-12 bg-primary hover:bg-primary-600 disabled:opacity-35 text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
-        >
-          다음
-        </button>
       </div>
-    </PageLayout>
+    </TwoColCard>
   )
 
   /* ─── 시험 예정일 ─── */
   return (
-    <PageLayout>
-      <div className="w-full max-w-[520px] animate-fade-in">
-        <div className="text-center mb-8 md:mb-10">
-          <span className="inline-block bg-primary text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-4 uppercase">
-            STEP 6
-          </span>
-          <h2 className="text-[#0F172A] text-[26px] md:text-[32px] font-black leading-tight">
-            시험 예정일을<br />알려주세요
-          </h2>
-          <p className="text-[#64748B] text-[14px] mt-3">오늘 기준 2개월 뒤 시험일이 선택되어 있어요</p>
-        </div>
-
+    <TwoColCard
+      step="STEP 6"
+      title={'시험 예정일을\n알려주세요'}
+      subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요"
+    >
+      <div className="animate-fade-in">
         {/* 날짜 선택 버튼 */}
-        <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl overflow-hidden">
+        <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl overflow-hidden mb-4">
           <button
             onClick={() => setCalendarOpen(!calendarOpen)}
             className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
@@ -254,10 +244,10 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           )}
         </div>
 
-        <div className="mt-4 space-y-2.5">
+        <div className="space-y-2.5">
           <button
             onClick={() => { setCalendarOpen(false); handleComplete() }}
-            className="w-full h-12 bg-primary hover:bg-primary-600 text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
+            className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
           >
             진단 결과 보기
           </button>
@@ -269,6 +259,6 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           </button>
         </div>
       </div>
-    </PageLayout>
+    </TwoColCard>
   )
 }
