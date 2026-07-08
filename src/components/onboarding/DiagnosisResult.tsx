@@ -152,18 +152,18 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
               {dday && (
                 <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
                   <span className="text-white/65 text-[11px] font-semibold">시험까지</span>
-                  <span className="text-white font-black text-[16px] leading-none">{dday}</span>
+                  <span className="text-white font-bold text-[16px] leading-none">{dday}</span>
                 </div>
               )}
               {targetScore && (
                 <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
                   <span className="text-white/65 text-[11px] font-semibold">목표</span>
-                  <span className="text-white font-black text-[16px] leading-none">{targetScore}점</span>
+                  <span className="text-white font-bold text-[16px] leading-none">{targetScore}점</span>
                 </div>
               )}
               {studyPeriod && (
                 <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
-                  <span className="text-white font-black text-[16px] leading-none">{studyPeriod}</span>
+                  <span className="text-white font-bold text-[16px] leading-none">{studyPeriod}</span>
                 </div>
               )}
             </div>
@@ -219,10 +219,10 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
             {/* 헤딩 */}
             <div>
-              <span className="inline-block bg-primary text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-3 uppercase">
+              <span className="inline-block bg-primary text-white text-[11px] font-semibold px-3.5 py-1 rounded-full tracking-widest mb-3 uppercase">
                 AI 진단 완료
               </span>
-              <h2 className="text-[#0F172A] text-[22px] font-black leading-tight">
+              <h2 className="text-[#0F172A] text-[22px] font-bold leading-tight">
                 {userName}님의 학습 유형 분석 결과
               </h2>
             </div>
@@ -232,7 +232,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
               {letterDetails.map((d, i) => (
                 <div key={i} className="bg-[#F8FAFF] rounded-2xl py-3 px-4 flex items-center gap-3 border border-[#E5E7EB]">
                   <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shadow-sm shrink-0`}>
-                    <span className="text-white text-[17px] font-black">{d.letter}</span>
+                    <span className="text-white text-[17px] font-bold">{d.letter}</span>
                   </div>
                   <p className="text-[#374151] text-[12px] font-semibold leading-tight">{d.label}</p>
                 </div>

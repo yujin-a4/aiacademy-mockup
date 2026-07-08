@@ -96,8 +96,9 @@ export default function LoginPage() {
       return
     }
     setShowWelcome(true)
-    setWelcomeProgress(30)
-    setTimeout(() => setWelcomeProgress(70), 600)
+    // welcomeProgress는 0에서 시작 — 첫 렌더 후 애니메이션 시작
+    setTimeout(() => setWelcomeProgress(30), 80)
+    setTimeout(() => setWelcomeProgress(65), 700)
     const profile = await loadProfileFromSupabase(signInData.user?.id).catch(() => null)
     if (profile?.userName) {
       if (profile.userName) store.setUserName(profile.userName)
@@ -112,10 +113,10 @@ export default function LoginPage() {
       if (profile.selectedInstructor) store.setSelectedInstructor(profile.selectedInstructor)
       if (profile.studyRange) store.setStudyRange(profile.studyRange)
       setWelcomeProgress(100)
-      setTimeout(() => router.replace('/dashboard'), 600)
+      setTimeout(() => router.replace('/dashboard'), 700)
     } else {
       setWelcomeProgress(100)
-      setTimeout(() => router.replace('/onboarding'), 600)
+      setTimeout(() => router.replace('/onboarding'), 700)
     }
   }
 
@@ -139,7 +140,7 @@ export default function LoginPage() {
             onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
         </div>
         <div>
-          <h1 className="text-white text-[26px] font-black leading-tight">
+          <h1 className="text-white text-[26px] font-bold leading-tight">
             YBM AI 어학원에<br />오신 것을 환영해요
           </h1>
           <p className="text-white/60 text-[14px] mt-3">잠시만 기다려주세요...</p>

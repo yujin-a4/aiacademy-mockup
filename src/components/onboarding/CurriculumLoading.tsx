@@ -4,8 +4,9 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 
 const LOAD_STEPS = [
   { name: '박혜원', action: (n: string) => `${n}님의 성향을 보고 프로그램을 구성하고 있어요`, thumb: '/image_reference/park-2.jpg' },
-  { name: '장연지', action: (n: string) => `${n}님에게 맞는 커리큘럼을 설계하고 있어요`, thumb: '/image_reference/jang.png' },
-  { name: '김토익', action: (n: string) => `${n}님께 제안할 프로그램을 완성하고 있어요`, thumb: '/image_reference/kim.png' },
+  { name: '윤다은', action: (n: string) => `${n}님에게 맞는 커리큘럼을 설계하고 있어요`, thumb: '/image_reference/jang.png' },
+  { name: '이도윤', action: (n: string) => `${n}님께 제안할 프로그램을 완성하고 있어요`, thumb: '/image_reference/lee.png' },
+  { name: '서지안', action: (n: string) => `${n}님을 위한 최적의 프로그램을 확정하고 있어요`, thumb: '/image_reference/jung.png' },
 ]
 
 function DotLoader() {
@@ -27,9 +28,10 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
   useEffect(() => {
     const timers = [
       setTimeout(() => setCurrent(1), 500),
-      setTimeout(() => setCurrent(2), 4500),
-      setTimeout(() => setCurrent(3), 8500),
-      setTimeout(() => setDone(true), 12000),
+      setTimeout(() => setCurrent(2), 3500),
+      setTimeout(() => setCurrent(3), 6500),
+      setTimeout(() => setCurrent(4), 9500),
+      setTimeout(() => setDone(true), 12500),
     ]
     return () => timers.forEach(clearTimeout)
   }, [])
@@ -51,11 +53,11 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
 
           {/* 타이틀 */}
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-[12px] font-black px-4 py-1.5 rounded-full mb-5">
+            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-[12px] font-semibold px-4 py-1.5 rounded-full mb-5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               프로그램 생성 중
             </div>
-            <h2 className="text-[#0F172A] text-[26px] md:text-[32px] font-black leading-tight">
+            <h2 className="text-[#0F172A] text-[26px] md:text-[32px] font-medium leading-tight tracking-tight">
               {userName}님에게 맞는<br />학습 프로그램을 만들고 있어요
             </h2>
           </div>

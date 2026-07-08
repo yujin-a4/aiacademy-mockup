@@ -33,7 +33,7 @@ const QUESTIONS = [
   },
 ]
 
-export default function QuizCard({ onComplete }: { onComplete: () => void }) {
+export default function QuizCard({ onComplete, onBack }: { onComplete: () => void; onBack?: () => void }) {
   const store = useOnboardingStore()
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -57,6 +57,15 @@ export default function QuizCard({ onComplete }: { onComplete: () => void }) {
         onComplete()
       }
     }, 650)
+  }
+
+  const handleBack = () => {
+    if (picked) return
+    if (idx > 0) {
+      setIdx(i => i - 1)
+    } else {
+      onBack?.()
+    }
   }
 
   return (
@@ -99,10 +108,10 @@ export default function QuizCard({ onComplete }: { onComplete: () => void }) {
               </div>
 
               {/* 질문 */}
-              <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] font-black px-3.5 py-1 rounded-full tracking-widest mb-5 uppercase">
+              <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-[11px] font-semibold px-3.5 py-1 rounded-full tracking-widest mb-5 uppercase">
                 Q{q.step}
               </span>
-              <h2 className="text-white text-[28px] md:text-[34px] font-black leading-tight whitespace-pre-line">
+              <h2 className="text-white text-[28px] md:text-[34px] font-bold leading-tight tracking-tight whitespace-pre-line">
                 {q.label}
               </h2>
             </div>
@@ -115,6 +124,20 @@ export default function QuizCard({ onComplete }: { onComplete: () => void }) {
 
         {/* ── 우측: 선택지 영역 ── */}
         <div className="md:w-[55%] bg-white flex flex-col justify-center px-8 md:px-10 py-10">
+          {/* 뒤로 가기 버튼 */}
+          <div className="flex items-center mb-6">
+            <button
+              onClick={handleBack}
+              disabled={!!picked}
+              className="flex items-center gap-1.5 text-[#9CA3AF] hover:text-[#374151] transition-colors disabled:opacity-30 text-[13px] font-medium group"
+              aria-label="이전으로"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-0.5 transition-transform">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              이전
+            </button>
+          </div>
           <div key={idx} className="flex flex-col gap-4 animate-slide-in-right">
             {[q.left, q.right].map((opt) => {
               const isSelected = picked === opt.value
@@ -124,7 +147,7 @@ export default function QuizCard({ onComplete }: { onComplete: () => void }) {
                   key={opt.value}
                   onClick={() => handlePick(opt.value)}
                   disabled={!!picked}
-                  className={`relative flex items-start gap-4 p-6 md:p-7 min-h-[140px] rounded-2xl border-2 text-left transition-all duration-200 ${
+                  className={`relative flex items-start gap-4 p-6 md:p-7 h-[152px] rounded-2xl border-2 text-left transition-all duration-200 ${
                     isSelected
                       ? 'bg-primary border-primary shadow-xl shadow-primary/25 scale-[1.02]'
                       : isDimmed
