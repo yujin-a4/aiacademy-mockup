@@ -211,7 +211,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
     sessionDoneRef.current = false
 
     const { sessionId, contextual } = await callTutor({
-      action: 'start', studentId: STUDENT_ID,
+      action: 'start', studentId: await (await import('@/lib/profile')).getLearnerId(STUDENT_ID),
       ...(questionCode
         ? { questionCode, ...(lessonType ? { lessonType } : {}) }
         : { questionNumber: QUESTION_NUMBER }),

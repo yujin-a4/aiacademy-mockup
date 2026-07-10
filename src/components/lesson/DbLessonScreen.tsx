@@ -234,7 +234,7 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
         : ''
       ;(async () => {
         const res = await callTutor({
-          action: 'start', studentId: STUDENT_ID, questionCode: currentQ.code,
+          action: 'start', studentId: await (await import('@/lib/profile')).getLearnerId(STUDENT_ID), questionCode: currentQ.code,
           lessonType: coaching ? 'practice' : 'lesson',
         })
         if (res.sessionId) sessionIdRef.current = res.sessionId
