@@ -1,10 +1,11 @@
 'use client'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { Noto_Serif_KR, Diphylleia } from 'next/font/google'
-import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
+import { IncomingCallScreen, ActiveCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS, INST_MESSAGES } from '@/data/instructorData'
 import CallSurvey from '@/components/survey/CallSurvey'
@@ -574,8 +575,34 @@ function RegularDashboard() {
   const [callLog, setCallLog] = useState<CallEntry[]>([])
   const [surveyOpen, setSurveyOpen] = useState(false)
 
-  const handlePhoneClick = () => setSurveyOpen(true)
-  const handleAnswer = () => setCallState('idle')
+  const INST_GREETING: Record<string, string> = {
+    park_hyewon: '오늘 토익 공부할 시간이야. 지금 시작해야 돼, 알겠지?',
+    jang_yeonji: '안녕하세요~ 오늘도 같이 토익 공부해봐요! 잘 할 수 있어요.',
+    kim_toeic: '공부할 시간이야. 오늘 목표 꼭 달성하고 자자고.',
+  }
+  const INST_PERSONA: Record<string, string> = {
+    park_hyewon: 'park',
+    jang_yeonji: 'jang',
+    kim_toeic: 'kim',
+  }
+  const greeting = INST_GREETING[selectedInstructor ?? 'park_hyewon'] ?? '오늘 토익 공부할 시간이에요! 같이 시작해봐요.'
+  const ttsPersona = INST_PERSONA[selectedInstructor ?? 'park_hyewon'] ?? 'park'
+
+  const handlePhoneClick = () => setCallState('ringing')
+  const handleAnswer = () => setCallState('active')
+  const handleHangup = (duration: number) => {
+    setCallLog((prev) => [...prev, {
+      id: Date.now().toString(),
+      instructorKey: selectedInstructor ?? 'park_hyewon',
+      instructorName: instName,
+      instructorThumb: instThumb,
+      time: new Date(),
+      status: 'answered' as const,
+      duration,
+    }])
+    setCallState('idle')
+    setSurveyOpen(true)
+  }
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
@@ -585,7 +612,8 @@ function RegularDashboard() {
       time: new Date(),
       status: 'rejected' as const,
     }])
-    setCallState('log')
+    setCallState('idle')
+    setSurveyOpen(true)
   }
   const handleCloseLog = () => setCallState('idle')
 
@@ -636,8 +664,6 @@ function RegularDashboard() {
           <div className="flex items-center justify-between">
             <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 👋</p>
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 text-[11px] font-bold text-[#F59E0B] bg-[#FEF9C3] px-2.5 py-1.5 rounded-full">🔥 {streakDay}일</span>
-              {ddayLabel && <span className="text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1.5 rounded-full">{ddayLabel}</span>}
               <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 {callLog.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full" />}
@@ -665,42 +691,45 @@ function RegularDashboard() {
             </div>
 
             {/* ── 메인 레이아웃: 코칭 카드 + 오른쪽 스탯 카드 ── */}
-            <div className="flex gap-4 items-stretch" style={{ maxWidth: '1080px' }}>
+            <div className="flex flex-col md:flex-row gap-4 items-stretch" style={{ maxWidth: '1080px' }}>
 
               {/* ① 코칭 카드 (사진 35% + 말풍선·CTA 65%) */}
               <div
-                className="flex-1 rounded-3xl overflow-hidden shadow-lg relative"
+                className="flex-1 rounded-3xl overflow-hidden shadow-lg relative h-auto md:h-[400px]"
                 style={{
                   background: 'linear-gradient(135deg, #E8EFFF 0%, #DBEAFE 55%, #C7D7FD 100%)',
-                  height: '400px',
                 }}
               >
-                <div className="h-full grid" style={{ gridTemplateColumns: '35% 65%' }}>
+                <div className="h-full grid grid-cols-1 md:grid-cols-[35%_65%]">
 
-                  {/* 강사 사진 */}
-                  <div className="relative overflow-hidden h-full">
+                  {/* 강사 사진 (데스크탑 전용 · 모바일은 코칭 라벨 옆 아바타로 대체) */}
+                  <div className="relative overflow-hidden h-full hidden md:block">
                     {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
                       <img
                         src="/image_reference/park-report.png"
                         alt={instName}
-                        className="absolute bottom-0 left-0 drop-shadow-lg"
-                        style={{ maxHeight: '320px', width: 'auto', objectFit: 'contain' }}
+                        className="absolute bottom-0 left-0 max-h-[320px] w-auto object-contain drop-shadow-lg"
                       />
                     ) : (
                       <img
                         src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']}
                         alt={instName}
-                        className="absolute bottom-0 left-0 drop-shadow-lg"
-                        style={{ maxHeight: '320px', width: 'auto', objectFit: 'contain' }}
+                        className="absolute bottom-0 left-0 max-h-[320px] w-auto object-contain drop-shadow-lg"
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     )}
                   </div>
 
                   {/* 말풍선 + CTA */}
-                  <div className="flex flex-col justify-center gap-5 py-10 pr-8 pl-2">
+                  <div className="flex flex-col justify-center gap-5 py-8 md:py-10 px-5 md:pr-8 md:pl-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-white/60 flex items-center justify-center">
+                      {/* 모바일: 강사 얼굴 아바타 */}
+                      <div className="md:hidden w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
+                        <img src={instThumb} alt={instName} className="w-full h-full object-cover object-top"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                      {/* 데스크탑: 아이콘 */}
+                      <div className="hidden md:flex w-6 h-6 rounded-full bg-white/60 items-center justify-center">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                         </svg>
@@ -735,8 +764,8 @@ function RegularDashboard() {
                 </div>
               </div>
 
-              {/* ② 오른쪽: 스탯 카드 2개 */}
-              <div className="flex flex-col gap-3 w-[200px] shrink-0">
+              {/* ② 오른쪽(모바일: 코칭 카드 아래) 스탯 카드 2개 */}
+              <div className="grid grid-cols-2 gap-3 md:flex md:flex-col w-full md:w-[200px] shrink-0">
 
                 <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-1">
@@ -782,6 +811,9 @@ function RegularDashboard() {
       {callState === 'ringing' && (
         <IncomingCallScreen instructorName={instName} instructorThumb={instThumb} onAnswer={handleAnswer} onReject={handleReject} />
       )}
+      {callState === 'active' && (
+        <ActiveCallScreen instructorName={instName} instructorThumb={instThumb} onHangup={handleHangup} greeting={greeting} persona={ttsPersona} />
+      )}
       {callState === 'log' && (
         <CallLogSheet entries={callLog} onClose={handleCloseLog} />
       )}
@@ -799,6 +831,19 @@ function RegularDashboard() {
 /* ── 대시보드 라우터 ── */
 export default function Dashboard() {
   const { selectedInstructor } = useOnboardingStore()
+  const router = useRouter()
+
+  useEffect(() => {
+    import('@/lib/supabase').then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data: { user }, error }) => {
+        if (!user || error) {
+          createClient().auth.signOut()
+          router.replace('/')
+        }
+      })
+    })
+  }, [router])
+
   if (selectedInstructor === 'oh') return <OjjDashboard />
   return <RegularDashboard />
 }

@@ -7,8 +7,9 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 
 const TYPING_PHRASES = [
   '고민하지 마세요.',
-  'AI가 분석해드려요.',
-  '지금 시작해보세요.',
+  'AI 강사가 분석해 드려요.',
+  '나만의 프로그램이 정해 드려요.',
+  '고민 끝, 지금 바로 시작해보세요.',
 ]
 
 const FEATURES = [
@@ -58,9 +59,12 @@ export default function LoginPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard')
-      else setChecking(false)
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      if (user && !error) router.replace('/dashboard')
+      else {
+        if (error) supabase.auth.signOut()
+        setChecking(false)
+      }
     })
   }, [])
 
