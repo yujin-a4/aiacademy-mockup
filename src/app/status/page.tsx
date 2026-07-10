@@ -27,15 +27,15 @@ const PART_WEAK_REASONS: Record<string, string> = {
   P7: '지문당 풀이 시간이 기준을 초과하고 있어요',
 }
 
-type TrendDir = 'up' | 'down' | 'same'
+type RadarPoint = { label: string; value: number; diff: number | null }
 
-const RADAR_DATA: { label: string; value: number; trend: TrendDir }[] = [
-  { label: 'Part 1', value: 91, trend: 'up' },
-  { label: 'Part 2', value: 83, trend: 'up' },
-  { label: 'Part 3', value: 74, trend: 'up' },
-  { label: 'Part 5', value: 61, trend: 'same' },
-  { label: 'Part 6', value: 52, trend: 'down' },
-  { label: 'Part 7', value: 48, trend: 'down' },
+const RADAR_DATA: RadarPoint[] = [
+  { label: 'Part 1', value: 91, diff: 5 },
+  { label: 'Part 2', value: 83, diff: 3 },
+  { label: 'Part 3', value: 74, diff: null },
+  { label: 'Part 5', value: 61, diff: 0 },
+  { label: 'Part 6', value: 52, diff: -4 },
+  { label: 'Part 7', value: 48, diff: -2 },
 ]
 
 const BADGES = [
@@ -215,7 +215,7 @@ function RankRow({ item }: { item: RankEntry }) {
 }
 
 /* ── SVG 레이더 차트 ── */
-function RadarChart({ data }: { data: typeof RADAR_DATA }) {
+function RadarChart({ data }: { data: RadarPoint[] }) {
   const CX = 100, CY = 112, R = 62, N = data.length
   const angles = data.map((_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N)
   const pt = (angle: number, val: number): [number, number] => [
@@ -238,8 +238,16 @@ function RadarChart({ data }: { data: typeof RADAR_DATA }) {
       return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
     }).join(' ') + 'Z'
   )
-  const TREND_SYMBOL: Record<TrendDir, string> = { up: '↑', down: '↓', same: '→' }
-  const TREND_COLOR: Record<TrendDir, string>  = { up: '#10B981', down: '#EF4444', same: '#9CA3AF' }
+
+  const diffLabel = (diff: number | null): string => {
+    if (diff == null) return '–'
+    if (diff === 0) return '→'
+    return `${diff > 0 ? '+' : ''}${diff}%p`
+  }
+  const diffColor = (diff: number | null): string => {
+    if (diff == null || diff === 0) return '#9CA3AF'
+    return diff > 0 ? '#10B981' : '#EF4444'
+  }
 
   return (
     <svg viewBox="0 0 200 224" className="w-full max-w-[230px] mx-auto">
@@ -270,7 +278,7 @@ function RadarChart({ data }: { data: typeof RADAR_DATA }) {
               textAnchor="middle" dominantBaseline="middle"
               fontSize="8" fontWeight="700" fill={labelColor}>
               {d.value}%
-              <tspan fill={TREND_COLOR[d.trend]}> {TREND_SYMBOL[d.trend]}</tspan>
+              <tspan fill={diffColor(d.diff)}> {diffLabel(d.diff)}</tspan>
             </text>
           </g>
         )
@@ -373,46 +381,16 @@ export default function StatusPage() {
   const myTarget = targetScore ?? 750
   const league = LEAGUE_DATA[myTarget] ?? LEAGUE_DATA[750]
   const [tab, setTab] = useState<'report' | 'badge' | 'ranking'>('report')
+  const [reportVersion, setReportVersion] = useState<'A' | 'B'>('A')
   const [answerStats, setAnswerStats] = useState<AnswerStats | null>(null)
-  const [weeklyAnalysis, setWeeklyAnalysis] = useState<{ good: string[]; improve: string[]; focus: string[] } | null>(null)
-  const [weeklyLoading, setWeeklyLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    const run = async () => {
-      const stats = await loadAnswerStats().catch(() => null)
+    loadAnswerStats().catch(() => null).then(stats => {
       if (!cancelled) setAnswerStats(stats)
-      try {
-        const examDday = (() => {
-          if (!examDate) return null
-          const today = new Date(); today.setHours(0, 0, 0, 0)
-          const exam = new Date(examDate); exam.setHours(0, 0, 0, 0)
-          const diff = Math.ceil((exam.getTime() - today.getTime()) / 86400000)
-          return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : null
-        })()
-        const res = await fetch('/api/weekly-analysis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            targetScore: targetScore ?? 750,
-            ddayLabel: examDday,
-            lcAccuracy: stats?.lcAccuracy ?? 83,
-            rcAccuracy: stats?.rcAccuracy ?? 54,
-            partStats: stats?.partStats ?? [],
-            totalAnswered: stats?.totalAnswered ?? 247,
-            dailyTime,
-          }),
-        })
-        if (!cancelled && res.ok) {
-          const data = await res.json()
-          if (!cancelled) setWeeklyAnalysis(data)
-        }
-      } catch {}
-      if (!cancelled) setWeeklyLoading(false)
-    }
-    run()
+    })
     return () => { cancelled = true }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   // DB 데이터 우선, 없으면 하드코딩 폴백
   const getPartAccuracy = (partNum: number, fallback: number) => {
@@ -423,10 +401,15 @@ export default function StatusPage() {
     ...p,
     accuracy: getPartAccuracy(parseInt(p.id.replace('P', '')), p.accuracy),
   }))
-  const liveRadarData = RADAR_DATA.map(d => ({
-    ...d,
-    value: getPartAccuracy(parseInt(d.label.replace('Part ', '')), d.value),
-  }))
+  const liveRadarData = RADAR_DATA.map(d => {
+    const partNum = parseInt(d.label.replace('Part ', ''))
+    const diff = answerStats?.partDiff?.[partNum] ?? d.diff
+    return {
+      ...d,
+      value: getPartAccuracy(partNum, d.value),
+      diff,
+    }
+  })
   const totalAnswered = answerStats?.totalAnswered ?? 247
   const lcAccuracy = answerStats?.lcAccuracy ?? 83
   const rcAccuracy = answerStats?.rcAccuracy ?? 54
@@ -560,18 +543,41 @@ export default function StatusPage() {
             {tab === 'report' && (
               <div className="animate-fade-in space-y-5">
 
+                {/* A/B 토글 */}
+                <div className="flex items-center justify-end gap-2">
+                  <span className="text-[11px] text-[#9CA3AF]">버전 비교</span>
+                  <div className="flex rounded-lg border border-[#E5E7EB] overflow-hidden text-[12px] font-bold">
+                    {(['A', 'B'] as const).map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setReportVersion(v)}
+                        className={`px-3.5 py-1.5 transition-colors ${
+                          reportVersion === v
+                            ? 'bg-[#2563EB] text-white'
+                            : 'bg-white text-[#9CA3AF] hover:text-[#374151]'
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-[#9CA3AF]">
+                    {reportVersion === 'A' ? '강사 말풍선 포함' : '데이터만'}
+                  </span>
+                </div>
+
                 {/* ①②③ 2분할: 왼쪽=히어로, 오른쪽=학습 요약+행동 분석 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
 
-                  {/* 왼쪽: 히어로 */}
-                  <div className="rounded-2xl overflow-hidden flex min-h-[240px]" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)' }}>
+                  {/* 왼쪽: 히어로 (A버전만) */}
+                  {reportVersion === 'A' && <div className="rounded-2xl overflow-hidden flex min-h-[240px]" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 60%, #BFDBFE 100%)' }}>
                     {/* 강사 사진 — 왼쪽 절반 */}
                     <div className="w-1/2 p-3 flex">
                       <div className="relative flex-1 overflow-hidden rounded-2xl">
                         <img
                           src={instThumb}
                           alt={instName}
-                          className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 15%' }}
+                          className="absolute inset-0 w-full h-full object-cover object-top"
                         />
                       </div>
                     </div>
@@ -589,10 +595,10 @@ export default function StatusPage() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </div>}
 
-                  {/* 오른쪽: AI 예측 점수 + 학습 상태 요약 + 행동 분석 */}
-                  <div className="flex flex-col gap-3">
+                  {/* 오른쪽(A) / 풀너비(B): AI 예측 점수 + 학습 상태 요약 + 행동 분석 */}
+                  <div className={`flex flex-col gap-3 ${reportVersion === 'B' ? 'md:col-span-2' : ''}`}>
 
                     {/* AI 예측 점수 카드 */}
                     <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-[0_1px_6px_rgba(37,99,235,0.06)]">
@@ -622,103 +628,34 @@ export default function StatusPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 flex-1">
-                      <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl px-4 py-3.5">
-                        <p className="text-[10px] text-[#9CA3AF] mb-0.5">필기 습관</p>
-                        <p className="text-[10px] text-[#D97706] font-medium mb-1.5">보기 선행 리딩</p>
-                        <p className="text-[24px] font-bold text-[#D97706] leading-none">72<span className="text-[13px] font-normal">%</span></p>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"/>
-                          <p className="text-[10px] text-[#D97706]">주의 필요</p>
-                        </div>
-                      </div>
-                      <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl px-4 py-3.5">
-                        <p className="text-[10px] text-[#9CA3AF] mb-0.5">대화 지체 시간</p>
-                        <p className="text-[10px] text-[#059669] font-medium mb-1.5">평균 응답 속도</p>
-                        <p className="text-[24px] font-bold text-[#1C1B33] leading-none">4.1<span className="text-[13px] font-normal text-[#6B7280] ml-0.5">초</span></p>
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]"/>
-                          <p className="text-[10px] text-[#059669]">양호</p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                 </div>
 
-                {/* 이번 주 분석 + 처방전 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                {/* 레이더 + 처방전 2열 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
-                  {/* 이번 주 분석 */}
-                  <section className="flex flex-col">
-                    <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">주간 분석</p>
-                  <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)] flex-1">
-                    {weeklyLoading ? (
-                      <div className="space-y-2">
-                        {[1,2,3].map(i => (
-                          <div key={i} className="rounded-xl px-3 py-3 bg-[#F3F4F6] animate-pulse">
-                            <div className="h-2.5 w-16 bg-[#E5E7EB] rounded mb-2" />
-                            <div className="space-y-1.5">
-                              {[1,2,3].map(j => <div key={j} className="h-2 bg-[#E5E7EB] rounded" style={{ width: `${70 + j * 8}%` }} />)}
-                            </div>
-                          </div>
-                        ))}
+                {/* 약점 저격 레이더 */}
+                <section className="flex flex-col">
+                  <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
+                  <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)]">
+                    <RadarChart data={liveRadarData} />
+                    <div className="flex items-center justify-center gap-5 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#10B981]"/>
+                        <span className="text-[10px] text-[#6B7280]">강점 70%+</span>
                       </div>
-                    ) : (
-                    <div className="space-y-2">
-
-                      <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3 py-2">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-                          <p className="text-[11px] font-bold text-[#059669]">잘한 점</p>
-                        </div>
-                        <ul className="space-y-1">
-                          {(weeklyAnalysis?.good ?? ['LC 정답률 목표치 유지 중', '총 풀이 문제 완료', '연속 학습 달성']).map((t, i) => (
-                            <li key={i} className="flex items-start gap-1.5">
-                              <span className="text-[#10B981] mt-[2px] shrink-0">✓</span>
-                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
-                            </li>
-                          ))}
-                        </ul>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#EF4444]"/>
+                        <span className="text-[10px] text-[#6B7280]">약점 70%-</span>
                       </div>
-
-                      <div className="bg-[#FFF7ED] border border-[#FDE68A] rounded-xl px-3 py-2">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />
-                          <p className="text-[11px] font-bold text-[#D97706]">개선 필요</p>
-                        </div>
-                        <ul className="space-y-1">
-                          {(weeklyAnalysis?.improve ?? ['RC 정답률 목표 대비 부족', 'Part 5 풀이 시간 초과', '학습 공백 발생']).map((t, i) => (
-                            <li key={i} className="flex items-start gap-1.5">
-                              <span className="text-[#F59E0B] mt-[2px] shrink-0">!</span>
-                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-xl px-3 py-2">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
-                          <p className="text-[11px] font-bold text-[#2563EB]">다음 주 집중 포인트</p>
-                        </div>
-                        <ul className="space-y-1">
-                          {(weeklyAnalysis?.focus ?? ['RC 파트 집중 학습', '타이머 훈련 시작', '7일 연속 학습 도전']).map((t, i) => (
-                            <li key={i} className="flex items-start gap-1.5">
-                              <span className="text-[#2563EB] mt-[2px] shrink-0">→</span>
-                              <span className="text-[#374151] text-[12px] leading-snug">{t}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
                     </div>
-                    )}
+                    <p className="text-center text-[10px] text-[#C4C9D4] mt-2">±%p는 전주 대비 정답률 변화예요</p>
                   </div>
-                  </section>
+                </section>
 
-                  {/* 강사 처방전 */}
-                  <section className="flex flex-col">
+                {/* 강사 처방전 */}
+                <section className="flex flex-col">
                     <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">강사 처방전</p>
                     {(() => {
                       const instKey = selectedInstructor ?? 'park_hyewon'
@@ -771,27 +708,7 @@ export default function StatusPage() {
                     })()}
                   </section>
 
-                </div>
-
-                {/* 약점 저격 레이더 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <section className="flex flex-col">
-                  <p className="text-[11px] text-[#9CA3AF] mb-2.5 uppercase tracking-widest">약점 저격 레이더</p>
-                  <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.04)] flex-1">
-                    <RadarChart data={liveRadarData} />
-                    <div className="flex items-center justify-center gap-5 mt-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-[#10B981]"/>
-                        <span className="text-[10px] text-[#6B7280]">강점 70%+</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-[#EF4444]"/>
-                        <span className="text-[10px] text-[#6B7280]">약점 70%-</span>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-                </div>
+                </div>{/* 레이더 + 처방전 그리드 끝 */}
 
               </div>
             )}
