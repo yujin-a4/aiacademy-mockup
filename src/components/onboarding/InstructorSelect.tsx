@@ -55,16 +55,16 @@ const INSTRUCTORS = [
     ],
     stats: { satisfaction: '4.9/5', students: '8,200+', avgIncrease: '+145점' },
     proposal: {
-      plan: '4주 초집중 스파르타 팩',
-      target: '오답 소거력 완성 + 실전 압축 코칭',
+      plan: '750점 목표 · 4주(1개월) 압축 커리큘럼',
+      target: 'LC 우선 전략 + 오답 소거·실전 압축 코칭',
       comment: '선택지 소거 기준을 먼저 잡아줄게요. 어려운 문제도 점수로 연결하는 방법, 저랑 함께 훈련해요.',
       tags: ['#스파르타', '#오답소거', '#압축전략', '#목표자극', '#고득점'],
     },
     curriculum: [
-      { week: '1주차', title: '오답 소거 기준 잡기', detail: '풀기 전에 소거할 선택지를 먼저 판단하는 기준을 만들어요.', part: 'Part 5/6', goal: '소거 정확도 70%+' },
-      { week: '2주차', title: '시간 압축 훈련', detail: 'Part 5 10분 컷을 목표로 풀이 속도를 압축하는 훈련을 합니다.', part: 'Part 5', goal: '풀이 속도 단축' },
-      { week: '3주차', title: '고난도 문제 공략', detail: '레벨보다 한 단계 어려운 문제를 소거 기준으로 뚫는 훈련을 합니다.', part: 'Part 6/7', goal: '정답률 75%+' },
-      { week: '4주차', title: '실전 모의고사', detail: '시간 제한 내 풀이 + 오답 원인 즉시 분석으로 마무리합니다.', part: '전 파트', goal: '목표 점수 도달' },
+      { week: '1주차', title: 'LC Part 2·1 기반 + RC Part 5 병행', detail: 'Part 2(의문사·일반·기타 의문문)와 Part 1으로 듣기 점수 기반을 먼저 만들고, RC Part 5 기본 문법(품사·명사·형용사·시제)을 매일 조금씩 병행합니다.', part: 'LC 2·1 / RC 5', goal: 'LC 듣기 점수 기반 형성' },
+      { week: '2주차', title: 'LC Part 3·4 확장 + RC Part 5·6 정리', detail: 'Part 3 대화 유형으로 확장하면서 RC Part 5 후반 문법과 Part 6 연결어·문맥, Part 7 기본 지문에 진입합니다.', part: 'LC 3·4 / RC 5·6', goal: 'RC 핵심 문법 완성' },
+      { week: '3주차', title: 'LC Part 4 마무리 + RC Part 7 집중', detail: 'Part 4 안내·광고·뉴스로 LC를 마무리하고, RC Part 7을 단일 지문부터 이중·삼중 지문까지 집중 학습해 독해를 완성합니다.', part: 'LC 4 / RC 7', goal: '정규 수업 마무리' },
+      { week: '4주차', title: '오답 기반 시험 직전 특강', detail: '1~3주차 학습 데이터에서 많이 틀린 유형을 골라 시험 직전 특강으로 약점을 보완하고, 실전 모의고사·핵심 요약 노트로 마무리합니다.', part: '전 파트', goal: '약점 보완 · 목표 점수 도달' },
     ],
     guideQuestions: [
       '선생님, 오답 소거 기준 어떻게 잡아야 하나요?',
@@ -711,6 +711,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
                 <p className="text-[#1C1B33] text-[15px] leading-relaxed font-medium">{selectedInst.proposal.comment}</p>
 
+                {/* 스탯(만족도·수강생·점수상승) 숨김 — 현재 불필요 (표시하려면 false→true) */}
+                {(false as boolean) && selectedInst && (
                 <div className="flex flex-wrap items-center gap-6 pt-2">
                   {[
                     { icon: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>, label: '강의 만족도', value: selectedInst.stats.satisfaction },
@@ -728,10 +730,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     </div>
                   ))}
                 </div>
+                )}
               </div>
 
               {/* 추천 & CTA */}
               <div className="w-full md:w-[280px] shrink-0 space-y-4">
+                {/* '이런 분께 추천해요' 숨김 — 현재 불필요 (표시하려면 false→true) */}
+                {(false as boolean) && selectedInst && (
                 <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#DBEAFE]">
                   <h4 className="text-[#1C1B33] font-bold text-[14px] mb-4">이런 분께 추천해요</h4>
                   <ul className="space-y-3">
@@ -747,6 +752,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     ))}
                   </ul>
                 </div>
+                )}
 
                 <div className="space-y-2.5">
                   <button
