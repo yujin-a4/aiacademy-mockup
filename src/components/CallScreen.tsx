@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export type CallEntry = {
   id: string
@@ -108,16 +108,54 @@ export function ActiveCallScreen({
   instructorName,
   instructorThumb,
   onHangup,
+  greeting,
+  persona = 'park',
 }: {
   instructorName: string
   instructorThumb: string
   onHangup: (duration: number) => void
+  greeting?: string
+  persona?: string
 }) {
   const [seconds, setSeconds] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const tick = setInterval(() => setSeconds((s) => s + 1), 1000)
     return () => clearInterval(tick)
+  }, [])
+
+  useEffect(() => {
+    if (!greeting) return
+    const playGreeting = async () => {
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: greeting, persona }),
+        })
+        const data = await res.json()
+        if (data.useNativeTts) {
+          const u = new SpeechSynthesisUtterance(data.text)
+          window.speechSynthesis.speak(u)
+          return
+        }
+        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
+        audioRef.current = audio
+        audio.onended = () => { audioRef.current = null }
+        await audio.play()
+      } catch (_e) {
+        if (greeting && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(greeting))
+        }
+      }
+    }
+    playGreeting()
+    return () => {
+      audioRef.current?.pause()
+      audioRef.current = null
+      if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+    }
   }, [])
 
   const fmt = (s: number) =>

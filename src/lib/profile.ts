@@ -48,6 +48,7 @@ export interface AnswerStats {
   totalAnswered: number
   lcAccuracy: number | null
   rcAccuracy: number | null
+  partDiff: Record<number, number | null>  // part → 전주 대비 %p (null = 전주 데이터 없음)
 }
 
 const DEMO_LEARNER_UUID = '11111111-1111-4111-8111-111111111111'
@@ -61,11 +62,16 @@ export async function loadAnswerStats(userId?: string): Promise<AnswerStats | nu
     uid = session.user.id
   }
 
+  const msInDay = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  const weekAgo = new Date(now - 7 * msInDay).toISOString()
+  const twoWeeksAgo = new Date(now - 14 * msInDay).toISOString()
+
   // 실제 유저 UUID로 먼저 시도, 없으면 데모 UUID로 폴백
   for (const tryUid of [uid, DEMO_LEARNER_UUID]) {
     const { data: logs } = await supabase
       .from('learner_answer_log')
-      .select('question_id, is_correct')
+      .select('question_id, is_correct, created_at')
       .eq('learner_id', tryUid)
 
     if (!logs || logs.length === 0) continue
@@ -79,18 +85,47 @@ export async function loadAnswerStats(userId?: string): Promise<AnswerStats | nu
     if (!questions) continue
 
     const partMap = new Map<number, number>(questions.map((q: any) => [q.id, q.part]))
-    const bucket = new Map<number, { total: number; correct: number }>()
+
+    const bucketAll = new Map<number, { total: number; correct: number }>()
+    const bucketThis = new Map<number, { total: number; correct: number }>()
+    const bucketLast = new Map<number, { total: number; correct: number }>()
 
     for (const log of logs as any[]) {
       const part = partMap.get(log.question_id)
       if (!part) continue
-      const cur = bucket.get(part) ?? { total: 0, correct: 0 }
-      cur.total++
-      if (log.is_correct) cur.correct++
-      bucket.set(part, cur)
+      const ts = log.created_at as string
+
+      const addTo = (m: Map<number, { total: number; correct: number }>) => {
+        const cur = m.get(part) ?? { total: 0, correct: 0 }
+        cur.total++
+        if (log.is_correct) cur.correct++
+        m.set(part, cur)
+      }
+
+      addTo(bucketAll)
+      if (ts >= weekAgo) addTo(bucketThis)
+      else if (ts >= twoWeeksAgo) addTo(bucketLast)
     }
 
-    const partStats: PartAnswerStat[] = Array.from(bucket.entries())
+    const toAccuracy = (m: Map<number, { total: number; correct: number }>) => {
+      const r = new Map<number, number>()
+      Array.from(m.entries()).forEach(([part, { total, correct }]) =>
+        r.set(part, Math.round((correct / total) * 100))
+      )
+      return r
+    }
+
+    const thisAcc = toAccuracy(bucketThis)
+    const lastAcc = toAccuracy(bucketLast)
+
+    const partDiff: Record<number, number | null> = {}
+    for (const part of [1, 2, 3, 4, 5, 6, 7]) {
+      const cur = thisAcc.get(part) ?? null
+      const prev = lastAcc.get(part) ?? null
+      partDiff[part] = cur != null && prev != null ? cur - prev : null
+    }
+
+    const partStats: PartAnswerStat[] = Array.from(bucketAll.entries())
       .map(([part, { total, correct }]) => ({
         part, total, correct,
         accuracy: Math.round((correct / total) * 100),
@@ -105,6 +140,7 @@ export async function loadAnswerStats(userId?: string): Promise<AnswerStats | nu
       totalAnswered: logs.length,
       lcAccuracy: avg(partStats.filter(p => p.part <= 4)),
       rcAccuracy: avg(partStats.filter(p => p.part >= 5)),
+      partDiff,
     }
   }
 
