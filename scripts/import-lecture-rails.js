@@ -68,7 +68,8 @@ async function main() {
         continue;
       }
       const lectureId = lec.rows[0].id;
-      await client.query('delete from lecture_steps where lecture_id = $1', [lectureId]);
+      // 공통 레일만 지운다 — 0007 이후 강사별(instructor_code<>'common') 레일을 함께 날리지 않도록.
+      await client.query("delete from lecture_steps where lecture_id = $1 and instructor_code = 'common'", [lectureId]);
       for (let i = 0; i < rail.steps.length; i++) {
         const s = rail.steps[i];
         await client.query(
