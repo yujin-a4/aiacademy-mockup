@@ -8,11 +8,13 @@ import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/D
 
 const LABELS = ['A', 'B', 'C', 'D']
 
-const INST_NAME: Record<string, string> = { park: '박혜원', jang: '장연지', kim: '김토익' }
+const INST_NAME: Record<string, string> = { park_hyewon: '박혜원', yun_daeun: '윤다은', lee_doyun: '이도윤', seo_jian: '서지안', oh_jungja: '오정자' }
 const INST_COLOR: Record<string, { bg: string; tc: string; border: string }> = {
   park_hyewon:  { bg: '#FEF3C7', tc: '#B45309', border: '#FDE68A' },
-  jang_yeonji:  { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
-  kim_toeic:    { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
+  yun_daeun:    { bg: '#EFF6FF', tc: '#2563EB', border: '#C7D2FE' },
+  lee_doyun:    { bg: '#F0FDF4', tc: '#059669', border: '#BBF7D0' },
+  seo_jian:     { bg: '#F5F3FF', tc: '#7C3AED', border: '#DDD6FE' },
+  oh_jungja:    { bg: '#FFF1F2', tc: '#BE123C', border: '#FECDD3' },
 }
 
 function ReviewInner() {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useConversation } from '@11labs/react'
 import { fetchLectureQuestions, type UiDbQuestion } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
+import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 
 // ── DB 기반 유형학습 수업 화면 (파트 공용, 신버전 UI) ──
@@ -17,6 +18,7 @@ const STUDENT_ID  = 'demo'
 
 interface Props {
   lectureCode: string
+  instructor?: string // 강사별 스캐폴딩 레일 선택 (기본 박혜원=common). /api/tutor가 instructor_code로 변환.
   onEnd: () => void
 }
 
@@ -88,7 +90,10 @@ async function callTutor(payload: Record<string, unknown>): Promise<{ contextual
   return res.json()
 }
 
-export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
+export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon', onEnd }: Props) {
+  // 온보딩에서 고른 강사 이름·썸네일 (없으면 박혜원 기본). 스캐폴딩 레일은 instructor로 /api/tutor가 선택.
+  const teacherName = INST_NAME[instructor] ?? '박혜원'
+  const teacherImg = INST_THUMBS[instructor] ?? TEACHER_IMG
   const [questions, setQuestions] = useState<UiDbQuestion[] | null>(null)
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'practice' | 'coaching' | 'summary'>('intro')
   const [stepIdx, setStepIdx] = useState(0)
@@ -235,7 +240,7 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
       ;(async () => {
         const res = await callTutor({
           action: 'start', studentId: await (await import('@/lib/profile')).getLearnerId(STUDENT_ID), questionCode: currentQ.code,
-          lessonType: coaching ? 'practice' : 'lesson',
+          lessonType: coaching ? 'practice' : 'lesson', instructor,
         })
         if (res.sessionId) sessionIdRef.current = res.sessionId
         if (coaching && chosen && res.sessionId) {
@@ -285,6 +290,8 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
         tag={intro?.tag ?? partName}
         script={intro?.script ?? `${partName} 유형학습을 시작할게요.`}
         points={(intro?.points ?? []).map((t) => ({ text: t }))}
+        teacherName={`${teacherName} 선생님`}
+        teacherImg={teacherImg}
         onStart={() => { setStepIdx(0); setPhase('lesson') }}
         onEnd={onEnd}
       />
@@ -309,7 +316,7 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
 
   // 정리 화면 — 핵심 요약 빈칸(텍스트/음성) + 박혜원 강사 마무리 (full-screen)
   if (phase === 'summary') {
-    return <SummaryView data={LECTURE_SUMMARY[lectureCode]} partName={partName} onEnd={onEnd} />
+    return <SummaryView data={LECTURE_SUMMARY[lectureCode]} partName={partName} onEnd={onEnd} teacherName={teacherName} teacherImg={teacherImg} />
   }
 
   // 인사말은 에이전트가 처음에 스스로 말하는 유일한 발화 = "처음부터 질문으로" 여는 부분(따로 고정).
@@ -377,8 +384,8 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
             <div className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TEACHER_IMG} alt="박혜원" className="w-7 h-7 rounded-full object-cover object-top border border-[#2277F0]/40" />
-              <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
+              <img src={teacherImg} alt={teacherName} className="w-7 h-7 rounded-full object-cover object-top border border-[#2277F0]/40" />
+              <span className="text-[13px] font-bold text-gray-600">{teacherName} AI 강사</span>
               <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
             </div>
             <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
@@ -397,8 +404,8 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
           {!connected ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 min-h-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
-              <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
+              <img src={teacherImg} alt={teacherName} className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
+              <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : `${teacherName} 강사와 대화를 시작해요`}</p>
               <button onClick={startAgent} disabled={connecting}
                 className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">
                 {connecting ? '연결 중…' : '▶ 강사와 대화 시작'}
@@ -429,9 +436,9 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
             <div className="flex-1 flex flex-col items-center justify-center px-5 py-5 min-h-0">
               <div className={`w-24 h-24 rounded-full overflow-hidden border-4 mb-3 transition-all ${conversation.isSpeaking ? 'border-[#2277F0] shadow-[0_0_24px_rgba(34,119,240,0.55)]' : 'border-[#2277F0]/25'}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
+                <img src={teacherImg} alt={teacherName} className="w-full h-full object-cover object-top" />
               </div>
-              <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
+              <p className="text-gray-500 text-[12px] font-semibold mb-1">{teacherName} AI 강사</p>
               {lastAi && (
                 <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
                   <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
@@ -450,7 +457,7 @@ export default function DbLessonScreen({ lectureCode, onEnd }: Props) {
             <QuestionView q={currentQ} idx={stepIdx} total={total} onNext={goNext} revealed={optionsRevealed} />
           )}
           {phase === 'coaching' && currentQ && (
-            <CoachQuestionView q={currentQ} chosen={coachItems[coachIdx]?.chosen} idx={coachIdx} total={coachItems.length} onNext={goNextCoach} />
+            <CoachQuestionView q={currentQ} chosen={coachItems[coachIdx]?.chosen} idx={coachIdx} total={coachItems.length} onNext={goNextCoach} teacherName={teacherName} />
           )}
         </div>
       </div>
@@ -511,8 +518,8 @@ function QuestionView({ q, idx, total, onNext, revealed }: {
 /* ── 오답 코칭 문항 화면 (좌 패널) ──
    실전에서 틀린 문항을 보여준다. 학생이 고른 오답은 빨강, 정답은 초록으로 표시(채점 결과에서 이미 공개됨).
    실제 스캐폴딩 코칭은 우측 강사(tag 모드)가 대화로 진행하고, 여기 버튼으로 다음 오답으로 넘어간다. */
-function CoachQuestionView({ q, chosen, idx, total, onNext }: {
-  q: UiDbQuestion; chosen?: string; idx: number; total: number; onNext: () => void
+function CoachQuestionView({ q, chosen, idx, total, onNext, teacherName }: {
+  q: UiDbQuestion; chosen?: string; idx: number; total: number; onNext: () => void; teacherName: string
 }) {
   const correct = q.options.find((o) => o.correct)?.label
   return (
@@ -528,7 +535,7 @@ function CoachQuestionView({ q, chosen, idx, total, onNext }: {
       </div>
 
       <div className="mb-3 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] px-3.5 py-2.5 text-[12px] font-semibold text-[#B45309] leading-relaxed">
-        실전에서 틀린 문제예요. 박혜원 강사가 왜 틀렸는지 오른쪽에서 같이 짚어줄 거예요.
+        실전에서 틀린 문제예요. {teacherName} 강사가 왜 틀렸는지 오른쪽에서 같이 짚어줄 거예요.
       </div>
 
       <PartContent q={q} />
@@ -611,7 +618,7 @@ function BlankField({ value, onChange }: { value: string; onChange: (v: string) 
 
 /* ── 정리(마무리) 화면 — 핵심 요약 빈칸 채우기 + 박혜원 강사 마무리(TTS) ── */
 
-function SummaryView({ data, partName, onEnd }: { data: LectureSummary | undefined; partName: string; onEnd: () => void }) {
+function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data: LectureSummary | undefined; partName: string; onEnd: () => void; teacherName: string; teacherImg: string }) {
   const [inputs, setInputs] = useState<string[]>(() => (data?.sentences ?? []).map(() => ''))
   const [checked, setChecked] = useState(false)
 
@@ -649,7 +656,7 @@ function SummaryView({ data, partName, onEnd }: { data: LectureSummary | undefin
         <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
+            <img src={teacherImg} alt={teacherName} className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
             <div className="flex-1 min-w-0">
               <h2 className="text-lg md:text-xl font-bold text-[#1A2B4B]">오늘 수업 마무리!</h2>
               <p className="text-xs md:text-sm text-gray-500">{partName} · 핵심 요약</p>
@@ -691,9 +698,9 @@ function SummaryView({ data, partName, onEnd }: { data: LectureSummary | undefin
               <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
+                  <img src={teacherImg} alt={teacherName} className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-[#1A2B4B]">박혜원 AI 강사</p>
+                    <p className="text-sm font-bold text-[#1A2B4B]">{teacherName} AI 강사</p>
                     <p className="text-[11px] text-[#2277F0] font-semibold">오늘 학습 마무리 🎓</p>
                   </div>
                   <button onClick={() => void speakTTS(data.closing, 'park')} className="w-9 h-9 rounded-full bg-white border border-[#BFD9FF] flex items-center justify-center text-[#2277F0] hover:bg-[#EFF6FF]" title="다시 듣기" aria-label="강사 마무리 다시 듣기">

@@ -128,22 +128,37 @@ export interface LectureStep {
   freeExpression: string | null
 }
 
-/** 강의별 유형학습 레일 (lecture_steps — 시트 유형학습_G 탭 이관분). 없으면 빈 배열 */
-export async function loadLectureSteps(lectureCode: string): Promise<LectureStep[]> {
-  const supabase = getSupabase()
-  if (!supabase) return []
-  const { data } = await supabase
-    .from('lecture_steps')
-    .select('step_order, step_code, fixed_rule, db_fields, free_expression, lectures!inner(lecture_code)')
-    .eq('lectures.lecture_code', lectureCode)
-    .order('step_order')
-  return (data ?? []).map((s: any) => ({
+const mapSteps = (data: any[] | null): LectureStep[] =>
+  (data ?? []).map((s: any) => ({
     order: s.step_order,
     code: s.step_code,
     rule: s.fixed_rule,
     dbFields: s.db_fields,
     freeExpression: s.free_expression,
   }))
+
+/**
+ * 강의별 유형학습 레일 (lecture_steps). 강사별 레일이 있으면 그걸, 없으면 'common'으로 폴백.
+ *   · instructorCode='common'(기본) = 공통 기본 설계 (유형학습_G 이관분). 박혜원도 당분간 이걸 사용.
+ *   · 'yun_daeun'/'lee_doyun' = 시트 [윤다은 ver]/[이도윤 ver] 이관분.
+ * 없으면 빈 배열.
+ */
+export async function loadLectureSteps(lectureCode: string, instructorCode = 'common'): Promise<LectureStep[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const query = (code: string) => supabase
+    .from('lecture_steps')
+    .select('step_order, step_code, fixed_rule, db_fields, free_expression, lectures!inner(lecture_code)')
+    .eq('lectures.lecture_code', lectureCode)
+    .eq('instructor_code', code)
+    .order('step_order')
+
+  const { data } = await query(instructorCode)
+  if ((data ?? []).length === 0 && instructorCode !== 'common') {
+    const { data: fallback } = await query('common') // 강사 레일 미이관 강의는 공통으로
+    return mapSteps(fallback)
+  }
+  return mapSteps(data)
 }
 
 let stepTypesCache: Map<string, StepTypeInfo> | null = null

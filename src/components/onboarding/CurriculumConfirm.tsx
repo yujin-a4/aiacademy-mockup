@@ -7,13 +7,21 @@ const INST_INFO: Record<string, { name: string; msg: (n: string, s: number | nul
     name: '박혜원',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 포기하지 마세요!`,
   },
-  jang_yeonji: {
-    name: '장연지',
+  yun_daeun: {
+    name: '윤다은',
     msg: (n, s, p) => `${n}님이라면 ${p ?? '2개월'} 안에 ${s ?? 700}점 넘을 수 있어요. 저만 믿으세요!`,
   },
-  kim_toeic: {
-    name: '김토익',
+  lee_doyun: {
+    name: '이도윤',
     msg: (n, s, p) => `${p ?? '2개월'} 플랜이면 ${s ?? 700}점 충분히 가능해요, ${n}님.`,
+  },
+  seo_jian: {
+    name: '서지안',
+    msg: (n, s, p) => `${n}님, ${p ?? '2개월'}이면 ${s ?? 700}점 반드시 닿아요. 같이 해봐요 💜`,
+  },
+  oh_jungja: {
+    name: '오정자',
+    msg: (n, s, p) => `${n}님, 서두르지 말고 ${p ?? '2개월'} 동안 천천히 하면 ${s ?? 700}점 돼요.`,
   },
 }
 
@@ -39,7 +47,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
     }
     onComplete()
   }
-  const inst = INST_INFO[selectedInstructor ?? 'jang_yeonji'] ?? INST_INFO.jang_yeonji
+  const inst = INST_INFO[selectedInstructor ?? 'park_hyewon'] ?? INST_INFO.park_hyewon
   const curriculum = CURRICULUM[studyPeriod ?? '2개월'] ?? CURRICULUM['2개월']
 
   return (

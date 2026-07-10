@@ -30,6 +30,23 @@ const LEGACY_CODE: Record<number, string> = {
   5008: 'RC-P5-08-Q002', // Part5 수동태 (technical issues)
 }
 
+/** 온보딩 강사 식별자(InstructorSelect id) → lecture_steps.instructor_code.
+ *  스캐폴딩 레일이 이관된 강사만 자기 레일을 쓰고, 나머지는 common(공통 기본 설계)으로 폴백.
+ *  · 박혜원  — 강사 레일 미작성 → common
+ *  · 윤다은/이도윤 — Part1 레일 이관 완료 → 자기 레일
+ *  · 서지안/오정자 — 미이관 → common */
+const INSTRUCTOR_CODE: Record<string, string> = {
+  park_hyewon: 'common',
+  yun_daeun: 'yun_daeun',
+  lee_doyun: 'lee_doyun',
+  seo_jian: 'common',
+  oh_jungja: 'common',
+}
+function instructorCodeOf(raw: unknown): string {
+  const v = typeof raw === 'string' ? raw : ''
+  return INSTRUCTOR_CODE[v] ?? (v === 'yun_daeun' || v === 'lee_doyun' ? v : 'common')
+}
+
 type FadingLevel = 'full' | 'reduced' | 'minimal'
 
 interface RailSession {
@@ -290,13 +307,14 @@ export async function POST(req: NextRequest) {
       const facts = buildFacts(q)
       // lessonType: 'lesson'(유형학습) | 'practice'(실전문제) | 미지정(기존 동작)
       const lessonType: string | undefined = body.lessonType
+      const instructorCode = instructorCodeOf(body.instructor) // 강사별 레일 선택 (없으면 common)
       const rail = lessonType === 'practice' ? undefined : TUTOR_RAILS[questionCode]
       const id = crypto.randomUUID()
       sessionByKey.set(sessionKey(learnerId, questionCode), id) // Server Tool이 sessionId 없이 세션 찾게
 
-      // 유형학습 요청 + 손질 레일 없음 → 강의의 시트 레일(lecture_steps)로 진행
+      // 유형학습 요청 + 손질 레일 없음 → 강의의 시트 레일(lecture_steps)로 진행. 강사별 레일 우선, 없으면 common.
       if (lessonType === 'lesson' && !rail) {
-        const steps = await loadLectureSteps(q.lectureCode)
+        const steps = await loadLectureSteps(q.lectureCode, instructorCode)
         if (steps.length) {
           const session: SheetRailSession = {
             mode: 'sheetRail', id, learnerId, questionCode, q, steps, stepIdx: 0, done: false,
@@ -304,7 +322,7 @@ export async function POST(req: NextRequest) {
           sessions.set(id, session)
           const contextual = `${facts.text}\n\n${TURN_RULES}\n\n${sheetStepDirective(session, steps[0])}`
           return NextResponse.json({
-            sessionId: id, mode: 'sheetRail', lectureCode: q.lectureCode,
+            sessionId: id, mode: 'sheetRail', lectureCode: q.lectureCode, instructor: instructorCode,
             steps: steps.map((st) => st.code), contextual,
           })
         }

@@ -65,14 +65,14 @@ function OjjDashboard() {
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
-  const ojjName = INST_NAME['oh']
-  const ojjThumb = INST_THUMBS['oh']
+  const ojjName = INST_NAME['oh_jungja']
+  const ojjThumb = INST_THUMBS['oh_jungja']
   const handlePhoneClick = () => setCallState('ringing')
   const handleAnswer = () => setCallState('idle')
   const handleReject = () => {
     setCallLog((prev) => [...prev, {
       id: Date.now().toString(),
-      instructorKey: 'oh',
+      instructorKey: 'oh_jungja',
       instructorName: ojjName,
       instructorThumb: ojjThumb,
       time: new Date(),
@@ -577,13 +577,17 @@ function RegularDashboard() {
 
   const INST_GREETING: Record<string, string> = {
     park_hyewon: '오늘 토익 공부할 시간이야. 지금 시작해야 돼, 알겠지?',
-    jang_yeonji: '안녕하세요~ 오늘도 같이 토익 공부해봐요! 잘 할 수 있어요.',
-    kim_toeic: '공부할 시간이야. 오늘 목표 꼭 달성하고 자자고.',
+    yun_daeun: '안녕하세요~ 오늘도 같이 토익 공부해봐요! 잘 할 수 있어요.',
+    lee_doyun: '공부할 시간이야. 오늘 목표 꼭 달성하고 자자고.',
+    seo_jian: '오늘도 잘 왔어요 💜 조급해하지 말고 같이 한 걸음씩 가봐요.',
+    oh_jungja: '오늘도 왔네요. 천천히 한 문제씩 하면 돼요. 시작해봐요.',
   }
   const INST_PERSONA: Record<string, string> = {
     park_hyewon: 'park',
-    jang_yeonji: 'jang',
-    kim_toeic: 'kim',
+    yun_daeun: 'jang',
+    lee_doyun: 'kim',
+    seo_jian: 'jang',
+    oh_jungja: 'park',
   }
   const greeting = INST_GREETING[selectedInstructor ?? 'park_hyewon'] ?? '오늘 토익 공부할 시간이에요! 같이 시작해봐요.'
   const ttsPersona = INST_PERSONA[selectedInstructor ?? 'park_hyewon'] ?? 'park'
@@ -844,6 +848,6 @@ export default function Dashboard() {
     })
   }, [router])
 
-  if (selectedInstructor === 'oh') return <OjjDashboard />
+  if (selectedInstructor === 'oh_jungja') return <OjjDashboard />
   return <RegularDashboard />
 }
