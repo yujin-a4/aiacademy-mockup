@@ -227,7 +227,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
     if (connected && !ctxSentRef.current) {
       ctxSentRef.current = true
       ;(async () => {
-        const res = await callTutor({ action: 'start', studentId: STUDENT_ID, questionCode: TUTOR_QUESTION_CODE })
+        const res = await callTutor({ action: 'start', studentId: await (await import('@/lib/profile')).getLearnerId(STUDENT_ID), questionCode: TUTOR_QUESTION_CODE })
         if (res.sessionId) sessionIdRef.current = res.sessionId
         if (res.contextual) sendContextual(res.contextual)
         pendingQuickRepliesRef.current = res.quickReplies
