@@ -17,6 +17,15 @@ export const INST_THUMBS: Record<string, string> = {
   oh_jungja: '/image_reference/ojungja.jpg',
 }
 
+// 강사별 수업 튜터 ElevenLabs 에이전트. 전용 에이전트가 없는 강사는 박혜원 에이전트로 폴백.
+export const TUTOR_AGENT_DEFAULT = 'agent_2501kt0w00khfrr8869g2z5vnpaz' // 박혜원
+export const INST_AGENT: Record<string, string> = {
+  park_hyewon: TUTOR_AGENT_DEFAULT,
+  yun_daeun: 'agent_0901kxd75e70f49bbjmjge931tbq',
+}
+export const tutorAgentFor = (instructor?: string) =>
+  (instructor && INST_AGENT[instructor]) || TUTOR_AGENT_DEFAULT
+
 export const INST_WEAK_COMMENTS: Record<string, Partial<Record<string, string>>> = {
   park_hyewon: {
     P5: 'P5에서 시간 다 쓰면 뒤가 무너져. 품사 자리부터 바로 파악하는 훈련 해.',

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useConversation } from '@11labs/react'
 import { fetchLectureQuestions, type UiDbQuestion } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, tutorAgentFor } from '@/data/instructorData'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 
 // ── DB 기반 유형학습 수업 화면 (파트 공용, 신버전 UI) ──
@@ -12,7 +12,6 @@ import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 // 좌: 도입 카드 / 파트별 문항(사진·질문·대화 등, DB content) + 보기.
 // 우: 박혜원 ElevenLabs 에이전트 — /api/tutor(lessonType='lesson', 시트 레일)가 진행을 소유하고
 //     에이전트는 directive를 말투로 렌더한다. 문항을 넘길 때마다 새 questionCode로 start를 다시 호출.
-const AGENT_ID    = 'agent_2501kt0w00khfrr8869g2z5vnpaz'
 const TEACHER_IMG = '/instructor/park.png'
 const STUDENT_ID  = 'demo'
 
@@ -94,6 +93,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   // 온보딩에서 고른 강사 이름·썸네일 (없으면 박혜원 기본). 스캐폴딩 레일은 instructor로 /api/tutor가 선택.
   const teacherName = INST_NAME[instructor] ?? '박혜원'
   const teacherImg = INST_THUMBS[instructor] ?? TEACHER_IMG
+  const agentId = tutorAgentFor(instructor) // 강사별 튜터 에이전트 (윤다은 등), 없으면 박혜원
   const [questions, setQuestions] = useState<UiDbQuestion[] | null>(null)
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'practice' | 'coaching' | 'summary'>('intro')
   const [stepIdx, setStepIdx] = useState(0)
@@ -375,7 +375,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const startAgent = () => {
     setMessages([])
     conversation.startSession({
-      agentId: AGENT_ID,
+      agentId,
       dynamicVariables: {
         user_name: '지윤',
         target_score: '900',
@@ -570,6 +570,28 @@ function QuestionView({ q, idx, total, onNext, revealed }: {
 }) {
   // 듣기 문항: 보기 텍스트를 감췄다가(음성만), 음원을 다 들으면(revealed) 전부 공개.
   const hideText = !!q.content.audio_url && !revealed
+  // Part 1(사진 묘사)은 사진 좌 · 보기 우 2분할 + 가운데 핸들로 폭 조절, 나머지는 세로 배치.
+  const isPhoto = q.part === 1
+  const splitRef = useRef<HTMLDivElement>(null)
+  const resizingRef = useRef(false)
+  const [leftFrac, setLeftFrac] = useState(0.58) // 사진(좌) 폭 비율
+  const onResizeStart = (e: React.PointerEvent) => { resizingRef.current = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ } }
+  const onResizeMove = (e: React.PointerEvent) => { if (!resizingRef.current || !splitRef.current) return; const r = splitRef.current.getBoundingClientRect(); setLeftFrac(Math.min(0.75, Math.max(0.3, (e.clientX - r.left) / r.width))) }
+  const onResizeEnd = () => { resizingRef.current = false }
+
+  const optionsBlock = (
+    <div className="flex flex-col gap-2 md:gap-2.5">
+      {q.options.map((o) => (
+        <div key={o.label} className="flex items-center gap-3 rounded-xl px-4 py-3 border border-gray-200 bg-white">
+          <span className="w-6 h-6 rounded-full border-2 border-gray-300 text-gray-400 flex items-center justify-center shrink-0 text-xs font-bold">{o.label}</span>
+          {hideText
+            ? <span className="text-sm text-gray-400 font-medium">🔊 음성으로 들려요</span>
+            : <span className="text-sm md:text-[15px] leading-snug text-[#1A2B4B]">{o.text}</span>}
+        </div>
+      ))}
+    </div>
+  )
+
   return (
     <div className="px-5 md:px-8 py-4 md:py-5">
       {/* 진행 인디케이터 */}
@@ -582,18 +604,26 @@ function QuestionView({ q, idx, total, onNext, revealed }: {
         </div>
       </div>
 
-      <PartContent q={q} />
-
-      <div className="flex flex-col gap-2 md:gap-2.5 mt-4">
-        {q.options.map((o) => (
-          <div key={o.label} className="flex items-center gap-3 rounded-xl px-4 py-3 border border-gray-200 bg-white">
-            <span className="w-6 h-6 rounded-full border-2 border-gray-300 text-gray-400 flex items-center justify-center shrink-0 text-xs font-bold">{o.label}</span>
-            {hideText
-              ? <span className="text-sm text-gray-400 font-medium">🔊 음성으로 들려요</span>
-              : <span className="text-sm md:text-[15px] leading-snug text-[#1A2B4B]">{o.text}</span>}
+      {isPhoto ? (
+        <div ref={splitRef} className="flex flex-col lg:flex-row min-h-[380px] lg:h-[58vh]">
+          {/* 좌: 사진 */}
+          <div className="min-h-0 overflow-y-auto lg:w-[var(--lf)]" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+            <PartContent q={q} />
           </div>
-        ))}
-      </div>
+          {/* 가운데 세로 리사이즈 핸들 (데스크탑) */}
+          <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd}
+            className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100 rounded">
+            <div className="h-12 w-1 rounded-full bg-gray-300" />
+          </div>
+          {/* 우: 보기 */}
+          <div className="flex-1 min-w-0 min-h-0 overflow-y-auto pt-4 lg:pt-0 lg:pl-5">{optionsBlock}</div>
+        </div>
+      ) : (
+        <>
+          <PartContent q={q} />
+          <div className="mt-4">{optionsBlock}</div>
+        </>
+      )}
 
       <button onClick={onNext}
         className="mt-5 w-full py-3.5 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
