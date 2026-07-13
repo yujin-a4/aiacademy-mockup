@@ -122,12 +122,15 @@ export default function ListeningScreen({ part, onEnd }: Props) {
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const [inputText, setInputText] = useState('')
+  const [panelOpen, setPanelOpen] = useState(true) // UI 실험 안1: 패널 접으면 미니 카드로
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [audioProg, setAudioProg] = useState(0)
   const [lessonQIndex, setLessonQIndex] = useState(0) // 수업 문항 전환
   const audioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const playRef = useRef<(i: number) => Promise<void>>(async () => {})
   const conversation = useConversation({
+    // 텍스트 모드에서는 마이크를 음소거 → 입력은 오직 텍스트로만
+    micMuted: chatMode === 'text',
     onConnect: () => console.log('[ConvAI] connected'),
     onDisconnect: () => console.log('[ConvAI] disconnected'),
     onError: (e: unknown) => console.warn('[ConvAI] error', e),
@@ -201,7 +204,8 @@ export default function ListeningScreen({ part, onEnd }: Props) {
         <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
         <DrawingOverlay {...draw} bounds={mainRef} />
         <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
-          {/* 강사 대화창 (우 / 모바일 하단) */}
+          {/* 강사 대화창 (우 / 모바일 하단) — 접으면 미니 카드로 (UI 실험 안1) */}
+          {panelOpen && (
           <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
@@ -210,12 +214,17 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                 <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
               </div>
-              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
-                <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>텍스트
-                </button>
-                <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>음성
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                  <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>텍스트
+                  </button>
+                  <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>음성
+                  </button>
+                </div>
+                <button onClick={() => setPanelOpen(false)} aria-label="강사 패널 접기" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 14h6v6M20 10h-6V4" /></svg>
                 </button>
               </div>
             </div>
@@ -257,6 +266,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
 
             <button onClick={goReading} className="shrink-0 border-t border-gray-100 py-3 text-[13px] font-bold text-[#2277F0] hover:bg-[#2277F0]/5">실전 문제 풀기 →</button>
           </aside>
+          )}
 
           {/* 좌: 재생바(강사 주도) + 전체 문제 — 수동 재생/스크립트 없음 */}
           <div ref={mainRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
@@ -299,6 +309,31 @@ export default function ListeningScreen({ part, onEnd }: Props) {
             </div>
           </div>
         </div>
+
+        {/* 접힌 상태 — 미니 강사 카드 (탭하면 다시 펼침) */}
+        {!panelOpen && (
+          <button
+            onClick={() => setPanelOpen(true)}
+            aria-label="강사 패널 열기"
+            className="fixed bottom-5 right-4 z-30 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-lg pl-2.5 pr-4 py-2.5 max-w-[320px] text-left hover:shadow-xl transition-shadow"
+            style={{ boxShadow: '0 4px 24px rgba(34,119,240,0.14), 0 1px 4px rgba(0,0,0,0.08)' }}
+          >
+            <span className={`relative shrink-0 block w-12 h-12 rounded-full overflow-hidden border-2 transition-all ${connected && conversation.isSpeaking ? 'border-[#2277F0] shadow-[0_0_14px_rgba(34,119,240,0.5)]' : 'border-[#2277F0]/30'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
+            </span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="text-[12px] font-bold text-gray-600">박혜원 AI 강사</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
+              </span>
+              <span className="block text-[12px] text-gray-500 leading-snug line-clamp-2">
+                {lastAi || (connected ? '강사가 곧 말을 걸어요…' : '탭하면 강사 패널이 열려요')}
+              </span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+          </button>
+        )}
       </div>
     )
   }

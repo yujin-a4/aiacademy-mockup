@@ -102,6 +102,51 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const [coachIdx, setCoachIdx] = useState(0)
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const [inputText, setInputText] = useState('')
+  const [panelOpen, setPanelOpen] = useState(false) // UI 실험 안2: 평소엔 플로팅 위젯, 클릭하면 모달
+
+  // 강사 모달 드래그 — 헤더를 잡고 이동 (딤드 없음, 뒤 화면 보면서 사용)
+  const modalRef        = useRef<HTMLElement | null>(null)
+  const modalDragging   = useRef(false)
+  const modalDragOffset = useRef({ x: 0, y: 0 })
+  const [modalPos, setModalPos] = useState<{ x: number; y: number } | null>(null)
+
+  const onModalDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    const el = modalRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const cy = 'touches' in e ? e.touches[0].clientY : e.clientY
+    modalDragging.current = true
+    modalDragOffset.current = { x: cx - rect.left, y: cy - rect.top }
+    setModalPos({ x: rect.left, y: rect.top })
+    e.preventDefault()
+  }
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!modalDragging.current) return
+      e.preventDefault()
+      const cx = 'touches' in e ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX
+      const cy = 'touches' in e ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY
+      const el = modalRef.current
+      if (!el) return
+      const x = Math.max(8, Math.min(window.innerWidth - el.offsetWidth - 8, cx - modalDragOffset.current.x))
+      const y = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, cy - modalDragOffset.current.y))
+      setModalPos({ x, y })
+    }
+    const onUp = () => { modalDragging.current = false }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+  }, [])
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
   // 듣기 음원 재생 상태 — 강사(에이전트)가 play_audio tool로 재생하는 동안만 true (채팅창 하단 표시용).
   const [audioPlaying, setAudioPlaying] = useState(false)
@@ -118,6 +163,8 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const lastPlayRef    = useRef<{ src: string; t: number }>({ src: '', t: 0 }) // 중복 재생 방지용
 
   const conversation = useConversation({
+    // 텍스트 모드에서는 마이크를 음소거 → 입력은 오직 텍스트로만 (음성 모드로 바꾸면 해제)
+    micMuted: chatMode === 'text',
     onMessage: (p: { source: string; message: string }) =>
       setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
     clientTools: {
@@ -379,23 +426,42 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
       </div>
 
       <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
-        {/* 강사 대화창 (우 / 모바일 하단) */}
-        <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
+        {/* 강사 대화 — 플로팅 위젯 + 드래그 가능한 창 (UI 실험 안2). 딤드 없음, 닫아도 세션 유지. */}
+        {panelOpen && (
+          <aside
+            ref={modalRef}
+            className="fixed z-40 w-[min(400px,92vw)] bg-white rounded-3xl border border-gray-200 overflow-hidden flex flex-col"
+            style={{
+              height: 'min(600px, 80dvh)',
+              boxShadow: '0 12px 48px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)',
+              ...(modalPos ? { left: modalPos.x, top: modalPos.y } : { right: 16, bottom: 80 }),
+            }}
+          >
+          <div
+            onMouseDown={onModalDragStart}
+            onTouchStart={onModalDragStart}
+            className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0 cursor-grab active:cursor-grabbing select-none"
+            style={{ touchAction: 'none' }}
+          >
             <div className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={teacherImg} alt={teacherName} className="w-7 h-7 rounded-full object-cover object-top border border-[#2277F0]/40" />
               <span className="text-[13px] font-bold text-gray-600">{teacherName} AI 강사</span>
               <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
             </div>
-            <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
-              <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>
-                텍스트
-              </button>
-              <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>
-                음성
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>
+                  텍스트
+                </button>
+                <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>
+                  음성
+                </button>
+              </div>
+              <button onClick={() => setPanelOpen(false)} aria-label="강사 창 닫기" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
           </div>
@@ -449,7 +515,29 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
               <button onClick={() => { try { conversation.endSession() } catch { /* noop */ } }} className="mt-4 text-[12px] font-semibold text-gray-400">통화 종료</button>
             </div>
           )}
-        </aside>
+          </aside>
+        )}
+
+        {/* 평소 상태 — 플로팅 강사 위젯 (탭하면 모달) */}
+        {!panelOpen && (
+          <button
+            onClick={() => setPanelOpen(true)}
+            aria-label="강사와 대화 열기"
+            className="fixed bottom-5 right-4 z-30 flex items-end gap-2.5 text-left"
+          >
+            {(lastAi || !connected) && (
+              <span className="block max-w-[240px] bg-white border border-gray-200 rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-gray-700 leading-snug shadow-lg line-clamp-2"
+                style={{ boxShadow: '0 4px 20px rgba(34,119,240,0.12), 0 1px 4px rgba(0,0,0,0.08)' }}>
+                {lastAi || `${teacherName} 강사와 대화를 시작해요`}
+              </span>
+            )}
+            <span className={`relative shrink-0 block w-14 h-14 rounded-full overflow-hidden border-2 shadow-lg transition-all ${connected && conversation.isSpeaking ? 'border-[#2277F0] shadow-[0_0_18px_rgba(34,119,240,0.55)]' : 'border-white'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={teacherImg} alt={teacherName} className="w-full h-full object-cover object-top" />
+              <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
+            </span>
+          </button>
+        )}
 
         {/* 좌: 유형학습 문항 / 오답 코칭 문항 / 완료 (도입·실전은 위에서 조기 반환) */}
         <div className="flex-1 flex flex-col min-h-0 bg-white overflow-y-auto">
