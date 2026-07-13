@@ -816,8 +816,14 @@ const NEW_LESSONS: Record<number, Lesson[]> = {
   3: [{ id: 'new-p3', title: '짧은 대화 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 3', href: '/lc/3' }],
   4: [{ id: 'new-p4', title: '설명문 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 4', href: '/lc/4' }],
   5: [{ id: 'new-p5', title: '단문 공란 — 문장 빈칸 채우기', status: 'upcoming', partLabel: 'Part 5', href: '/part5-blank' }],
-  6: [{ id: 'new-p6', title: '장문 공란 — 지문 빈칸 채우기', status: 'upcoming', partLabel: 'Part 6', href: '/part6-reading' }],
-  7: [{ id: 'new-p7-reading', title: '장문 독해 — 지문 읽고 풀기', status: 'upcoming', partLabel: 'Part 7', href: '/part7-reading' }],
+  6: [
+    { id: 'new-p6', title: '장문 공란 — 지문 빈칸 채우기', status: 'upcoming', partLabel: 'Part 6', href: '/part6-reading' },
+    { id: 'new-p6-split', title: '장문 공란 — 분할 화면 + 강사 모달 (실험)', status: 'upcoming', partLabel: 'Part 6', href: '/part6-split' },
+  ],
+  7: [
+    { id: 'new-p7-reading', title: '장문 독해 — 지문 읽고 풀기', status: 'upcoming', partLabel: 'Part 7', href: '/part7-reading' },
+    { id: 'new-p7-split', title: '장문 독해 — 분할 화면 + 강사 모달 (실험)', status: 'upcoming', partLabel: 'Part 7', href: '/part7-split' },
+  ],
 }
 
 /* ── 메인 ── */

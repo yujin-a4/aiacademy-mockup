@@ -16,6 +16,8 @@ import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 import { useConversation } from '@11labs/react'
+import TutorMiniCard, { PanelCollapseButton } from '@/components/lesson/TutorMiniCard'
+import { TutorChatModal, TutorFloatingWidget } from '@/components/lesson/TutorModal'
 
 const LABELS = ['A', 'B', 'C', 'D']
 const TEACHER_IMG = '/image_reference/park-2.jpg'
@@ -57,6 +59,8 @@ const FALLBACK_LESSON_SET = PART7_SETS[0]
 
 interface Props {
   onEnd?: () => void
+  /** 'side'(기본) = 우측 강사 패널 / 'split' = 지문 좌·문제 우 분할 + 강사 모달 (UI 실험) */
+  variant?: 'side' | 'split'
 }
 
 /* ── 상단 phase 스텝퍼 ── */
@@ -219,7 +223,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
   )
 }
 
-export default function Part7ReadingScreen({ onEnd }: Props) {
+export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
   // 문항(수업 세트 + 실전 지문)은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
   const LESSON_SET = useDbQuestionsByPassage(
     Q_ANCHORS.p7CarAd,
@@ -241,9 +245,11 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
 
   // 수업 상태
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
+  const [panelOpen, setPanelOpen] = useState(variant !== 'split') // side: 패널 열림 / split: 위젯부터
   const [inputText, setInputText] = useState('')
   const [lessonQIndex, setLessonQIndex] = useState(0) // 수업 문항 전환 (147/148)
   const [topFrac, setTopFrac] = useState(0.4) // 지문 40% / 문제·보기 60% (보기 4개 기본 노출)
+  const [leftFrac, setLeftFrac] = useState(0.5) // split: 지문(좌) 폭 비율
 
   // 정리 상태 (요약 빈칸)
   const [summaryInputs, setSummaryInputs] = useState(['', '', ''])
@@ -257,6 +263,8 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
   // 수업 대화 — ElevenLabs 실시간 에이전트 (텍스트/음성 공통 세션)
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
   const conversation = useConversation({
+    // 텍스트 모드에서는 마이크를 음소거 → 입력은 오직 텍스트로만
+    micMuted: chatMode === 'text',
     onMessage: (p: { source: string; message: string }) =>
       setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
   })
@@ -319,6 +327,74 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
       setTopFrac(Math.min(0.8, Math.max(0.25, f)))
     }
     const onResizeEnd = () => { resizingRef.current = false }
+    const onHResizeMove = (e: React.PointerEvent) => {
+      if (!resizingRef.current || !mainRef.current) return
+      const r = mainRef.current.getBoundingClientRect()
+      setLeftFrac(Math.min(0.75, Math.max(0.25, (e.clientX - r.left) / r.width)))
+    }
+
+    // ── split 변형: 지문 좌 / 문제·보기 우 + 강사는 플로팅 위젯 → 드래그 모달 ──
+    if (variant === 'split') {
+      const lq = LESSON_SET.questions[lessonQIndex]
+      return (
+        <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
+          <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
+          <DrawingOverlay {...draw} bounds={mainRef} />
+          <div ref={mainRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
+            {/* 좌: 지문 */}
+            <div className="h-[45%] lg:h-full min-h-0 overflow-y-auto px-5 md:px-8 py-4 md:py-5 lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">지문</span>
+                <span className="text-xs md:text-sm text-gray-400">{LESSON_SET.questionRange}</span>
+              </div>
+              <p className="text-[11px] md:text-xs text-gray-400 italic mb-3">{LESSON_SET.questionRange} refer to the following {LESSON_SET.passageType}.</p>
+              <p className="whitespace-pre-line leading-relaxed text-[#1A2B4B] text-sm md:text-base">{LESSON_SET.passage}</p>
+            </div>
+            {/* 가운데 세로 리사이즈 핸들 (데스크탑) */}
+            <div onPointerDown={onResizeStart} onPointerMove={onHResizeMove} onPointerUp={onResizeEnd}
+              className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
+              <div className="h-12 w-1 rounded-full bg-gray-300" />
+            </div>
+            {/* 우: 문제 — 문항 버튼(147/148)으로 전환 */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center gap-2 px-5 md:px-8 pt-3 pb-2 shrink-0">
+                {LESSON_SET.questions.map((qq, i) => (
+                  <button key={qq.number} onClick={() => setLessonQIndex(i)}
+                    className={`px-3.5 h-9 rounded-full text-xs md:text-sm font-bold transition-all ${i === lessonQIndex ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                    {qq.number}번
+                  </button>
+                ))}
+                <span className="ml-auto text-xs text-gray-400 font-medium">{lessonQIndex + 1} / {LESSON_SET.questions.length}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 md:px-8 pb-4 min-h-0">
+                <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-3">
+                  <span className="text-[#2277F0] font-bold mr-1.5">{lq.number}.</span>{lq.text}
+                </p>
+                <div className="flex flex-col gap-2 md:gap-2.5">
+                  {lq.choices.map((c) => (
+                    <ChoiceCard key={c.id} label={c.id} text={c.text} state="idle" disabled onClick={() => {}} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 강사 — 플로팅 위젯 ↔ 드래그 모달 */}
+          {panelOpen ? (
+            <TutorChatModal
+              imgSrc={TEACHER_IMG} connected={connected} connecting={connecting} isSpeaking={conversation.isSpeaking}
+              chatMode={chatMode} setChatMode={setChatMode} messages={messages}
+              inputText={inputText} setInputText={setInputText} onSend={sendText}
+              onStartAgent={startAgent} onEndSession={() => { try { conversation.endSession() } catch { /* noop */ } }}
+              lastAi={lastAi} onClose={() => setPanelOpen(false)}
+              footerLabel="실전 문제 풀기 →" onFooter={goReading}
+            />
+          ) : (
+            <TutorFloatingWidget imgSrc={TEACHER_IMG} connected={connected} isSpeaking={conversation.isSpeaking} lastAi={lastAi} onOpen={() => setPanelOpen(true)} />
+          )}
+        </div>
+      )
+    }
 
     return (
       <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
@@ -326,7 +402,8 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
         <DrawingOverlay {...draw} bounds={mainRef} />
 
         <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
-          {/* 강사 대화창 (우 / 모바일 하단) */}
+          {/* 강사 대화창 (우 / 모바일 하단) — 접으면 미니 카드 */}
+          {panelOpen && (
           <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
             {/* 헤더 */}
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
@@ -336,15 +413,18 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
                 <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
               </div>
-              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
-                <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>
-                  텍스트
-                </button>
-                <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>
-                  음성
-                </button>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                  <button onClick={() => setChatMode('text')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M18 12h.01M8 16h8" /></svg>
+                    텍스트
+                  </button>
+                  <button onClick={() => setChatMode('voice')} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>
+                    음성
+                  </button>
+                </div>
+                <PanelCollapseButton onCollapse={() => setPanelOpen(false)} />
               </div>
             </div>
 
@@ -403,6 +483,10 @@ export default function Part7ReadingScreen({ onEnd }: Props) {
               실전 문제 풀기 →
             </button>
           </aside>
+          )}
+          {!panelOpen && (
+            <TutorMiniCard imgSrc={TEACHER_IMG} connected={connected} isSpeaking={conversation.isSpeaking} lastAi={lastAi} onOpen={() => setPanelOpen(true)} />
+          )}
 
           {/* 좌: 문제 지문(위) / 보기(아래) — 드래그 리사이즈 */}
           <div ref={mainRef} className="flex-1 flex flex-col min-h-0 bg-white">
