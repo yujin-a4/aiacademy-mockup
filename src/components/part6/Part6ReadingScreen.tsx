@@ -11,6 +11,8 @@ import { speakTTS, stopCurrentAudio } from '@/lib/tts'
 import { useClassroomStore } from '@/store/classroomStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 import { useConversation } from '@11labs/react'
+import TutorMiniCard, { PanelCollapseButton } from '@/components/lesson/TutorMiniCard'
+import { TutorChatModal, TutorFloatingWidget } from '@/components/lesson/TutorModal'
 
 const LABELS = ['A', 'B', 'C', 'D']
 const TEACHER_IMG = '/image_reference/park-2.jpg'
@@ -38,7 +40,11 @@ const STUDENT_VARS: Record<string, string> = {
   instructor_greeting: '자, 오늘은 파트 식스 장문 공란을 같이 풀어보자. 빈칸 하나씩 짚어줄게. 시작하자.',
 }
 
-interface Props { onEnd?: () => void }
+interface Props {
+  onEnd?: () => void
+  /** 'side'(기본) = 우측 강사 패널 / 'split' = 지문 좌·문제 우 분할 + 강사 모달 (UI 실험) */
+  variant?: 'side' | 'split'
+}
 
 const blankPrompt = (n: number) => `빈칸 (${n})에 들어갈 가장 알맞은 것은?`
 
@@ -182,7 +188,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
   )
 }
 
-export default function Part6ReadingScreen({ onEnd }: Props) {
+export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
   // 지문·문항은 Supabase DB에서 로드 (실패 시 하드코딩 폴백)
   const passage = useDbQuestionsByPassage(
     Q_ANCHORS.p6Memo,
@@ -195,8 +201,10 @@ export default function Part6ReadingScreen({ onEnd }: Props) {
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [lessonBlank, setLessonBlank] = useState(0)
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
+  const [panelOpen, setPanelOpen] = useState(variant !== 'split') // side: 패널 열림 / split: 위젯부터
   const [inputText, setInputText] = useState('')
   const [topFrac, setTopFrac] = useState(0.5)
+  const [leftFrac, setLeftFrac] = useState(0.5) // split: 지문(좌) 폭 비율
   const [summaryInputs, setSummaryInputs] = useState(['', '', ''])
   const [summaryChecked, setSummaryChecked] = useState(false)
   const mainRef = useRef<HTMLDivElement>(null)
@@ -205,6 +213,8 @@ export default function Part6ReadingScreen({ onEnd }: Props) {
 
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
   const conversation = useConversation({
+    // 텍스트 모드에서는 마이크를 음소거 → 입력은 오직 텍스트로만
+    micMuted: chatMode === 'text',
     onMessage: (p: { source: string; message: string }) => setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
   })
   const connected = conversation.status === 'connected'
@@ -246,12 +256,65 @@ export default function Part6ReadingScreen({ onEnd }: Props) {
     const onResizeStart = (e: React.PointerEvent) => { resizingRef.current = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ } }
     const onResizeMove = (e: React.PointerEvent) => { if (!resizingRef.current || !mainRef.current) return; const r = mainRef.current.getBoundingClientRect(); setTopFrac(Math.min(0.8, Math.max(0.25, (e.clientY - r.top) / r.height))) }
     const onResizeEnd = () => { resizingRef.current = false }
+    const onHResizeMove = (e: React.PointerEvent) => { if (!resizingRef.current || !mainRef.current) return; const r = mainRef.current.getBoundingClientRect(); setLeftFrac(Math.min(0.75, Math.max(0.25, (e.clientX - r.left) / r.width))) }
+
+    // ── split 변형: 지문 좌 / 문제 우 + 강사는 플로팅 위젯 → 드래그 모달 ──
+    if (variant === 'split') {
+      return (
+        <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
+          <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
+          <DrawingOverlay {...draw} bounds={mainRef} />
+          <div ref={mainRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
+            {/* 좌: 지문 */}
+            <div className="h-[45%] lg:h-full min-h-0 lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+              <PassageView passage={passage} currentBlank={q.blankNum} answeredBlanks={answeredBlanks} />
+            </div>
+            {/* 가운데 세로 리사이즈 핸들 (데스크탑) */}
+            <div onPointerDown={onResizeStart} onPointerMove={onHResizeMove} onPointerUp={onResizeEnd}
+              className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
+              <div className="h-12 w-1 rounded-full bg-gray-300" />
+            </div>
+            {/* 우: 빈칸 문제 */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center gap-2 px-5 md:px-8 pt-3 pb-2 shrink-0">
+                {passage.questions.map((qq, i) => (
+                  <button key={qq.blankNum} onClick={() => setLessonBlank(i)} className={`px-3 h-9 rounded-full text-xs md:text-sm font-bold ${i === lessonBlank ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>빈칸 {qq.blankNum}</button>
+                ))}
+                <span className="ml-auto text-xs text-gray-400 font-medium">{lessonBlank + 1} / {total}</span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 md:px-8 pb-4 min-h-0">
+                <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-3"><span className="text-[#2277F0] font-bold mr-1.5">({q.blankNum})</span>{blankPrompt(q.blankNum)}</p>
+                <div className="flex flex-col gap-2 md:gap-2.5">
+                  {q.choices.map((c, i) => (<ChoiceCard key={i} label={LABELS[i]} text={c} state="idle" disabled onClick={() => {}} />))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 강사 — 플로팅 위젯 ↔ 드래그 모달 */}
+          {panelOpen ? (
+            <TutorChatModal
+              imgSrc={TEACHER_IMG} connected={connected} connecting={connecting} isSpeaking={conversation.isSpeaking}
+              chatMode={chatMode} setChatMode={setChatMode} messages={messages}
+              inputText={inputText} setInputText={setInputText} onSend={sendText}
+              onStartAgent={startAgent} onEndSession={() => { try { conversation.endSession() } catch { /* noop */ } }}
+              lastAi={lastAi} onClose={() => setPanelOpen(false)}
+              footerLabel="실전 문제 풀기 →" onFooter={goReading}
+            />
+          ) : (
+            <TutorFloatingWidget imgSrc={TEACHER_IMG} connected={connected} isSpeaking={conversation.isSpeaking} lastAi={lastAi} onOpen={() => setPanelOpen(true)} />
+          )}
+        </div>
+      )
+    }
+
     return (
       <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
         <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
         <DrawingOverlay {...draw} bounds={mainRef} />
         <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
-          {/* 강사 대화창 */}
+          {/* 강사 대화창 — 접으면 미니 카드 */}
+          {panelOpen && (
           <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
@@ -260,9 +323,12 @@ export default function Part6ReadingScreen({ onEnd }: Props) {
                 <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
               </div>
-              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
-                <button onClick={() => setChatMode('text')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>텍스트</button>
-                <button onClick={() => setChatMode('voice')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>음성</button>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                  <button onClick={() => setChatMode('text')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>텍스트</button>
+                  <button onClick={() => setChatMode('voice')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>음성</button>
+                </div>
+                <PanelCollapseButton onCollapse={() => setPanelOpen(false)} />
               </div>
             </div>
             {!connected ? (
@@ -301,6 +367,10 @@ export default function Part6ReadingScreen({ onEnd }: Props) {
             )}
             <button onClick={goReading} className="shrink-0 border-t border-gray-100 py-3 text-[13px] font-bold text-[#2277F0] hover:bg-[#2277F0]/5">실전 문제 풀기 →</button>
           </aside>
+          )}
+          {!panelOpen && (
+            <TutorMiniCard imgSrc={TEACHER_IMG} connected={connected} isSpeaking={conversation.isSpeaking} lastAi={lastAi} onOpen={() => setPanelOpen(true)} />
+          )}
 
           {/* 좌: 지문(위) / 빈칸 문제(아래) — 리사이즈 */}
           <div ref={mainRef} className="flex-1 flex flex-col min-h-0 bg-white">

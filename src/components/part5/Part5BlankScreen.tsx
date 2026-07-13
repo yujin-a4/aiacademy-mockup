@@ -12,6 +12,7 @@ import { useClassroomStore } from '@/store/classroomStore'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 import { useConversation } from '@11labs/react'
+import TutorMiniCard, { PanelCollapseButton } from '@/components/lesson/TutorMiniCard'
 
 const TEACHER_IMG = '/image_reference/park-2.jpg'
 const INSTRUCTOR_PHOTO = '/image_reference/park-3.jpg'
@@ -161,6 +162,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   const [lessonAnswered, setLessonAnswered] = useState(false)
   const [lessonSelected, setLessonSelected] = useState<number | undefined>(undefined)
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
+  const [panelOpen, setPanelOpen] = useState(true) // 강사 패널 접기 — 접으면 미니 카드
   const [inputText, setInputText] = useState('')
   // 카드별 · 블랭크별 입력값
   const [summaryInputs, setSummaryInputs] = useState<Record<string, string>>({})
@@ -181,6 +183,8 @@ export default function Part5BlankScreen({ onEnd }: Props) {
   // 세션 시작 시 첫 AI 발화는 항상 고정 인삿말(instructor_greeting)이라 버튼을 붙이면 안 된다 — 그 한 턴만 건너뛴다.
   const seenFirstAiTurnRef = useRef(false)
   const conversation = useConversation({
+    // 텍스트 모드에서는 마이크를 음소거 → 입력은 오직 텍스트로만
+    micMuted: chatMode === 'text',
     onMessage: (p: { source: string; message: string }) => {
       setMessages((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }])
       if (p.source !== 'user') {
@@ -300,7 +304,8 @@ export default function Part5BlankScreen({ onEnd }: Props) {
         <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
         <DrawingOverlay {...draw} bounds={mainRef} />
         <div className="flex-1 flex flex-col-reverse lg:flex-row-reverse min-h-0">
-          {/* 강사 대화창 */}
+          {/* 강사 대화창 — 접으면 미니 카드 */}
+          {panelOpen && (
           <aside className="shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col h-[46%] lg:h-auto lg:w-[360px] min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2">
@@ -309,9 +314,12 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 <span className="text-[13px] font-bold text-gray-600">박혜원 AI 강사</span>
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
               </div>
-              <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
-                <button onClick={() => setChatMode('text')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>텍스트</button>
-                <button onClick={() => setChatMode('voice')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>음성</button>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-gray-50 rounded-full p-0.5">
+                  <button onClick={() => setChatMode('text')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'text' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>텍스트</button>
+                  <button onClick={() => setChatMode('voice')} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${chatMode === 'voice' ? 'bg-[#2277F0] text-white' : 'text-gray-400'}`}>음성</button>
+                </div>
+                <PanelCollapseButton onCollapse={() => setPanelOpen(false)} />
               </div>
             </div>
             {!connected ? (
@@ -374,6 +382,10 @@ export default function Part5BlankScreen({ onEnd }: Props) {
             )}
             <button onClick={goReading} className="shrink-0 border-t border-gray-100 py-3 text-[13px] font-bold text-[#2277F0] hover:bg-[#2277F0]/5">실전 문제 풀기 →</button>
           </aside>
+          )}
+          {!panelOpen && (
+            <TutorMiniCard imgSrc={TEACHER_IMG} connected={connected} isSpeaking={conversation.isSpeaking} lastAi={lastAi} onOpen={() => setPanelOpen(true)} />
+          )}
 
           {/* 좌: 문장 + 빈칸 문제 */}
           <div ref={mainRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
