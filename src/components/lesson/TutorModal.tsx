@@ -160,20 +160,25 @@ export function TutorChatModal({
 }
 
 /* 평소 상태 — 우하단 플로팅 강사 위젯 (탭하면 모달) */
-export function TutorFloatingWidget({ imgSrc, name = '박혜원', connected, isSpeaking, lastAi, onOpen }: {
+export function TutorFloatingWidget({ imgSrc, name = '박혜원', connected, isSpeaking, lastAi, onOpen, nudge }: {
   imgSrc: string; name?: string; connected: boolean; isSpeaking: boolean; lastAi: string; onOpen: () => void
+  /** 수업 진입 직후 등 — 아직 안 눌러본 사용자의 시선을 끌기 위한 펄스 링 + 말풍선 강조 (선택) */
+  nudge?: boolean
 }) {
   return (
     <button onClick={onOpen} aria-label="강사와 대화 열기" className="fixed bottom-5 right-4 z-30 flex items-end gap-2.5 text-left">
-      {(lastAi || !connected) && (
-        <span className="block max-w-[240px] bg-white border border-gray-200 rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-gray-700 leading-snug shadow-lg line-clamp-2"
+      {(lastAi || !connected || nudge) && (
+        <span className={`block max-w-[240px] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] leading-snug shadow-lg line-clamp-2 ${
+          nudge ? 'bg-[#2563EB] text-white font-semibold animate-bounce-in' : 'bg-white border border-gray-200 text-gray-700'
+        }`}
           style={{ boxShadow: '0 4px 20px rgba(34,119,240,0.12), 0 1px 4px rgba(0,0,0,0.08)' }}>
-          {lastAi || `${name} 강사와 대화를 시작해요`}
+          {lastAi || (nudge ? '탭해서 대화를 시작해보세요!' : `${name} 강사와 대화를 시작해요`)}
         </span>
       )}
       <span className={`relative shrink-0 block w-14 h-14 rounded-full overflow-hidden border-2 shadow-lg transition-all ${connected && isSpeaking ? 'border-[#2277F0] shadow-[0_0_18px_rgba(34,119,240,0.55)]' : 'border-white'}`}>
+        {nudge && <span className="absolute -inset-1 rounded-full bg-[#2563EB]/50 animate-ping" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imgSrc} alt={name} className="w-full h-full object-cover object-top" />
+        <img src={imgSrc} alt={name} className="relative w-full h-full object-cover object-top" />
         <span className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
       </span>
     </button>
