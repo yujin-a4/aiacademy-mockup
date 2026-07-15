@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent
 import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction } from '@/data/typeLearning'
 import ContentView, { targetTokens, type ContentState } from '@/components/type-lesson/ContentView'
-import { DrawingOverlay, useDrawingTool } from '@/components/DrawingOverlay'
+import { DrawingOverlay, DrawPalette, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
 import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
 import LessonIntro from '@/components/lesson/LessonIntro'
@@ -126,10 +126,27 @@ function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => v
   )
 }
 
-/* 스캐폴딩 레일 — 턴별 단계(S코드)를 칩으로. 현재=파랑, 완료=초록 */
+/* 스캐폴딩 레일 — 턴별 단계(S코드)를 칩으로. 현재=파랑, 완료=초록
+   스크롤바 숨기고 포인터 드래그(터치/마우스)로 좌우 이동 */
 function ScaffoldRail({ turns, turnIdx }: { turns: Turn[]; turnIdx: number }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ x: number; left: number } | null>(null)
+  const onDown = (e: ReactPointerEvent) => {
+    const el = scrollRef.current
+    if (!el) return
+    dragRef.current = { x: e.clientX, left: el.scrollLeft }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+  const onMove = (e: ReactPointerEvent) => {
+    const el = scrollRef.current
+    if (!el || !dragRef.current) return
+    el.scrollLeft = dragRef.current.left - (e.clientX - dragRef.current.x)
+  }
+  const onUp = () => { dragRef.current = null }
   return (
-    <div className="bg-[#F7FAFF] border-b border-[#E5EDFA] px-3 md:px-5 py-2 shrink-0 overflow-x-auto">
+    <div ref={scrollRef}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+      className="bg-[#F7FAFF] border-b border-[#E5EDFA] px-3 md:px-5 py-2 shrink-0 overflow-x-auto cursor-grab active:cursor-grabbing select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex items-center gap-1.5 min-w-max">
         <span className="text-[10px] font-black text-[#94A3B8] tracking-wide mr-1 shrink-0">스캐폴딩</span>
         {turns.map((t, i) => (
@@ -149,11 +166,51 @@ function ScaffoldRail({ turns, turnIdx }: { turns: Turn[]; turnIdx: number }) {
   )
 }
 
+/* 재생 중인 항목 라벨 (선택지/화자/음원) */
+function playbackLabel(lesson: TypeLesson, id: string): string {
+  const m = id.match(/^opt:(\d+):(.+)$/)
+  if (m) return `선택지 ${m[2]}`
+  const s = lesson.content.audioScript?.find((x) => x.id === id)
+  if (s?.speaker) return s.speaker === 'W' ? '여자 음성' : '남자 음성'
+  return '음원'
+}
+
+/* ── 음원 재생 바 — 듣기 중 오른쪽 영역에 시각 표시(이퀄라이저) ── */
+function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void }) {
+  return (
+    <div className="px-4 md:px-6 pb-1 shrink-0">
+      <div className="flex items-center gap-3 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl px-3.5 py-2.5 shadow-[0_1px_8px_rgba(37,99,235,0.08)]">
+        <div className="w-9 h-9 rounded-full bg-[#2563EB] text-white flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold text-[#1D4ED8] mb-1.5 truncate">음원 재생 중 · {label}</p>
+          <div className="flex items-end gap-[3px] h-3.5">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <span key={i} className="flex-1 max-w-[5px] h-full rounded-full bg-[#2563EB] origin-bottom animate-eq"
+                style={{ animationDelay: `${i * 0.1}s` }} />
+            ))}
+          </div>
+        </div>
+        {onReplay && (
+          <button onClick={onReplay} aria-label="다시 듣기"
+            className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-[#2563EB] border border-[#BFDBFE] bg-white rounded-lg px-2.5 py-1.5 hover:bg-[#EFF6FF]">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+            다시
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
   const router = useRouter()
   const turns = lesson.turns
   const [turnIdx, setTurnIdx] = useState(0)
-  const [finished, setFinished] = useState(false)
+  const [phase, setPhase] = useState<'lesson' | 'practice' | 'done'>('lesson')
   const turn: Turn = turns[Math.min(turnIdx, turns.length - 1)]
 
   /* 진행 상태 */
@@ -163,7 +220,6 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState<Set<number>>(new Set())
   const [answeredQ, setAnsweredQ] = useState<Set<number>>(new Set()) // pickAnswer로 텍스트 공개된 문항
-  const [voiceOn, setVoiceOn] = useState(true)
   const [showKo, setShowKo] = useState(false)
   const [started, setStarted] = useState(false)            // 도입(LessonIntro) → 수업 진입 여부
   const [panelOpen, setPanelOpen] = useState(false)        // 강사 모달 열림/축소 (기본=축소 위젯)
@@ -236,7 +292,7 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     stopVoice()
     let alive = true
     ;(async () => {
-      if (voiceOn) await speakKorean(turn.tutor)
+      await speakKorean(turn.tutor)
       if (!alive || !turn.audio) return
       await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
     })()
@@ -248,9 +304,8 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
 
   const goNext = () => {
     if (turnIdx < turns.length - 1) setTurnIdx(turnIdx + 1)
-    else { stopVoice(); setFinished(true) }
+    else { stopVoice(); setPhase('practice') }   // 수업(스캐폴딩) 끝 → 실전 문제
   }
-  const goPrev = () => { if (turnIdx > 0) setTurnIdx(turnIdx - 1) }
 
   const replayCue = () => {
     if (!turn.audio) return
@@ -305,7 +360,18 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     )
   }
 
-  if (finished) {
+  /* ── 실전 문제 (수업 뒤 — 배운 전략으로 직접 풀기) ── */
+  if (phase === 'practice') {
+    return (
+      <PracticeStage
+        lesson={lesson}
+        onExit={() => { stopVoice(); router.push('/lessons') }}
+        onDone={() => setPhase('done')}
+      />
+    )
+  }
+
+  if (phase === 'done') {
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-4 bg-[#F5F8FE] px-6 text-center">
         <div className="w-16 h-16 rounded-full bg-[#2563EB]/10 flex items-center justify-center text-3xl">🎉</div>
@@ -314,7 +380,7 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
           <p className="text-[13px] text-[#6B7280] mt-1">{lesson.partName} · {lesson.typeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setFinished(false); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()) }}
+          <button onClick={() => { setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()) }}
             className="px-5 py-2.5 rounded-xl border border-[#C7D2FE] text-[#2563EB] text-sm font-bold hover:bg-[#EFF6FF]">다시 해보기</button>
           <button onClick={() => router.push('/lessons')} className={PRIMARY_BTN}>다른 유형 보러 가기</button>
         </div>
@@ -330,13 +396,6 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
         onEnd={() => { stopVoice(); router.push('/lessons') }}
         extra={
           <>
-            {turn.audio && (
-              <button onClick={replayCue} aria-label="다시 듣기"
-                className="hidden sm:flex text-[11px] font-bold text-[#6B7280] border border-[#E5E7EB] rounded-lg px-2 py-1.5 hover:bg-[#F3F4F6] items-center gap-1">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
-                다시 듣기
-              </button>
-            )}
             {lesson.area === 'RC' && (
               <button onClick={() => setShowKo(!showKo)}
                 className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${showKo ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#C7D2FE]'}`}>해석</button>
@@ -346,13 +405,6 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
               <span className="hidden md:inline">필기</span>
             </button>
-            <button onClick={() => { if (voiceOn) stopVoice(); setVoiceOn(!voiceOn) }} aria-label="강사 음성"
-              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors ${voiceOn ? 'bg-[#EFF6FF] border-[#BFDBFE] text-[#2563EB]' : 'bg-white border-[#E5E7EB] text-[#C4C9D4]'}`}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                {voiceOn ? <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" /> : <line x1="23" y1="9" x2="17" y2="15" />}
-              </svg>
-            </button>
           </>
         }
       />
@@ -360,30 +412,14 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
       {/* ── 스캐폴딩 레일 (턴별 단계) ── */}
       <ScaffoldRail turns={turns} turnIdx={turnIdx} />
 
-      {/* ── 제목 + 진행 + 이전/건너뛰기 (데모 리뷰용) ── */}
-      <div className="shrink-0 bg-white border-b border-[#EBEBF0] px-3 md:px-5 py-1.5">
-        <div className="max-w-[1080px] mx-auto flex items-center gap-2">
-          <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md ${lesson.area === 'LC' ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>{lesson.area} · Part {lesson.part}</span>
-          <p className="text-[12px] font-bold text-[#1C1B33] truncate">{lesson.title}</p>
-          <div className="flex-1" />
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
-            <div className="w-24 h-1.5 bg-[#E5E7EB] rounded-full overflow-hidden">
-              <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${((turnIdx + 1) / turns.length) * 100}%` }} />
-            </div>
-            <span className="text-[11px] font-bold text-[#6B7280]">{turnIdx + 1}/{turns.length}</span>
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <button onClick={goPrev} disabled={turnIdx === 0} aria-label="이전 턴" className="w-7 h-7 rounded-lg flex items-center justify-center text-[#C4C9D4] hover:bg-[#F3F4F6] hover:text-[#6B7280] disabled:opacity-30"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg></button>
-            <button onClick={goNext} aria-label="건너뛰기" className="w-7 h-7 rounded-lg flex items-center justify-center text-[#C4C9D4] hover:bg-[#F3F4F6] hover:text-[#6B7280]"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg></button>
-          </div>
-        </div>
-      </div>
-
       {/* ── 본문: 좌 지문/문제 · 우 강사 설명 (part6-split 틀) ── */}
       <div ref={splitRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
-        {/* 좌: 지문/문제/사진 (파트별 ContentView) */}
-        <div ref={contentRef} className="h-[42%] lg:h-full min-h-0 overflow-y-auto lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100 px-3 md:px-6 py-4" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
-          <ContentView lesson={lesson} st={st} />
+        {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
+        <div className="h-[42%] lg:h-full min-h-0 flex flex-col lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+          {draw.drawMode && <DrawPalette tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />}
+          <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-6 py-4">
+            <ContentView lesson={lesson} st={st} />
+          </div>
         </div>
 
         {/* 세로 리사이즈 핸들 (데스크탑) */}
@@ -415,6 +451,9 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
               </div>
             </div>
           </div>
+
+          {/* 음원 재생 바 (듣기 재생 중에만) */}
+          {playingId && <PlaybackBar label={playbackLabel(lesson, playingId)} onReplay={turn.audio ? replayCue : undefined} />}
 
           {/* 상호작용 (스캐폴딩 단계별 응답) */}
           <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 min-h-0">
@@ -453,7 +492,80 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
         <TutorFloatingWidget imgSrc={INST_THUMBS[TUTOR_KEY]} name={INST_NAME[TUTOR_KEY]} connected isSpeaking={playingId !== null} lastAi="" onOpen={() => setPanelOpen(true)} />
       )}
 
-      <DrawingOverlay {...draw} bounds={contentRef} />
+      <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
+    </div>
+  )
+}
+
+/* ── 실전 문제 단계 — 스캐폴딩 없이 전 문항을 직접 풀고 채점 ── */
+function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit: () => void; onDone: () => void }) {
+  const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [graded, setGraded] = useState(false)
+  const [showKo, setShowKo] = useState(false)
+  const [marks, setMarks] = useState<Set<string>>(new Set())
+  const draw = useDrawingTool()
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const qs = lesson.content.questions
+  const total = qs.length
+  const answered = qs.filter((_, i) => answers[i]).length
+  const correct = qs.filter((q, i) => answers[i] === q.options.find((o) => o.correct)?.label).length
+
+  const allOptions: Record<number, 'all'> = {}
+  qs.forEach((_, i) => { allOptions[i] = 'all' })
+
+  const st: ContentState = {
+    revealedScript: 'all', revealedOptions: allOptions, revealedPassages: 'all',
+    playingId: null, marks, tutorMarks: new Set(),
+    onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
+    answerMode: graded ? 'none' : 'all',
+    answers, graded: graded ? new Set(qs.map((_, i) => i)) : new Set(),
+    onSelect: (q, l) => { if (!graded) setAnswers((p) => ({ ...p, [q]: l })) },
+    showKo,
+  }
+
+  return (
+    <div className="h-dvh flex flex-col bg-[#F5F8FE] overflow-hidden">
+      <PhaseStepper
+        active={2}
+        onEnd={onExit}
+        extra={lesson.area === 'RC' ? (
+          <button onClick={() => setShowKo(!showKo)}
+            className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${showKo ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#C7D2FE]'}`}>해석</button>
+        ) : undefined}
+      />
+
+      {/* 실전 안내 배너 */}
+      <div className="shrink-0 bg-white border-b border-[#EBEBF0] px-4 md:px-6 py-2.5">
+        <div className="max-w-[900px] mx-auto flex items-center gap-2">
+          <span className="shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md bg-[#FEF3C7] text-[#B45309]">실전 문제</span>
+          <p className="text-[12px] font-bold text-[#1C1B33] truncate">{lesson.title} — 배운 전략으로 직접 풀어보세요</p>
+        </div>
+      </div>
+
+      {/* 필기 도구 바 (인라인) */}
+      {draw.drawMode && <DrawPalette tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />}
+
+      {/* 문항 */}
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0">
+        <div className="max-w-[900px] mx-auto"><ContentView lesson={lesson} st={st} /></div>
+      </div>
+
+      {/* 제출/채점 바 */}
+      <div className="shrink-0 bg-white border-t border-[#EBEBF0] px-4 md:px-6 py-3">
+        <div className="max-w-[900px] mx-auto flex items-center justify-between gap-3">
+          {graded ? (
+            <p className="text-[13px] font-bold text-[#1C1B33]">채점 결과 <span className="text-[#2563EB]">{correct}/{total}</span> 정답</p>
+          ) : (
+            <p className="text-[12px] font-bold text-[#6B7280]"><span className={answered === total ? 'text-[#16A34A]' : 'text-[#9CA3AF]'}>{answered}/{total}</span> 선택</p>
+          )}
+          {graded
+            ? <button onClick={onDone} className={PRIMARY_BTN}>정리로 →</button>
+            : <button onClick={() => setGraded(true)} disabled={answered < total} className={PRIMARY_BTN}>채점하기</button>}
+        </div>
+      </div>
+
+      <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
     </div>
   )
 }
