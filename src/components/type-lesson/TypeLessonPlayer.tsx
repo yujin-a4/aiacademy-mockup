@@ -196,17 +196,26 @@ function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => v
    스크롤바 숨기고 포인터 드래그(터치/마우스)로 좌우 이동 */
 function ScaffoldRail({ turns, turnIdx, onJump }: { turns: Turn[]; turnIdx: number; onJump: (i: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<{ x: number; left: number } | null>(null)
+  const dragRef = useRef<{ x: number; left: number; dragging: boolean; pointerId: number } | null>(null)
+  const DRAG_THRESHOLD = 6 // px — 이보다 적게 움직이면 드래그가 아니라 칩 탭(클릭)으로 본다
   const onDown = (e: ReactPointerEvent) => {
     const el = scrollRef.current
     if (!el) return
-    dragRef.current = { x: e.clientX, left: el.scrollLeft }
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ }
+    dragRef.current = { x: e.clientX, left: el.scrollLeft, dragging: false, pointerId: e.pointerId }
+    // 여기서 바로 setPointerCapture를 걸면 마우스로 살짝만 눌러도 캡처가 칩 버튼 대신 이 컨테이너로
+    // 넘어가면서 버튼의 click이 씹힌다 — 실제로 드래그가 시작될 때(onMove에서 임계값 넘을 때)만 건다.
   }
   const onMove = (e: ReactPointerEvent) => {
     const el = scrollRef.current
-    if (!el || !dragRef.current) return
-    el.scrollLeft = dragRef.current.left - (e.clientX - dragRef.current.x)
+    const d = dragRef.current
+    if (!el || !d) return
+    const dx = e.clientX - d.x
+    if (!d.dragging) {
+      if (Math.abs(dx) < DRAG_THRESHOLD) return
+      d.dragging = true
+      try { (e.currentTarget as HTMLElement).setPointerCapture(d.pointerId) } catch { /* noop */ }
+    }
+    el.scrollLeft = d.left - dx
   }
   const onUp = () => { dragRef.current = null }
   return (
@@ -553,6 +562,13 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
               setPlayingId={setPlayingId}
             />
           </div>
+
+          {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
+          {turnIdx === turns.length - 1 && (
+            <div className="shrink-0 border-t border-[#EBEBF0] px-4 md:px-6 py-3">
+              <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
+            </div>
+          )}
         </div>
       </div>
 
