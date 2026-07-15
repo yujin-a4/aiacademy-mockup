@@ -72,6 +72,49 @@ function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => v
   )
 }
 
+/* ── 수업(lesson) 단계 안의 스캐폴딩 레일 (B안: 단계마다 UI 전환) ──
+   시트 스캐폴딩(S1~S7)을 Part 6 장문 공란에 맞춰 5스텝으로. 첫 빈칸을 예시로 함께 풀고,
+   나머지 빈칸은 실전(reading)에서 학생이 스스로 푼다. 4단계 프레임·강사 모달은 그대로 둔다. */
+type ScafMode = 'observe' | 'grammar' | 'context' | 'answer' | 'recap'
+interface ScafStep { code: string; label: string; tutor: string; mode: ScafMode }
+const SCAF_P6: ScafStep[] = [
+  { code: 'S1', label: '빈칸 앞뒤 관찰', mode: 'observe',
+    tutor: '먼저 빈칸 (1) 앞뒤 문장을 같이 읽어봐요. 빈칸 하나만 보지 말고 흐름을 잡는 게 Part 6의 핵심이에요.' },
+  { code: 'S2', label: '문법 자리 판별', mode: 'grammar',
+    tutor: '이 빈칸 자리에 뭐가 필요한지 형태부터 봐요. 동사 자리인지, 연결어 자리인지 품사를 정해요.' },
+  { code: 'S3', label: '문맥·접속어', mode: 'context',
+    tutor: '앞 문장과의 관계를 보여주는 접속어 단서를 찾아요. 대조(however)인지 인과(therefore)인지에 따라 답이 갈려요.' },
+  { code: 'S4', label: '정답 연결', mode: 'answer',
+    tutor: '이제 보기에서 문맥과 문법에 맞는 걸 직접 골라보세요.' },
+  { code: 'S5', label: '핵심 정리', mode: 'recap',
+    tutor: '빈칸 (1) 정리! 앞뒤 문맥 → 문법 자리 → 접속어 흐름, 이 순서로 확정하면 됩니다.' },
+]
+
+/* 수업 단계 내부의 스캐폴딩 서브 스텝퍼 — 4단계 바 바로 아래 */
+function ScaffoldStepper({ steps, active }: { steps: ScafStep[]; active: number }) {
+  return (
+    <div className="bg-[#F7FAFF] border-b border-[#E5EDFA] px-4 md:px-8 py-2 shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-1.5 min-w-max">
+        <span className="text-[10px] font-black text-[#94A3B8] tracking-wide mr-1 shrink-0">스캐폴딩</span>
+        {steps.map((s, i) => (
+          <div key={s.code} className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${
+              i === active ? 'bg-[#2277F0] text-white'
+                : i < active ? 'bg-green-100 text-green-700'
+                : 'bg-white border border-gray-200 text-gray-400'
+            }`}>
+              <span className="font-black mr-1">{s.code}</span>{s.label}
+            </span>
+            {i < steps.length - 1 && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" className="w-2.5 h-2.5 shrink-0"><path d="M9 18l6-6-6-6" /></svg>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ── 지문 (빈칸 하이라이트) ── */
 function PassageView({ passage, currentBlank, answeredBlanks }: { passage: P6Passage; currentBlank: number; answeredBlanks: Set<number> }) {
   return (
@@ -200,6 +243,8 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
   const [qIndex, setQIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [lessonBlank, setLessonBlank] = useState(0)
+  const [lessonStep, setLessonStep] = useState(0)          // split 수업: 스캐폴딩 스텝 인덱스
+  const [scafPick, setScafPick] = useState<number | null>(null) // S4 정답 연결에서 고른 보기
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const [panelOpen, setPanelOpen] = useState(variant !== 'split') // side: 패널 열림 / split: 위젯부터
   const [inputText, setInputText] = useState('')
@@ -242,7 +287,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
   if (phase === 'intro') {
     return (
       <LessonIntro tag="Part 6 장문 공란" script={P6_INTRO_SCRIPT} points={P6_INTRO_POINTS}
-        onStart={() => { stopCurrentAudio(); setMessages([]); setLessonBlank(0); setPhase('lesson') }} onEnd={handleEnd} />
+        onStart={() => { stopCurrentAudio(); setMessages([]); setLessonBlank(0); setLessonStep(0); setScafPick(null); setPhase('lesson') }} onEnd={handleEnd} />
     )
   }
 
@@ -258,40 +303,133 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
     const onResizeEnd = () => { resizingRef.current = false }
     const onHResizeMove = (e: React.PointerEvent) => { if (!resizingRef.current || !mainRef.current) return; const r = mainRef.current.getBoundingClientRect(); setLeftFrac(Math.min(0.75, Math.max(0.25, (e.clientX - r.left) / r.width))) }
 
-    // ── split 변형: 지문 좌 / 문제 우 + 강사는 플로팅 위젯 → 드래그 모달 ──
+    // ── split 변형: 지문 좌 / 스캐폴딩 단계별 콘텐츠 우 + 강사는 플로팅 위젯 → 드래그 모달 ──
     if (variant === 'split') {
+      const scaf = SCAF_P6[lessonStep]
+      const taught = passage.questions[0]          // 수업은 첫 빈칸을 예시로 함께 푼다
+      const isLastStep = lessonStep === SCAF_P6.length - 1
+      const scafAnswered = scaf.mode === 'answer' && scafPick !== null
+      const lessonHighlight = new Set<number>(scafPick !== null ? [taught.blankNum] : [])
+      const goStep = (d: number) => setLessonStep((s) => Math.min(SCAF_P6.length - 1, Math.max(0, s + d)))
       return (
         <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
           <PhaseStepper active={1} onEnd={handleEnd} extra={<DrawToggleButton drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} />} />
+          {/* 스캐폴딩 서브 스텝퍼 — 수업 단계 안에서 단계별로 진행 */}
+          <ScaffoldStepper steps={SCAF_P6} active={lessonStep} />
           <DrawingOverlay {...draw} bounds={mainRef} />
           <div ref={mainRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
-            {/* 좌: 지문 */}
+            {/* 좌: 지문 (이번에 배우는 빈칸 하이라이트) */}
             <div className="h-[45%] lg:h-full min-h-0 lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
-              <PassageView passage={passage} currentBlank={q.blankNum} answeredBlanks={answeredBlanks} />
+              <PassageView passage={passage} currentBlank={taught.blankNum} answeredBlanks={lessonHighlight} />
             </div>
             {/* 가운데 세로 리사이즈 핸들 (데스크탑) */}
             <div onPointerDown={onResizeStart} onPointerMove={onHResizeMove} onPointerUp={onResizeEnd}
               className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
               <div className="h-12 w-1 rounded-full bg-gray-300" />
             </div>
-            {/* 우: 빈칸 문제 */}
+            {/* 우: 스캐폴딩 단계별 콘텐츠 */}
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-center gap-2 px-5 md:px-8 pt-3 pb-2 shrink-0">
-                {passage.questions.map((qq, i) => (
-                  <button key={qq.blankNum} onClick={() => setLessonBlank(i)} className={`px-3 h-9 rounded-full text-xs md:text-sm font-bold ${i === lessonBlank ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>빈칸 {qq.blankNum}</button>
-                ))}
-                <span className="ml-auto text-xs text-gray-400 font-medium">{lessonBlank + 1} / {total}</span>
-              </div>
-              <div className="flex-1 overflow-y-auto px-5 md:px-8 pb-4 min-h-0">
-                <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-3"><span className="text-[#2277F0] font-bold mr-1.5">({q.blankNum})</span>{blankPrompt(q.blankNum)}</p>
-                <div className="flex flex-col gap-2 md:gap-2.5">
-                  {q.choices.map((c, i) => (<ChoiceCard key={i} label={LABELS[i]} text={c} state="idle" disabled onClick={() => {}} />))}
+              {/* 강사 코치 배너 (단계별 멘트) */}
+              <div className="px-5 md:px-8 pt-3 pb-1 shrink-0">
+                <div className="flex items-start gap-2.5 bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={TEACHER_IMG} alt="박혜원" className="w-8 h-8 rounded-full object-cover object-top border border-[#2277F0]/40 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="inline-block text-[10px] font-black text-[#2277F0] bg-white border border-[#BFD9FF] px-1.5 py-0.5 rounded mb-1"><span className="font-black">{scaf.code}</span> {scaf.label}</span>
+                    <p className="text-[13px] text-[#374151] leading-relaxed">{scaf.tutor}</p>
+                  </div>
                 </div>
+              </div>
+
+              {/* 단계별 뷰 */}
+              <div className="flex-1 overflow-y-auto px-5 md:px-8 py-3 min-h-0">
+                {scaf.mode === 'observe' && (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-sm font-bold text-[#1A2B4B] mb-2">빈칸 ({taught.blankNum}) 주변 읽기</p>
+                    <ul className="text-[13px] text-[#475569] space-y-1.5 list-disc pl-4">
+                      <li>빈칸 <b>바로 앞 문장</b>의 주어·동사를 확인해요.</li>
+                      <li>빈칸 <b>뒤 문장</b>이 앞 내용을 잇는지, 뒤집는지 봐요.</li>
+                      <li>왼쪽 지문에서 <span className="text-[#2277F0] font-bold">파란 밑줄</span>이 이번에 풀 빈칸이에요.</li>
+                    </ul>
+                  </div>
+                )}
+                {scaf.mode === 'grammar' && (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-sm font-bold text-[#1A2B4B] mb-2.5">이 빈칸은 어떤 자리일까요?</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {['동사', '명사', '형용사', '접속어'].map((t) => (
+                        <span key={t} className="text-[13px] font-bold text-[#334155] bg-white border border-gray-200 rounded-full px-3 py-1.5">{t}</span>
+                      ))}
+                    </div>
+                    <p className="text-[12px] text-gray-500 leading-relaxed">보기 4개의 <b>형태</b>를 비교하면 자리가 보여요. 형태가 제각각이면 문법 문제, 비슷하면 어휘 문제예요.</p>
+                  </div>
+                )}
+                {scaf.mode === 'context' && (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-sm font-bold text-[#1A2B4B] mb-2.5">앞뒤 관계 단서 — 접속어</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[['however', '대조'], ['therefore', '인과'], ['in addition', '첨가'], ['for example', '예시']].map(([w, k]) => (
+                        <div key={w} className="bg-white border border-gray-200 rounded-xl px-3 py-2">
+                          <p className="text-[13px] font-bold text-[#2277F0]">{w}</p>
+                          <p className="text-[11px] text-gray-500">{k}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {scaf.mode === 'answer' && (
+                  <>
+                    <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed mb-3"><span className="text-[#2277F0] font-bold mr-1.5">({taught.blankNum})</span>{blankPrompt(taught.blankNum)}</p>
+                    <div className="flex flex-col gap-2 md:gap-2.5">
+                      {taught.choices.map((c, i) => {
+                        let state: 'idle' | 'selected-correct' | 'selected-wrong' | 'reveal-correct' | 'dimmed' = 'idle'
+                        if (scafPick !== null) {
+                          if (i === taught.answer) state = i === scafPick ? 'selected-correct' : 'reveal-correct'
+                          else if (i === scafPick) state = 'selected-wrong'
+                          else state = 'dimmed'
+                        }
+                        return <ChoiceCard key={i} label={LABELS[i]} text={c} state={state} disabled={scafPick !== null} onClick={() => setScafPick(i)} />
+                      })}
+                    </div>
+                    {scafPick !== null && (
+                      <div className="mt-4 rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
+                          <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${scafPick === taught.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{scafPick === taught.answer ? '✓ 정답' : '✕ 오답'}</span>
+                        </div>
+                        <p className="text-[13px] text-[#374151] leading-relaxed">{taught.explanation}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+                {scaf.mode === 'recap' && (
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-sm font-bold text-[#1A2B4B] mb-2">빈칸 ({taught.blankNum}) 풀이 흐름</p>
+                    <ol className="text-[13px] text-[#475569] space-y-1.5 list-decimal pl-4">
+                      <li>빈칸 앞뒤 문맥을 먼저 읽는다.</li>
+                      <li>빈칸 자리의 문법(품사·태)을 정한다.</li>
+                      <li>접속어·문맥 흐름으로 정답을 확정한다.</li>
+                    </ol>
+                    <p className="text-[12px] text-[#2277F0] font-semibold mt-3">이 흐름을 나머지 빈칸에도 그대로 적용해 실전에서 풀어봐요.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* 단계 이동 */}
+              <div className="px-5 md:px-8 py-3 border-t border-gray-100 bg-white shrink-0 flex items-center gap-2">
+                <button onClick={() => goStep(-1)} disabled={lessonStep === 0}
+                  className="px-4 py-3 rounded-xl text-sm font-bold text-gray-500 border border-gray-200 disabled:opacity-40 hover:bg-gray-50">← 이전</button>
+                {isLastStep ? (
+                  <button onClick={goReading} className="flex-1 py-3.5 rounded-xl text-sm md:text-base font-bold bg-[#2277F0] text-white hover:bg-[#1a66d4]">실전 문제 풀기 →</button>
+                ) : (
+                  <button onClick={() => goStep(1)} disabled={scaf.mode === 'answer' && !scafAnswered}
+                    className={`flex-1 py-3.5 rounded-xl text-sm md:text-base font-bold transition-all ${scaf.mode === 'answer' && !scafAnswered ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#2277F0] text-white hover:bg-[#1a66d4]'}`}>다음 단계 →</button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* 강사 — 플로팅 위젯 ↔ 드래그 모달 */}
+          {/* 강사 — 플로팅 위젯 ↔ 드래그 모달 (그대로) */}
           {panelOpen ? (
             <TutorChatModal
               imgSrc={TEACHER_IMG} connected={connected} connecting={connecting} isSpeaking={conversation.isSpeaking}
