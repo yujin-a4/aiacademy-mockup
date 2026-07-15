@@ -58,7 +58,7 @@ const T1: TypeLesson = {
       interaction: { kind: 'choice', prompt: 'D는 왜 정답이 되기 어렵나요?',
         choices: [{ text: '앞치마가 사진에 없어서' }, { text: '"입는 중"이 아니라 이미 입은 상태라서', correct: true }],
         feedback: '정확해요. putting on(동작) vs wearing(상태) — Part 1 단골 함정입니다.' } },
-    { no: 7, stage: '정답 선택',
+    { no: 7, stage: '정답 선택', focusQ: 0,
       tutor: '네 개 다 확인했어요. 이제 정답을 직접 골라보세요.',
       interaction: { kind: 'pickAnswer', qIdx: 0, prompt: '정답을 골라보세요' } },
     { no: 8, stage: 'S7 표현 정리',
@@ -66,6 +66,17 @@ const T1: TypeLesson = {
       reveal: { optionText: [{ qIdx: 0, labels: 'all' }] },
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'She is ___ a cup of coffee.', ko: '그녀는 커피잔을 들고 있다.',
+        answer: 'holding', choices: ['holding', 'writing', 'wearing'], keywords: ['holding', 'hold'] },
+      { id: 'r2', en: 'She is already ___ an apron.', ko: '그녀는 이미 앞치마를 입고 있는 상태다.',
+        answer: 'wearing', choices: ['wearing', 'putting on', 'holding'], keywords: ['wearing', 'wear'] },
+      { id: 'r3', en: 'He is ___ on his jacket right now.', ko: '그는 지금 재킷을 입는 중이다.',
+        answer: 'putting', choices: ['putting', 'wearing', 'holding'], keywords: ['putting', 'put'] },
+    ],
+    closing: '오늘 사진 속 동작과 상태, 정확히 구분해냈어요. holding·wearing·putting on — 이 세 표현은 다음 사진 문제에서도 그대로 나올 거예요. 수고했어요!',
+  },
 }
 
 /* ═══ T2 · Part 2 질의응답 (LC-P2-01 의문사 의문문) ═══ */
@@ -102,7 +113,7 @@ const T2: TypeLesson = {
     { no: 4, stage: 'S3 응답 예측',
       tutor: 'Where니까 답은 장소예요. 다만 "아직 안 정해졌어요"처럼 우회하는 답도 정답이 될 수 있어요. 장소 아니면 우회 — 이 범위를 갖고 선택지를 들어봅시다.',
       interaction: { kind: 'next', label: '선택지 들으러 가기' } },
-    { no: 5, stage: '선택지 청취 + 답 선택',
+    { no: 5, stage: '선택지 청취 + 답 선택', focusQ: 0,
       tutor: '이제 A, B, C를 이어서 들려드릴게요. 질문에 맞는 응답을 골라보세요.',
       audio: { kind: 'options', qIdx: 0, labels: ['A', 'B', 'C'] },
       interaction: { kind: 'pickAnswer', qIdx: 0, prompt: 'A / B / C 중 정답을 고르세요' } },
@@ -132,6 +143,17 @@ const T2: TypeLesson = {
       reveal: { scriptIds: 'all', optionText: [{ qIdx: 0, labels: 'all' }] },
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: '___ is the quarterly meeting going to be held?', ko: '분기 회의는 어디서 열리나요?',
+        answer: 'Where', choices: ['Where', 'When', 'Why'], keywords: ['where'] },
+      { id: 'r2', en: 'In the main conference ___.', ko: '본 회의실에서요.',
+        answer: 'room', choices: ['room', 'table', 'floor'], keywords: ['room'] },
+      { id: 'r3', en: 'A Wh-question can never be answered with ___ or No.', ko: '의문사 질문에는 Yes나 No로 답할 수 없다.',
+        answer: 'Yes', choices: ['Yes', 'Maybe', 'Sure'], keywords: ['yes'] },
+    ],
+    closing: '의문사 하나, 동사 하나, 명사 하나 — 그리고 Yes/No는 무조건 오답. 오늘 확인한 이 감각, 다음 질의응답 문제에도 그대로 적용해 보세요.',
+  },
 }
 
 /* ═══ T3 · Part 3 짧은 대화 — 일반형 (LC-P3-01 고객·직원 대화) ═══ */
@@ -235,6 +257,17 @@ const T3: TypeLesson = {
       tutor: '정리합니다. 일정 변경 대화는 기존 일정 → 변경 요청 → 이유 → 최종 확정 순서예요. move up(앞당기다), accommodate(요청을 들어주다), confirmation e-mail — 오늘 나온 표현까지 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'We were hoping to ___ it up to Wednesday afternoon.', ko: '수요일 오후로 앞당기고 싶었어요.',
+        answer: 'move', choices: ['move', 'push', 'hold'], keywords: ['move'] },
+      { id: 'r2', en: "That's wonderful, thank you for ___ this.", ko: '이렇게 배려해 주셔서 감사해요.',
+        answer: 'accommodating', choices: ['accommodating', 'canceling', 'delaying'], keywords: ['accommodating', 'accommodate'] },
+      { id: 'r3', en: "I'll send you a ___ e-mail shortly.", ko: '곧 확인 이메일을 보내드릴게요.',
+        answer: 'confirmation', choices: ['confirmation', 'complaint', 'invoice'], keywords: ['confirmation', 'confirm'] },
+    ],
+    closing: '일정 변경 대화는 기존 일정 → 변경 요청 → 이유 → 최종 확정 순서예요. move up, accommodate, confirmation e-mail — 오늘 챙긴 표현, 다음 대화 문제에서도 바로 들릴 거예요.',
+  },
 }
 
 /* ═══ T4 · Part 3 짧은 대화 — 표/자료형 (LC-P3 변형 + 시각자료) ═══ */
@@ -322,6 +355,17 @@ const T4: TypeLesson = {
       tutor: '정리할게요. 표/자료형은 "음원의 단서 ↔ 표의 항목"을 잇는 문제예요. 보기에 있는 말은 음원에 그대로 안 나옵니다. out of stock, unavailable, business days — 표현도 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'One of the items is temporarily out of ___.', ko: '품목 하나가 일시적으로 품절이에요.',
+        answer: 'stock', choices: ['stock', 'order', 'date'], keywords: ['stock'] },
+      { id: 'r2', en: 'The item is ___ until next week.', ko: '그 품목은 다음 주까지 구매할 수 없어요.',
+        answer: 'unavailable', choices: ['unavailable', 'delayed', 'discounted'], keywords: ['unavailable'] },
+      { id: 'r3', en: 'Your order will arrive within two business ___.', ko: '주문은 영업일 기준 이틀 안에 도착해요.',
+        answer: 'days', choices: ['days', 'weeks', 'hours'], keywords: ['days', 'day'] },
+    ],
+    closing: '표/자료형은 결국 "음원의 단서 ↔ 표의 항목" 연결이에요. out of stock, unavailable, business days — 이 표현들, 다음 표 문제에서도 그대로 나옵니다.',
+  },
 }
 
 /* ═══ T5 · Part 4 짧은 담화 — 일반형 (LC-P4-01 안내·공지) ═══ */
@@ -402,6 +446,17 @@ const T5: TypeLesson = {
       tutor: '정리할게요. 공지 담화는 배경 → 발표 → 세부 → 요청. take effect(시행되다), paid leave(유급 휴가), please + 동사(요청 신호) — 오늘 표현 세 개 가져갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'The updated policy will officially take ___ next Monday.', ko: '새 정책은 다음 주 월요일부터 시행돼요.',
+        answer: 'effect', choices: ['effect', 'place', 'action'], keywords: ['effect'] },
+      { id: 'r2', en: 'Full-time employees will receive two additional days of ___ leave.', ko: '정규직 직원은 유급휴가 이틀을 추가로 받아요.',
+        answer: 'paid', choices: ['paid', 'sick', 'unused'], keywords: ['paid'] },
+      { id: 'r3', en: '___ check your records once the update goes out.', ko: '업데이트가 나가면 기록을 확인해 주세요.',
+        answer: 'Please', choices: ['Please', 'Never', 'Rarely'], keywords: ['please'] },
+    ],
+    closing: '공지 담화는 배경 → 발표 → 세부 → 요청 순서예요. take effect, paid leave, please + 동사 — 이 세 표현은 공지 담화의 단골이니 챙기고 가세요.',
+  },
 }
 
 /* ═══ T6 · Part 4 짧은 담화 — 표/자료형 (LC-P4 변형 + 시각자료) ═══ */
@@ -488,6 +543,17 @@ const T6: TypeLesson = {
       tutor: '정리합니다. 담화 표/자료형도 공식은 같아요 — 음원의 수치 ↔ 표의 항목. out of stock, shipment, back in stock. 이 세 표현은 재고 담화 단골이니 챙기고 갈게요.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'One item on the price list is temporarily out of ___.', ko: '가격표의 품목 하나가 일시 품절이에요.',
+        answer: 'stock', choices: ['stock', 'order', 'date'], keywords: ['stock'] },
+      { id: 'r2', en: 'We expect a new ___ to arrive within the week.', ko: '이번 주 안에 새 물량이 도착할 예정이에요.',
+        answer: 'shipment', choices: ['shipment', 'invoice', 'discount'], keywords: ['shipment'] },
+      { id: 'r3', en: 'Thanks for calling our customer service ___.', ko: '저희 고객센터로 전화 주셔서 감사합니다.',
+        answer: 'line', choices: ['line', 'desk', 'office'], keywords: ['line'] },
+    ],
+    closing: '담화 표/자료형도 공식은 같아요 — 음원의 수치 ↔ 표의 항목. out of stock, shipment, back in stock. 재고 담화 단골 표현이니 다음에도 바로 알아보세요.',
+  },
 }
 
 export const LC_LESSONS: TypeLesson[] = [T1, T2, T3, T4, T5, T6]
