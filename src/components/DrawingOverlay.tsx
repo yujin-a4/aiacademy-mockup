@@ -126,7 +126,71 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
   )
 }
 
-export function DrawingOverlay({ bounds, ...props }: DrawingOverlayProps & { bounds?: React.RefObject<HTMLElement> }) {
+type PaletteProps = Pick<DrawingOverlayProps, 'tool' | 'setTool' | 'clearCanvas' | 'setDrawMode'>
+
+/* 도구 버튼 묶음 (플로팅 팔레트·인라인 바 공용) */
+function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode }: PaletteProps) {
+  return (
+    <>
+      {/* 커서 (답 선택) */}
+      <ToolBtn active={tool === 'cursor'} onClick={() => setTool('cursor')} title="커서 모드 (답 선택)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-7 1-4 7L5 3z" /></svg>
+      </ToolBtn>
+
+      <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
+
+      {/* 연필 */}
+      <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+        연필
+      </ToolBtn>
+      {/* 형광펜 */}
+      <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6" /><path d="m17 7-1.5-1.5a2 2 0 0 0-3 0L9 8.5l4 4 3.5-3.5a2 2 0 0 0 .5-2z" /></svg>
+        형광펜
+      </ToolBtn>
+
+      {/* 주황 단색 표시 */}
+      <span className="w-4 h-4 rounded-full ml-0.5" style={{ background: ORANGE }} title="주황" />
+
+      <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
+
+      {/* 획 지우기 */}
+      <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')} title="획 지우기 (선 전체)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
+        획 지우기
+      </ToolBtn>
+      {/* 그냥 지우기 */}
+      <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="그냥 지우기 (문지르기)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="14" width="18" height="6" rx="1" /><path d="M8 14l6-9 5 3-4 6" /></svg>
+        그냥 지우기
+      </ToolBtn>
+      {/* 전체 지우기 */}
+      <button onClick={clearCanvas} title="전체 지우기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+      </button>
+
+      <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
+
+      {/* 닫기 */}
+      <button onClick={() => setDrawMode(false)} title="닫기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#F3F4F6] transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+      </button>
+    </>
+  )
+}
+
+/* 인라인 도구 바 — 레이아웃 흐름 안(예: 좌측 콘텐츠 영역 상단)에 한 줄로 배치.
+   플로팅 팝업과 달리 아래 콘텐츠를 가리지 않고 밀어낸다. DrawingOverlay에는 hidePalette를 넘겨 캔버스만 렌더. */
+export function DrawPalette({ className, ...p }: PaletteProps & { className?: string }) {
+  return (
+    <div className={`flex items-center gap-1 overflow-x-auto bg-white border-b border-[#E5E7EB] px-3 py-1.5 shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ''}`}>
+      <PaletteButtons {...p} />
+    </div>
+  )
+}
+
+export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlayProps & { bounds?: React.RefObject<HTMLElement>; hidePalette?: boolean }) {
   const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw } = props
   const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
 
@@ -177,52 +241,14 @@ export function DrawingOverlay({ bounds, ...props }: DrawingOverlayProps & { bou
         onTouchMove={doDraw}
         onTouchEnd={endDraw}
       />
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2">
-        {/* 커서 (답 선택) */}
-        <ToolBtn active={tool === 'cursor'} onClick={() => setTool('cursor')} title="커서 모드 (답 선택)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-7 1-4 7L5 3z" /></svg>
-        </ToolBtn>
-
-        <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
-
-        {/* 연필 */}
-        <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-          연필
-        </ToolBtn>
-        {/* 형광펜 */}
-        <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6" /><path d="m17 7-1.5-1.5a2 2 0 0 0-3 0L9 8.5l4 4 3.5-3.5a2 2 0 0 0 .5-2z" /></svg>
-          형광펜
-        </ToolBtn>
-
-        {/* 주황 단색 표시 */}
-        <span className="w-4 h-4 rounded-full ml-0.5" style={{ background: ORANGE }} title="주황" />
-
-        <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
-
-        {/* 획 지우기 */}
-        <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')} title="획 지우기 (선 전체)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
-          획 지우기
-        </ToolBtn>
-        {/* 그냥 지우기 */}
-        <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="그냥 지우기 (문지르기)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="14" width="18" height="6" rx="1" /><path d="M8 14l6-9 5 3-4 6" /></svg>
-          그냥 지우기
-        </ToolBtn>
-        {/* 전체 지우기 */}
-        <button onClick={clearCanvas} title="전체 지우기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
-        </button>
-
-        <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
-
-        {/* 닫기 */}
-        <button onClick={() => setDrawMode(false)} title="닫기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#F3F4F6] transition-colors">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-        </button>
-      </div>
+      {!hidePalette && (
+        <div
+          className="z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
+          style={{ position: 'fixed', left: '50%', bottom: 32 }}
+        >
+          <PaletteButtons tool={tool} setTool={setTool} clearCanvas={clearCanvas} setDrawMode={setDrawMode} />
+        </div>
+      )}
     </>
   )
 }

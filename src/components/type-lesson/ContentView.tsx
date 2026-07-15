@@ -92,6 +92,8 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const selectable = !graded && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
   const revealed = st.revealedOptions[qIdx]
   const correctLabel = q.options.find((o) => o.correct)?.label
+  // 파트1·2는 실제 시험에서 문제 지문이 없음(사진/음성) → 문제 헤더 숨기고 보기만
+  const hideQ = lesson.part === 1 || lesson.part === 2
 
   useEffect(() => {
     if (focused) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -102,14 +104,16 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
       className={`rounded-2xl border bg-white p-4 transition-all ${
         focused ? 'border-[#2563EB] shadow-[0_2px_16px_rgba(37,99,235,0.14)] ring-1 ring-[#2563EB]/20' : 'border-[#E5E7EB]'
       }`}>
-      <div className="flex items-start gap-2.5 mb-3">
-        <span className={`shrink-0 w-7 h-7 rounded-lg text-[12px] font-black flex items-center justify-center ${
-          focused ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
-        }`}>Q{qIdx + 1}</span>
-        <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed pt-0.5">
-          <TapText text={q.q} st={st} />
-        </p>
-      </div>
+      {!hideQ && (
+        <div className="flex items-start gap-2.5 mb-3">
+          <span className={`shrink-0 w-7 h-7 rounded-lg text-[12px] font-black flex items-center justify-center ${
+            focused ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
+          }`}>Q{qIdx + 1}</span>
+          <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed pt-0.5">
+            <TapText text={q.q} st={st} />
+          </p>
+        </div>
+      )}
       <div className="space-y-2">
         {q.options.map((o) => {
           const hidden = !!lesson.content.optionAudio && revealed !== 'all' && !(revealed instanceof Set && revealed.has(o.label))
@@ -362,17 +366,15 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
     </div>
   )
 
-  /* P1 — 사진 좌 · 보기 우 */
+  /* P1 — 사진 위 · 보기 아래 (실제 파트1엔 문제 지문이 없어 보기만 표시) */
   if (part === 1) {
     return (
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:w-[55%] shrink-0">
-          {content.photo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={content.photo} alt="문제 사진" className="w-full rounded-2xl border border-[#E5E7EB] object-cover" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">{questionsBlock}</div>
+      <div className="flex flex-col gap-4 max-w-[620px] mx-auto">
+        {content.photo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={content.photo} alt="문제 사진" className="w-full rounded-2xl border border-[#E5E7EB] object-cover" />
+        )}
+        <div className="min-w-0">{questionsBlock}</div>
       </div>
     )
   }
