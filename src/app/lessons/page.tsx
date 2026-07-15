@@ -5,7 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
-import { useDbLectures } from '@/data/db/questionStore'
+import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -793,37 +793,68 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
   )
 }
 
-/* ── 파트 기준 커리큘럼 (Book → Part 재구성) ──
-   각 레슨은 이미 partLabel('Part 5' 등)을 갖고 있어 partLabel로 그룹핑한다.
-   아직 수업이 없는 파트는 '준비 중'으로 표시. */
-const PART_META: { n: number; name: string; emoji: string; type: 'LC' | 'RC'; desc: string }[] = [
-  { n: 1, name: '사진 묘사', emoji: '📷', type: 'LC', desc: '장소·사람·사물을 묘사하는 문장 구조' },
-  { n: 2, name: '질문 응답', emoji: '💬', type: 'LC', desc: '다양한 의문문에 적절한 응답 고르기' },
-  { n: 3, name: '짧은 대화', emoji: '🗣️', type: 'LC', desc: '두 사람의 대화에서 주제·의도 파악' },
-  { n: 4, name: '설명문', emoji: '📢', type: 'LC', desc: '공지·안내·강연 등 담화의 핵심 정보' },
-  { n: 5, name: '단문 공란', emoji: '📝', type: 'RC', desc: 'AI 강사와 함께 수동태·시제 집중 공략' },
-  { n: 6, name: '장문 공란', emoji: '📄', type: 'RC', desc: '지문 흐름 속 빈칸 채우기 & 문장 삽입' },
-  { n: 7, name: '장문 독해', emoji: '📚', type: 'RC', desc: '단일·복수 지문 읽기 이해력 훈련' },
-]
+/* ── 15문항 유형 그리드 ──
+   유형 축: "문항 유형(0703)" 시트 15유형 × 이도윤 스캐폴딩 레일.
+   각 카드 → /type-lesson/[id] 턴 기반 유형학습 플레이어. 데이터: src/data/typeLearning */
+function TypeCard({ t }: { t: TypeLessonData }) {
+  const router = useRouter()
+  const lc = t.area === 'LC'
+  return (
+    <button
+      onClick={() => router.push(`/type-lesson/${t.id}`)}
+      className="group text-left bg-white rounded-2xl border border-[#E5E7EB] p-4 hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] transition-all active:scale-[0.99]"
+    >
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
+          Part {t.part}
+        </span>
+        <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F9FAFB] px-2 py-0.5 rounded-md truncate">{t.typeLabel}</span>
+      </div>
+      <p className="text-[14px] font-bold text-[#1C1B33] mb-1 group-hover:text-[#2563EB] transition-colors">{t.title}</p>
+      <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.desc}</p>
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB]">
+        샘플 수업 시작
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+      </span>
+    </button>
+  )
+}
 
-/* 실제 수업이 연결된 파트(파일럿). 나머지는 '준비 중'. */
-const ACTIVE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
-
-/* 새로 만든 파트별 수업(신규 화면)으로 직접 연결. 없으면 기존 COURSES 레슨 사용. */
-const NEW_LESSONS: Record<number, Lesson[]> = {
-  1: [{ id: 'new-p1', title: '사진 묘사 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 1', href: '/lc/1' }],
-  2: [{ id: 'new-p2', title: '질의응답 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 2', href: '/lc/2' }],
-  3: [{ id: 'new-p3', title: '짧은 대화 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 3', href: '/lc/3' }],
-  4: [{ id: 'new-p4', title: '설명문 — 듣고 풀기', status: 'upcoming', partLabel: 'Part 4', href: '/lc/4' }],
-  5: [{ id: 'new-p5', title: '단문 공란 — 문장 빈칸 채우기', status: 'upcoming', partLabel: 'Part 5', href: '/part5-blank' }],
-  6: [
-    { id: 'new-p6', title: '장문 공란 — 지문 빈칸 채우기', status: 'upcoming', partLabel: 'Part 6', href: '/part6-reading' },
-    { id: 'new-p6-split', title: '장문 공란 — 분할 화면 + 강사 모달 (실험)', status: 'upcoming', partLabel: 'Part 6', href: '/part6-split' },
-  ],
-  7: [
-    { id: 'new-p7-reading', title: '장문 독해 — 지문 읽고 풀기', status: 'upcoming', partLabel: 'Part 7', href: '/part7-reading' },
-    { id: 'new-p7-split', title: '장문 독해 — 분할 화면 + 강사 모달 (실험)', status: 'upcoming', partLabel: 'Part 7', href: '/part7-split' },
-  ],
+function TypeGrid() {
+  /* 파트별(1~7) 그룹 — 2분할 그리드 대신 한 줄로 쭉, 파트마다 구분해서 나열 */
+  const parts = useMemo(() => {
+    const map = new Map<number, TypeLessonData[]>()
+    for (const t of TYPE_LESSONS) {
+      if (!map.has(t.part)) map.set(t.part, [])
+      map.get(t.part)!.push(t)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
+  }, [])
+  return (
+    <div className="space-y-5">
+      <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+        <p className="text-[13px] font-bold text-[#1C1B33]">문항 유형별 샘플 수업 <span className="text-[#2563EB]">15</span></p>
+        <p className="text-[11px] text-[#9CA3AF] mt-0.5">유형마다 이도윤 강사의 스캐폴딩 단계(S1~S7)를 따라가는 샘플 1개씩 — 파트 안에서도 자료 형태에 따라 수업 UI가 달라져요.</p>
+      </div>
+      {parts.map(([part, lessons]) => {
+        const lc = lessons[0].area === 'LC'
+        return (
+          <div key={part}>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
+                Part {part}
+              </span>
+              <p className="text-[12px] font-bold text-[#374151]">{lessons[0].partName}</p>
+              <span className="text-[11px] text-[#C4C9D4]">{lessons.length}유형</span>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {lessons.map(t => <TypeCard key={t.id} t={t} />)}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /* ── 메인 ── */
@@ -893,61 +924,27 @@ export default function LessonsPage() {
     return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : `D+${Math.abs(diff)}`
   }, [examDate])
 
-  /* DB 유형학습 수업 — Supabase lectures/questions 기반 자동 목록.
-     시트에 강의+문항이 추가되면(동기화 후) 코드 수정 없이 해당 Part 카드 안에 수업이 늘어난다.
-     각 수업은 /lesson/[lectureCode] — 파트별 문항 UI + 시트 레일(lecture_steps) 음성 수업. */
-  const dbLectures = useDbLectures()
-
-  /* 파트 기준 커리큘럼 — 기존 레슨을 partLabel로 재그룹 + DB 강의를 파트별로 합류. */
-  const partCourses = useMemo<CourseData[]>(() => {
-    return PART_META.map(p => {
-      const label = `Part ${p.n}`
-      const active = ACTIVE_PARTS.has(p.n)
-      const srcCourses = COURSES.filter(c => c.lessons.some(l => l.partLabel === label))
-      const baseLessons: Lesson[] = active
-        ? (NEW_LESSONS[p.n] ?? srcCourses.flatMap(c => c.lessons.filter(l => l.partLabel === label)))
-        : []
-      const dbLessons: Lesson[] = dbLectures
-        .filter((lec) => lec.part === p.n)
-        .map((lec) => ({
-          id: `db-${lec.code}`,
-          title: `${lec.title} · 문항 ${lec.questionCount}개`,
-          status: 'upcoming' as LessonStatus,
-          partLabel: label,
-          href: `/lesson/${lec.code}`,
-        }))
-      const lessons = [...baseLessons, ...dbLessons]
-      // 파트 완료 시 열리는 비법 노트 — 해당 파트가 속한 코스의 tipNote를 가져옴
-      const tipNote = active ? srcCourses.find(c => c.tipNote)?.tipNote : undefined
-      return {
-        id: p.n,
-        emoji: p.emoji,
-        accentColor: '#2563EB',
-        title: p.name,
-        duration: '',
-        desc: p.desc,
-        fullyLocked: lessons.length === 0,
-        lockReason: lessons.length === 0 ? '수업 준비 중이에요' : undefined,
-        lessons,
-        tipNote,
-      }
-    })
-  }, [dbLectures])
-
   /* 기존 콘텐츠 — 구버전 아카이브. 앞으로 새 버전을 수정해도 여기는 그대로 보존.
+     · 맨 위: 15유형 그리드로 개편되기 전 파트 목록에서 백업한 Part 1·6 샘플 하나씩
      · 잠긴(locked) 레슨 제거
      · 제목 중복 제거 (하나만)
      · Part 5는 구버전 도입 화면으로: href '/part5' → '/part5-legacy' */
   const legacyCourse = useMemo<CourseData>(() => {
+    const backup: Lesson[] = [
+      { id: 'bk-p1', title: '[백업] 사진 묘사 — 유형학습 (강사 에이전트)', status: 'upcoming', partLabel: 'Part 1', href: '/lesson/LC-P1-01' },
+      { id: 'bk-p6', title: '[백업] 장문 공란 — 분할 화면 + 강사 모달', status: 'upcoming', partLabel: 'Part 6', href: '/part6-split' },
+    ]
     const seen = new Set<string>()
-    const lessons = COURSES.flatMap(c => c.lessons)
-      .filter(l => {
-        if (l.status === 'locked') return false
-        if (seen.has(l.title)) return false
-        seen.add(l.title)
-        return true
-      })
-      .map(l => (l.href === '/part5' ? { ...l, href: '/part5-legacy' } : l))
+    const lessons = backup.concat(
+      COURSES.flatMap(c => c.lessons)
+        .filter(l => {
+          if (l.status === 'locked') return false
+          if (seen.has(l.title)) return false
+          seen.add(l.title)
+          return true
+        })
+        .map(l => (l.href === '/part5' ? { ...l, href: '/part5-legacy' } : l))
+    )
     return {
       id: 0,
       emoji: '📦',
@@ -1079,11 +1076,8 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* 파트 목록 (Part 1~7) — DB 강의(있으면)가 각 파트 카드 안에 자동 합류됨 */}
-              <p className="text-lg font-bold text-red-500">파트별 UI 수정 중</p>
-              {partCourses.map((course) => (
-                <CourseSection key={course.id} course={course} labelPrefix="Part" onOpenStudy={openStudy} onOpenTip={openTip} />
-              ))}
+              {/* 15문항 유형 그리드 — 유형별 샘플 수업 (시트: 문항 유형 0703 × 이도윤 스캐폴딩 0713) */}
+              <TypeGrid />
 
               {/* ── 기존 콘텐츠 — 이전 Book 콘텐츠 전체를 하나의 book으로 ── */}
               <div className="pt-4">
