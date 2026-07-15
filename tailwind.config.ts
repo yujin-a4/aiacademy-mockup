@@ -74,8 +74,13 @@ const config: Config = {
         'fade-in-up':  'fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         'particle-fly':'particleFly 0.7s ease-out both',
         'pop-badge':   'popBadge 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        'eq':          'eq 0.9s ease-in-out infinite',
       },
       keyframes: {
+        eq: {
+          '0%, 100%': { transform: 'scaleY(0.35)' },
+          '50%':      { transform: 'scaleY(1)' },
+        },
         svgDraw: {
           '0%': { 'stroke-dashoffset': '1000', opacity: '0' },
           '10%': { opacity: '1' },
