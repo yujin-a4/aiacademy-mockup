@@ -5,7 +5,7 @@
    지문/채팅/표(P7, 점진 공개). 모든 영어 텍스트는 단어 탭 → 형광펜(필기 인식 대체). */
 
 import { useEffect, useRef, useState } from 'react'
-import type { TypeLesson, PassageDoc, QuestionItem, SentenceItem } from '@/data/typeLearning'
+import type { TypeLesson, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
 
 export interface ContentState {
   revealedScript: Set<string> | 'all'
@@ -22,6 +22,9 @@ export interface ContentState {
   graded: Set<number>
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
+  /** 근거 연결(match) 진행 중일 때만 존재 — 지문의 문장/메타/표 행을 직접 탭하는 상호작용 상태.
+   *  matchedTargets는 `${passageId}:${targetId}` 키로 이미 맞힌 근거를 담는다. */
+  matchState?: { evidence: MatchEvidence[]; matchedTargets: Set<string>; onTap: (passageId: string, targetId: string) => void }
 }
 
 export function normWord(tk: string): string {
@@ -248,7 +251,9 @@ function VisualPanel({ lesson }: { lesson: TypeLesson }) {
   )
 }
 
-function TableView({ table, accent = '#475569' }: { table: { headers: string[]; rows: string[][] }; accent?: string }) {
+/** docId+st가 있으면(근거 연결 진행 중) 행을 탭해 근거로 선택할 수 있다 — VisualPanel(LC 시각자료)은 둘 다 안 넘겨서 그대로 정적. */
+function TableView({ table, accent = '#475569', docId, st }: { table: { headers: string[]; rows: string[][] }; accent?: string; docId?: string; st?: ContentState }) {
+  const active = !!(docId && st?.matchState)
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[12px] md:text-[13px]">
@@ -260,13 +265,23 @@ function TableView({ table, accent = '#475569' }: { table: { headers: string[]; 
           </tr>
         </thead>
         <tbody>
-          {table.rows.map((r, i) => (
-            <tr key={i} className={i % 2 ? 'bg-black/[0.02]' : ''}>
-              {r.map((c, j) => (
-                <td key={j} className="px-3.5 py-2 text-[#334155] whitespace-nowrap">{c}</td>
-              ))}
-            </tr>
-          ))}
+          {table.rows.map((r, i) => {
+            const targetId = `row:${i}`
+            const matched = active && st!.matchState!.matchedTargets.has(`${docId}:${targetId}`)
+            return (
+              <tr key={i}
+                onClick={active ? () => st!.matchState!.onTap(docId!, targetId) : undefined}
+                className={`transition-colors ${i % 2 ? 'bg-black/[0.02]' : ''} ${active ? 'cursor-pointer' : ''} ${
+                  matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : active ? 'hover:bg-[#EFF6FF]' : ''
+                }`}>
+                {r.map((c, j) => (
+                  <td key={j} className="px-3.5 py-2 text-[#334155] whitespace-nowrap">
+                    {j === 0 && matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{c}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -301,13 +316,24 @@ function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson:
 
       {doc.meta && (
         <div className="px-4 py-2.5 bg-[#FCFCFD] border-b border-[#F3F4F6] space-y-0.5">
-          {doc.meta.map((m) => (
-            <p key={m.k} className="text-[11px] text-[#64748B]"><span className="font-bold text-[#94A3B8] inline-block w-14">{m.k}</span>{m.v}</p>
-          ))}
+          {doc.meta.map((m) => {
+            const targetId = `meta:${m.k}`
+            const matched = st.matchState?.matchedTargets.has(`${doc.id}:${targetId}`)
+            return (
+              <p key={m.k}
+                onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
+                className={`text-[11px] text-[#64748B] rounded px-1 -mx-1 transition-colors ${st.matchState ? 'cursor-pointer' : ''} ${
+                  matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] text-[#15803D] font-semibold' : st.matchState ? 'hover:bg-[#F1F5F9]' : ''
+                }`}>
+                {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
+                <span className="font-bold text-[#94A3B8] inline-block w-14">{m.k}</span>{m.v}
+              </p>
+            )
+          })}
         </div>
       )}
 
-      {doc.table && <TableView table={doc.table} />}
+      {doc.table && <TableView table={doc.table} docId={doc.id} st={st} />}
 
       {doc.chat && (
         <div className="p-4 space-y-3">
@@ -331,7 +357,7 @@ function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson:
       {doc.sentences && (
         <div className="p-4 space-y-2">
           {doc.sentences.map((s) => (
-            <SentenceRow key={s.id} s={s} st={st} focusBlank={focusBlank} />
+            <SentenceRow key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />
           ))}
         </div>
       )}
@@ -339,11 +365,67 @@ function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson:
   )
 }
 
-function SentenceRow({ s, st, focusBlank }: { s: SentenceItem; st: ContentState; focusBlank?: number }) {
-  const playing = st.playingId === s.id
+/* ── 지문 영역(P6·P7) — 지문이 여러 개(이중·삼중)면 탭으로 전환, 하나면 바로 표시.
+   새 지문이 공개되면(턴 진행) 자동으로 그 탭으로 이동한다. ── */
+function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; lesson: TypeLesson; st: ContentState; focusBlank?: number }) {
+  const [active, setActive] = useState(0)
+  const revealed = st.revealedPassages
+  const revealedIds = revealed === 'all' ? docs.map((d) => d.id) : docs.filter((d) => revealed.has(d.id)).map((d) => d.id)
+  const prevRevealedRef = useRef(0)
+  useEffect(() => {
+    if (revealedIds.length > prevRevealedRef.current) setActive(revealedIds.length - 1)
+    prevRevealedRef.current = revealedIds.length
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealedIds.length])
+
+  if (docs.length <= 1) {
+    return (
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {docs[0] && <PassageView doc={docs[0]} lesson={lesson} st={st} focusBlank={focusBlank} />}
+      </div>
+    )
+  }
+
   return (
-    <div className={`rounded-lg px-2 py-1 -mx-2 transition-colors ${playing ? 'bg-[#EFF6FF]' : ''}`}>
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex items-center gap-1.5 mb-2 shrink-0">
+        {docs.map((d, i) => {
+          const locked = !revealedIds.includes(d.id)
+          const pending = st.matchState?.evidence.some((ev) =>
+            ev.passageId === d.id && ev.targetIds.some((tid) => !st.matchState!.matchedTargets.has(`${d.id}:${tid}`)))
+          return (
+            <button key={d.id} onClick={() => setActive(i)}
+              className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${
+                active === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
+              }`}>
+              {locked && (
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+              )}
+              {!locked && pending && <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />}
+              {d.label ?? `지문 ${i + 1}`}
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <PassageView doc={docs[active]} lesson={lesson} st={st} focusBlank={focusBlank} />
+      </div>
+    </div>
+  )
+}
+
+function SentenceRow({ s, st, focusBlank, docId }: { s: SentenceItem; st: ContentState; focusBlank?: number; docId?: string }) {
+  const playing = st.playingId === s.id
+  const match = st.matchState
+  const matched = docId && match?.matchedTargets.has(`${docId}:${s.id}`)
+  return (
+    <div
+      onClick={match && docId ? () => match.onTap(docId, s.id) : undefined}
+      className={`rounded-lg px-2 py-1 -mx-2 transition-colors ${playing ? 'bg-[#EFF6FF]' : ''} ${match && docId ? 'cursor-pointer' : ''} ${
+        matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC]' : match && docId ? 'hover:bg-[#F8FAFC]' : ''
+      }`}>
       <p className="text-[13px] md:text-[14px] text-[#334155] leading-[1.9]">
+        {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
         <SentenceText text={s.en} st={st} focusBlank={focusBlank} />
       </p>
       {st.showKo && s.ko && (
@@ -431,15 +513,15 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
     )
   }
 
-  /* P6·P7 — 지문(들) 좌 · 문항 우 */
+  /* P6·P7 — 지문(들) 위 · 문항 아래, 각각 독립 스크롤. 지문이 여럿이면 탭으로 전환 */
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      <div className="flex-1 min-w-0 space-y-3">
-        {content.passages?.map((doc) => (
-          <PassageView key={doc.id} doc={doc} lesson={lesson} st={st} focusBlank={focusBlank} />
-        ))}
+    <div className="h-full flex flex-col gap-3 min-h-0">
+      <div className="flex-[3] min-h-0 flex flex-col">
+        <PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />
       </div>
-      <div className="lg:w-[42%] shrink-0">{questionsBlock}</div>
+      <div className="flex-[2] min-h-0 overflow-y-auto border-t border-gray-100 pt-3">
+        {questionsBlock}
+      </div>
     </div>
   )
 }

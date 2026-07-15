@@ -76,6 +76,15 @@ export interface RevealState {
   passageIds?: string[] | 'all'   // 다중 지문 점진 공개
 }
 
+/** 근거 연결(match) 대상 하나 — 어느 지문의 어떤 항목을 탭해야 하는지.
+ *  targetIds는 그 지문 안에서 실제로 탭 가능한 대상의 id — 문장 id, 표 행은 `row:<index>`,
+ *  메타(이메일 To/From 등)는 `meta:<key>`. 전부 탭해야 그 라벨이 완료된다. */
+export interface MatchEvidence {
+  label: string
+  passageId: string
+  targetIds: string[]
+}
+
 export type Interaction =
   | { kind: 'next'; label?: string }                                   // AI 진행
   | { kind: 'choice'; prompt: string; choices: { text: string; correct?: boolean }[]; feedback?: string } // 선택 응답(퀵버튼)
@@ -84,7 +93,7 @@ export type Interaction =
   | { kind: 'subjective'; prompt: string; hint?: string }              // 주관식 — 텍스트/음성
   | { kind: 'mark'; prompt: string; targetWords?: string[] }           // 필수 수행 — 단어 탭 하이라이트(+필기)
   | { kind: 'shadow'; chunks: string[]; audioIds?: string[] }          // 쉐도잉
-  | { kind: 'match'; prompt: string; items: { passageLabel: string; text: string }[] } // 근거 연결(이중·삼중)
+  | { kind: 'match'; prompt: string; evidence: MatchEvidence[] }       // 근거 연결(이중·삼중) — 지문에서 직접 탭
 
 export interface Turn {
   no: number
@@ -99,6 +108,24 @@ export interface Turn {
   focusQ?: number
 }
 
+/** 세션 정리(4단계 프레임의 마지막 — 실전 문제 이후) 핵심 문장 1개.
+ *  en의 빈칸 자리는 '___'로 표기. 음성 입력은 keywords 중 하나라도 포함되면 정답 인정,
+ *  클릭 입력은 choices(정답 포함 3~4개)에서 고른다. */
+export interface RecapSentence {
+  id: string
+  en: string
+  ko: string           // 한국어 뜻(빈칸 채운 뒤 나란히 보여줌)
+  answer: string        // 빈칸 정답(표시용)
+  choices: string[]     // 클릭 모드 선택지(정답 포함, 순서 섞어서 저장)
+  keywords: string[]    // 음성 모드 매칭 키워드(소문자, 정답으로 인정할 표현들)
+}
+
+/** 세션 정리 — 핵심 문장 3개 + 강사 마무리 멘트 */
+export interface LessonRecap {
+  sentences: RecapSentence[]   // 정확히 3개
+  closing: string              // 마지막에 강사가 하는 마무리 멘트
+}
+
 export interface TypeLesson {
   id: string          // 't01' ~ 't15'
   typeNo: number      // 시트 no. 1~15
@@ -111,4 +138,5 @@ export interface TypeLesson {
   desc: string        // 카드 설명 한 줄
   content: TypeLessonContent
   turns: Turn[]
+  recap: LessonRecap   // 세션 정리 화면(실전 문제 이후) — 핵심 문장 3개 + 마무리 멘트
 }

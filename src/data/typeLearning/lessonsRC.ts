@@ -44,13 +44,24 @@ const T7: TypeLesson = {
       interaction: { kind: 'choice', prompt: '이 자리에 들어갈 수 없는 형태는?',
         choices: [{ text: 'clearly (부사)', correct: true }, { text: 'clear (형용사)' }],
         feedback: '부사는 명사를 못 꾸며요. clarity(명사)와 clarify(동사)도 같은 이유로 문 앞에서 탈락입니다.' } },
-    { no: 6, stage: 'S5 정답 연결',
+    { no: 6, stage: 'S5 정답 연결', focusQ: 0,
       tutor: '남은 건 하나죠. 근거를 확인하고 정답을 직접 골라보세요.',
       interaction: { kind: 'pickAnswer', qIdx: 0, prompt: '정답을 고르세요' } },
     { no: 7, stage: 'S7 표현 정리',
       tutor: '정리할게요. 관사 ___ 명사 = 형용사 자리. 이 공식 하나로 이 유형은 3초에 끝나요. give a clear explanation — 표현도 통째로 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'The manager gave a ___ explanation of the new procedure.', ko: '매니저가 새 절차에 대해 명확한 설명을 했다.',
+        answer: 'clear', choices: ['clear', 'clearly', 'clarity'], keywords: ['clear'] },
+      { id: 'r2', en: 'This is a ___ improvement over the last version.', ko: '이건 이전 버전보다 확실한 개선이다.',
+        answer: 'significant', choices: ['significant', 'significantly', 'significance'], keywords: ['significant'] },
+      { id: 'r3', en: 'He made a ___ decision about the budget.', ko: '그는 예산에 대해 신속한 결정을 내렸다.',
+        answer: 'quick', choices: ['quick', 'quickly', 'quickness'], keywords: ['quick'] },
+    ],
+    closing: '관사 다음, 명사 앞 — 형용사 자리라는 감각. 오늘 문장 세 개로 다졌으니, 다른 단문 빈칸에서도 3초 안에 자리부터 잡을 수 있을 거예요.',
+  },
 }
 
 /* ═══ T8 · Part 6 장문 빈칸 (RC-P6-01/02 통합) ═══ */
@@ -137,6 +148,17 @@ const T8: TypeLesson = {
       tutor: '정리합니다. 시제는 시간 단서(next Monday), 어휘는 짝 표현(make arrangements with), 연결어는 앞뒤 방향(However), 삽입은 앞 문장 받기. 네 유형의 판단 기준을 세트로 가져가세요.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'The office ___ closed next Monday.', ko: '사무실은 다음 주 월요일에 문을 닫을 예정이다.',
+        answer: 'will be', choices: ['will be', 'was', 'has been'], keywords: ['will be'] },
+      { id: 'r2', en: 'Please make ___ with your manager before Friday.', ko: '금요일 전에 매니저와 일정을 조율하세요.',
+        answer: 'arrangements', choices: ['arrangements', 'decisions', 'payments'], keywords: ['arrangements'] },
+      { id: 'r3', en: 'The office will be closed. ___, the parking garage will remain open.', ko: '사무실은 닫히지만, 그러나 주차장은 계속 열려 있다.',
+        answer: 'However', choices: ['However', 'Therefore', 'In addition'], keywords: ['however'] },
+    ],
+    closing: '시제는 시간 단서, 어휘는 짝 표현, 연결어는 앞뒤 방향 — 네 유형 다 근거는 항상 빈칸 주변에 있어요. 이 판단 기준, 다음 장문 빈칸에도 그대로 적용해 보세요.',
+  },
 }
 
 /* ═══ T9 · Part 7 1지문 일반형 (RC-P7-01 이메일) ═══ */
@@ -208,6 +230,17 @@ const T9: TypeLesson = {
       tutor: '정리할게요. verify → confirm처럼 지문 표현은 선택지에서 바뀌어 나와요. confirm, reply, submit은 이메일 지문 단골 — 표현이 바뀌어도 같은 행동인지 알아보는 게 핵심입니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'Could you please ___ that my booking was processed?', ko: '제 예약이 처리됐는지 확인해 주시겠어요?',
+        answer: 'verify', choices: ['verify', 'cancel', 'delay'], keywords: ['verify'] },
+      { id: 'r2', en: 'I would like to ask whether early ___ might be available.', ko: '얼리 체크인이 가능한지 여쭤보고 싶어요.',
+        answer: 'check-in', choices: ['check-in', 'checkout', 'breakfast'], keywords: ['check in', 'check-in'] },
+      { id: 'r3', en: 'My flight ___ early in the morning.', ko: '제 비행기는 아침 일찍 도착해요.',
+        answer: 'lands', choices: ['lands', 'departs', 'delays'], keywords: ['lands', 'land'] },
+    ],
+    closing: 'verify가 선택지에서 confirm으로 바뀐 것처럼, 이메일 지문은 표현이 바뀌어도 같은 행동인지 알아보는 게 핵심이에요. confirm, reply, submit — 이메일 단골 표현 챙기고 가세요.',
+  },
 }
 
 /* ═══ T10 · Part 7 1지문 표/자료형 (RC-P7-06 일정표) ═══ */
@@ -279,6 +312,17 @@ const T10: TypeLesson = {
       tutor: '정리합니다. 표형은 ① 질문의 키워드 → ② 표의 항목 위치 → ③ 주석 확인, 세 단계면 끝나요. register, in advance, session — fee, deposit 같은 양식 단골 표현도 같이 챙기세요.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'Employees must ___ at least three days before each session.', ko: '직원들은 각 세션 최소 3일 전에 등록해야 한다.',
+        answer: 'register', choices: ['register', 'arrive', 'pay'], keywords: ['register'] },
+      { id: 'r2', en: 'According to the schedule, the June 5 training will take place ___.', ko: '일정표에 따르면 6월 5일 교육은 온라인으로 진행된다.',
+        answer: 'Online', choices: ['Online', 'Conference Room A', 'Main Hall'], keywords: ['online'] },
+      { id: 'r3', en: 'Skeddit is offered more ___ than Calacad.', ko: 'Skeddit이 Calacad보다 더 자주 열린다.',
+        answer: 'often', choices: ['often', 'rarely', 'quickly'], keywords: ['often'] },
+    ],
+    closing: '표형은 ① 질문의 키워드 → ② 표의 항목 위치 → ③ 주석 확인, 세 단계면 끝나요. register, in advance, session — 다음 표 지문에서도 이 순서 그대로 적용해 보세요.',
+  },
 }
 
 /* ═══ T11 · Part 7 1지문 대화형 (RC-P7-05 문자·채팅) ═══ */
@@ -344,6 +388,17 @@ const T11: TypeLesson = {
       tutor: '정리할게요. 의도 문제는 문장 하나가 아니라 앞뒤 반응으로 풉니다. I\'m on it(바로 할게요), No worries(괜찮아요), stuck on(~에 붙잡혀 있는) — 채팅 단골 표현이니 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: "I've been ___ on a call with a client all morning.", ko: '오전 내내 고객과 통화에 붙잡혀 있었어요.',
+        answer: 'stuck', choices: ['stuck', 'working', 'waiting'], keywords: ['stuck'] },
+      { id: 'r2', en: 'We need to get it back to legal by ___.', ko: '정오까지 법무팀에 넘겨야 해요.',
+        answer: 'noon', choices: ['noon', 'midnight', 'Friday'], keywords: ['noon'] },
+      { id: 'r3', en: "Got it. I'm on ___ right away.", ko: '알겠어요. 바로 처리할게요.',
+        answer: 'it', choices: ['it', 'time', 'break'], keywords: ['it', "i'm on it", 'on it'] },
+    ],
+    closing: '의도 문제는 문장 하나가 아니라 앞뒤 반응으로 풀어요. I\'m on it, No worries, stuck on — 채팅 지문 단골 표현이니 다음에도 바로 알아보세요.',
+  },
 }
 
 /* ═══ T12 · Part 7 2지문 일반형 (RC-P7-07 이중 지문) ═══ */
@@ -412,11 +467,11 @@ const T12: TypeLesson = {
       reveal: { passageIds: ['p2'] },
       interaction: { kind: 'mark', prompt: '지문 1과 연결되는 정보를 표시해 보세요', targetWords: ['May 6', 'apron'] } },
     { no: 6, stage: 'Q2 · 연계 근거 연결', focusQ: 1,
-      tutor: '이제 두 지문의 근거를 나란히 놓고 연결해 볼게요. 아래 근거 카드를 순서대로 탭해서 이어보세요.',
-      interaction: { kind: 'match', prompt: '두 지문의 근거를 연결하세요',
-        items: [
-          { passageLabel: '지문 1', text: '3월부터 매월 첫 수요일 · 요리는 커리 → 김치찌개 → 스프링롤 → 소고기 볶음 순서' },
-          { passageLabel: '지문 2', text: 'Ms. Shull의 수업 날짜 = May 6 (5월 = 세 번째 달)' },
+      tutor: '이제 두 지문의 근거를 나란히 놓고 연결해 볼게요. 왼쪽 지문에서 근거가 되는 문장과 정보를 직접 탭해 보세요.',
+      interaction: { kind: 'match', prompt: '두 지문에서 근거를 직접 탭해 연결하세요',
+        evidence: [
+          { label: '지문 1 · 수업 주기와 요리 순서', passageId: 'p1', targetIds: ['n1', 'n2'] },
+          { label: '지문 2 · Ms. Shull의 수업 날짜', passageId: 'p2', targetIds: ['meta:Date & Time'] },
         ] } },
     { no: 7, stage: 'Q2 · 연계 정답', focusQ: 1,
       tutor: '5월은 3월부터 세 번째 달이니까, 세 번째 요리가 답이에요. 한 지문만 보면 절대 안 풀리는 문제 — 이게 이중 지문의 핵심 유형입니다. 골라보세요.',
@@ -428,6 +483,17 @@ const T12: TypeLesson = {
       tutor: '정리합니다. 이중 지문은 표현보다 연결이 중요해요 — 사람, 날짜, 조건이 지문을 건너 이어집니다. in order(순서대로), limited to(제한되다), registration — 오늘 연결에 쓰인 표현까지 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'In ___, the dishes will be curry, kimchi stew, spring rolls, and beef.', ko: '순서대로 요리는 커리, 김치찌개, 스프링롤, 소고기 볶음이다.',
+        answer: 'order', choices: ['order', 'addition', 'general'], keywords: ['order'] },
+      { id: 'r2', en: 'Each class is ___ to twelve participants.', ko: '각 수업은 12명으로 제한된다.',
+        answer: 'limited', choices: ['limited', 'opened', 'related'], keywords: ['limited'] },
+      { id: 'r3', en: 'Please arrive ten minutes early and bring an ___.', ko: '10분 일찍 도착해서 앞치마를 가져오세요.',
+        answer: 'apron', choices: ['apron', 'ID', 'laptop'], keywords: ['apron'] },
+    ],
+    closing: '이중 지문은 표현보다 연결이 중요해요 — 사람, 날짜, 조건이 지문을 건너 이어집니다. in order, limited to, registration — 연결에 쓰인 표현까지 챙기고 가세요.',
+  },
 }
 
 /* ═══ T13 · Part 7 2지문 표/자료형 (RC-P7-07 변형) ═══ */
@@ -502,11 +568,11 @@ const T13: TypeLesson = {
       reveal: { passageIds: ['p2'] },
       interaction: { kind: 'mark', prompt: '표에서 조건과 맞는 칸을 표시해 보세요', targetWords: ['Tuesday', 'Team Communication'] } },
     { no: 6, stage: 'Q2 · 연계 근거 연결', focusQ: 1,
-      tutor: '근거를 나란히 연결해 볼게요.',
-      interaction: { kind: 'match', prompt: '이메일의 조건과 표의 행을 연결하세요',
-        items: [
-          { passageLabel: '지문 1', text: '화요일 트랙 + 주제는 Team Communication' },
-          { passageLabel: '지문 2', text: 'Session 2 · Tuesday · Team Communication' },
+      tutor: '근거를 나란히 연결해 볼게요. 이메일에서 배정 조건 문장을, 표에서 그 조건에 맞는 행을 직접 탭해 보세요.',
+      interaction: { kind: 'match', prompt: '이메일의 조건과 표의 행을 직접 탭해 연결하세요',
+        evidence: [
+          { label: '지문 1 · 배정 조건', passageId: 'p1', targetIds: ['e2'] },
+          { label: '지문 2 · 해당 세션 행', passageId: 'p2', targetIds: ['row:1'] },
         ] } },
     { no: 7, stage: 'Q2 · 연계 정답', focusQ: 1,
       tutor: '조건 두 개가 모두 맞는 행은 하나뿐이에요. Session 3은 요일만 맞는 함정입니다. 골라보세요.',
@@ -518,6 +584,17 @@ const T13: TypeLesson = {
       tutor: '정리합니다. 표 연계는 조건이 두 개일 때 하나만 맞는 함정이 꼭 나와요. 조건을 끝까지 다 맞추세요. be assigned to(배정되다), focus on, track — 표현도 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'You have been ___ to the Tuesday track.', ko: '당신은 화요일 트랙에 배정되었습니다.',
+        answer: 'assigned', choices: ['assigned', 'invited', 'promoted'], keywords: ['assigned'] },
+      { id: 'r2', en: 'Your session ___ on team communication skills.', ko: '당신의 세션은 팀 커뮤니케이션 스킬에 초점을 둡니다.',
+        answer: 'focuses', choices: ['focuses', 'depends', 'works'], keywords: ['focuses', 'focus'] },
+      { id: 'r3', en: 'Please arrive ten minutes ___ your session begins.', ko: '세션 시작 10분 전에 도착해 주세요.',
+        answer: 'before', choices: ['before', 'after', 'during'], keywords: ['before'] },
+    ],
+    closing: '표 연계는 조건이 두 개일 때 하나만 맞는 함정이 꼭 나와요. 조건을 끝까지 다 맞춰야 해요. be assigned to, focus on, track — 표현도 챙기고 가세요.',
+  },
 }
 
 /* ═══ T14 · Part 7 3지문 일반형 (RC-P7-08 삼중 지문) ═══ */
@@ -596,12 +673,12 @@ const T14: TypeLesson = {
       reveal: { passageIds: ['p3'] },
       interaction: { kind: 'mark', prompt: '확정 표현을 표시해 보세요', targetWords: ['make the reservation', 'discounted date'] } },
     { no: 8, stage: 'Q2 · 삼중 연계 연결', focusQ: 1,
-      tutor: '세 지문의 근거를 나란히 놓고 하나로 연결해 볼게요.',
-      interaction: { kind: 'match', prompt: '세 지문의 근거를 연결하세요',
-        items: [
-          { passageLabel: '지문 1', text: 'Kauri Room = 최대 300명 수용' },
-          { passageLabel: '지문 2', text: '참석 인원이 200명 초과로 늘어남' },
-          { passageLabel: '지문 3', text: '예약 진행 확정' },
+      tutor: '세 지문의 근거를 나란히 놓고 하나로 연결해 볼게요. 각 지문에서 근거 문장을 직접 탭해 보세요.',
+      interaction: { kind: 'match', prompt: '세 지문에서 근거 문장을 직접 탭해 연결하세요',
+        evidence: [
+          { label: '지문 1 · 룸별 수용 인원', passageId: 'p1', targetIds: ['g2'] },
+          { label: '지문 2 · 늘어난 참석 인원', passageId: 'p2', targetIds: ['r1'] },
+          { label: '지문 3 · 예약 진행 확정', passageId: 'p3', targetIds: ['a1'] },
         ] } },
     { no: 9, stage: 'Q2 · 연계 정답', focusQ: 1,
       tutor: '두 지문만 보면 라타룸도 맞아 보여요. 그런데 인원이 200명을 "넘었다"는 조건까지 반영하면 답은 하나뿐입니다. 골라보세요.',
@@ -613,6 +690,17 @@ const T14: TypeLesson = {
       tutor: '정리합니다. 삼중 지문은 사람, 숫자, 조건을 끝까지 연결해야 해요. hold up to(수용하다), go ahead and(진행하다), accordingly(그에 맞게) — 연결에 쓰인 표현까지 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'The Kauri Room can ___ up to 300 guests.', ko: '카우리룸은 최대 300명을 수용할 수 있다.',
+        answer: 'hold', choices: ['hold', 'host', 'book'], keywords: ['hold'] },
+      { id: 'r2', en: 'Should I ___ ahead and reserve the discounted date?', ko: '할인 날짜로 바로 예약을 진행할까요?',
+        answer: 'go', choices: ['go', 'look', 'hold'], keywords: ['go'] },
+      { id: 'r3', en: 'I will ask the catering team to prepare ___.', ko: '그에 맞게 준비하도록 케이터링 팀에 요청하겠습니다.',
+        answer: 'accordingly', choices: ['accordingly', 'immediately', 'quietly'], keywords: ['accordingly'] },
+    ],
+    closing: '삼중 지문은 사람, 숫자, 조건을 끝까지 연결해야 해요. hold up to, go ahead and, accordingly — 연결에 쓰인 표현까지 챙기고 가세요.',
+  },
 }
 
 /* ═══ T15 · Part 7 3지문 표/자료형 (RC-P7-08 변형) ═══ */
@@ -691,12 +779,12 @@ const T15: TypeLesson = {
       reveal: { passageIds: ['p3'] },
       interaction: { kind: 'mark', prompt: '연결 열쇠가 되는 날짜를 표시해 보세요', targetWords: ['the eleventh', 'extra travel time'] } },
     { no: 7, stage: 'Q2 · 삼중 연계 연결', focusQ: 1,
-      tutor: '근거를 연결해 볼게요. 11일에 시작하는 공사가 일정표 어느 행인가요?',
-      interaction: { kind: 'match', prompt: '세 지문의 근거를 연결하세요',
-        items: [
-          { passageLabel: '지문 3', text: '학교 진입로 공사가 11일에 시작' },
-          { passageLabel: '지문 2', text: 'April 11 – 22 = Newton Street' },
-          { passageLabel: '지문 1', text: '공사 = 벨라미 파크웨이 교차로 개선' },
+      tutor: '근거를 연결해 볼게요. 11일에 시작하는 공사가 일정표 어느 행인지, 세 지문에서 직접 탭해 찾아보세요.',
+      interaction: { kind: 'match', prompt: '세 지문에서 근거를 직접 탭해 연결하세요',
+        evidence: [
+          { label: '지문 3 · 학교 공사 시작일', passageId: 'p3', targetIds: ['v1'] },
+          { label: '지문 2 · 일정표 행', passageId: 'p2', targetIds: ['row:0'] },
+          { label: '지문 1 · 공사 개요', passageId: 'p1', targetIds: ['b1'] },
         ] } },
     { no: 8, stage: 'Q2 · 연계 정답', focusQ: 1,
       tutor: '11일 ↔ April 11–22 ↔ Newton Street. 날짜 하나로 세 지문이 이어졌어요. 골라보세요.',
@@ -708,6 +796,17 @@ const T15: TypeLesson = {
       tutor: '정리합니다. 삼중 표 연계는 날짜·이름·조건 하나가 지문 셋을 관통해요. 그 열쇠를 찾는 게 전부입니다. roadwork, alternate route, drop-off — 표현도 챙기고 갑니다.',
       interaction: { kind: 'next', label: '수업 마치기' } },
   ],
+  recap: {
+    sentences: [
+      { id: 'r1', en: 'Drivers are advised to use ___ routes during construction.', ko: '운전자들은 공사 기간에 우회로를 이용해야 한다.',
+        answer: 'alternate', choices: ['alternate', 'the same', 'longer'], keywords: ['alternate'] },
+      { id: 'r2', en: '___ will begin on the turnoff to our school next Monday.', ko: '다음 주 월요일 학교 진입로에서 도로 공사가 시작된다.',
+        answer: 'Roadwork', choices: ['Roadwork', 'Traffic', 'Parking'], keywords: ['roadwork', 'road work'] },
+      { id: 'r3', en: 'Parents should plan extra travel time for morning ___.', ko: '학부모들은 아침 등교 시간에 여유 이동 시간을 계획해야 한다.',
+        answer: 'drop-off', choices: ['drop-off', 'pickup', 'assembly'], keywords: ['drop-off', 'drop off', 'dropoff'] },
+    ],
+    closing: '삼중 표 연계는 날짜·이름·조건 하나가 지문 셋을 관통해요. 그 열쇠를 찾는 게 전부입니다. roadwork, alternate route, drop-off — 표현도 챙기고 가세요.',
+  },
 }
 
 export const RC_LESSONS: TypeLesson[] = [T7, T8, T9, T10, T11, T12, T13, T14, T15]
