@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent
 import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence } from '@/data/typeLearning'
 import ContentView, { targetTokens, type ContentState } from '@/components/type-lesson/ContentView'
+import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, DrawPalette, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
 import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
@@ -111,50 +112,6 @@ function cueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string
   }
 }
 
-/* ── 마이크 버튼 (Web Speech STT — 주관식 ko / 쉐도잉 en) ── */
-function MicButton({ lang, onResult, className }: { lang: string; onResult: (t: string) => void; className?: string }) {
-  const [listening, setListening] = useState(false)
-  const recRef = useRef<SpeechRecognition | null>(null)
-  // SSR과 첫 클라이언트 렌더가 같아야 하므로(hydration) 지원 여부는 마운트 후 판별
-  const [supported, setSupported] = useState(false)
-  useEffect(() => {
-    setSupported('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-    return () => { try { recRef.current?.stop() } catch { /* noop */ } }
-  }, [])
-  if (!supported) return null
-  const toggle = () => {
-    if (listening) { try { recRef.current?.stop() } catch { /* noop */ } setListening(false); return }
-    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition
-    if (!Ctor) return
-    const rec = new Ctor()
-    recRef.current = rec
-    rec.lang = lang
-    rec.interimResults = true
-    let finalBuf = ''
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalBuf += t; else interim += t
-      }
-      onResult((finalBuf || interim).trim())
-    }
-    rec.onend = () => setListening(false)
-    rec.onerror = () => setListening(false)
-    try { rec.start(); setListening(true) } catch { setListening(false) }
-  }
-  return (
-    <button type="button" onClick={toggle} aria-label="음성 입력"
-      className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${
-        listening ? 'bg-[#EF4444] border-[#EF4444] text-white animate-pulse' : 'bg-white border-[#BFDBFE] text-[#2563EB] hover:bg-[#EFF6FF]'
-      } ${className ?? ''}`}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
-      </svg>
-    </button>
-  )
-}
-
 const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
 /* ── 4단계(도입·수업·실전·정리) 매핑 ──
@@ -250,6 +207,76 @@ function playbackLabel(lesson: TypeLesson, id: string): string {
   return '음원'
 }
 
+/* 전체 음원 = 스크립트 문장 + (보기가 음성인 유형은) 1번 문항의 보기들.
+   P1은 스크립트가 없고 보기 4개가 곧 음원, P2는 질문 1문장 + 응답 3개, P3·P4는 대화/담화 스크립트. */
+function fullAudioItems(lesson: TypeLesson): { id: string; text: string }[] {
+  const items = (lesson.content.audioScript ?? []).map((s) => ({ id: s.id, text: s.en }))
+  if (lesson.content.optionAudio) {
+    for (const o of lesson.content.questions[0]?.options ?? []) {
+      items.push({ id: `opt:0:${o.label}`, text: `${o.label}. ${o.text}` })
+    }
+  }
+  return items
+}
+
+/* ── 전체 음원 재생 바 (LC) ──
+   1차 청취(문제 푸는 단계) 중에는 학생이 조작할 수 없고, 1차 청취가 끝나야 재생·멈춤·이동이 열린다.
+   ⚠️ 지금 음원은 브라우저 TTS라 임의 위치 탐색(seek)이 불가능하다 — 바를 문장 단위 세그먼트로 쪼개
+   "그 문장부터 다시 재생"으로 근사한다. 문장별 mp3로 바꿀 때 실제 탐색으로 교체할 것. */
+function AudioBar({ items, unlocked, playing, idx, onPlay, onPause, onSeek }: {
+  items: { id: string; text: string }[]
+  unlocked: boolean
+  playing: boolean
+  idx: number
+  onPlay: (from: number) => void
+  onPause: () => void
+  onSeek: (i: number) => void
+}) {
+  return (
+    <div className="shrink-0 px-3 md:px-6 pt-3">
+      <div className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
+        unlocked ? 'border-[#BFDBFE] bg-[#F8FAFF]' : 'border-[#E5E7EB] bg-[#FAFAFA]'
+      }`}>
+        <button
+          disabled={!unlocked}
+          onClick={() => (playing ? onPause() : onPlay(playing ? idx : idx >= items.length - 1 ? 0 : idx))}
+          aria-label={playing ? '멈춤' : '전체 음원 재생'}
+          className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+            unlocked ? 'bg-[#2563EB] text-white hover:bg-[#1D4ED8]' : 'bg-[#E5E7EB] text-[#B0B7C3] cursor-not-allowed'
+          }`}>
+          {playing ? (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 ml-0.5"><polygon points="6 4 20 12 6 20 6 4" /></svg>
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-[3px]">
+            {items.map((it, i) => (
+              <button key={it.id} disabled={!unlocked} onClick={() => onSeek(i)}
+                aria-label={`${i + 1}번째 구간부터 듣기`}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  !unlocked ? 'bg-[#E5E7EB] cursor-not-allowed'
+                    : i < idx ? 'bg-[#93C5FD] hover:bg-[#60A5FA] cursor-pointer'
+                    : i === idx ? 'bg-[#2563EB] cursor-pointer'
+                    : 'bg-[#DBEAFE] hover:bg-[#BFDBFE] cursor-pointer'
+                }`} />
+            ))}
+          </div>
+          {!unlocked && (
+            <p className="text-[10px] font-semibold text-[#9CA3AF] mt-1">1차 청취 중에는 조작할 수 없어요</p>
+          )}
+        </div>
+
+        <span className={`shrink-0 text-[10px] font-bold tabular-nums ${unlocked ? 'text-[#2563EB]' : 'text-[#B0B7C3]'}`}>
+          {Math.min(idx + 1, items.length)} / {items.length}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 /* ── 음원 재생 바 — 듣기 중 오른쪽 영역에 시각 표시(이퀄라이저) ── */
 function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void }) {
   return (
@@ -338,18 +365,60 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
 
+  /* ── 전체 음원 바 (LC) ── */
+  const audioItems = useMemo(() => fullAudioItems(lesson), [lesson])
+  const hasFullCue = useMemo(() => turns.some((t) => t.audio?.kind === 'full'), [turns])
+  const [fullDone, setFullDone] = useState(false)   // 'full' 큐(전체 듣기) 턴을 끝까지 들었는가
+  const [barIdx, setBarIdx] = useState(0)
+  const [barPlaying, setBarPlaying] = useState(false)
+  const barTokenRef = useRef(0)
+  /* 잠금 해제 = 1차 청취 완료. 전체 듣기 턴이 있는 유형(P3·P4)은 그 턴을 지나야 하고,
+     전체 듣기 턴이 없는 P1·P2는 보기가 곧 음원이라 정답이 공개된 시점부터 자유롭게 듣게 한다. */
+  const barUnlocked = hasFullCue
+    ? fullDone || turns.slice(0, turnIdx).some((t) => t.audio?.kind === 'full')
+    : graded.size > 0
+
+  const barPlayFrom = (from: number) => {
+    const start = Math.max(0, Math.min(from, audioItems.length - 1))
+    stopVoice()
+    setBarIdx(start)
+    setBarPlaying(true)
+    const my = ++barTokenRef.current
+    void (async () => {
+      await speakEnglishSeq(audioItems.slice(start), (id) => {
+        if (barTokenRef.current !== my) return
+        setPlayingId(id)
+        if (id) {
+          const k = audioItems.findIndex((x) => x.id === id)
+          if (k >= 0) setBarIdx(k)
+        }
+      })
+      if (barTokenRef.current === my) setBarPlaying(false)
+    })()
+  }
+  const barPause = () => { barTokenRef.current += 1; stopVoice(); setBarPlaying(false); setPlayingId(null) }
+
+  /* 스크립트 문장 하나만 재생 — 바 재생/턴 음원과 겹치지 않게 토큰을 올리고 끊는다 */
+  const playSentence = (id: string, text: string) => {
+    barTokenRef.current += 1
+    setBarPlaying(false)
+    stopVoice()
+    void speakEnglishSeq([{ id, text }], setPlayingId)
+  }
+
   /* 공개 범위 — turns[0..turnIdx]에서 파생 (뒤로가기/건너뛰기 안전) */
-  const { revealedScript, revealedOptions, revealedPassages } = useMemo(() => {
+  const { revealedScript, revealedOptions, activePassageId } = useMemo(() => {
     let script: Set<string> | 'all' = new Set<string>()
     const options: Record<number, Set<string> | 'all'> = {}
-    let passages: Set<string> | 'all' = new Set<string>()
+    /* 지문은 잠그지 않는다(학생이 자유롭게 오감) — reveal.passageIds는 "이 턴이 다루는 지문"
+       신호로만 쓰여 탭을 자동 전환한다. 마지막으로 지목된 지문이 현재 지문. */
+    let activeDoc: string | undefined
     for (let i = 0; i <= turnIdx && i < turns.length; i++) {
       const r = turns[i].reveal
       if (!r) continue
       if (r.scriptIds === 'all') script = 'all'
       else if (r.scriptIds && script !== 'all') r.scriptIds.forEach((id) => (script as Set<string>).add(id))
-      if (r.passageIds === 'all') passages = 'all'
-      else if (r.passageIds && passages !== 'all') r.passageIds.forEach((id) => (passages as Set<string>).add(id))
+      if (Array.isArray(r.passageIds) && r.passageIds.length) activeDoc = r.passageIds[r.passageIds.length - 1]
       for (const o of r.optionText ?? []) {
         if (o.labels === 'all') options[o.qIdx] = 'all'
         else if (options[o.qIdx] !== 'all') {
@@ -361,7 +430,7 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     }
     // 정답을 고른 문항은 보기 텍스트 전체 공개 (음성 전용 보기라도 채점 후엔 근거 확인 가능해야)
     answeredQ.forEach((q) => { options[q] = 'all' })
-    return { revealedScript: script, revealedOptions: options, revealedPassages: passages }
+    return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
   }, [turns, turnIdx, answeredQ])
 
   /* 턴 진입: 발화 → 음원. 로컬 상호작용 상태 리셋 (도입 전에는 재생 안 함) */
@@ -369,12 +438,16 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     if (!started) return
     setChoicePicked(null); setSubjText(''); setSubjSent(false); setMarkDone(false); setShadowSaid(''); setMatchTapped(new Set())
     setPlayingId(null)
+    barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
+    setBarPlaying(false)
     stopVoice()
     let alive = true
     ;(async () => {
       await speakKorean(turn.tutor)
       if (!alive || !turn.audio) return
       await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
+      // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
+      if (alive && turn.audio.kind === 'full') setFullDone(true)
     })()
     return () => { alive = false; stopVoice() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -425,9 +498,12 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
   } : undefined
 
   const st: ContentState = {
-    revealedScript, revealedOptions, revealedPassages,
+    revealedScript, revealedOptions, activePassageId,
     playingId, marks, tutorMarks,
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
+    onPlaySentence: playSentence,
+    /* 강사 주도 쉐도잉 턴을 한 번 지나면, 그 뒤로는 학생이 문장별로 스스로 반복할 수 있다 */
+    shadowUnlocked: turns.slice(0, turnIdx + 1).some((t) => t.interaction.kind === 'shadow'),
     focusQ: turn.focusQ,
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
     answers, graded, onSelect, showKo,
@@ -521,6 +597,11 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
         {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
         <div className="h-[42%] lg:h-full min-h-0 flex flex-col lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
           {draw.drawMode && <DrawPalette tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />}
+          {/* 전체 음원 바 — LC만. 1차 청취 전에는 잠겨 있다 */}
+          {lesson.area === 'LC' && audioItems.length > 0 && (
+            <AudioBar items={audioItems} unlocked={barUnlocked} playing={barPlaying} idx={barIdx}
+              onPlay={barPlayFrom} onPause={barPause} onSeek={barPlayFrom} />
+          )}
           <div ref={contentRef} className={`flex-1 min-h-0 px-3 md:px-6 py-4 ${
             lesson.part === 6 || lesson.part === 7 ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
           }`}>
@@ -610,7 +691,7 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
   qs.forEach((_, i) => { allOptions[i] = 'all' })
 
   const st: ContentState = {
-    revealedScript: 'all', revealedOptions: allOptions, revealedPassages: 'all',
+    revealedScript: 'all', revealedOptions: allOptions,
     playingId: null, marks, tutorMarks: new Set(),
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
     answerMode: graded ? 'none' : 'all',

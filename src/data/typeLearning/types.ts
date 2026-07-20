@@ -73,7 +73,9 @@ export type AudioCue =
 export interface RevealState {
   scriptIds?: string[] | 'all'    // 공개할 audioScript 문장
   optionText?: { qIdx: number; labels: string[] | 'all' }[]
-  passageIds?: string[] | 'all'   // 다중 지문 점진 공개
+  /** 이 턴이 다루는 지문 — 지문 탭이 자동으로 여기로 이동한다.
+   *  (지문에 잠금은 없다. 학생은 처음부터 모든 지문을 자유롭게 오갈 수 있음) */
+  passageIds?: string[] | 'all'
 }
 
 /** 근거 연결(match) 대상 하나 — 어느 지문의 어떤 항목을 탭해야 하는지.
