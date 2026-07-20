@@ -10,6 +10,7 @@ export function stopVoice() {
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel()
   }
+  _audioEl?.pause()
 }
 
 function speakOne(text: string, lang: string, rate: number): Promise<void> {
@@ -28,17 +29,49 @@ function speakOne(text: string, lang: string, rate: number): Promise<void> {
   })
 }
 
-/** 영어 문장들을 순서대로 재생. onItem(id)로 재생 중 문장 강조, 끝나면 onItem(null). */
+/** mp3 하나 재생. 로드/재생 실패 시 false를 돌려 TTS로 폴백하게 한다. */
+let _audioEl: HTMLAudioElement | null = null
+function playFile(src: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') { resolve(false); return }
+    const a = _audioEl ?? (_audioEl = new Audio())
+    let done = false
+    const fin = (ok: boolean) => {
+      if (done) return
+      done = true
+      a.removeEventListener('ended', onEnd)
+      a.removeEventListener('error', onErr)
+      resolve(ok)
+    }
+    const onEnd = () => fin(true)
+    const onErr = () => fin(false)
+    a.addEventListener('ended', onEnd)
+    a.addEventListener('error', onErr)
+    a.src = src
+    a.currentTime = 0
+    a.play().catch(() => fin(false))
+  })
+}
+
+export function stopFile() {
+  _audioEl?.pause()
+}
+
+/** 영어 문장들을 순서대로 재생. onItem(id)로 재생 중 문장 강조, 끝나면 onItem(null).
+ *  item.src(생성된 mp3)가 있으면 그 파일을 재생하고, 없거나 실패하면 브라우저 TTS로 폴백한다. */
 export async function speakEnglishSeq(
-  items: { id: string; text: string }[],
+  items: { id: string; text: string; src?: string }[],
   onItem?: (id: string | null) => void,
 ): Promise<void> {
   const my = ++_seq
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+  stopFile()
   for (const it of items) {
     if (my !== _seq) { onItem?.(null); return }
     onItem?.(it.id)
-    await speakOne(it.text, 'en-US', 0.95)
+    const playedFile = it.src ? await playFile(it.src) : false
+    if (my !== _seq) { onItem?.(null); return }
+    if (!playedFile) await speakOne(it.text, 'en-US', 0.95)
   }
   if (my === _seq) onItem?.(null)
 }

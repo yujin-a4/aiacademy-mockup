@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import { RANGE_DESC, DIFF_DESC, MOTIVE_DESC, RHYTHM_DESC } from '@/lib/learnerProfile'
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -15,10 +16,7 @@ function dDayFrom(ds: string) {
   return days > 0 ? `D-${days}` : days === 0 ? 'D-Day' : `D+${Math.abs(days)}`
 }
 
-const RANGE_DESC:  Record<string, string> = { W: '골고루 학습형', N: '우선순위 학습형' }
-const DIFF_DESC:   Record<string, string> = { C: '레벨업 도전형', S: '안정 득점형' }
-const MOTIVE_DESC: Record<string, string> = { R: '성취 보상형',   P: '목표 자극형' }
-const RHYTHM_DESC: Record<string, string> = { D: '집중 몰입형',   M: '짧게 자주형' }
+// 라벨 정본은 lib/learnerProfile — 튜터 에이전트에 넘기는 값과 갈라지지 않게 한 곳에서 쓴다
 
 // 코드 순서: [W/N][C/S][R/P][D/M]
 const TYPE_NAMES: Record<string, string> = {

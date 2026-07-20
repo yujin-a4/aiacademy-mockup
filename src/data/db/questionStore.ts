@@ -20,6 +20,8 @@ export interface UiDbOption {
   correct: boolean
   explanation: string | null
   evidence: string | null
+  /** 이 보기만 재생하는 mp3 (없으면 통합 음원으로 폴백) — scripts/gen_option_audio.js가 채운다 */
+  audioUrl: string | null
 }
 
 export interface UiDbQuestion {
@@ -38,7 +40,7 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
 
   const { data, error } = await supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence)')
+    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url)')
     .in('question_code', codes)
 
   if (error || !data) return null
@@ -58,6 +60,7 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
             correct: o.is_correct,
             explanation: o.option_explanation,
             evidence: o.correct_evidence,
+            audioUrl: o.audio_url ?? null,
           })),
       },
     ]),
@@ -108,7 +111,7 @@ export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<U
   const passageText = (anchorRow.content as Record<string, string>)?.passage_text
   let query = supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence)')
+    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url)')
     .eq('lecture_id', anchorRow.lecture_id as number)
   if (passageText) query = query.eq('content->>passage_text', passageText)
 
@@ -128,6 +131,7 @@ export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<U
           correct: o.is_correct,
           explanation: o.option_explanation,
           evidence: o.correct_evidence,
+            audioUrl: o.audio_url ?? null,
         })),
     }))
     .filter((q) => q.options.length > 0)
@@ -326,7 +330,7 @@ export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQu
   if (!supabase) return []
   const { data, error } = await supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence), lectures!inner(lecture_code)')
+    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url), lectures!inner(lecture_code)')
     .eq('lectures.lecture_code', lectureCode)
   if (error || !data) return []
   return (data as any[])
@@ -342,6 +346,7 @@ export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQu
           correct: o.is_correct,
           explanation: o.option_explanation,
           evidence: o.correct_evidence,
+            audioUrl: o.audio_url ?? null,
         })),
     }))
     .filter((q) => q.options.length > 0)
