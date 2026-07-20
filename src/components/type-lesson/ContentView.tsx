@@ -4,17 +4,24 @@
    파트/유형별 본문: 사진(P1) · 음성 질문(P2) · 스크립트+시각자료(P3/4) · 빈칸 문장(P5/6) ·
    지문/채팅/표(P7, 점진 공개). 모든 영어 텍스트는 단어 탭 → 형광펜(필기 인식 대체). */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { TypeLesson, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
+import MicButton from '@/components/type-lesson/MicButton'
 
 export interface ContentState {
   revealedScript: Set<string> | 'all'
   revealedOptions: Record<number, Set<string> | 'all'>
-  revealedPassages: Set<string> | 'all'
+  /** 지금 다루는 지문 id — 탭이 자동으로 이 지문을 따라간다.
+   *  지문 자체에는 잠금이 없다(학생은 언제든 모든 지문을 오갈 수 있음). */
+  activePassageId?: string
   playingId: string | null
   marks: Set<string>
   tutorMarks: Set<string>
   onTapWord: (word: string) => void
+  /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
+  onPlaySentence?: (id: string, text: string) => void
+  /** 스캐폴딩이 쉐도잉 단계에 도달했는가 — 스크립트 문장별 쉐도잉 버튼은 그 뒤부터 열린다 */
+  shadowUnlocked?: boolean
   focusQ?: number
   /** 'single': focusQ 문항만 선택 가능 / 'all': 전 문항 선택 가능 / 'none' */
   answerMode: 'none' | 'single' | 'all'
@@ -87,9 +94,45 @@ function SentenceText({ text, st, focusBlank }: { text: string; st: ContentState
   )
 }
 
+/* ── 쉐도잉 패널 — 음원을 한 번 듣고 따라 말하기. 발음 평가는 하지 않고 인식된 말만 보여준다 ── */
+function ShadowPanel({ text, onReplay }: { text: string; onReplay: () => void }) {
+  const [said, setSaid] = useState('')
+  return (
+    <div className="mt-1.5 ml-9 rounded-xl border border-[#BFDBFE] bg-[#F8FAFF] px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <MicButton lang="en-US" onResult={setSaid} className="!w-8 !h-8" />
+        <p className="text-[11px] font-bold text-[#1D4ED8] flex-1">듣고 따라 말해보세요</p>
+        <button onClick={onReplay}
+          className="shrink-0 text-[10px] font-bold text-[#2563EB] border border-[#BFDBFE] bg-white rounded-lg px-2 py-1 hover:bg-[#EFF6FF]">다시 듣기</button>
+      </div>
+      <p className="text-[12px] text-[#334155] mt-1.5 leading-relaxed">{said || <span className="text-[#9CA3AF]">{text}</span>}</p>
+    </div>
+  )
+}
+
+/* 선택지·질문에 붙는 작은 아이콘 버튼 (쉐도잉/스크립트) — 정답 공개나 코칭 전에는 잠긴다 */
+function MiniBtn({ label, active, disabled, onClick, children }: {
+  label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode
+}) {
+  return (
+    <button onClick={(e) => { e.stopPropagation(); onClick() }} disabled={disabled} aria-label={label}
+      className={`shrink-0 flex items-center gap-1 text-[10px] font-bold rounded-lg border px-2 py-1 transition-colors ${
+        disabled ? 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
+          : active ? 'border-[#2563EB] bg-[#2563EB] text-white'
+          : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+      }`}>
+      {children}
+    </button>
+  )
+}
+
 /* ── 문항 카드 ── */
 function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; lesson: TypeLesson; st: ContentState }) {
   const ref = useRef<HTMLDivElement>(null)
+  /* 보기별 스크립트 표시 여부를 학생이 직접 뒤집은 기록. 값이 없으면 턴이 공개한 상태를 따르고,
+     한 번이라도 누르면(열든 닫든) 그 선택이 이긴다 — 슬라이드 명세가 "재클릭 시 숨김"이라 양방향이어야 한다. */
+  const [scriptOverride, setScriptOverride] = useState<Record<string, boolean>>({})
+  const [shadowFor, setShadowFor] = useState<string | null>(null)
   const focused = st.focusQ === qIdx
   const graded = st.graded.has(qIdx)
   const selectable = !graded && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
@@ -132,30 +175,58 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const circleCls = showResult
             ? isCorrect ? 'border-[#22C55E] text-[#16A34A]' : chosen ? 'border-[#EF4444] text-[#EF4444]' : 'border-[#D1D5DB] text-[#9CA3AF]'
             : chosen ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#D1D5DB] text-[#6B7280]'
+          /* 보기가 음성인 유형(P1·P2)의 보기별 컨트롤.
+             쉐도잉·스크립트는 강사가 정답을 공개했거나 그 보기를 코칭한 뒤에만 열린다. */
+          const optAudio = !!lesson.content.optionAudio
+          const coached = graded || revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
+          const scriptShown = scriptOverride[o.label] ?? !hidden
+          const textHidden = !scriptShown
+          const playOpt = () => st.onPlaySentence?.(`opt:${qIdx}:${o.label}`, `${o.label}. ${o.text}`)
           return (
             <div key={o.label}>
-              <button
-                disabled={!selectable}
-                onClick={() => selectable && st.onSelect(qIdx, o.label)}
-                className={`w-full flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all ${rowCls} ${
-                  selectable ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
-                }`}>
-                <span className={`shrink-0 w-6 h-6 rounded-full border-2 text-[11px] font-black flex items-center justify-center ${circleCls}`}>
-                  {o.label}
-                </span>
-                {hidden ? (
-                  <span className={`text-[13px] font-medium flex items-center gap-1.5 ${playing ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
-                    <SpeakerIcon pulse={playing} /> {playing ? '재생 중…' : '음성으로 들어요'}
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={!selectable && !optAudio}
+                  onClick={() => (selectable ? st.onSelect(qIdx, o.label) : optAudio ? playOpt() : undefined)}
+                  className={`flex-1 min-w-0 flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all ${rowCls} ${
+                    selectable || optAudio ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
+                  }`}>
+                  <span className={`shrink-0 w-6 h-6 rounded-full border-2 text-[11px] font-black flex items-center justify-center ${circleCls}`}>
+                    {o.label}
                   </span>
-                ) : (
-                  <span className="text-[13px] md:text-[14px] text-[#1C1B33] leading-snug flex-1">
-                    <TapText text={o.text} st={st} />
-                  </span>
+                  {textHidden ? (
+                    <span className={`text-[13px] font-medium flex items-center gap-1.5 ${playing ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
+                      <SpeakerIcon pulse={playing} /> {playing ? '재생 중…' : '음성으로 들어요'}
+                    </span>
+                  ) : (
+                    <span className="text-[13px] md:text-[14px] text-[#1C1B33] leading-snug flex-1">
+                      <TapText text={o.text} st={st} />
+                    </span>
+                  )}
+                  {playing && !textHidden && <SpeakerIcon pulse />}
+                  {showResult && isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#16A34A]">정답</span>}
+                  {showResult && chosen && !isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답</span>}
+                </button>
+
+                {optAudio && (
+                  <>
+                    <MiniBtn label="쉐도잉" disabled={!coached} active={shadowFor === o.label}
+                      onClick={() => {
+                        const next = shadowFor === o.label ? null : o.label
+                        setShadowFor(next)
+                        if (next) playOpt()
+                      }}>쉐도잉 ▶</MiniBtn>
+                    <MiniBtn label="스크립트 보기" disabled={!coached} active={scriptShown}
+                      onClick={() => setScriptOverride((p) => ({ ...p, [o.label]: !scriptShown }))}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" />
+                      </svg>
+                    </MiniBtn>
+                  </>
                 )}
-                {playing && !hidden && <SpeakerIcon pulse />}
-                {showResult && isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#16A34A]">정답</span>}
-                {showResult && chosen && !isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답</span>}
-              </button>
+              </div>
+
+              {shadowFor === o.label && <ShadowPanel text={o.text} onReplay={playOpt} />}
               {showResult && o.why && (isCorrect || chosen) && (
                 <p className={`text-[11px] leading-relaxed mt-1 ml-9 ${isCorrect ? 'text-[#16A34A]' : 'text-[#EF4444]'}`}>{o.why}</p>
               )}
@@ -164,6 +235,47 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
         })}
       </div>
       {(lesson.part === 3 || lesson.part === 4) && <ScriptAccordion lesson={lesson} st={st} />}
+    </div>
+  )
+}
+
+/* ── 문항 탭(P3·P4·P6·P7) — 한 화면에 한 문항만.
+   탭으로 이전/이후 문항을 자유롭게 오갈 수 있고, 턴이 다루는 문항(focusQ)이 바뀌면 그 탭으로 자동 이동한다.
+   탭 점: 채점 후엔 정/오답(초록/빨강), 채점 전 답만 고른 상태(실전)는 파랑. ── */
+function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentState; pane?: boolean }) {
+  const qs = lesson.content.questions
+  const [active, setActive] = useState(0)
+  const focusQ = st.focusQ
+  useEffect(() => {
+    if (focusQ !== undefined && focusQ >= 0 && focusQ < qs.length) setActive(focusQ)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusQ])
+
+  const idx = Math.min(active, qs.length - 1)
+  return (
+    /* pane: 높이가 정해진 칸(P6·P7 하단) — 탭 줄은 고정, 카드만 스크롤.
+       그 외(P3·P4): 페이지 전체가 스크롤되므로 탭 줄을 sticky로 붙여 둔다. */
+    <div className={pane ? 'flex-1 min-h-0 flex flex-col' : ''}>
+      <div className={`flex items-center gap-1.5 pb-2 ${pane ? 'shrink-0' : 'sticky top-0 z-10 bg-white pt-0.5'}`}>
+        {qs.map((q, i) => {
+          const graded = st.graded.has(i)
+          const correct = graded && st.answers[i] === q.options.find((o) => o.correct)?.label
+          const answered = !graded && !!st.answers[i]
+          return (
+            <button key={i} onClick={() => setActive(i)}
+              className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                idx === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
+              }`}>
+              Q{i + 1}
+              {graded && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${correct ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />}
+              {answered && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === i ? 'bg-white/70' : 'bg-[#93C5FD]'}`} />}
+            </button>
+          )
+        })}
+      </div>
+      <div className={pane ? 'flex-1 min-h-0 overflow-y-auto' : ''}>
+        <QuestionCard q={qs[idx]} qIdx={idx} lesson={lesson} st={st} />
+      </div>
     </div>
   )
 }
@@ -182,6 +294,7 @@ function SpeakerIcon({ pulse }: { pulse?: boolean }) {
 function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState }) {
   const script = lesson.content.audioScript ?? []
   const [open, setOpen] = useState(false)
+  const [shadowFor, setShadowFor] = useState<string | null>(null)   // 문장별 쉐도잉 중인 문장 id
   if (!script.length) return null
   const anyRevealed = st.revealedScript === 'all' || st.revealedScript.size > 0
 
@@ -214,17 +327,40 @@ function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState 
             const revealed = st.revealedScript === 'all' || st.revealedScript.has(s.id)
             if (!revealed) return null
             const playing = st.playingId === s.id
+            const playThis = () => st.onPlaySentence?.(s.id, s.en)
             return (
-              <div key={s.id} className={`flex gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${playing ? 'bg-[#EFF6FF] ring-1 ring-[#93C5FD]' : ''}`}>
-                {s.speaker && (
-                  <span className={`shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center mt-0.5 ${
-                    s.speaker === 'W' ? 'bg-[#FCE7F3] text-[#DB2777]' : 'bg-[#DBEAFE] text-[#2563EB]'
-                  }`}>{s.speaker}</span>
-                )}
-                <p className="text-[13px] md:text-[14px] text-[#334155] leading-relaxed flex-1">
-                  <TapText text={s.en} st={st} />
-                </p>
-                {playing && <SpeakerIcon pulse />}
+              <div key={s.id}>
+                <div className={`flex gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${playing ? 'bg-[#EFF6FF] ring-1 ring-[#93C5FD]' : ''}`}>
+                  {s.speaker && (
+                    <span className={`shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center mt-0.5 ${
+                      s.speaker === 'W' ? 'bg-[#FCE7F3] text-[#DB2777]' : 'bg-[#DBEAFE] text-[#2563EB]'
+                    }`}>{s.speaker}</span>
+                  )}
+                  <p className="text-[13px] md:text-[14px] text-[#334155] leading-relaxed flex-1">
+                    <TapText text={s.en} st={st} />
+                  </p>
+                  {/* 문장 재생은 별도 버튼 — 문장 안의 단어 탭은 형광펜이라 클릭 대상이 겹치면 안 된다 */}
+                  {st.onPlaySentence && (
+                    <div className="shrink-0 self-start mt-0.5 flex items-center gap-1">
+                      {/* 문장별 쉐도잉 — 강사 주도 쉐도잉 단계를 지난 뒤부터(그 전엔 아예 안 보임) */}
+                      {st.shadowUnlocked && (
+                        <MiniBtn label="이 문장 쉐도잉" active={shadowFor === s.id}
+                          onClick={() => {
+                            const next = shadowFor === s.id ? null : s.id
+                            setShadowFor(next)
+                            if (next) playThis()
+                          }}>쉐도잉 ▶</MiniBtn>
+                      )}
+                      <button onClick={playThis} aria-label="이 문장 듣기"
+                        className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${
+                          playing ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#DBEAFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+                        }`}>
+                        <SpeakerIcon pulse={playing} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {shadowFor === s.id && <ShadowPanel text={s.en} onReplay={playThis} />}
               </div>
             )
           })}
@@ -294,17 +430,6 @@ const KIND_LABEL: Record<PassageDoc['kind'], string> = {
 }
 
 function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson: TypeLesson; st: ContentState; focusBlank?: number }) {
-  const revealed = st.revealedPassages === 'all' || st.revealedPassages.has(doc.id)
-  if (!revealed) {
-    return (
-      <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-[#FAFAFA] px-4 py-6 flex flex-col items-center gap-1.5">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C4C9D4" strokeWidth="2" strokeLinecap="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        <p className="text-[12px] font-semibold text-[#C4C9D4]">{doc.label ?? KIND_LABEL[doc.kind]} — 순서가 되면 열려요</p>
-      </div>
-    )
-  }
   return (
     <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden">
       <div className="px-4 py-2.5 bg-[#F8FAFF] border-b border-[#EEF2F7] flex items-center gap-2">
@@ -366,17 +491,17 @@ function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson:
 }
 
 /* ── 지문 영역(P6·P7) — 지문이 여러 개(이중·삼중)면 탭으로 전환, 하나면 바로 표시.
-   새 지문이 공개되면(턴 진행) 자동으로 그 탭으로 이동한다. ── */
+   지문에 잠금은 없다(학생이 언제든 자유롭게 오감). 다만 턴이 다루는 지문이 바뀌면
+   그 탭으로 자동 이동한다 — 학생이 직접 다른 탭을 고른 뒤에도 수업 흐름은 따라가야 하므로. ── */
 function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; lesson: TypeLesson; st: ContentState; focusBlank?: number }) {
   const [active, setActive] = useState(0)
-  const revealed = st.revealedPassages
-  const revealedIds = revealed === 'all' ? docs.map((d) => d.id) : docs.filter((d) => revealed.has(d.id)).map((d) => d.id)
-  const prevRevealedRef = useRef(0)
+  const activeId = st.activePassageId
   useEffect(() => {
-    if (revealedIds.length > prevRevealedRef.current) setActive(revealedIds.length - 1)
-    prevRevealedRef.current = revealedIds.length
+    if (!activeId) return
+    const i = docs.findIndex((d) => d.id === activeId)
+    if (i >= 0) setActive(i)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealedIds.length])
+  }, [activeId])
 
   if (docs.length <= 1) {
     return (
@@ -390,7 +515,6 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex items-center gap-1.5 mb-2 shrink-0">
         {docs.map((d, i) => {
-          const locked = !revealedIds.includes(d.id)
           const pending = st.matchState?.evidence.some((ev) =>
             ev.passageId === d.id && ev.targetIds.some((tid) => !st.matchState!.matchedTargets.has(`${d.id}:${tid}`)))
           return (
@@ -398,10 +522,7 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
               className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${
                 active === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
               }`}>
-              {locked && (
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-              )}
-              {!locked && pending && <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />}
+              {pending && <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />}
               {d.label ?? `지문 ${i + 1}`}
             </button>
           )
@@ -435,12 +556,56 @@ function SentenceRow({ s, st, focusBlank, docId }: { s: SentenceItem; st: Conten
   )
 }
 
+/* ── P2 질문 카드 — 질문 음원 재생 + 쉐도잉(1차 청취 뒤 열림) ── */
+function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentState; children: ReactNode }) {
+  const q1 = lesson.content.audioScript?.[0]
+  const [shadowOpen, setShadowOpen] = useState(false)
+  const qRevealed = !!q1 && (st.revealedScript === 'all' || st.revealedScript.has(q1.id))
+  const playing = st.playingId === q1?.id
+  const playQ = () => q1 && st.onPlaySentence?.(q1.id, q1.en)
+
+  return (
+    <div className="max-w-[560px] mx-auto space-y-4">
+      <div className={`rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
+        playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
+      }`}>
+        <button onClick={playQ} aria-label="질문 음원 재생"
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+            playing ? 'bg-[#2563EB] text-white animate-pulse' : 'bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE]'
+          }`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </button>
+        {qRevealed && q1 ? (
+          <p className="text-[15px] font-semibold text-[#1C1B33] text-center leading-relaxed"><TapText text={q1.en} st={st} /></p>
+        ) : (
+          <p className="text-[13px] text-[#9CA3AF] font-medium">질문은 음성으로 나와요</p>
+        )}
+        {/* 질문 쉐도잉 — 질문 스크립트가 공개된(1차 청취를 지난) 뒤부터 */}
+        <MiniBtn label="질문 쉐도잉" disabled={!qRevealed} active={shadowOpen} onClick={() => { const n = !shadowOpen; setShadowOpen(n); if (n) playQ() }}>
+          쉐도잉 ▶
+        </MiniBtn>
+      </div>
+      {shadowOpen && q1 && (
+        <div className="-mt-1"><ShadowPanel text={q1.en} onReplay={playQ} /></div>
+      )}
+      {children}
+    </div>
+  )
+}
+
 /* ── 메인: 파트별 레이아웃 ── */
 export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: ContentState }) {
   const { part, content } = lesson
   const focusBlank = st.focusQ !== undefined && part === 6 ? st.focusQ + 1 : part === 5 ? 1 : undefined
 
-  const questionsBlock = (
+  /* 묶음 문항 파트(P3·P4·P6·P7)는 탭으로 한 문항씩 — 세로로 다 쌓으면 한눈에 안 들어온다.
+     P1·P2·P5는 원래 문항이 하나라 그대로 카드만 표시. */
+  const multiQ = content.questions.length > 1 && (part === 3 || part === 4 || part === 6 || part === 7)
+  const questionsBlock = multiQ ? (
+    <QuestionTabs lesson={lesson} st={st} />
+  ) : (
     <div className="space-y-3">
       {content.questions.map((q, i) => (
         <QuestionCard key={i} q={q} qIdx={i} lesson={lesson} st={st} />
@@ -463,27 +628,7 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
 
   /* P2 — 음성 질문 카드 + 보기 */
   if (part === 2) {
-    const q1 = content.audioScript?.[0]
-    const qRevealed = q1 && (st.revealedScript === 'all' || st.revealedScript.has(q1.id))
-    return (
-      <div className="max-w-[560px] mx-auto space-y-4">
-        <div className={`rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
-          st.playingId === q1?.id ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
-        }`}>
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${st.playingId === q1?.id ? 'bg-[#2563EB] text-white animate-pulse' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-          </div>
-          {qRevealed && q1 ? (
-            <p className="text-[15px] font-semibold text-[#1C1B33] text-center leading-relaxed"><TapText text={q1.en} st={st} /></p>
-          ) : (
-            <p className="text-[13px] text-[#9CA3AF] font-medium">질문은 음성으로 나와요</p>
-          )}
-        </div>
-        {questionsBlock}
-      </div>
-    )
+    return <Part2View lesson={lesson} st={st}>{questionsBlock}</Part2View>
   }
 
   /* P3·P4 — 시각자료 + 문항 (스크립트는 각 문항 아래 아코디언) */
@@ -519,8 +664,9 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
       <div className="flex-[3] min-h-0 flex flex-col">
         <PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />
       </div>
-      <div className="flex-[2] min-h-0 overflow-y-auto border-t border-gray-100 pt-3">
-        {questionsBlock}
+      {/* 문항 칸 — 탭이 있으면 탭 줄은 고정하고 카드만 스크롤(QuestionTabs가 자체 스크롤을 가짐) */}
+      <div className={`flex-[2] min-h-0 border-t border-gray-100 pt-3 ${multiQ ? 'flex flex-col' : 'overflow-y-auto'}`}>
+        {multiQ ? <QuestionTabs lesson={lesson} st={st} pane /> : questionsBlock}
       </div>
     </div>
   )
