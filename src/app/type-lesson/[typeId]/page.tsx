@@ -1,14 +1,27 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { getTypeLesson } from '@/data/typeLearning'
 import TypeLessonPlayer from '@/components/type-lesson/TypeLessonPlayer'
+import { useOnboardingStore } from '@/store/onboardingStore'
+import { INST_NAME } from '@/data/instructorData'
 
-/* 15문항 유형 샘플 수업 — /type-lesson/t01 ~ t15 (내 학습 탭 그리드에서 진입) */
+/* 15문항 유형 샘플 수업 — /type-lesson/t01 ~ t15 (내 학습 탭 그리드에서 진입)
+   강사: 온보딩에서 고른 강사를 그대로 따른다. ?instructor=lee_doyun 으로 덮어쓸 수 있다(테스트용).
+   ※ 스캐폴딩 레일(turns)은 아직 이도윤 ver 한 벌뿐이라, 다른 강사를 골라도 짚는 순서는 같고
+     목소리·얼굴·화법만 그 강사가 된다. 강사별 레일이 채워지면 이 폴백을 걷어내면 된다. */
 export default function TypeLessonPage() {
   const params = useParams<{ typeId: string }>()
+  const search = useSearchParams()
   const router = useRouter()
+  const selected = useOnboardingStore((s) => s.selectedInstructor)
   const lesson = getTypeLesson(params.typeId)
+
+  const override = search.get('instructor')
+  const instructor =
+    (override && INST_NAME[override] ? override : null) ??
+    (selected && INST_NAME[selected] ? selected : null) ??
+    'lee_doyun'
 
   if (!lesson) {
     return (
@@ -18,5 +31,5 @@ export default function TypeLessonPage() {
       </div>
     )
   }
-  return <TypeLessonPlayer lesson={lesson} />
+  return <TypeLessonPlayer lesson={lesson} instructor={instructor} />
 }

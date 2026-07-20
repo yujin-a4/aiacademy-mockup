@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useConversation } from '@11labs/react'
-import { fetchLectureQuestions, type UiDbQuestion } from '@/data/db/questionStore'
+import { fetchLectureQuestions, type UiDbQuestion, type UiDbOption } from '@/data/db/questionStore'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { INST_NAME, INST_THUMBS, tutorAgentFor } from '@/data/instructorData'
 import { speakTTS, stopCurrentAudio } from '@/lib/tts'
+import { buildTutorVars } from '@/lib/learnerProfile'
+import { useOnboardingStore } from '@/store/onboardingStore'
 
 // ── DB 기반 유형학습 수업 화면 (파트 공용, 신버전 UI) ──
 // 흐름: 도입(개념/핵심표현) → 문항 1..N 순차 풀이(다음 문항) → 완료(실전 준비 중).
@@ -94,6 +96,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const teacherName = INST_NAME[instructor] ?? '박혜원'
   const teacherImg = INST_THUMBS[instructor] ?? TEACHER_IMG
   const agentId = tutorAgentFor(instructor) // 강사별 튜터 에이전트 (윤다은 등), 없으면 박혜원
+  const profile = useOnboardingStore()      // 온보딩 4축 진단·목표 → 에이전트 dynamic variables
   const [questions, setQuestions] = useState<UiDbQuestion[] | null>(null)
   const [phase, setPhase] = useState<'intro' | 'lesson' | 'practice' | 'coaching' | 'summary'>('intro')
   const [stepIdx, setStepIdx] = useState(0)
@@ -158,6 +161,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const audioElRef     = useRef<HTMLAudioElement | null>(null)
   // 항상 "현재 문항의 음원"을 재생하도록 매 렌더에서 최신 클로저로 갱신 (clientTool이 이 ref를 호출)
   const playAudioRef   = useRef<() => Promise<void>>(async () => {})
+  const playOptionRef  = useRef<(sel: unknown) => Promise<string>>(async () => '')
   // 강사 발화 중 여부를 폴링 루프에서 최신값으로 읽기 위한 ref (클로저 스냅샷 회피)
   const isSpeakingRef  = useRef(false)
   const lastPlayRef    = useRef<{ src: string; t: number }>({ src: '', t: 0 }) // 중복 재생 방지용
@@ -181,10 +185,9 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
         await playAudioRef.current()
         return '음원 재생을 마쳤습니다. 이제 학생에게 무엇을 들었는지 짧게 확인 질문을 하세요.'
       },
-      replay_sentence: async () => {
-        await playAudioRef.current()
-        return '음원을 다시 들려줬습니다. 이어서 설명하세요.'
-      },
+      // 보기 하나만 다시 듣기. index(A=1) 또는 label('B') 어느 쪽으로 와도 받는다.
+      replay_sentence: async (params: { index?: number | string; label?: string }) =>
+        playOptionRef.current(params?.label ?? params?.index),
     },
   })
   const connected  = conversation.status === 'connected'
@@ -210,9 +213,10 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   const partName  = PART_NAMES[partNo] ?? `파트 ${partNo}`
   const intro     = LECTURE_INTRO[lectureCode]
 
-  // 현재 문항의 듣기 음원(content.audio_url)을 재생하고 끝날 때까지 대기. 재생 중엔 audioPlaying=true.
-  const playCurrentAudio = async () => {
-    const src = currentQ?.content.audio_url
+  // 음원 하나를 재생하고 끝날 때까지 대기. 재생 중엔 audioPlaying=true.
+  //  · revealOptions=true(1차 청취, 통합 음원)면 다 들은 뒤 보기 텍스트를 공개한다.
+  //  · 보기 하나만 다시 듣는 경우(revealOptions=false)는 공개 상태를 건드리지 않는다.
+  const playAudioSrc = async (src: string | undefined, revealOptions: boolean) => {
     if (!src) return
     // 중복 재생 방지: 시스템 자동재생과 에이전트 play_audio가 거의 동시에 들어와도 3초 내 같은 음원은 한 번만.
     const now = Date.now()
@@ -248,7 +252,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
         a.removeEventListener('ended', finish)
         a.removeEventListener('error', finish)
         setAudioPlaying(false)
-        setOptionsRevealed(true) // 음원을 다 들으면 보기 텍스트 전부 공개
+        if (revealOptions) setOptionsRevealed(true) // 1차 청취를 마치면 보기 텍스트 전부 공개
         resolve()
       }
       a.addEventListener('ended', finish)
@@ -256,7 +260,40 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
       a.play().catch(() => finish())
     })
   }
+
+  // 1차 청취/전체 다시 듣기 — 보기 A~D 통합 내레이션.
+  const playCurrentAudio = () => playAudioSrc(currentQ?.content.audio_url, true)
   playAudioRef.current = playCurrentAudio
+
+  /** 에이전트가 넘긴 보기 지정을 옵션으로 해석. 'B' / 'b' / 2 / '2' 전부 받는다(A=1 기준). */
+  const resolveOption = (sel: unknown): UiDbOption | undefined => {
+    const opts = currentQ?.options
+    if (!opts?.length) return undefined
+    const raw = String(sel ?? '').trim()
+    if (!raw) return undefined
+    const byLabel = opts.find((o) => o.label.toUpperCase() === raw.toUpperCase())
+    if (byLabel) return byLabel
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return undefined
+    // 1-based(A=1)가 기본. 0을 보내오면 A로 본다.
+    return opts[n <= 0 ? 0 : n - 1]
+  }
+
+  /** 보기 하나만 다시 재생. 보기별 음원이 아직 없으면 통합 음원으로 폴백하고 그 사실을 에이전트에 알린다. */
+  const playOptionAudio = async (sel: unknown): Promise<string> => {
+    const opt = resolveOption(sel)
+    if (!opt) {
+      await playCurrentAudio()
+      return '어느 보기인지 알 수 없어 전체를 다시 들려줬습니다. 이어서 설명하세요.'
+    }
+    if (!opt.audioUrl) {
+      await playCurrentAudio()
+      return `${opt.label} 보기만 따로 들려줄 음원이 없어 전체를 다시 들려줬습니다. 특정 보기만 들려줬다고 말하지 마세요.`
+    }
+    await playAudioSrc(opt.audioUrl, false)
+    return `${opt.label} 보기를 다시 들려줬습니다. 이어서 설명하세요.`
+  }
+  playOptionRef.current = playOptionAudio
 
   // 새 문항: 보기 다시 숨김 + 재생 상태 리셋. 이전 음원은 정지.
   useEffect(() => {
@@ -376,17 +413,10 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
     setMessages([])
     conversation.startSession({
       agentId,
-      dynamicVariables: {
-        user_name: '지윤',
-        target_score: '900',
+      dynamicVariables: buildTutorVars(profile, {
         study_range: partName,
-        exam_date: '다음 달',
-        daily_time: '하루 한 시간',
-        learning_style: '집중형',
-        management_style: '주도형',
-        motivation_type: '목표 달성형',
         instructor_greeting: greeting,
-      },
+      }),
     }).catch(() => {})
   }
   const sendText = () => {

@@ -13,11 +13,40 @@ import ContentView, { targetTokens, type ContentState } from '@/components/type-
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, DrawPalette, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
-import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, tutorAgentFor } from '@/data/instructorData'
+import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import { TutorChatModal, TutorFloatingWidget } from '@/components/lesson/TutorModal'
+import { useConversation } from '@11labs/react'
+import { buildTutorVars } from '@/lib/learnerProfile'
+import { useOnboardingStore } from '@/store/onboardingStore'
 
-const TUTOR_KEY = 'lee_doyun' // 레일 정본이 이도윤 ver — 강사 고정
+/* 레일 정본이 이도윤 ver 한 벌뿐 — 온보딩에서 다른 강사를 골라도 짚는 순서는 이 레일을 따르고
+   목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
+const RAIL_OWNER = 'lee_doyun'
+
+/** 상호작용 종류 → 학생이 이번 턴에 해야 할 일 (에이전트에게만 주는 지시) */
+const INTERACTION_HINT: Record<Interaction['kind'], string> = {
+  next: '',
+  choice: '제시된 보기 중에서 하나를 고르게 한다.',
+  pickAnswer: '문항의 정답을 직접 고르게 한다.',
+  solveAll: '남은 문항을 스스로 풀게 한다.',
+  subjective: '학생이 자기 말로 설명하게 한다.',
+  mark: '지문·보기에서 해당하는 단어를 직접 짚게 한다.',
+  shadow: '영어 문장을 따라 말하게 한다. 영어 문장은 음원이 들려주니 네가 읽지 마라.',
+  match: '지문에서 근거가 되는 문장을 직접 탭하게 한다.',
+}
+
+/** 턴 하나를 에이전트 지시(directive)로 — 강사는 이걸 자기 말투로 바꿔 말한다(낭독 금지). */
+function directiveOf(turn: Turn): string {
+  const todo = INTERACTION_HINT[turn.interaction.kind]
+  return [
+    `[단계] ${turn.stage}`,
+    `[이번 턴에 전달할 내용] ${turn.tutor}`,
+    todo ? `[학생이 할 일] ${todo}` : '',
+    '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라.',
+  ].filter(Boolean).join('\n')
+}
 
 /* 강사 발화 → UI에 짧게: 대본 통짜 대신 핵심 첫 문장 1개만 (음성은 전체 발화 유지) */
 function keySentence(t: string): string {
@@ -90,8 +119,21 @@ function TutorNote({ turn }: { turn: Turn }) {
   )
 }
 
+/* 생성된 mp3 경로 — scripts/gen_type_lesson_audio.mjs가 만든 매니페스트.
+   없는 단위는 src가 undefined가 되고, voice.ts가 브라우저 TTS로 폴백한다. */
+const srcOf = (lessonId: string, id: string): string | undefined =>
+  (audioManifest as Record<string, string>)[`${lessonId}/${id}`]
+
+/** 재생 아이템에 mp3 경로를 붙인다 */
+const withSrc = (lesson: TypeLesson, items: { id: string; text: string }[]) =>
+  items.map((it) => ({ ...it, src: srcOf(lesson.id, it.id) }))
+
 /* 음원 지시 → 재생 아이템 목록 */
-function cueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string }[] {
+function cueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string; src?: string }[] {
+  return withSrc(lesson, rawCueItems(lesson, cue))
+}
+
+function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string }[] {
   const script = lesson.content.audioScript ?? []
   switch (cue.kind) {
     case 'sentences':
@@ -209,14 +251,14 @@ function playbackLabel(lesson: TypeLesson, id: string): string {
 
 /* 전체 음원 = 스크립트 문장 + (보기가 음성인 유형은) 1번 문항의 보기들.
    P1은 스크립트가 없고 보기 4개가 곧 음원, P2는 질문 1문장 + 응답 3개, P3·P4는 대화/담화 스크립트. */
-function fullAudioItems(lesson: TypeLesson): { id: string; text: string }[] {
+function fullAudioItems(lesson: TypeLesson): { id: string; text: string; src?: string }[] {
   const items = (lesson.content.audioScript ?? []).map((s) => ({ id: s.id, text: s.en }))
   if (lesson.content.optionAudio) {
     for (const o of lesson.content.questions[0]?.options ?? []) {
       items.push({ id: `opt:0:${o.label}`, text: `${o.label}. ${o.text}` })
     }
   }
-  return items
+  return withSrc(lesson, items)
 }
 
 /* ── 전체 음원 재생 바 (LC) ──
@@ -308,10 +350,19 @@ function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void
   )
 }
 
-export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
+export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { lesson: TypeLesson; instructor?: string }) {
   const router = useRouter()
   const turns = lesson.turns
   const [turnIdx, setTurnIdx] = useState(0)
+  const turnIdxRef = useRef(0)              // clientTool은 최신 turnIdx를 ref로 읽는다(클로저 고정 방지)
+  turnIdxRef.current = turnIdx
+
+  /* 강사 = 온보딩 선택(페이지가 내려줌). 레일은 이도윤 ver 한 벌이라 짚는 순서는 동일하고,
+     목소리·얼굴·화법만 갈린다. 전용 에이전트가 없는 강사는 박혜원 에이전트로 폴백. */
+  const teacherName = INST_NAME[instructor] ?? INST_NAME[RAIL_OWNER]
+  const teacherImg = INST_THUMBS[instructor] ?? INST_THUMBS[RAIL_OWNER]
+  const agentId = tutorAgentFor(instructor)
+  const profile = useOnboardingStore()
   /* 'wrap' = 세션 전체 정리(4단계 프레임의 마지막 단계, 실전 이후) — 수업 중 S7 "표현 정리" 턴과는
      별개 화면이다. 그건 수업 워크스루의 마지막 코칭 포인트일 뿐, 세션 전체 정리가 아니다. */
   const [phase, setPhase] = useState<'lesson' | 'practice' | 'wrap' | 'done'>('lesson')
@@ -331,6 +382,59 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
   const [widgetNudge, setWidgetNudge] = useState(true)      // 수업 진입 직후 — 강사 위젯 탭 유도(펄스+말풍선). 한번 열면 꺼짐
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('voice')
   const [inputText, setInputText] = useState('')
+  const [chatLog, setChatLog] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
+
+  /* ── 강사 에이전트 (일레븐랩스) ──
+     진행 주체는 에이전트다: 학생이 답하면 에이전트가 next_step을 호출 → 여기서 턴을 한 칸 넘기고
+     다음 턴 지시를 돌려준다. 화면(강사 패널·공개 범위·레일 위치)은 전부 turnIdx에서 파생되므로
+     턴만 움직이면 자동으로 따라온다.
+     에이전트에 연결하지 않으면 기존 방식(브라우저 TTS + 단계 버튼 클릭)이 그대로 폴백으로 남는다. */
+  const conversation = useConversation({
+    micMuted: chatMode === 'text',
+    onMessage: (p: { source: string; message: string }) =>
+      setChatLog((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
+    clientTools: {
+      next_step: async () => {
+        const cur = turnIdxRef.current
+        if (cur >= turns.length - 1) {
+          stopVoice()
+          setPhase('practice')
+          return '수업 단계가 끝났다. 학생에게 이제 실전 문제를 풀어보자고 짧게 말하고 멈춰라.'
+        }
+        const nextIdx = cur + 1
+        setTurnIdx(nextIdx)
+        return directiveOf(turns[nextIdx])
+      },
+    },
+  })
+  const agentConnected = conversation.status === 'connected'
+  const agentConnecting = conversation.status === 'connecting'
+  const agentOnRef = useRef(false)        // 턴 효과가 에이전트 발화를 기다릴지 판단
+  agentOnRef.current = agentConnected
+  const agentSpeakingRef = useRef(false)  // 매 렌더 최신 발화 상태 반영 (음원 겹침 방지용)
+  agentSpeakingRef.current = conversation.isSpeaking
+
+  const startAgent = () => {
+    setChatLog([])
+    conversation.startSession({
+      agentId,
+      dynamicVariables: buildTutorVars(profile, {
+        study_range: `${lesson.partName} · ${lesson.typeLabel}`,
+        /* 첫 마디는 프롬프트상 "그대로 말한다" — 지시문(directiveOf)을 넣으면 메타 지시까지 읽어버린다.
+           그래서 여기에는 0번 턴의 강사 발화 원문(=자연스러운 말)만 넣는다.
+           1번 턴부터는 next_step 반환값으로 지시를 주고, 에이전트가 자기 말투로 바꿔 말한다. */
+        instructor_greeting: turns[0].tutor,
+      }),
+    }).catch(() => {})
+  }
+  const endAgent = () => { try { conversation.endSession() } catch { /* noop */ } }
+  useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 실전·정리로 넘어가면 강사 세션 종료 — 문제 풀이 중 강사가 계속 말하지 않게.
+  useEffect(() => {
+    if (phase === 'practice' || phase === 'wrap' || phase === 'done') endAgent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   /* 도입 화면 "오늘 배울 내용" — 수업 단계 S코드에서 파생 */
   const introPoints = useMemo(() => {
@@ -403,7 +507,7 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     barTokenRef.current += 1
     setBarPlaying(false)
     stopVoice()
-    void speakEnglishSeq([{ id, text }], setPlayingId)
+    void speakEnglishSeq([{ id, text, src: srcOf(lesson.id, id) }], setPlayingId)
   }
 
   /* 공개 범위 — turns[0..turnIdx]에서 파생 (뒤로가기/건너뛰기 안전) */
@@ -443,7 +547,33 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     stopVoice()
     let alive = true
     ;(async () => {
-      await speakKorean(turn.tutor)
+      /* 강사 발화는 에이전트(일레븐랩스) 몫 — 브라우저 기본 TTS는 쓰지 않는다.
+         에이전트가 말하는 중이면 그 발화가 끝난 뒤 음원을 재생한다(겹침 방지, 최대 10초 대기).
+         에이전트에 연결하지 않은 상태면 대기 없이 바로 음원으로 간다. */
+      if (agentOnRef.current) {
+        /* 주의: 턴이 바뀐 직후엔 에이전트가 아직 "생성 중"이라 isSpeaking=false다.
+           그 상태만 보고 재생하면 강사가 "에이 보기 들려줄게요" 하기도 전에 음원이 나간다.
+           그래서 ①발화가 시작될 때까지 기다리고 ②시작했으면 끝날 때까지 기다린다.
+           문장 사이 순간 끊김을 발화 종료로 오인하지 않도록 400ms 정적을 확인한다. */
+        await new Promise<void>((res) => {
+          const t0 = Date.now()
+          let sawSpeaking = false
+          let quietSince = 0
+          const tick = () => {
+            if (!alive) { res(); return }
+            const now = Date.now()
+            const speaking = agentSpeakingRef.current
+            if (speaking) { sawSpeaking = true; quietSince = 0 }
+            else if (quietSince === 0) quietSince = now
+
+            const spokeAndStopped = sawSpeaking && !speaking && now - quietSince > 400
+            const neverSpoke = !sawSpeaking && now - t0 > 3000  // 끝내 말을 안 하면 그냥 진행
+            if (spokeAndStopped || neverSpoke || now - t0 > 15000) res()
+            else setTimeout(tick, 120)
+          }
+          tick()
+        })
+      }
       if (!alive || !turn.audio) return
       await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
       // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
@@ -518,10 +648,10 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
     return (
       <LessonIntro
         tag={`Part ${lesson.part} · ${lesson.typeLabel}`}
-        script={`${lesson.desc} 이도윤 강사와 스캐폴딩 단계에 따라 하나씩 짚어볼게요.`}
+        script={`${lesson.desc} ${teacherName} 강사와 스캐폴딩 단계에 따라 하나씩 짚어볼게요.`}
         points={introPoints.map((text) => ({ text }))}
-        teacherName={`${INST_NAME[TUTOR_KEY]} 선생님`}
-        teacherImg={INST_THUMBS[TUTOR_KEY]}
+        teacherName={`${teacherName} 선생님`}
+        teacherImg={teacherImg}
         onStart={() => setStarted(true)}
         onEnd={() => { stopVoice(); router.push('/lessons') }}
       />
@@ -545,6 +675,8 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
       <WrapStage
         lesson={lesson}
         practiceScore={practiceScore}
+        teacherName={teacherName}
+        teacherImg={teacherImg}
         onExit={() => { stopVoice(); router.push('/lessons') }}
         onDone={() => { stopVoice(); setPhase('done') }}
       />
@@ -656,15 +788,26 @@ export default function TypeLessonPlayer({ lesson }: { lesson: TypeLesson }) {
       {/* 강사 에이전트 — 축소 위젯 ↔ 드래그 모달 (시트 발화 표시, 라이브 대화는 데모에서 생략) */}
       {panelOpen ? (
         <TutorChatModal
-          imgSrc={INST_THUMBS[TUTOR_KEY]} name={INST_NAME[TUTOR_KEY]}
-          connected connecting={false} isSpeaking={playingId !== null}
-          chatMode={chatMode} setChatMode={setChatMode} messages={tutorMessages}
-          inputText={inputText} setInputText={setInputText} onSend={() => setInputText('')}
-          onStartAgent={() => {}} onEndSession={() => setPanelOpen(false)}
+          imgSrc={teacherImg} name={teacherName}
+          connected={agentConnected} connecting={agentConnecting}
+          isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null}
+          chatMode={chatMode} setChatMode={setChatMode}
+          messages={agentConnected ? chatLog : tutorMessages}
+          inputText={inputText} setInputText={setInputText}
+          onSend={() => {
+            const t = inputText.trim()
+            if (!t || !agentConnected) { setInputText(''); return }
+            conversation.sendUserMessage(t)
+            setChatLog((prev) => [...prev, { role: 'user', text: t }])
+            setInputText('')
+          }}
+          onStartAgent={startAgent}
+          onEndSession={() => { endAgent(); setPanelOpen(false) }}
           lastAi={keySentence(turn.tutor)} onClose={() => setPanelOpen(false)}
         />
       ) : (
-        <TutorFloatingWidget imgSrc={INST_THUMBS[TUTOR_KEY]} name={INST_NAME[TUTOR_KEY]} connected isSpeaking={playingId !== null} lastAi=""
+        <TutorFloatingWidget imgSrc={teacherImg} name={teacherName}
+          connected={agentConnected} isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null} lastAi=""
           nudge={widgetNudge} onOpen={() => { setPanelOpen(true); setWidgetNudge(false) }} />
       )}
 
@@ -794,8 +937,9 @@ function RecapCard({ index, sentence, filled, correct, onPick, onSpeak }: {
 }
 
 /* ── 세션 정리 단계 — 4단계 프레임의 마지막(실전 이후). 핵심 문장 3개 빈칸 채우기 + 강사 마무리 멘트 ── */
-function WrapStage({ lesson, practiceScore, onExit, onDone }: {
+function WrapStage({ lesson, practiceScore, teacherName, teacherImg, onExit, onDone }: {
   lesson: TypeLesson; practiceScore: { correct: number; total: number } | null
+  teacherName: string; teacherImg: string
   onExit: () => void; onDone: () => void
 }) {
   const [fills, setFills] = useState<Record<string, string>>({})
@@ -856,10 +1000,10 @@ function WrapStage({ lesson, practiceScore, onExit, onDone }: {
           {showClosing && (
             <div className="flex items-start gap-2.5 bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-4 animate-fade-in">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={INST_THUMBS[TUTOR_KEY]} alt={INST_NAME[TUTOR_KEY]}
+              <img src={teacherImg} alt={teacherName}
                 className="w-9 h-9 rounded-full object-cover object-top border border-[#2563EB]/40 shrink-0" />
               <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-bold text-[#374151]">{INST_NAME[TUTOR_KEY]} 강사</span>
+                <span className="text-[11px] font-bold text-[#374151]">{teacherName} 강사</span>
                 <p className="text-[13px] text-[#374151] leading-relaxed mt-1">{lesson.recap.closing}</p>
               </div>
             </div>
@@ -970,7 +1114,7 @@ function InteractionDock(props: {
     const playChunks = () => {
       const script = lesson.content.audioScript ?? []
       const items = it.audioIds?.length
-        ? script.filter((s) => it.audioIds!.includes(s.id)).map((s) => ({ id: s.id, text: s.en }))
+        ? script.filter((s) => it.audioIds!.includes(s.id)).map((s) => ({ id: s.id, text: s.en, src: srcOf(lesson.id, s.id) }))
         : [{ id: 'chunk', text: it.chunks.join(' ') }]
       void speakEnglishSeq(items, props.setPlayingId)
     }
