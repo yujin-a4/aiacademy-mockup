@@ -22,7 +22,19 @@ export const TUTOR_AGENT_DEFAULT = 'agent_2501kt0w00khfrr8869g2z5vnpaz' // 박�
 export const INST_AGENT: Record<string, string> = {
   park_hyewon: TUTOR_AGENT_DEFAULT,
   yun_daeun: 'agent_0901kxd75e70f49bbjmjge931tbq',
+  lee_doyun: 'agent_0501kxz5g8fbfav9asys5ed7szjd',
 }
+/** 운영 강사 로스터 — 온보딩·설정에서 고를 수 있는 강사. 오정자는 제외(4명 확정, 0720). */
+export const INSTRUCTOR_ROSTER: { id: string; tag: string; desc: string }[] = [
+  { id: 'park_hyewon', tag: '#기초부터탄탄', desc: '기초 개념부터 차근차근 짚어주는 정통파' },
+  { id: 'yun_daeun',   tag: '#핵심포인트',   desc: '볼 것만 시원하게 짚어주는 속도형' },
+  { id: 'lee_doyun',   tag: '#직청직독형',   desc: '영어 어순 그대로 처리하는 속독·직청 훈련' },
+  { id: 'seo_jian',    tag: '#단계별학습',   desc: 'LC는 흐름, RC는 구조를 차분히 잡아주는 스타일' },
+]
+
+/** 전용 튜터 에이전트가 있는 강사인지 (없으면 박혜원 에이전트로 폴백) */
+export const hasOwnAgent = (instructor: string) => Boolean(INST_AGENT[instructor])
+
 export const tutorAgentFor = (instructor?: string) =>
   (instructor && INST_AGENT[instructor]) || TUTOR_AGENT_DEFAULT
 
