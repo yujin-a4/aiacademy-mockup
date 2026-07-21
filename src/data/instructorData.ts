@@ -12,7 +12,7 @@ export const INST_NAME: Record<string, string> = {
 export const INST_THUMBS: Record<string, string> = {
   park_hyewon: '/image_reference/park-2.jpg',
   yun_daeun: '/image_reference/jang.png',
-  lee_doyun: '/image_reference/lee.png',
+  lee_doyun: '/instructor/lee-2.png',
   seo_jian: '/image_reference/jung.png',
   oh_jungja: '/image_reference/ojungja.jpg',
 }
