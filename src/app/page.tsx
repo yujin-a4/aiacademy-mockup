@@ -11,32 +11,21 @@ const TYPING_PHRASES = [
   '나만의 프로그램이 정해 드려요.',
   '고민 끝, 지금 바로 시작해보세요.',
 ]
-
+const HEADLINE = <>토익 공부,<br />오늘 뭐 할지<br /></>
+const SUB = <>AI가 약점을 분석하고<br />YBM 강사 스타일로 맞춤 루틴을 제안해요.</>
 const FEATURES = [
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/>
-      </svg>
-    ),
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>,
     title: 'AI 약점 진단',
     desc: '풀이 패턴을 분석해 내 약점을 자동으로 찾아줘요',
   },
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-      </svg>
-    ),
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
     title: '강사 맞춤 루틴',
     desc: 'YBM 스타 강사 스타일로 매일 학습 계획을 설계해요',
   },
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-    ),
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
     title: '오답 패턴 분석',
     desc: '틀린 문제의 유형을 파악해 반복 실수를 줄여줘요',
   },
@@ -90,20 +79,11 @@ export default function LoginPage() {
     return () => clearTimeout(t)
   }, [typedText, isDeleting, phraseIdx])
 
-  const loginWith = async (email: string, pw: string) => {
-    setError('')
-    setLoading(true)
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password: pw })
-    if (error) {
-      setError('아이디 또는 비밀번호가 올바르지 않아요.')
-      setLoading(false)
-      return
-    }
+  const proceedToApp = async (userId: string) => {
     setShowWelcome(true)
-    // welcomeProgress는 0에서 시작 — 첫 렌더 후 애니메이션 시작
     setTimeout(() => setWelcomeProgress(30), 80)
     setTimeout(() => setWelcomeProgress(65), 700)
-    const profile = await loadProfileFromSupabase(signInData.user?.id).catch(() => null)
+    const profile = await loadProfileFromSupabase(userId).catch(() => null)
     if (profile?.userName) {
       if (profile.userName) store.setUserName(profile.userName)
       if (profile.rangeAxis) store.setRangeAxis(profile.rangeAxis)
@@ -122,6 +102,20 @@ export default function LoginPage() {
       setWelcomeProgress(100)
       setTimeout(() => router.replace('/onboarding'), 700)
     }
+  }
+
+  const loginWith = async (email: string, pw: string) => {
+    setError('')
+    setLoading(true)
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password: pw })
+    if (error) {
+      setError('아이디 또는 비밀번호가 올바르지 않아요.')
+      setLoading(false)
+      return
+    }
+    const userId = signInData.user?.id
+    if (userId) proceedToApp(userId)
+    setLoading(false)
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -168,21 +162,23 @@ export default function LoginPage() {
 
           {/* 로고 + 타이틀 */}
           <div className="relative z-10">
-            <div className="flex items-center gap-2.5 mb-8">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                <img src="/logo.svg" alt="YBM" className="w-5 h-5 object-contain brightness-0 invert"
-                  onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <img src="/logo.svg" alt="YBM" className="w-5 h-5 object-contain brightness-0 invert"
+                    onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
+                </div>
+                <span className="text-white/90 text-[14px] font-bold tracking-wide">YBM AI 어학원</span>
               </div>
-              <span className="text-white/90 text-[14px] font-bold tracking-wide">YBM AI 어학원</span>
             </div>
 
             <h1 className="text-white text-[28px] md:text-[32px] font-black leading-tight mb-2">
-              토익 공부,<br />오늘 뭐 할지<br />
+              {HEADLINE}
               <span className="text-white/70">{typedText}</span>
               <span className="inline-block w-[2px] h-[0.85em] bg-white/50 ml-0.5 align-middle animate-pulse" />
             </h1>
             <p className="text-white/60 text-[13px] leading-relaxed mt-3">
-              AI가 약점을 분석하고<br />YBM 강사 스타일로 맞춤 루틴을 제안해요.
+              {SUB}
             </p>
           </div>
 
@@ -216,7 +212,7 @@ export default function LoginPage() {
                   type="text"
                   value={id}
                   onChange={e => setId(e.target.value.replace(/\s/g, ''))}
-                  placeholder="guest01"
+                  placeholder="ID를 입력하세요.."
                   required
                   className="flex-1 min-w-0 h-full px-4 text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none bg-transparent rounded-l-xl"
                 />

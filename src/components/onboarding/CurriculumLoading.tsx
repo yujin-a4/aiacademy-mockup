@@ -5,7 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 const LOAD_STEPS = [
   { name: '박혜원', action: (n: string) => `${n}님의 성향을 보고 프로그램을 구성하고 있어요`, thumb: '/image_reference/park-2.jpg' },
   { name: '윤다은', action: (n: string) => `${n}님에게 맞는 커리큘럼을 설계하고 있어요`, thumb: '/image_reference/jang.png' },
-  { name: '이도윤', action: (n: string) => `${n}님께 제안할 프로그램을 완성하고 있어요`, thumb: '/image_reference/lee.png' },
+  { name: '이도윤', action: (n: string) => `${n}님께 제안할 프로그램을 완성하고 있어요`, thumb: '/instructor/lee-2.png' },
   { name: '서지안', action: (n: string) => `${n}님을 위한 최적의 프로그램을 확정하고 있어요`, thumb: '/image_reference/jung.png' },
 ]
 
