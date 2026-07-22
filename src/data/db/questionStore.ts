@@ -99,7 +99,7 @@ export function useDbQuestions<T>(codes: string[], adapt: (rows: UiDbQuestion[])
  */
 export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<UiDbQuestion[] | null> {
   const supabase = getSupabase()
-  if (!supabase) return null
+  if (!supabase || !anchorCode) return null
 
   const { data: anchorRow, error: anchorErr } = await supabase
     .from('questions')
@@ -312,6 +312,23 @@ export async function fetchLecturesWithQuestions(): Promise<DbLecture[]> {
     })
   }
   return Array.from(byCode.values()).sort((a, b) => a.part - b.part || a.code.localeCompare(b.code))
+}
+
+/** 범용 훅: 강의 하나의 문항 전체(수업 Q + 실전 P)를 로드. 실패·빈 결과면 fallback */
+export function useDbLectureQuestions<T>(lectureCode: string, adapt: (rows: UiDbQuestion[]) => T, fallback: T): T {
+  const [data, setData] = useState<T>(fallback)
+  useEffect(() => {
+    let alive = true
+    if (!lectureCode) return
+    fetchLectureQuestions(lectureCode)
+      .then((rows) => {
+        if (alive && rows.length) setData(adapt(rows))
+      })
+      .catch(() => { /* 폴백 유지 */ })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lectureCode])
+  return data
 }
 
 export function useDbLectures(): DbLecture[] {

@@ -123,9 +123,17 @@ export async function loadDbQuestion(questionCode: string): Promise<DbTutorQuest
 export interface LectureStep {
   order: number
   code: string          // 'S2', 'S2+S3', 'S5①' 등 시트 원문
-  rule: string          // AI가 따라야 할 규칙 (고정)
+  rule: string          // AI가 따라야 할 규칙 (고정) — 에이전트 지시문용, 클라이언트엔 안 보냄
   dbFields: string | null
   freeExpression: string | null
+  // ── 0010 턴 상세 (이도윤 레일에만 채워짐; common·윤다은 4열 레일은 null) ──
+  // 화면 렌더러가 "이 스텝을 어떻게 그릴지" 판단하는 근거. Phase 3 UI 재편에서 소비.
+  turnLabel: string | null       // '턴 1' 등 턴 단위 진행 라벨
+  section: string | null         // '── Q1 상황/주제/목적형 ──' 하위문제 그룹
+  audioMode: string | null       // 음원 재생/정지 방식
+  scriptMode: string | null      // 스크립트 노출 방식
+  interaction: string | null     // 상호작용 방식(필수 수행/주관식/선택 응답 …) → ui_type 도출 근거
+  studentPrompt: string | null   // 학생에게 보여줄 질문/선택지
 }
 
 const mapSteps = (data: any[] | null): LectureStep[] =>
@@ -135,6 +143,12 @@ const mapSteps = (data: any[] | null): LectureStep[] =>
     rule: s.fixed_rule,
     dbFields: s.db_fields,
     freeExpression: s.free_expression,
+    turnLabel: s.turn_label ?? null,
+    section: s.section ?? null,
+    audioMode: s.audio_mode ?? null,
+    scriptMode: s.script_mode ?? null,
+    interaction: s.interaction ?? null,
+    studentPrompt: s.student_prompt ?? null,
   }))
 
 /**
@@ -148,7 +162,7 @@ export async function loadLectureSteps(lectureCode: string, instructorCode = 'co
   if (!supabase) return []
   const query = (code: string) => supabase
     .from('lecture_steps')
-    .select('step_order, step_code, fixed_rule, db_fields, free_expression, lectures!inner(lecture_code)')
+    .select('step_order, step_code, fixed_rule, db_fields, free_expression, turn_label, section, audio_mode, script_mode, interaction, student_prompt, lectures!inner(lecture_code)')
     .eq('lectures.lecture_code', lectureCode)
     .eq('instructor_code', code)
     .order('step_order')

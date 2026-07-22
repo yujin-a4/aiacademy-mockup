@@ -323,7 +323,15 @@ export async function POST(req: NextRequest) {
           const contextual = `${facts.text}\n\n${TURN_RULES}\n\n${sheetStepDirective(session, steps[0])}`
           return NextResponse.json({
             sessionId: id, mode: 'sheetRail', lectureCode: q.lectureCode, instructor: instructorCode,
-            steps: steps.map((st) => st.code), contextual,
+            steps: steps.map((st) => st.code),
+            // UI 렌더러용 스텝 상세(0010 컬럼). rule/dbFields/freeExpression은 에이전트 지시문
+            // 재료라 클라이언트로 내보내지 않는다(DB=뇌, 에이전트=입 원칙).
+            stepDetails: steps.map((st) => ({
+              order: st.order, code: st.code, turnLabel: st.turnLabel, section: st.section,
+              audioMode: st.audioMode, scriptMode: st.scriptMode,
+              interaction: st.interaction, studentPrompt: st.studentPrompt,
+            })),
+            contextual,
           })
         }
       }

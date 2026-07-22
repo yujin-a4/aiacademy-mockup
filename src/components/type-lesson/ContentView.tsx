@@ -613,8 +613,40 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
     </div>
   )
 
-  /* P1 — 사진 위 · 보기 아래 (실제 파트1엔 문제 지문이 없어 보기만 표시) */
+  /* P1 — 사진 위 · 보기 아래 (실제 파트1엔 문제 지문이 없어 보기만 표시)
+     실전은 문항마다 사진이 달라서 사진+보기를 한 쌍씩 쌓는다. */
   if (part === 1) {
+    if (content.questions.length > 1) {
+      return (
+        <div className="flex flex-col gap-6 max-w-[620px] mx-auto">
+          {content.questions.map((q, i) => (
+            <div key={i} className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
+                <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>
+                {q.audio && st.onPlaySentence && (
+                  <button
+                    onClick={() => st.onPlaySentence?.(`qaudio:${i}`, q.options.map((o) => `${o.label}. ${o.text}`).join(' '))}
+                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
+                      st.playingId === `qaudio:${i}`
+                        ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                        : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+                    }`}>
+                    <SpeakerIcon pulse={st.playingId === `qaudio:${i}`} />
+                    {st.playingId === `qaudio:${i}` ? '재생 중…' : '음원 듣기'}
+                  </button>
+                )}
+              </div>
+              {(q.photo ?? content.photo) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={q.photo ?? content.photo} alt={`문제 ${i + 1} 사진`} className="w-full rounded-2xl border border-[#E5E7EB] object-cover" />
+              )}
+              <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
+            </div>
+          ))}
+        </div>
+      )
+    }
     return (
       <div className="flex flex-col gap-4 max-w-[620px] mx-auto">
         {content.photo && (
@@ -641,18 +673,31 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
     )
   }
 
-  /* P5 — 문장 카드 + 보기 */
+  /* P5 — 문장 카드 + 보기. 실전은 문항마다 문장이 따로라 한 쌍씩 쌓는다(문장 i ↔ 문항 i) */
   if (part === 5) {
-    const s = content.passages?.[0]?.sentences?.[0]
+    const sentences = content.passages?.[0]?.sentences ?? []
+    const SentenceCard = ({ text }: { text: string }) => (
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
+        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
+          <SentenceText text={text} st={st} focusBlank={focusBlank} />
+        </p>
+      </div>
+    )
+    if (content.questions.length > 1) {
+      return (
+        <div className="max-w-[560px] mx-auto space-y-6">
+          {content.questions.map((q, i) => (
+            <div key={i} className="space-y-3">
+              {sentences[i] && <SentenceCard text={sentences[i].en} />}
+              <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
+            </div>
+          ))}
+        </div>
+      )
+    }
     return (
       <div className="max-w-[560px] mx-auto space-y-4">
-        {s && (
-          <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
-            <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
-              <SentenceText text={s.en} st={st} focusBlank={focusBlank} />
-            </p>
-          </div>
-        )}
+        {sentences[0] && <SentenceCard text={sentences[0].en} />}
         {questionsBlock}
       </div>
     )
