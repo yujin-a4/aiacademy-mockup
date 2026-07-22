@@ -752,8 +752,8 @@ function RegularDashboard() {
 
                     <a
                       href="/part5"
-                      className="flex items-center justify-between bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white px-5 py-3.5 rounded-xl font-bold text-[15px] transition-all shadow-lg shadow-[#2563EB]/25"
-                      style={{ maxWidth: '340px' }}
+                      className="self-end flex items-center justify-between bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white px-5 py-3.5 rounded-xl font-bold text-[15px] transition-all shadow-lg shadow-[#2563EB]/25"
+                      style={{ width: '340px', maxWidth: '100%' }}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
