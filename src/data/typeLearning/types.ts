@@ -14,11 +14,17 @@ export interface OptionItem {
   text: string
   correct?: boolean
   why?: string        // 정/오답 근거 한 줄 (채점 후 표시)
+  /** 이 보기 전용 mp3 (DB `question_options.audio_url`). 없으면 audioManifest → 브라우저 TTS 순으로 폴백 */
+  audio?: string
 }
 
 export interface QuestionItem {
   q: string
   options: OptionItem[]
+  /** P1 실전처럼 문항마다 사진이 다른 경우 — 없으면 content.photo를 쓴다 */
+  photo?: string
+  /** 문항 통음원 (DB `content.audio_url`) — 실제 시험처럼 보기 4개를 한 번에 듣는 용도 */
+  audio?: string
 }
 
 /** 문장 단위 스크립트/지문 — 음원 구간 재생·직독직해·하이라이트의 최소 단위 */
@@ -139,6 +145,9 @@ export interface TypeLesson {
   title: string       // 카드 제목
   desc: string        // 카드 설명 한 줄
   content: TypeLessonContent
+  /** 실전 문제(수업 뒤 단계)에서 풀 별도 문항 세트. 없으면 수업에서 다룬 content를 그대로 다시 푼다.
+   *  DB 구동 시 같은 강의의 `stage='practice'` 문항(P00x)이 여기로 들어온다. */
+  practice?: TypeLessonContent
   turns: Turn[]
   recap: LessonRecap   // 세션 정리 화면(실전 문제 이후) — 핵심 문장 3개 + 마무리 멘트
 }
