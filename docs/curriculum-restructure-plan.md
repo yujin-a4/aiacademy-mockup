@@ -5,34 +5,26 @@
 
 ---
 
-## ⏱ 현재 위치 (2026-07-21 마지막 갱신)
+## ⏱ 현재 위치 (2026-07-22 마지막 갱신)
 
-**Phase 1 완료.** Phase 2는 미착수. Phase 3은 **결정 D1**이 막고 있음.
+**Phase 1 완료 + 커밋됨**(`16dc930`). **결정 D1 확정**(아래 3장 — FGI 5강). Phase 2·3 착수 가능.
 
 ### 이어서 할 때 첫 3가지
 
-1. **dev 서버 복구** — 재부팅 전 `next dev`가 웹팩 캐시 gzip 버퍼 할당 실패(`RangeError: Array buffer
-   allocation failed`)로 죽었다. **코드 문제 아님.** 재부팅으로 RAM은 회복되지만 캐시는 그대로다:
-   ```powershell
-   Remove-Item .next -Recurse -Force
-   $env:NODE_OPTIONS="--max-old-space-size=4096"; npm run dev
-   ```
-   원인·상세는 이 문서 5장.
-2. **결정 D1 확정** (아래 3장) — Phase 3 규모를 직접 결정한다.
-3. Phase 2 착수 여부 판단 — D1과 무관하게 진행 가능.
+1. **Phase 2 스키마 확장** (2장) — D1과 무관. `lecture_steps.learner_type`,
+   `questions.ui_type`, `lectures` 레벨/트랙 컬럼. 마이그레이션 `0011`부터.
+2. **Phase 3 화면 재편** — D1이 확정됐으니 착수 가능. 범위 = D1 5강의 **4개 ui_type**
+   (`p1_photo_audio`, `p5_blank`, `p6_cloze`, `p7_single`). 15개 다 만들 필요 없음.
+3. `TypeLessonPlayer` 분해(3-3) — 로컬 `directiveOf()` 폐기 → `/api/tutor` sheetRail 교체가 핵심.
 
-### 커밋 안 된 작업물 (전부 디스크에 있음, 브랜치 `feat/part1-split-view-and-instructor-agent`)
+### 완료 이력 (2026-07-22)
 
-| 파일 | 상태 |
-|---|---|
-| `docs/curriculum-restructure-plan.md` | 신규 (이 문서) |
-| `supabase/migrations/0010_lecture_steps_turn_detail.sql` | 신규 — **DB에는 이미 적용됨** |
-| `scripts/import-instructor-rails.js` | 수정 — **이미 실행 완료, DB 반영됨** |
-| `scripts/dump/[윤다은 ver] …수정완료(0713).json` | 신규 덤프 (gitignore 대상) |
-| `scripts/dump/[이도윤 ver] …수정 완료(0713).json` | 신규 덤프 (gitignore 대상) |
+- ✅ dev 서버 복구 — 좀비 프로세스(3000 포트 점유·무응답) kill + `.next` 삭제 + 힙 4GB로 재기동.
+  `/`, `/type-lesson/[id]`, `/settings/learning` 전부 200 확인. (환경 문제, 코드 아님 — 5장 참조)
+- ✅ Phase 1 커밋(`16dc930`): 임포터 개편 + 마이그레이션 0010 + 이 문서.
+- ✅ D1 근거 실측 완료 (아래 3장 표).
 
-⚠️ DB 변경은 **이미 반영이 끝났다.** 재부팅 후 임포터를 다시 돌릴 필요 없음
-(돌려도 delete-insert라 안전하지만 불필요).
+⚠️ DB 변경(0010·강사 레일)은 **이미 반영 끝.** 임포터 재실행 불필요(돌려도 delete-insert라 안전).
 
 ---
 
@@ -315,10 +307,23 @@ D1에서 정한 강의들의 `questions` + `question_options` 채우기.
 
 ## 3. 결정이 필요한 것
 
-### D1. FGI에서 실제로 돌릴 강의 범위 ⚠️ Phase 3 착수 전 필수
-42강 문항을 다 채우는 건 불가능하다. **4~6강**을 골라 그것만 문항 완비 + 강사 2명 레일 완비로 간다.
-- 후보: `LC-P1-01`·`LC-P1-02`(이미 문항 6개씩 있음), `RC-P5-08`(5개), `RC-P7-03`(6개), `RC-P6-01`(4개)
-- 이 범위가 곧 Phase 3의 `ui_type` 구현 범위 = 재편 규모를 직접 결정한다
+### D1. FGI에서 실제로 돌릴 강의 범위 ✅ 확정 (2026-07-22)
+
+**결정: 아래 5강.** DB 실측 결과 이 5강이 문항·근거·오답태그·강사 2명 레일까지 **완비된 유일한 강의들**이고,
+목표치 4~6강에 정확히 들며 P1/P5/P6/P7 4개 파트를 커버한다. 다른 후보는 문항이 1개뿐이라 선택지 없음.
+
+| 강의 | 문항 | 정답근거 | 오답태그 | 이도윤/윤다은 레일 | ui_type |
+|---|---|---|---|---|---|
+| `LC-P1-01` | 6 | 6/6 | 18/18 | 7 / 8 | `p1_photo_audio` |
+| `LC-P1-02` | 6 | 6/6 | 18/18 | 7 / 8 | `p1_photo_audio` |
+| `RC-P7-03` | 6 | 6/6 | 18/18 | 7 / 9 | `p7_single` |
+| `RC-P5-08` | 5 | 5/5 | 15/15 | 7 / 6 | `p5_blank` |
+| `RC-P6-01` | 4 | 4/4 | 12/12 | 11 / 6 | `p6_cloze` |
+
+→ **Phase 3 구현 범위 = 4개 ui_type**(`p1_photo_audio`·`p5_blank`·`p6_cloze`·`p7_single`). 15개 다 만들지 않는다.
+
+⚠️ **커버 안 되는 파트: P2(질의응답)·P3/P4(대화·담화).** 이 스킬군은 문항 완비된 강의가 없다.
+FGI에 듣기 대화형을 꼭 넣어야 하면 **Phase 4 문항 입력이 선행**돼야 하는 별건 결정이다(자동 포함 아님).
 
 ### D2. 특강 트랙을 MVP0에 포함할지
 시험 직전 특강 12강 + 문법/어휘 특강 8강. 문법/어휘는 시트에 "출시 후"로 명시됨.
