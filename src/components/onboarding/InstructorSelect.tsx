@@ -39,9 +39,11 @@ const INSTRUCTORS = [
   {
     id: 'park_hyewon',
     name: '박혜원',
+    isReal: true, // 실제 YBM 스타강사
     tag: '#스파르타압축형',
-    video: '/video/video-park4.mp4',
-    videoJiyun: '/video/video-park4.mp4',
+    video: '/video/video-park5.mp4',
+    videoJiyun: '/video/video-park5.mp4',
+    videoObjectPosition: 'center 25%', // 머리 잘림 방지 — 영상 아래로
     thumbnail: '/instructor/park-2.jpg',
     badge: '목표 자극 전문',
     desc: '어려운 문제도 점수로 연결하는 오답 소거·압축 전략. 단호하지만 확실한 코칭.',
@@ -77,6 +79,7 @@ const INSTRUCTORS = [
   {
     id: 'yun_daeun',
     name: '윤다은',
+    isReal: false, // AI 휴먼
     tag: '#하이텐션핵심형',
     video: '/video/video-jang.mp4',
     videoJiyun: '/video/video-jang.mp4',
@@ -115,9 +118,11 @@ const INSTRUCTORS = [
   {
     id: 'lee_doyun',
     name: '이도윤',
+    isReal: false, // AI 휴먼
     tag: '#직청직독형',
     video: '/instructor/leedoyoon02.mp4',
-    videoJiyun: '/instructor/leedoyoon02.mp4',
+    videoJiyun: '/video/video-lee-0722.mp4',
+    videoObjectPosition: 'center 25%', // 머리 잘림 방지 — 영상 아래로
     thumbnail: '/instructor/lee-2.png',
     badge: '직청직독 전문',
     desc: '영어를 영어 어순 그대로 처리하는 직청직독 방식으로 처리 속도와 점수를 동시에 올립니다.',
@@ -153,6 +158,7 @@ const INSTRUCTORS = [
   {
     id: 'seo_jian',
     name: '서지안',
+    isReal: true, // 실제 YBM 스타강사
     tag: '#흐름구조형',
     video: '/video/video-jung.mp4',
     videoJiyun: '/video/video-jung.mp4',
@@ -191,6 +197,7 @@ const INSTRUCTORS = [
   {
     id: 'oh_jungja',
     name: '오정자',
+    isReal: false, // AI 휴먼
     tag: '#시니어맞춤형',
     video: '/video/video-6.mp4',
     videoJiyun: '/video/video-6.mp4',
@@ -546,6 +553,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       loop
                       preload="metadata"
                       className="absolute inset-0 w-full h-full object-cover"
+                      style={{ objectPosition: (inst as any).videoObjectPosition ?? 'center' }}
                       onError={() => setVideoErrors(prev => ({ ...prev, [inst.id]: true }))}
                     />
                   ) : (
@@ -591,6 +599,17 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       )}
                     </button>
                   )}
+
+                  {/* 강사 유형 배지 — 우측 하단 */}
+                  <div className="absolute bottom-3 right-3 z-20 pointer-events-none">
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm ${
+                      inst.isReal
+                        ? 'bg-[#2563EB] text-white'
+                        : 'bg-[#7C3AED] text-white'
+                    }`}>
+                      {inst.isReal ? 'YBM 스타 강사' : 'AI 휴먼 강사'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )
