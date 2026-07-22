@@ -16,7 +16,7 @@ import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
 import { INST_NAME, INST_THUMBS, tutorAgentFor } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import { TutorChatModal, TutorFloatingWidget } from '@/components/lesson/TutorModal'
+import TutorDock, { TutorComposer, type DockMode } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { useOnboardingStore } from '@/store/onboardingStore'
@@ -107,14 +107,13 @@ function TutorNote({ turn }: { turn: Turn }) {
   const kind = turn.interaction.kind
   const heading = cleanStageLabel(turn.stage) ?? (sNum ? S_HEADING[sNum] : undefined) ?? KIND_HEADING[kind]
   const bullets = (sNum && S_BULLETS[sNum]) ? S_BULLETS[sNum] : KIND_BULLETS[kind]
+  /* 대화 흐름 안에 카드로 얹힌다 — 강사 말 바로 아래, "지금 이 단계에서 할 일" */
   return (
-    <div className="px-4 md:px-6 pt-3 pb-1 shrink-0">
-      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3.5">
-        <p className="text-[13px] font-bold text-[#1C1B33] mb-1.5">{heading}</p>
-        <ul className="text-[12.5px] text-[#475569] space-y-1 list-disc pl-4 leading-relaxed">
-          {bullets.map((b, i) => <li key={i}>{b}</li>)}
-        </ul>
-      </div>
+    <div className="rounded-2xl border border-[#BFD9FF] bg-[#F5F9FF] p-3">
+      <p className="text-[12.5px] font-bold text-[#1D4ED8] mb-1.5">{heading}</p>
+      <ul className="text-[12.5px] text-[#475569] space-y-1 list-disc pl-4 leading-relaxed">
+        {bullets.map((b, i) => <li key={i}>{b}</li>)}
+      </ul>
     </div>
   )
 }
@@ -124,9 +123,19 @@ function TutorNote({ turn }: { turn: Turn }) {
 const srcOf = (lessonId: string, id: string): string | undefined =>
   (audioManifest as Record<string, string>)[`${lessonId}/${id}`]
 
-/** 재생 아이템에 mp3 경로를 붙인다 */
+/* 보기 음원은 DB 행(content.questions[].options[].audio)이 매니페스트보다 우선한다.
+   매니페스트는 로컬 샘플 대본으로 만든 것이라, DB 문항으로 갈아끼운 화면에서는 소리가 어긋난다. */
+function optionSrc(lesson: TypeLesson, id: string): string | undefined {
+  const q = id.match(/^qaudio:(\d+)$/)          // 문항 통음원 (실제 시험처럼 보기 4개 연속)
+  if (q) return lesson.content.questions[Number(q[1])]?.audio
+  const m = id.match(/^opt:(\d+):(.+)$/)
+  if (!m) return undefined
+  return lesson.content.questions[Number(m[1])]?.options.find((o) => o.label === m[2])?.audio
+}
+
+/** 재생 아이템에 mp3 경로를 붙인다 (DB 보기 음원 → 매니페스트 → 없으면 브라우저 TTS) */
 const withSrc = (lesson: TypeLesson, items: { id: string; text: string }[]) =>
-  items.map((it) => ({ ...it, src: srcOf(lesson.id, it.id) }))
+  items.map((it) => ({ ...it, src: optionSrc(lesson, it.id) ?? srcOf(lesson.id, it.id) }))
 
 /* 음원 지시 → 재생 아이템 목록 */
 function cueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string; src?: string }[] {
@@ -378,8 +387,9 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   const [answeredQ, setAnsweredQ] = useState<Set<number>>(new Set()) // pickAnswer로 텍스트 공개된 문항
   const [showKo, setShowKo] = useState(false)
   const [started, setStarted] = useState(false)            // 도입(LessonIntro) → 수업 진입 여부
-  const [panelOpen, setPanelOpen] = useState(false)        // 강사 모달 열림/축소 (기본=축소 위젯)
-  const [widgetNudge, setWidgetNudge] = useState(true)      // 수업 진입 직후 — 강사 위젯 탭 유도(펄스+말풍선). 한번 열면 꺼짐
+  /* 강사 창 크기 — 사이드바(기본) ⇄ 모달창 ⇄ 작은 창. 강사 말·단계 내용·상호작용·대화가 한 흐름으로 이 창 안에 있다 */
+  const [dockMode, setDockMode] = useState<DockMode>('sidebar')
+  const feedRef = useRef<HTMLDivElement>(null)   // 대화 흐름 — 새 발화·새 단계가 오면 아래로 따라간다
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('voice')
   const [inputText, setInputText] = useState('')
   const [chatLog, setChatLog] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
@@ -429,6 +439,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   }
   const endAgent = () => { try { conversation.endSession() } catch { /* noop */ } }
   useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 대화 흐름은 항상 마지막 발화가 보이게 — 턴이 넘어가거나 새 메시지가 오면 아래로 */
+  useEffect(() => {
+    const el = feedRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [turnIdx, chatLog.length, dockMode])
 
   // 실전·정리로 넘어가면 강사 세션 종료 — 문제 풀이 중 강사가 계속 말하지 않게.
   useEffect(() => {
@@ -507,7 +523,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
     barTokenRef.current += 1
     setBarPlaying(false)
     stopVoice()
-    void speakEnglishSeq([{ id, text, src: srcOf(lesson.id, id) }], setPlayingId)
+    void speakEnglishSeq([{ id, text, src: optionSrc(lesson, id) ?? srcOf(lesson.id, id) }], setPlayingId)
   }
 
   /* 공개 범위 — turns[0..turnIdx]에서 파생 (뒤로가기/건너뛰기 안전) */
@@ -641,7 +657,26 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   }
 
   const macroActive = MACRO_IDX[macroOf(turn)]
-  const tutorMessages = turns.slice(0, turnIdx + 1).map((t) => ({ role: 'ai' as const, text: t.tutor }))
+
+  /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
+     에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
+  const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
+  const lastAgentUser = [...chatLog].reverse().find((m) => m.role === 'user')?.text
+  const tutorLine = (agentConnected && lastAgentAi) || turn.tutor
+
+  const studentLine = (() => {
+    if (agentConnected) return lastAgentUser ?? null
+    const it = turn.interaction
+    if (it.kind === 'choice' && choicePicked !== null) return it.choices[choicePicked]?.text ?? null
+    if (it.kind === 'subjective' && subjSent && subjText.trim()) return subjText.trim()
+    if (it.kind === 'shadow' && shadowSaid.trim()) return shadowSaid.trim()
+    if (it.kind === 'mark' && markDone) return '표시했어요'
+    if (it.kind === 'pickAnswer' && graded.has(it.qIdx)) {
+      const picked = lesson.content.questions[it.qIdx]?.options.find((o) => o.label === answers[it.qIdx])
+      return picked ? `${picked.label}) ${picked.text}` : null
+    }
+    return null
+  })()
 
   /* ── 도입 (LessonIntro — 4단계 프레임의 첫 단계) ── */
   if (!started) {
@@ -724,10 +759,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
       {/* ── 스캐폴딩 레일 (턴별 단계) ── */}
       <ScaffoldRail turns={turns} turnIdx={turnIdx} onJump={setTurnIdx} />
 
-      {/* ── 본문: 좌 지문/문제 · 우 강사 설명 (part6-split 틀) ── */}
+      {/* ── 본문: 좌 지문/문제 · 우 강사 창(사이드바). 강사 창을 접으면 좌측이 전체 폭이 된다 ── */}
       <div ref={splitRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
         {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
-        <div className="h-[42%] lg:h-full min-h-0 flex flex-col lg:w-[var(--lf)] border-b lg:border-b-0 border-gray-100" style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+        <div className={`min-h-0 flex flex-col border-b lg:border-b-0 border-gray-100 ${
+          dockMode === 'sidebar' ? 'h-[42%] lg:h-full lg:w-[var(--lf)]' : 'flex-1 h-full w-full'
+        }`} style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
           {draw.drawMode && <DrawPalette tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />}
           {/* 전체 음원 바 — LC만. 1차 청취 전에는 잠겨 있다 */}
           {lesson.area === 'LC' && audioItems.length > 0 && (
@@ -741,22 +778,27 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
           </div>
         </div>
 
-        {/* 세로 리사이즈 핸들 (데스크탑) */}
-        <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd}
-          className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
-          <div className="h-12 w-1 rounded-full bg-gray-300" />
-        </div>
+        {/* 세로 리사이즈 핸들 (데스크탑) — 사이드바일 때만 */}
+        {dockMode === 'sidebar' && (
+          <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd}
+            className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
+            <div className="h-12 w-1 rounded-full bg-gray-300" />
+          </div>
+        )}
 
-        {/* 우: 강사 설명(스캐폴딩 단계) + 상호작용 — 대화형 말풍선 아님(에이전트 음성이 대화는 대신함), 참고자료 성격의 노트만 */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* 강사 노트 — 읽어도 진행 안 됨. 진행은 스캐폴딩 레일(수동) / 나중엔 에이전트 음성 */}
-          <TutorNote turn={turn} />
-
-          {/* 음원 재생 바 (듣기 재생 중에만) */}
-          {playingId && <PlaybackBar label={playbackLabel(lesson, playingId)} onReplay={turn.audio ? replayCue : undefined} />}
-
-          {/* 상호작용 (스캐폴딩 단계별 응답) */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 min-h-0">
+        {/* 우: 강사 창 — 사이드바 ⇄ 모달창 ⇄ 작은 창. 모달·작은 창은 fixed라 여기 자리를 차지하지 않는다. */}
+        <TutorDock
+          mode={dockMode} setMode={setDockMode}
+          name={teacherName} imgSrc={teacherImg}
+          connected={agentConnected}
+          isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null}
+          /* 작은 창엔 "지금 하는 말" 한 줄 */
+          lastLine={agentConnected && lastAgentAi ? lastAgentAi : keySentence(turn.tutor)}
+        >
+          {/* ── ① 단계 영역 (턴마다 갈아끼움) — 이번 단계에서 할 일 + 상호작용.
+                 대화(강사 말 → 내 응답 → 말하는 자리)를 끊지 않으려고 위로 뺐다 ── */}
+          <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 py-3 space-y-2.5">
+            <TutorNote turn={turn} />
             <InteractionDock
               key={turnIdx}
               turn={turn} lesson={lesson}
@@ -774,42 +816,52 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
               matchTapped={matchTapped}
               setPlayingId={setPlayingId}
             />
+            {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
+            {turnIdx === turns.length - 1 && (
+              <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
+            )}
           </div>
 
-          {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
-          {turnIdx === turns.length - 1 && (
-            <div className="shrink-0 border-t border-[#EBEBF0] px-4 md:px-6 py-3">
-              <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
-            </div>
-          )}
-        </div>
-      </div>
+          {/* 음원 재생 바 (듣기 재생 중에만) */}
+          {playingId && <PlaybackBar label={playbackLabel(lesson, playingId)} onReplay={turn.audio ? replayCue : undefined} />}
 
-      {/* 강사 에이전트 — 축소 위젯 ↔ 드래그 모달 (시트 발화 표시, 라이브 대화는 데모에서 생략) */}
-      {panelOpen ? (
-        <TutorChatModal
-          imgSrc={teacherImg} name={teacherName}
-          connected={agentConnected} connecting={agentConnecting}
-          isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null}
-          chatMode={chatMode} setChatMode={setChatMode}
-          messages={agentConnected ? chatLog : tutorMessages}
-          inputText={inputText} setInputText={setInputText}
-          onSend={() => {
-            const t = inputText.trim()
-            if (!t || !agentConnected) { setInputText(''); return }
-            conversation.sendUserMessage(t)
-            setChatLog((prev) => [...prev, { role: 'user', text: t }])
-            setInputText('')
-          }}
-          onStartAgent={startAgent}
-          onEndSession={() => { endAgent(); setPanelOpen(false) }}
-          lastAi={keySentence(turn.tutor)} onClose={() => setPanelOpen(false)}
-        />
-      ) : (
-        <TutorFloatingWidget imgSrc={teacherImg} name={teacherName}
-          connected={agentConnected} isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null} lastAi=""
-          nudge={widgetNudge} onOpen={() => { setPanelOpen(true); setWidgetNudge(false) }} />
-      )}
+          {/* ── ② 대화 영역 (고정) — 이번 턴의 강사 말 → 내 응답 → 내가 말하는 자리. 지난 대화는 쌓지 않는다 ── */}
+          <div className="shrink-0 border-t border-gray-100 px-3 md:px-4 pt-2.5 space-y-2 max-h-[42%] overflow-y-auto">
+            <div className="flex gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={teacherImg} alt={teacherName} className="w-6 h-6 rounded-full object-cover object-top shrink-0 mt-0.5" />
+              <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800 text-[13px] leading-relaxed">
+                {tutorLine}
+              </div>
+            </div>
+            {studentLine && (
+              <div className="flex justify-end">
+                <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tr-sm bg-[#2563EB] text-white text-[13px] leading-relaxed">
+                  {studentLine}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 내가 말하는 자리 — 음성이면 파형, 텍스트면 입력창 (대화 영역에 바로 이어 붙는다) */}
+          <TutorComposer
+            connected={agentConnected} connecting={agentConnecting}
+            isSpeaking={conversation.isSpeaking}
+            chatMode={chatMode} setChatMode={setChatMode}
+            inputText={inputText} setInputText={setInputText}
+            getFreq={() => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
+            onSend={() => {
+              const t = inputText.trim()
+              if (!t || !agentConnected) { setInputText(''); return }
+              conversation.sendUserMessage(t)
+              setChatLog((prev) => [...prev, { role: 'user', text: t }])
+              setInputText('')
+            }}
+            onStartAgent={startAgent}
+            onEndSession={endAgent}
+          />
+        </TutorDock>
+      </div>
 
       <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
     </div>
@@ -822,10 +874,20 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
   const [graded, setGraded] = useState(false)
   const [showKo, setShowKo] = useState(false)
   const [marks, setMarks] = useState<Set<string>>(new Set())
+  const [playingId, setPlayingId] = useState<string | null>(null)
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
 
-  const qs = lesson.content.questions
+  /* 실전 세트가 있으면 그걸 푼다. 없으면(로컬 샘플 유형) 수업에서 다룬 문항을 그대로 다시 푼다. */
+  const pLesson = lesson.practice ? { ...lesson, content: lesson.practice } : lesson
+  const qs = pLesson.content.questions
+
+  /* 듣기 파트 실전은 음원이 있어야 문제가 성립한다 — 문항 통음원/보기 음원 재생 */
+  const playMedia = (id: string, text: string) => {
+    stopVoice()
+    void speakEnglishSeq([{ id, text, src: optionSrc(pLesson, id) ?? srcOf(pLesson.id, id) }], setPlayingId)
+  }
+  useEffect(() => () => stopVoice(), [])
   const total = qs.length
   const answered = qs.filter((_, i) => answers[i]).length
   const correct = qs.filter((q, i) => answers[i] === q.options.find((o) => o.correct)?.label).length
@@ -835,7 +897,7 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
 
   const st: ContentState = {
     revealedScript: 'all', revealedOptions: allOptions,
-    playingId: null, marks, tutorMarks: new Set(),
+    playingId, onPlaySentence: playMedia, marks, tutorMarks: new Set(),
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
     answerMode: graded ? 'none' : 'all',
     answers, graded: graded ? new Set(qs.map((_, i) => i)) : new Set(),
@@ -848,7 +910,8 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
       <PhaseStepper
         active={2}
         onEnd={onExit}
-        extra={lesson.area === 'RC' ? (
+        /* 해석 토글은 문장 해석(ko)이 실제로 있을 때만 — DB 구동 지문엔 아직 해석이 없어 빈 버튼이 된다 */
+        extra={pLesson.area === 'RC' && (pLesson.content.passages ?? []).some((p) => p.sentences?.some((s) => s.ko)) ? (
           <button onClick={() => setShowKo(!showKo)}
             className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${showKo ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#C7D2FE]'}`}>해석</button>
         ) : undefined}
@@ -858,7 +921,7 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
       <div className="shrink-0 bg-white border-b border-[#EBEBF0] px-4 md:px-6 py-2.5">
         <div className="max-w-[900px] mx-auto flex items-center gap-2">
           <span className="shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md bg-[#FEF3C7] text-[#B45309]">실전 문제</span>
-          <p className="text-[12px] font-bold text-[#1C1B33] truncate">{lesson.title} — 배운 전략으로 직접 풀어보세요</p>
+          <p className="text-[12px] font-bold text-[#1C1B33] truncate">{lesson.title} — 배운 전략으로 직접 풀어보세요 ({qs.length}문항)</p>
         </div>
       </div>
 
@@ -867,7 +930,7 @@ function PracticeStage({ lesson, onExit, onDone }: { lesson: TypeLesson; onExit:
 
       {/* 문항 */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-3 md:px-6 py-4 min-h-0">
-        <div className="max-w-[900px] mx-auto"><ContentView lesson={lesson} st={st} /></div>
+        <div className="max-w-[900px] mx-auto"><ContentView lesson={pLesson} st={st} /></div>
       </div>
 
       {/* 제출/채점 바 */}
