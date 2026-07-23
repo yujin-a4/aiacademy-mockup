@@ -595,8 +595,10 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
   )
 }
 
-/* ── 메인: 파트별 레이아웃 ── */
-export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: ContentState }) {
+/* ── 메인: 파트별 레이아웃 ──
+   readingSideBySide=true면 읽기 파트(P6·P7)를 지문(좌)/문항(우) 가로 2열로 — 강사 패널이 하단
+   도크로 내려가 위쪽 콘텐츠가 넓고 낮은 가로 공간이 될 때 쓴다. 기본(우측 패널)은 세로 스택. */
+export default function ContentView({ lesson, st, readingSideBySide = false }: { lesson: TypeLesson; st: ContentState; readingSideBySide?: boolean }) {
   const { part, content } = lesson
   const focusBlank = st.focusQ !== undefined && part === 6 ? st.focusQ + 1 : part === 5 ? 1 : undefined
 
@@ -703,7 +705,20 @@ export default function ContentView({ lesson, st }: { lesson: TypeLesson; st: Co
     )
   }
 
-  /* P6·P7 — 지문(들) 위 · 문항 아래, 각각 독립 스크롤. 지문이 여럿이면 탭으로 전환 */
+  /* P6·P7 — 지문(들) + 문항, 각각 독립 스크롤. 지문이 여럿이면 탭으로 전환.
+     하단 도크(readingSideBySide): 지문(좌) | 문항(우) 가로 2열. 우측 패널: 지문(위)/문항(아래) 세로 스택. */
+  if (readingSideBySide) {
+    return (
+      <div className="h-full flex gap-3 min-h-0">
+        <div className="flex-[1.15] min-w-0 flex flex-col">
+          <PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />
+        </div>
+        <div className={`flex-1 min-w-0 min-h-0 border-l border-gray-100 pl-3 ${multiQ ? 'flex flex-col' : 'overflow-y-auto'}`}>
+          {multiQ ? <QuestionTabs lesson={lesson} st={st} pane /> : questionsBlock}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="h-full flex flex-col gap-3 min-h-0">
       <div className="flex-[3] min-h-0 flex flex-col">

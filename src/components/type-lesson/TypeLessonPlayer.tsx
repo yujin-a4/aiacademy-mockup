@@ -13,7 +13,7 @@ import ContentView, { targetTokens, type ContentState } from '@/components/type-
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, DrawPalette, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
-import { INST_NAME, INST_THUMBS, tutorAgentFor } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, tutorAgentFor, instPose, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { TutorComposer, type DockMode } from '@/components/type-lesson/TutorDock'
@@ -48,6 +48,46 @@ function directiveOf(turn: Turn): string {
   ].filter(Boolean).join('\n')
 }
 
+/* ── 턴(단계) → 강사 포즈 ──
+   스캐폴딩 의미에 맞춰 포즈를 고른다. 강사가 실제로 말하는 중(speaking)이면 입 벌린 설명 포즈로
+   맞춰 발화와 그림이 어긋나지 않게 한다. 학생이 말할 차례(쉐도잉·주관식)엔 듣는 자세.
+   ※ 지금 이도윤은 2장(calm/talk)뿐이라 폴백상 대부분 두 상태로 수렴하지만, 5포즈가 채워지면
+     이 매핑 그대로 세밀해진다. */
+function poseForTurn(turn: Turn, speaking: boolean): InstPose {
+  const k = turn.interaction.kind
+  const s = turn.stage
+  if (speaking) return /^S[145]/.test(s) || k === 'mark' || k === 'match' ? 'point' : 'explain'
+  if (k === 'shadow' || k === 'subjective') return 'listen'
+  if (s.startsWith('S7') || s.includes('표현 정리')) return 'praise'
+  if (k === 'mark' || k === 'match' || /^S[145]/.test(s)) return 'point'
+  if (turn.no === 0) return 'greeting'
+  return 'explain'
+}
+
+/* ── 에이전트 그라운딩용 "이번 수업 사실" ──
+   /type-lesson은 그동안 에이전트에 단계 지시(turn.tutor)만 줬고 문항의 실제 내용(사진 묘사·보기·정답·근거)은
+   안 줬다 → 에이전트가 사진/지문을 지어내거나(할루시네이션), 오답을 교정하지 못했다.
+   세션이 붙으면 이 사실 뭉치를 sendContextualUpdate로 한 번 주입해 에이전트를 실제 문항에 묶는다. */
+function buildLessonFacts(lesson: TypeLesson): string {
+  const c = lesson.content
+  const lines: string[] = [
+    '[이번 수업의 실제 자료 — 아래 사실만 근거로 삼는다. 여기 없는 사진·지문 내용을 절대 지어내지 마라.]',
+    `유형: Part ${lesson.part} · ${lesson.typeLabel}`,
+  ]
+  if (c.photo) lines.push(`사진 속 내용: ${c.photoDesc ?? '(설명 없음 — 사진 세부를 임의로 단정하지 말고 학생 관찰을 따라가라)'}`)
+  for (const p of c.passages ?? []) {
+    const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
+    if (body) lines.push(`지문(${p.label ?? p.kind}): ${body}`)
+  }
+  c.questions.forEach((q, i) => {
+    lines.push(`문항 ${i + 1}: ${q.q}`)
+    q.options.forEach((o) =>
+      lines.push(`  ${o.label}) ${o.text}${o.correct ? ' ← 정답' : ''}${o.why ? `  (${o.why})` : ''}`))
+  })
+  lines.push('규칙: 학생이 오답을 고르면 정답을 바로 말하지 말고 위 근거로 왜 틀렸는지 짚고 다시 생각하게 하라. 학생이 물으면 위 사실 범위에서 답하라. 사실에 없는 건 모른다고 하라.')
+  return lines.join('\n')
+}
+
 /* 강사 발화 → UI에 짧게: 대본 통짜 대신 핵심 첫 문장 1개만 (음성은 전체 발화 유지) */
 function keySentence(t: string): string {
   const m = t.match(/^[\s\S]*?[.!?。](?=\s|$)/)
@@ -73,49 +113,16 @@ const S_HEADING: Record<string, string> = {
   '1': '핵심 단서 찾기', '2': '유형 파악', '3': '개념·표현 확인', '4': '구조 파악·읽기',
   '5': '정답 연결', '6': '오답 제거', '7': '핵심 정리',
 }
-const S_BULLETS: Record<string, string[]> = {
-  '1': ['문제·선택지·지문에서 눈에 띄는 핵심 단어를 먼저 찾아보세요.', '이 단서로 어떤 상황·주제인지 짐작해 보세요.'],
-  '2': ['문제의 형태를 보고 어떤 유형인지 먼저 정하세요.', '유형에 따라 확인할 순서가 달라져요.'],
-  '3': ['헷갈리기 쉬운 표현이나 문법 포인트를 선생님과 짚어보세요.', '비슷해 보이는 짝 표현은 차이를 확실히 구분하세요.'],
-  '4': ['문장·지문의 앞뒤 구조와 흐름을 확인하세요.', '필요한 부분은 끊어 읽으며 의미를 잡아보세요.'],
-  '5': ['지금까지 확인한 단서를 바탕으로 정답을 선택해 보세요.'],
-  '6': ['각 보기가 왜 오답인지 이유를 하나씩 생각해 보세요.'],
-  '7': ['오늘 다룬 핵심 표현과 전략을 다시 한번 떠올려 보세요.'],
-}
 /* S코드가 없는 자유 단계명(Q번호 진행, 실전형 등)은 인터랙션 종류 기준으로 대체 */
 const KIND_HEADING: Record<Interaction['kind'], string> = {
   next: '다음으로', choice: '선택해 보기', pickAnswer: '정답 고르기', solveAll: '문제 풀기',
   subjective: '생각 말하기', mark: '단서 찾기', shadow: '따라 말하기', match: '근거 연결',
 }
-const KIND_BULLETS: Record<Interaction['kind'], string[]> = {
-  next: ['선생님과의 대화 흐름을 따라 다음으로 넘어가 보세요.'],
-  choice: ['보기 중 하나를 선생님과 대화하며 골라보세요.', '고른 이유를 스스로 설명해 보면 더 좋아요.'],
-  pickAnswer: ['지금까지 확인한 근거를 바탕으로 정답을 선택해 보세요.'],
-  solveAll: ['배운 전략을 활용해 문제를 직접 풀어보세요.'],
-  subjective: ['선생님과 대화하며 생각을 말해 보세요.'],
-  mark: ['지문에서 단서가 되는 부분을 탭해 표시해 보세요.'],
-  shadow: ['문장을 들으며 억양과 끊어 읽기를 따라 해보세요.'],
-  match: ['지문에서 근거가 되는 부분을 탭해 서로 연결해 보세요.'],
-}
 
-/* ── 강사 노트 — 말풍선(누가 지금 말하는 중) 대신 "지금 이 단계에서 뭘 하면 되는지"만 알려주는 참고자료.
-   강사가 실제로 할 설명·질문은 여기 없다 — 그건 강사 에이전트가 대화로 직접 전달한다.
-   이 노트를 읽는다고 다음 턴으로 못 넘어간다 — 진행은 스캐폴딩 레일(수동, 지금은 UI 확인용) 또는
-   나중에 붙을 강사 에이전트 음성이 맡는다. */
-function TutorNote({ turn }: { turn: Turn }) {
+/* 단계 표시용 사람이 읽을 라벨 — TutorNote 헤딩과 같은 규칙(단계명 → S헤딩 → 인터랙션 헤딩) */
+function stageHeading(turn: Turn): string {
   const sNum = turn.stage.match(/^S(\d)/)?.[1]
-  const kind = turn.interaction.kind
-  const heading = cleanStageLabel(turn.stage) ?? (sNum ? S_HEADING[sNum] : undefined) ?? KIND_HEADING[kind]
-  const bullets = (sNum && S_BULLETS[sNum]) ? S_BULLETS[sNum] : KIND_BULLETS[kind]
-  /* 대화 흐름 안에 카드로 얹힌다 — 강사 말 바로 아래, "지금 이 단계에서 할 일" */
-  return (
-    <div className="rounded-2xl border border-[#BFD9FF] bg-[#F5F9FF] p-3">
-      <p className="text-[12.5px] font-bold text-[#1D4ED8] mb-1.5">{heading}</p>
-      <ul className="text-[12.5px] text-[#475569] space-y-1 list-disc pl-4 leading-relaxed">
-        {bullets.map((b, i) => <li key={i}>{b}</li>)}
-      </ul>
-    </div>
-  )
+  return cleanStageLabel(turn.stage) ?? (sNum ? S_HEADING[sNum] : undefined) ?? KIND_HEADING[turn.interaction.kind]
 }
 
 /* 생성된 mp3 경로 — scripts/gen_type_lesson_audio.mjs가 만든 매니페스트.
@@ -359,12 +366,57 @@ function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void
   )
 }
 
+/* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
+   콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
+   실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
+function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
+  turn: Turn; lesson: TypeLesson
+  answers: Record<number, string>; graded: Set<number>; matchTapped: Set<string>
+}) {
+  const it = turn.interaction
+  let icon = ''
+  let text = ''
+  let sub = ''
+  let done = false
+  if (it.kind === 'mark') {
+    icon = '🖍️'; text = it.prompt; sub = '지문에서 단어를 탭하면 형광펜'
+  } else if (it.kind === 'pickAnswer') {
+    done = graded.has(it.qIdx)
+    icon = '🎯'; text = it.prompt ?? '위 문항의 보기에서 정답을 선택하세요'
+    sub = done ? '정답 선택 완료' : `Q${it.qIdx + 1} 보기를 탭하세요`
+  } else if (it.kind === 'solveAll') {
+    const total = lesson.content.questions.length
+    const answered = lesson.content.questions.filter((_, i) => answers[i]).length
+    done = answered === total
+    icon = '✍️'; text = it.prompt ?? '모든 문항의 답을 선택하세요'; sub = `${answered}/${total} 선택`
+  } else if (it.kind === 'match') {
+    const totalTargets = it.evidence.reduce((n, ev) => n + ev.targetIds.length, 0)
+    const matched = it.evidence.reduce((n, ev) => n + ev.targetIds.filter((tid) => matchTapped.has(`${ev.passageId}:${tid}`)).length, 0)
+    done = matched >= totalTargets
+    icon = '🔗'; text = it.prompt; sub = done ? '근거 모두 연결됨' : `근거 ${matched}/${totalTargets}`
+  } else {
+    return null
+  }
+  return (
+    <div className={`shrink-0 mx-3 md:mx-6 mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 ${
+      done ? 'border-[#86EFAC] bg-[#F0FDF4]' : 'border-[#FDBA74] bg-[#FFF7ED]'
+    }`}>
+      <span className="text-[13px] shrink-0">{icon}</span>
+      <span className={`text-[12px] font-bold truncate ${done ? 'text-[#15803D]' : 'text-[#C2410C]'}`}>{text}</span>
+      {sub && <span className={`ml-auto shrink-0 text-[11px] font-semibold ${done ? 'text-[#16A34A]' : 'text-[#9A3412]'}`}>{sub}</span>}
+    </div>
+  )
+}
+
 export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { lesson: TypeLesson; instructor?: string }) {
   const router = useRouter()
   const turns = lesson.turns
   const [turnIdx, setTurnIdx] = useState(0)
   const turnIdxRef = useRef(0)              // clientTool은 최신 turnIdx를 ref로 읽는다(클로저 고정 방지)
   turnIdxRef.current = turnIdx
+  /* 음원을 끝까지 들려준 턴 번호. next_step이 "음원 있는 단계"를 다 재생하기 전에 넘어가지 못하게 막는다
+     (에이전트가 여러 단계를 몰아 말하며 next_step을 연달아 부를 때 듣기 음원이 스킵되던 문제 방지). */
+  const audioDoneRef = useRef<Set<number>>(new Set())
 
   /* 강사 = 온보딩 선택(페이지가 내려줌). 레일은 이도윤 ver 한 벌이라 짚는 순서는 동일하고,
      목소리·얼굴·화법만 갈린다. 전용 에이전트가 없는 강사는 박혜원 에이전트로 폴백. */
@@ -406,6 +458,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
     clientTools: {
       next_step: async () => {
         const cur = turnIdxRef.current
+        /* 게이트: 이 단계에 음원이 있는데 아직 다 안 들려줬으면 넘어가지 않는다 —
+           음원은 앱이 "턴에 진입할 때" 재생하는데, 에이전트가 그 전에 next_step을 부르면
+           듣기 음원이 스킵된다. 다 들려준 뒤(다음 호출)에야 전진하게 막는다. */
+        if (turns[cur]?.audio && !audioDoneRef.current.has(cur)) {
+          return '지금 이 단계의 음원을 아직 다 들려주지 않았다. 다음 단계로 넘어가지 말고, 음원이 끝나고 학생이 답할 때까지 짧게 기다려라.'
+        }
         if (cur >= turns.length - 1) {
           stopVoice()
           setPhase('practice')
@@ -439,6 +497,53 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   }
   const endAgent = () => { try { conversation.endSession() } catch { /* noop */ } }
   useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 수업 화면 진입(도입에서 "수업 시작" 클릭 → started=true) 시 강사 대화를 자동으로 시작한다.
+     그 클릭이 사용자 제스처라 세션 시작/마이크 권한이 허용된다. 이미 연결 중/연결됨이면 건드리지 않고,
+     started는 세션 동안 한 번만 true로 바뀌므로 "다시 해보기"로 재시작해도 중복 연결되지 않는다.
+     (학생이 직접 '대화 종료'를 누른 경우엔 이 효과가 다시 안 돌아 자동 재연결도 없다) */
+  const autoStartedRef = useRef(false)
+  useEffect(() => {
+    if (!started || autoStartedRef.current) return
+    if (conversation.status !== 'disconnected') return
+    autoStartedRef.current = true
+    startAgent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started])
+
+  /* ── 비언어 행동을 강사 에이전트에 전달 ──
+     음성/텍스트만이 아니라 화면에서 한 행동(보기 선택·정답 선택·단어 마킹·근거 연결)도 '학생의 응답'으로
+     에이전트에 보내야, 에이전트가 그걸 인식해 반응하고 next_step으로 스캐폴딩을 진행한다.
+     연결 전이면 무시(그땐 수동 진행). key로 같은 행동의 중복 전송을 막는다(예: 마킹이 조금씩 완성될 때). */
+  const reportedRef = useRef<Set<string>>(new Set())
+  const reportAction = (key: string, message: string) => {
+    if (!agentConnected || reportedRef.current.has(key)) return
+    reportedRef.current.add(key)
+    /* 에이전트에만 보낸다 — 이 지시형 메시지는 화면 "내 답변"에 노출하지 않는다(chatLog에 넣지 않음).
+       학생 화면엔 실제 발화·타이핑한 답만 뜨고, 선택·마킹 같은 행동은 이미 화면에 반영돼 있다. */
+    try { conversation.sendUserMessage(message) } catch { /* noop */ }
+  }
+  /* 행동 → 에이전트 지시형 메시지. 결과(정/오답)와 근거를 함께 줘서, 오답이면 "좋아요"가 아니라
+     실제로 교정하게 만든다. (정답은 짧게 칭찬, 오답은 정답 노출 없이 왜 틀렸는지 짚기) */
+  const actionMessage = (label: string, ok?: boolean, reason?: string) => {
+    if (ok === true) return `[학생 행동] ${label} — 정답이다. 짧게 칭찬하고 근거 한 줄만 확인해 줘라.`
+    if (ok === false) return `[학생 행동] ${label} — 오답이다. 정답을 바로 알려주지 말고, 왜 틀렸는지 짚어주고 다시 생각하게 하라.${reason ? ` 참고 근거(원문): "${reason}"` : ''}`
+    return `[학생 행동] ${label} 이 행동에 맞춰 짧게 반응하라.`
+  }
+
+  /* 세션이 붙으면 "이번 수업의 실제 사실"을 한 번 주입 — 에이전트가 사진/지문을 지어내지 않고
+     오답을 실제 근거로 교정하게 한다(Contextual Update: 화면·음성엔 안 나오는 귓속말). */
+  const factsSentRef = useRef(false)
+  useEffect(() => {
+    if (!agentConnected) { factsSentRef.current = false; return }
+    if (factsSentRef.current) return
+    factsSentRef.current = true
+    try {
+      ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void })
+        .sendContextualUpdate?.(buildLessonFacts(lesson))
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentConnected])
 
   /* 대화 흐름은 항상 마지막 발화가 보이게 — 턴이 넘어가거나 새 메시지가 오면 아래로 */
   useEffect(() => {
@@ -481,6 +586,26 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   const [shadowSaid, setShadowSaid] = useState('')
   /** 근거 연결(match) — 지문에서 직접 탭한 근거. `${passageId}:${targetId}` 키로 저장 */
   const [matchTapped, setMatchTapped] = useState<Set<string>>(new Set())
+
+  /* 단어 마킹(mark) — 목표 단어를 모두 형광펜으로 표시하면 완료로 보고 에이전트에 알린다 */
+  useEffect(() => {
+    const it = turn.interaction
+    if (it.kind !== 'mark' || !it.targetWords?.length) return
+    const targets = targetTokens(it.targetWords)
+    const allMarked = Array.from(targets).every((w) => marks.has(w))
+    if (allMarked) reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marks, turnIdx])
+
+  /* 근거 연결(match) — 모든 근거를 지문에서 탭해 연결하면 완료로 보고 알린다 */
+  useEffect(() => {
+    const it = turn.interaction
+    if (it.kind !== 'match') return
+    const total = it.evidence.reduce((n, ev) => n + ev.targetIds.length, 0)
+    const matched = it.evidence.reduce((n, ev) => n + ev.targetIds.filter((tid) => matchTapped.has(`${ev.passageId}:${tid}`)).length, 0)
+    if (total > 0 && matched >= total) reportAction(`${turnIdx}:match`, actionMessage('지문에서 근거를 모두 찾아 연결했습니다'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchTapped, turnIdx])
 
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
@@ -592,6 +717,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
       }
       if (!alive || !turn.audio) return
       await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
+      // 이 턴 음원을 끝까지 들려줬다 — next_step 게이트 해제 (이제 다음 단계로 넘어가도 됨)
+      if (alive) audioDoneRef.current.add(turnIdx)
       // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
       if (alive && turn.audio.kind === 'full') setFullDone(true)
     })()
@@ -619,6 +746,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
       setAnswers((p) => ({ ...p, [qIdx]: label }))
       setGraded((p) => new Set(p).add(qIdx))
       setAnsweredQ((p) => new Set(p).add(qIdx))
+      const opt = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)
+      reportAction(`${turnIdx}:pick`, actionMessage(`${label}번 보기를 정답으로 선택했습니다`, opt?.correct, opt?.correct ? undefined : opt?.why))
     } else if (it.kind === 'solveAll') {
       setAnswers((p) => ({ ...p, [qIdx]: label }))
     }
@@ -657,6 +786,9 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
   }
 
   const macroActive = MACRO_IDX[macroOf(turn)]
+  /* 강사가 지금 말하는 중인가 — 에이전트 연결 시 실제 발화, 아니면 음원/TTS 재생 여부.
+     포즈(입 벌린 설명 ↔ 차분) 선택과 도크 하이라이트에 함께 쓴다. */
+  const tutorSpeaking = agentConnected ? conversation.isSpeaking : playingId !== null
 
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
@@ -727,7 +859,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
           <p className="text-[13px] text-[#6B7280] mt-1">{lesson.partName} · {lesson.typeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
+          <button onClick={() => { audioDoneRef.current = new Set(); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
             className="px-5 py-2.5 rounded-xl border border-[#C7D2FE] text-[#2563EB] text-sm font-bold hover:bg-[#EFF6FF]">다시 해보기</button>
           <button onClick={() => router.push('/lessons')} className={PRIMARY_BTN}>다른 유형 보러 가기</button>
         </div>
@@ -759,9 +891,11 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
       {/* ── 스캐폴딩 레일 (턴별 단계) ── */}
       <ScaffoldRail turns={turns} turnIdx={turnIdx} onJump={setTurnIdx} />
 
-      {/* ── 본문: 좌 지문/문제 · 우 강사 창(사이드바). 강사 창을 접으면 좌측이 전체 폭이 된다 ── */}
-      <div ref={splitRef} className="flex-1 flex flex-col lg:flex-row min-h-0 bg-white">
-        {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
+      {/* ── 본문: 강사 창 배치에 따라 골격이 바뀐다 ──
+           우측 패널(sidebar) = 좌 콘텐츠 · 우 기둥 (가로) · 하단 도크(bottom) = 콘텐츠 위 · 바 아래 (세로)
+           최소화(mini)는 fixed라 자리를 차지하지 않아 콘텐츠가 전체 폭 */}
+      <div ref={splitRef} className={`flex-1 flex min-h-0 bg-white ${dockMode === 'bottom' ? 'flex-col' : 'flex-col lg:flex-row'}`}>
+        {/* 좌(또는 위): 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
         <div className={`min-h-0 flex flex-col border-b lg:border-b-0 border-gray-100 ${
           dockMode === 'sidebar' ? 'h-[42%] lg:h-full lg:w-[var(--lf)]' : 'flex-1 h-full w-full'
         }`} style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
@@ -771,10 +905,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
             <AudioBar items={audioItems} unlocked={barUnlocked} playing={barPlaying} idx={barIdx}
               onPlay={barPlayFrom} onPause={barPause} onSeek={barPlayFrom} />
           )}
+          {/* 지문/문항에서 직접 할 일 — 콘텐츠 바로 위 작은 안내 (설명 영역에서 뺀 지시) */}
+          <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped} />
           <div ref={contentRef} className={`flex-1 min-h-0 px-3 md:px-6 py-4 ${
             lesson.part === 6 || lesson.part === 7 ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
           }`}>
-            <ContentView lesson={lesson} st={st} />
+            <ContentView lesson={lesson} st={st} readingSideBySide={dockMode === 'bottom'} />
           </div>
         </div>
 
@@ -786,81 +922,91 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
           </div>
         )}
 
-        {/* 우: 강사 창 — 사이드바 ⇄ 모달창 ⇄ 작은 창. 모달·작은 창은 fixed라 여기 자리를 차지하지 않는다. */}
+        {/* 우(또는 하단): 강사 창 — 우측 패널 ⇄ 하단 도크 ⇄ 플로팅 ⇄ 작은 창.
+            플로팅·작은 창은 fixed라 여기 자리를 차지하지 않는다. 내용은 슬롯으로 넘기고 배치는 도크가 정한다. */}
         <TutorDock
           mode={dockMode} setMode={setDockMode}
           name={teacherName} imgSrc={teacherImg}
+          poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
+          step={{ idx: turnIdx + 1, total: turns.length, label: stageHeading(turn) }}
+          chatMode={chatMode}
+          getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
           connected={agentConnected}
-          isSpeaking={agentConnected ? conversation.isSpeaking : playingId !== null}
+          isSpeaking={tutorSpeaking}
           /* 작은 창엔 "지금 하는 말" 한 줄 */
           lastLine={agentConnected && lastAgentAi ? lastAgentAi : keySentence(turn.tutor)}
-        >
-          {/* ── ① 단계 영역 (턴마다 갈아끼움) — 이번 단계에서 할 일 + 상호작용.
-                 대화(강사 말 → 내 응답 → 말하는 자리)를 끊지 않으려고 위로 뺐다 ── */}
-          <div ref={feedRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 py-3 space-y-2.5">
-            <TutorNote turn={turn} />
-            <InteractionDock
-              key={turnIdx}
-              turn={turn} lesson={lesson}
-              goNext={goNext}
-              answers={answers} graded={graded} submitAll={submitAll}
-              choicePicked={choicePicked} setChoicePicked={setChoicePicked}
-              subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
-              markDone={markDone}
-              onMarkDone={() => {
-                const it = turn.interaction
-                if (it.kind === 'mark' && it.targetWords) setTutorMarks((p) => { const n = new Set(p); targetTokens(it.targetWords).forEach((w) => n.add(w)); return n })
-                setMarkDone(true)
-              }}
-              shadowSaid={shadowSaid} setShadowSaid={setShadowSaid}
-              matchTapped={matchTapped}
-              setPlayingId={setPlayingId}
-            />
-            {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
-            {turnIdx === turns.length - 1 && (
-              <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
-            )}
-          </div>
-
-          {/* 음원 재생 바 (듣기 재생 중에만) */}
-          {playingId && <PlaybackBar label={playbackLabel(lesson, playingId)} onReplay={turn.audio ? replayCue : undefined} />}
-
-          {/* ── ② 대화 영역 (고정) — 이번 턴의 강사 말 → 내 응답 → 내가 말하는 자리. 지난 대화는 쌓지 않는다 ── */}
-          <div className="shrink-0 border-t border-gray-100 px-3 md:px-4 pt-2.5 space-y-2 max-h-[42%] overflow-y-auto">
-            <div className="flex gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={teacherImg} alt={teacherName} className="w-6 h-6 rounded-full object-cover object-top shrink-0 mt-0.5" />
-              <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800 text-[13px] leading-relaxed">
-                {tutorLine}
-              </div>
-            </div>
-            {studentLine && (
-              <div className="flex justify-end">
-                <div className="max-w-[85%] px-3 py-2.5 rounded-2xl rounded-tr-sm bg-[#2563EB] text-white text-[13px] leading-relaxed">
-                  {studentLine}
+          bodyRef={feedRef}
+          /* ── ① 강사 말 — 사진 바로 아래(세로)/좌측(가로). 시안: 심플 텍스트 ── */
+          speech={
+            <>
+              <p className="text-[13.5px] leading-relaxed text-[#475569] font-medium">{tutorLine}</p>
+              {studentLine && (
+                <div className="mt-2 rounded-xl border border-[#C7D2FE] bg-[#F5F8FF] px-3 py-2">
+                  <span className="block text-[10px] font-black tracking-wide text-[#2563EB] mb-0.5">내 답변</span>
+                  <p className="text-[12.5px] text-[#1C1B33] leading-snug">{studentLine}</p>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* 내가 말하는 자리 — 음성이면 파형, 텍스트면 입력창 (대화 영역에 바로 이어 붙는다) */}
-          <TutorComposer
-            connected={agentConnected} connecting={agentConnecting}
-            isSpeaking={conversation.isSpeaking}
-            chatMode={chatMode} setChatMode={setChatMode}
-            inputText={inputText} setInputText={setInputText}
-            getFreq={() => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
-            onSend={() => {
-              const t = inputText.trim()
-              if (!t || !agentConnected) { setInputText(''); return }
-              conversation.sendUserMessage(t)
-              setChatLog((prev) => [...prev, { role: 'user', text: t }])
-              setInputText('')
-            }}
-            onStartAgent={startAgent}
-            onEndSession={endAgent}
-          />
-        </TutorDock>
+              )}
+            </>
+          }
+          /* ── ② 선택지 / 간단한 설명 ── */
+          body={
+            <>
+              <InteractionDock
+                key={turnIdx}
+                turn={turn} lesson={lesson}
+                goNext={goNext}
+                answers={answers} graded={graded} submitAll={submitAll}
+                choicePicked={choicePicked} setChoicePicked={setChoicePicked}
+                onChoicePick={(c) => {
+                  const it = turn.interaction
+                  if (it.kind !== 'choice') return
+                  /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
+                     (틀린 선택지는 correct가 undefined라, 그대로 넘기면 '채점 없음'으로 흘러가 교정을 못 했다) */
+                  const graded = it.choices.some((ch) => !!ch.correct)
+                  const ok = graded ? c.correct === true : undefined
+                  const label = `'${it.prompt}'에 대해 '${c.text}'라고 답함`
+                  reportAction(`${turnIdx}:choice`, actionMessage(label, ok, ok === false ? it.feedback : undefined))
+                }}
+                subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
+                markDone={markDone}
+                onMarkDone={() => {
+                  const it = turn.interaction
+                  if (it.kind === 'mark' && it.targetWords) setTutorMarks((p) => { const n = new Set(p); targetTokens(it.targetWords).forEach((w) => n.add(w)); return n })
+                  setMarkDone(true)
+                }}
+                shadowSaid={shadowSaid} setShadowSaid={setShadowSaid}
+                matchTapped={matchTapped}
+                setPlayingId={setPlayingId}
+              />
+              {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
+              {turnIdx === turns.length - 1 && (
+                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
+              )}
+            </>
+          }
+          /* 음원 재생 바 (듣기 재생 중에만) */
+          playback={playingId ? <PlaybackBar label={playbackLabel(lesson, playingId)} onReplay={turn.audio ? replayCue : undefined} /> : undefined}
+          /* ── ③ 학생 응답 입력 — 맨 아래(세로)/우측(가로) ── */
+          composer={
+            <TutorComposer
+              connected={agentConnected} connecting={agentConnecting}
+              isSpeaking={conversation.isSpeaking}
+              topFlush={dockMode === 'bottom'}
+              chatMode={chatMode} setChatMode={setChatMode}
+              inputText={inputText} setInputText={setInputText}
+              getFreq={() => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
+              onSend={() => {
+                const t = inputText.trim()
+                if (!t || !agentConnected) { setInputText(''); return }
+                conversation.sendUserMessage(t)
+                setChatLog((prev) => [...prev, { role: 'user', text: t }])
+                setInputText('')
+              }}
+              onStartAgent={startAgent}
+              onEndSession={endAgent}
+            />
+          }
+        />
       </div>
 
       <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
@@ -1089,6 +1235,8 @@ function InteractionDock(props: {
   goNext: () => void
   answers: Record<number, string>; graded: Set<number>; submitAll: () => void
   choicePicked: number | null; setChoicePicked: (i: number) => void
+  /** 퀵 선택지를 고르면 그 행동을 강사 에이전트에 알린다(반응·진행) */
+  onChoicePick?: (choice: { text: string; correct?: boolean }) => void
   subjText: string; setSubjText: (t: string) => void; subjSent: boolean; setSubjSent: (b: boolean) => void
   markDone: boolean; onMarkDone: () => void
   shadowSaid: string; setShadowSaid: (t: string) => void
@@ -1109,18 +1257,23 @@ function InteractionDock(props: {
     const done = picked !== null
     return (
       <div>
-        <p className="text-[12px] font-bold text-[#1C1B33] mb-2">💬 {it.prompt}</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="text-[12px] font-bold text-[#1C1B33] mb-2">{it.prompt}</p>
+        <div className="space-y-2">
           {it.choices.map((c, i) => {
             const isPicked = picked === i
             const cls = done
               ? c.correct ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                : isPicked ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]' : 'border-[#E5E7EB] text-[#9CA3AF]'
-              : 'border-[#C7D2FE] bg-[#F8FAFF] text-[#1C1B33] hover:border-[#2563EB] hover:bg-[#EFF6FF]'
+                : isPicked ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]' : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
+              : 'border-[#DBEAFE] bg-white text-[#1C1B33] hover:border-[#2563EB] hover:bg-[#F8FAFF]'
+            const badgeCls = done
+              ? c.correct ? 'bg-[#DCFCE7] text-[#15803D]' : isPicked ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#F1F5F9] text-[#94A3B8]'
+              : 'bg-[#EFF6FF] text-[#2563EB]'
             return (
-              <button key={i} disabled={done} onClick={() => props.setChoicePicked(i)}
-                className={`text-[13px] font-semibold border rounded-xl px-4 py-2.5 text-left transition-all active:scale-[0.98] ${cls}`}>
-                <span className="mr-1.5 font-black">{['①', '②', '③', '④'][i]}</span>{c.text}
+              <button key={i} disabled={done} onClick={() => { props.setChoicePicked(i); props.onChoicePick?.(c) }}
+                className={`w-full flex items-center gap-2.5 text-[13px] font-semibold border rounded-xl px-3.5 py-3 text-left transition-all active:scale-[0.99] ${cls}`}>
+                <span className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[12px] font-black ${badgeCls}`}>{i + 1}</span>
+                <span className="flex-1">{c.text}</span>
+                {done && c.correct && <span className="shrink-0 text-[#15803D]">✓</span>}
               </button>
             )
           })}
@@ -1134,42 +1287,10 @@ function InteractionDock(props: {
     )
   }
 
-  /* 필수 응답 — 본문 보기에서 선택. "다음" 버튼 없음 */
-  if (it.kind === 'pickAnswer') {
-    const done = props.graded.has(it.qIdx)
-    return (
-      <p className="text-[12px] font-bold text-[#1C1B33]">
-        🎯 {it.prompt ?? '위 문항의 보기에서 정답을 선택하세요'}
-        {!done && <span className="ml-2 text-[11px] font-semibold text-[#2563EB] animate-pulse">Q{it.qIdx + 1} 보기를 탭하세요</span>}
-      </p>
-    )
-  }
-
-  /* 실전 풀이 — 전 문항 선택. "제출하기"/"다음" 버튼 없음 */
-  if (it.kind === 'solveAll') {
-    const total = lesson.content.questions.length
-    const answered = lesson.content.questions.filter((_, i) => props.answers[i]).length
-    return (
-      <p className="text-[12px] font-bold text-[#1C1B33]">
-        ✍️ {it.prompt ?? '모든 문항의 답을 선택하세요'}
-        <span className={`ml-2 text-[11px] font-black ${answered === total ? 'text-[#16A34A]' : 'text-[#9CA3AF]'}`}>{answered}/{total} 선택</span>
-      </p>
-    )
-  }
-
-  /* 주관식 — 실제 말하기는 강사 에이전트와의 대화로만. 여기엔 입력창/마이크 없음(강사 노트가 안내) */
-  if (it.kind === 'subjective') {
+  /* 지문·문항에서 직접 하는 지시(정답 선택·전체 풀기·주관식·단어 마킹)는 설명 영역에서 빼고,
+     콘텐츠(지문/문항) 위 작은 안내 배너로 옮겼다(ContentActionHint). 여기선 렌더 안 함. */
+  if (it.kind === 'pickAnswer' || it.kind === 'solveAll' || it.kind === 'subjective' || it.kind === 'mark') {
     return null
-  }
-
-  /* 필기 인식(마킹) — 단어 탭 + 필기. "다 표시했어요"/"다음" 버튼 없음 */
-  if (it.kind === 'mark') {
-    return (
-      <p className="text-[12px] font-bold text-[#1C1B33]">
-        🖍️ {it.prompt}
-        <span className="ml-2 text-[11px] font-normal text-[#9CA3AF]">단어를 탭하면 형광펜, 상단 ✏️필기로 자유롭게 쓸 수도 있어요</span>
-      </p>
-    )
   }
 
   /* 쉐도잉 — 듣기·마이크는 유지, "완료" 버튼 없음 */
@@ -1201,34 +1322,10 @@ function InteractionDock(props: {
     )
   }
 
-  /* 근거 연결 (이중·삼중 지문) — 지문에서 직접 근거를 탭한다. 여기는 진행 체크리스트만 표시, "다음" 버튼 없음 */
+  /* 근거 연결 (이중·삼중 지문) — 지문에서 직접 근거를 탭한다. 지시·진행은 지문 위 안내 배너로 옮겨서
+     설명 영역에선 렌더 안 함. (진행 상태는 지문의 초록 하이라이트 + 배너 카운트로 확인) */
   if (it.kind === 'match') {
-    const totalTargets = it.evidence.reduce((n, ev) => n + ev.targetIds.length, 0)
-    const matchedCount = it.evidence.reduce((n, ev) => n + ev.targetIds.filter((tid) => props.matchTapped.has(`${ev.passageId}:${tid}`)).length, 0)
-    const allDone = matchedCount >= totalTargets
-    return (
-      <div>
-        <p className="text-[12px] font-bold text-[#1C1B33] mb-2">🔗 {it.prompt} <span className="text-[11px] font-normal text-[#9CA3AF]">왼쪽 지문에서 근거가 되는 문장·행을 직접 탭하세요</span></p>
-        <div className="space-y-1.5">
-          {it.evidence.map((ev) => {
-            const done = ev.targetIds.every((tid) => props.matchTapped.has(`${ev.passageId}:${tid}`))
-            return (
-              <div key={ev.label} className={`flex items-center gap-2 text-[12px] font-semibold rounded-lg px-3 py-2 border transition-colors ${
-                done ? 'border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]' : 'border-[#E5E7EB] bg-white text-[#6B7280]'
-              }`}>
-                <span className={`shrink-0 w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${done ? 'bg-[#22C55E] text-white' : 'bg-[#F3F4F6] text-[#9CA3AF]'}`}>
-                  {done ? '✓' : ''}
-                </span>
-                {ev.label}
-              </div>
-            )
-          })}
-        </div>
-        <p className={`text-[12px] font-semibold mt-2.5 ${allDone ? 'text-[#15803D]' : 'text-[#9CA3AF]'}`}>
-          {allDone ? '✓ 근거가 모두 연결됐어요!' : `${matchedCount}/${totalTargets} 연결됨`}
-        </p>
-      </div>
-    )
+    return null
   }
 
   return null

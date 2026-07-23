@@ -17,6 +17,43 @@ export const INST_THUMBS: Record<string, string> = {
   oh_jungja: '/image_reference/ojungja.jpg',
 }
 
+/* ── 강사 포즈 컷아웃 (배경 투명 상반신) — 수업 화면에서 스캐폴딩 단계에 따라 교체 ──
+   포즈 5종을 스펙으로 열어두되, 실제로 들어온 이미지만 매핑한다. 없는 포즈는 아래 폴백
+   체인(instPose)으로 채우고, 강사 자체가 포즈 에셋이 없으면 썸네일로 폴백한다.
+   촬영 규격: 배경 투명 PNG · 상반신 · 같은 인물/옷/조명/크기 · 얼굴이 프레임 동일 지점.
+   현재 이도윤만 2장(calm=두 손 모은 차분, talk=손 펼쳐 말하는 중). 나머지는 들어오는 대로. */
+export type InstPose = 'greeting' | 'explain' | 'point' | 'listen' | 'praise'
+
+export const INST_POSES: Record<string, Partial<Record<InstPose, string>>> = {
+  lee_doyun: {
+    greeting: '/instructor/lee_doyun/calm.png',
+    explain: '/instructor/lee_doyun/talk.png',
+  },
+}
+
+/* 포즈 폴백 체인 — 요청한 포즈가 없으면 성격이 가까운 포즈로 대체.
+   짚기(point)는 설명(explain)으로, 듣기·칭찬은 기본(greeting)으로 수렴한다. */
+const POSE_FALLBACK: Record<InstPose, InstPose[]> = {
+  greeting: ['greeting'],
+  explain: ['explain', 'greeting'],
+  point: ['point', 'explain', 'greeting'],
+  listen: ['listen', 'greeting'],
+  praise: ['praise', 'greeting'],
+}
+
+/** 강사 × 포즈 → 이미지 경로. 포즈 에셋이 아예 없는 강사면 null (호출부가 썸네일로 폴백). */
+export function instPose(instructor: string, pose: InstPose): string | null {
+  const poses = INST_POSES[instructor]
+  if (!poses) return null
+  for (const p of POSE_FALLBACK[pose]) {
+    if (poses[p]) return poses[p] as string
+  }
+  return null
+}
+
+/** 이 강사가 포즈 컷아웃을 갖고 있는가 (없으면 기존 썸네일 UI 유지) */
+export const hasPoses = (instructor: string) => Boolean(INST_POSES[instructor])
+
 // 강사별 수업 튜터 ElevenLabs 에이전트. 전용 에이전트가 없는 강사는 박혜원 에이전트로 폴백.
 export const TUTOR_AGENT_DEFAULT = 'agent_2501kt0w00khfrr8869g2z5vnpaz' // 박혜원
 export const INST_AGENT: Record<string, string> = {

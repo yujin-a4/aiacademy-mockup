@@ -75,11 +75,16 @@ const config: Config = {
         'particle-fly':'particleFly 0.7s ease-out both',
         'pop-badge':   'popBadge 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         'eq':          'eq 0.9s ease-in-out infinite',
+        'pose-in':     'poseIn 0.26s ease-out both',
       },
       keyframes: {
         eq: {
           '0%, 100%': { transform: 'scaleY(0.35)' },
           '50%':      { transform: 'scaleY(1)' },
+        },
+        poseIn: {
+          '0%':   { opacity: '0', transform: 'translateY(6px) scale(0.99)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         svgDraw: {
           '0%': { 'stroke-dashoffset': '1000', opacity: '0' },
