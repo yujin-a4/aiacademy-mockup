@@ -6,6 +6,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
+import { useCurriculumLectures, type DbLecture } from '@/data/db/questionStore'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -820,6 +821,88 @@ function TypeCard({ t }: { t: TypeLessonData }) {
   )
 }
 
+/* ── 커리큘럼 강의 그리드 (내 학습의 정본 축) ──
+   lectures 테이블(정규 42강 + 데모)을 파트별로 나열. 문항 있는 강의만 플레이 가능(→ /lecture/[code]).
+   Part 2~4(LC 듣기)는 아직 화면 미지원이라 문항이 있어도 준비중으로 둔다. */
+const PART_NAME: Record<number, string> = {
+  1: '사진 묘사', 2: '질의·응답', 3: '짧은 대화', 4: '짧은 담화',
+  5: '단문 빈칸', 6: '장문 빈칸', 7: '독해',
+}
+const PLAYABLE_PARTS = new Set([1, 5, 6, 7])
+
+/* 실전 최소 3문제 원칙 — 1~2문항짜리 placeholder는 누르면 깨지므로 "준비 중"으로.
+   실제 강의는 모두 4문항 이상(수업+실전 3). questionCount는 전체 문항 수. */
+const MIN_PLAYABLE = 4
+
+function CurriculumCard({ l }: { l: DbLecture }) {
+  const router = useRouter()
+  const lc = l.lcRc === 'LC'
+  const playable = l.questionCount >= MIN_PLAYABLE && PLAYABLE_PARTS.has(l.part)
+  return (
+    <button
+      disabled={!playable}
+      onClick={() => playable && router.push(`/lecture/${l.code}`)}
+      className={`group text-left rounded-2xl border p-4 transition-all ${
+        playable
+          ? 'bg-white border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99] cursor-pointer'
+          : 'bg-[#F9FAFB] border-[#EEF0F3] cursor-default'
+      }`}
+    >
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {l.part}</span>
+        {playable
+          ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-2 py-0.5 rounded-md">{l.questionCount}문항</span>
+          : <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-2 py-0.5 rounded-md">준비 중</span>}
+      </div>
+      <p className={`text-[14px] font-bold mb-2 ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'} transition-colors`}>{l.title}</p>
+      {playable && (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB]">
+          수업 시작
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+        </span>
+      )}
+    </button>
+  )
+}
+
+function CurriculumGrid() {
+  const lectures = useCurriculumLectures()
+  const parts = useMemo(() => {
+    const map = new Map<number, DbLecture[]>()
+    for (const l of lectures) {
+      if (!map.has(l.part)) map.set(l.part, [])
+      map.get(l.part)!.push(l)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
+  }, [lectures])
+  const playableCount = lectures.filter((l) => l.questionCount > 0 && PLAYABLE_PARTS.has(l.part)).length
+
+  if (lectures.length === 0) return null
+  return (
+    <div className="space-y-5">
+      <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+        <p className="text-[13px] font-bold text-[#1C1B33]">커리큘럼 정규 수업 <span className="text-[#2563EB]">{lectures.length}강</span> <span className="text-[#9CA3AF] font-semibold">· 지금 들을 수 있는 강의 {playableCount}</span></p>
+        <p className="text-[11px] text-[#9CA3AF] mt-0.5">파트별 강의를 강사 스캐폴딩(S1~S7)으로 학습해요. 문항이 준비된 강의부터 열립니다.</p>
+      </div>
+      {parts.map(([part, lessons]) => {
+        const lc = lessons[0].lcRc === 'LC'
+        return (
+          <div key={part}>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {part}</span>
+              <p className="text-[12px] font-bold text-[#374151]">{PART_NAME[part] ?? ''}</p>
+              <span className="text-[11px] text-[#C4C9D4]">{lessons.length}강</span>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {lessons.map((l) => <CurriculumCard key={l.code} l={l} />)}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function TypeGrid() {
   /* 파트별(1~7) 그룹 — 2분할 그리드 대신 한 줄로 쭉, 파트마다 구분해서 나열 */
   const parts = useMemo(() => {
@@ -907,6 +990,8 @@ export default function LessonsPage() {
 
   const [viewer, setViewer] = useState<{ kind: 'study' | 'tip'; index: number; autoPrint?: boolean } | null>(null)
   const [notesTab, setNotesTab] = useState<'lessons' | 'notes'>('lessons')
+  /* 학습 뷰 전환 — 커리큘럼(FGI용 정규 42강) ↔ 유형별(개발사 소통용 15유형 샘플). 임시 토글. */
+  const [lessonView, setLessonView] = useState<'curriculum' | 'type'>('curriculum')
   const openStudy = (lessonId: string) => {
     const i = studyNotes.findIndex(n => n.id === lessonId)
     setViewer({ kind: 'study', index: i < 0 ? 0 : i })
@@ -1076,8 +1161,31 @@ export default function LessonsPage() {
                 </div>
               </div>
 
-              {/* 15문항 유형 그리드 — 유형별 샘플 수업 (시트: 문항 유형 0703 × 이도윤 스캐폴딩 0713) */}
-              <TypeGrid />
+              {/* 학습 뷰 토글 — 커리큘럼(FGI) ↔ 유형별(개발사 소통) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1 p-1 bg-[#F1F5F9] rounded-xl w-fit">
+                  <button
+                    onClick={() => setLessonView('curriculum')}
+                    className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${lessonView === 'curriculum' ? 'bg-white text-[#2563EB] shadow-[0_1px_4px_rgba(0,0,0,0.08)]' : 'text-[#94A3B8] hover:text-[#64748B]'}`}
+                  >
+                    📚 정규 커리큘럼
+                  </button>
+                  <button
+                    onClick={() => setLessonView('type')}
+                    className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${lessonView === 'type' ? 'bg-white text-[#2563EB] shadow-[0_1px_4px_rgba(0,0,0,0.08)]' : 'text-[#94A3B8] hover:text-[#64748B]'}`}
+                  >
+                    🧩 문항 유형별
+                  </button>
+                </div>
+                <span className="text-[11px] font-bold text-[#EF4444]">← UI 확인용 임시 버튼</span>
+              </div>
+
+              {lessonView === 'curriculum'
+                ? /* 커리큘럼 정규 수업 — lectures 테이블(정본). 문항 준비된 강의부터 플레이 가능 */
+                  <CurriculumGrid />
+                : /* 15문항 유형 그리드 — 유형별 샘플 수업 (개발사 소통용) */
+                  <TypeGrid />
+              }
 
               {/* ── 기존 콘텐츠 — 이전 Book 콘텐츠 전체를 하나의 book으로 ── */}
               <div className="pt-4">
