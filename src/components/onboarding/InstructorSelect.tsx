@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { useConversation } from '@11labs/react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { saveProfileToSupabase } from '@/lib/profile'
 
@@ -260,37 +259,10 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const videoInitialized = useRef(false)
   const touchStartX = useRef(0)
 
-  const [activeTab, setActiveTab] = useState<'proposal' | 'chat' | 'curriculum'>('proposal')
+  const [activeTab, setActiveTab] = useState<'proposal' | 'curriculum'>('proposal')
   const [selectedInst, setSelectedInst] = useState<(typeof INSTRUCTORS)[0] | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const tabSectionRef = useRef<HTMLDivElement | null>(null)
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [isMicMuted, setIsMicMuted] = useState(false)
-  const gainNodeRef = useRef<GainNode | null>(null)
-  const audioCtxRef = useRef<AudioContext | null>(null)
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
-
-  const conversation = useConversation({
-    onMessage: (props: any) => {
-      const { source, message } = props
-      setChatMessages(prev => [...prev, { role: source === 'user' ? 'user' : 'ai', text: message }])
-    },
-  })
-
-  /* ── 채팅 메시지 자동 스크롤 ── */
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
-    }
-  }, [chatMessages])
-
-  /* ── 강사 변경 시 채팅 초기화 ── */
-  useEffect(() => {
-    setChatMessages([])
-    setChatInput('')
-    return () => { conversation.endSession() }
-  }, [selectedInst?.id])
 
   /* ── video autoplay on focus change ── */
   useEffect(() => {
@@ -361,70 +333,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     else if (diff < -50) goPrev()
   }
 
-  const handleChatStart = async () => {
-    if (!selectedInst) return
-    setIsMicMuted(false)
-    gainNodeRef.current = null
-    audioCtxRef.current?.close()
-    audioCtxRef.current = null
-
-    // getUserMedia를 가로채서 GainNode를 끼운 processed stream을 ElevenLabs에 전달
-    const originalGUM = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      navigator.mediaDevices.getUserMedia = originalGUM
-      const rawStream = await originalGUM(constraints)
-      if (!rawStream.getAudioTracks().length) return rawStream
-
-      const audioCtx = new AudioContext()
-      audioCtxRef.current = audioCtx
-      const source = audioCtx.createMediaStreamSource(rawStream)
-      const gain = audioCtx.createGain()
-      gainNodeRef.current = gain
-      const dest = audioCtx.createMediaStreamDestination()
-      source.connect(gain)
-      gain.connect(dest)
-      rawStream.getVideoTracks().forEach(t => dest.stream.addTrack(t))
-      return dest.stream
-    }
-
-    await conversation.startSession({
-      agentId: selectedInst.agentId,
-      dynamicVariables: {
-        user_name: userName || '학생',
-        instructor_name: selectedInst.name,
-        instructor_greeting: selectedInst.greeting,
-        target_score: String(targetScore || ''),
-        study_range: studyRange || '',
-        exam_date: examDate || '',
-        study_period: studyPeriod || '',
-        daily_time: dailyTime || '',
-        difficulty: difficulty || '',
-        motivation: motivation || '',
-        instructor_tag: selectedInst.tag,
-        instructor_plan: selectedInst.proposal.plan,
-        instructor_target: selectedInst.proposal.target,
-        instructor_comment: selectedInst.proposal.comment,
-      },
-    })
-  }
-
-  const handleChatSend = () => {
-    if (!chatInput.trim()) return
-    const text = chatInput.trim()
-    setChatMessages(prev => [...prev, { role: 'user', text }])
-    conversation.sendUserMessage(text)
-    setChatInput('')
-  }
-
-  const handleQuestionClick = async (q: string) => {
-    if (!selectedInst) return
-    if (conversation.status !== 'connected') {
-      await handleChatStart()
-    }
-    setChatMessages(prev => [...prev, { role: 'user', text: q }])
-    conversation.sendUserMessage(q)
-  }
-
   const handleConfirm = async (id: string) => {
     setSelectedInstructor(id)
     console.log('[InstructorSelect] handleConfirm 저장 시작, instructor:', id)
@@ -445,11 +353,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
     window.scrollTo(0, 0)
   }
 
-  const handleTabChange = (tab: 'proposal' | 'chat' | 'curriculum') => {
+  const handleTabChange = (tab: 'proposal' | 'curriculum') => {
     setActiveTab(tab)
-    if (tab === 'chat') {
-      setTimeout(() => tabSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-    }
   }
 
   /* ═══════════════════════════════════════
@@ -668,7 +573,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
       {/* 헤더 */}
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#DBEAFE] sticky top-0 z-30 shadow-sm">
         <button
-          onClick={() => { setView('list'); conversation.endSession(); setChatMessages([]); window.speechSynthesis.cancel() }}
+          onClick={() => setView('list')}
           className="p-2 -ml-2 text-[#6B7280] hover:text-[#111318] transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -690,15 +595,6 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#DBEAFE]">
                   <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
-                <button
-                  onClick={() => handleTabChange('chat')}
-                  className="mt-3 w-full flex items-center justify-center gap-2 bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#2563EB] py-3 rounded-xl font-bold text-[14px] transition-colors border border-[#DBEAFE] active:scale-[0.98]"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  선생님과 상담하기
-                </button>
               </div>
 
               {/* 정보 */}
@@ -804,12 +700,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
           <div ref={tabSectionRef} className="flex border-b border-[#DBEAFE] mb-8">
             {[
               { id: 'proposal', label: 'Study Plan' },
-              { id: 'curriculum', label: '맞춤 교재' },
-              { id: 'chat', label: '1분 대화' },
+              { id: 'curriculum', label: '커리큘럼' },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id as 'proposal' | 'chat' | 'curriculum')}
+                onClick={() => handleTabChange(tab.id as 'proposal' | 'curriculum')}
                 className={`px-10 py-4 text-[15px] font-bold transition-all relative ${
                   activeTab === tab.id ? 'text-[#2563EB]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
                 }`}
@@ -851,95 +746,10 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             {activeTab === 'curriculum' && (
               <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10 space-y-10">
 
-                {/* ── 교재 카드 ── */}
+                {/* ── 주차별 커리큘럼 (로드맵) ── */}
                 <div>
-                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">맞춤 교재</h4>
-                  <p className="text-[#9CA3AF] text-[14px] mb-6">{userName}님을 위해 구성된 전용 교재예요.</p>
-
-                  <div className="flex gap-7 items-start">
-                    {/* 북 커버 — /public/curriculum-cover.png 로 이미지 교체 가능 */}
-                    {/* 북커버 — /public/curriculum-cover.png 교체 시 자동 반영 */}
-                    <div
-                      className="relative w-[120px] shrink-0"
-                      style={{ aspectRatio: '3/4', perspective: '600px' }}
-                    >
-                      {/* 두께감 레이어 (페이지 스택) */}
-                      <div className="absolute inset-0 rounded-r-xl" style={{ background: 'linear-gradient(160deg, #1d4ed8, #60a5fa)', transform: 'translate(7px, 4px)', opacity: 0.28 }} />
-                      <div className="absolute inset-0 rounded-r-xl" style={{ background: 'linear-gradient(160deg, #1e3faa, #3b82f6)', transform: 'translate(4px, 2px)', opacity: 0.45 }} />
-
-                      {/* 메인 커버 */}
-                      <div
-                        className="absolute inset-0 rounded-r-xl overflow-hidden"
-                        style={{
-                          backgroundImage: "url('/curriculum-cover.png'), linear-gradient(160deg, #1E3A8A 0%, #2563EB 55%, #60A5FA 100%)",
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          transform: 'rotateY(-6deg)',
-                          boxShadow: '-6px 10px 24px rgba(30,58,138,0.35)',
-                        }}
-                      >
-                        {/* 책등 그림자 */}
-                        <div className="absolute left-0 top-0 bottom-0 w-3 bg-black/25" />
-                        {/* 골드 장식 라인 */}
-                        <div className="absolute inset-x-4 top-4 h-[1px] bg-amber-400/60" />
-                        <div className="absolute inset-x-4 bottom-4 h-[1px] bg-amber-400/60" />
-                        {/* 텍스트 — 볼드 없음 */}
-                        <div className="absolute inset-0 flex flex-col justify-between p-4 pl-5">
-                          <p className="text-white/50 text-[8px] uppercase tracking-widest">YBM AI TOEIC</p>
-                          <div className="space-y-1">
-                            <p className="text-white text-[12px] leading-snug drop-shadow">
-                              {userName}님의<br />TOEIC {targetScore}<br />완성 교재
-                            </p>
-                            <p className="text-amber-300/80 text-[9px] mt-1">{selectedInst.name} 강사</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 교재 메타 정보 */}
-                    <div className="flex-1 space-y-4">
-                      <div>
-                        <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-wide">교재명</p>
-                        <p className="text-[#1C1B33] font-bold text-[17px] leading-snug mt-0.5">
-                          {userName}님의 TOEIC {targetScore} 완성 교재
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <span className="px-2.5 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#DBEAFE]">
-                          {studyRange ?? 'LC+RC'}
-                        </span>
-                        <span className="px-2.5 py-1 bg-[#ECFDF5] text-[#059669] text-[12px] font-bold rounded-lg border border-[#D1FAE5]">
-                          {selectedInst.proposal.plan}
-                        </span>
-                        <span className="px-2.5 py-1 bg-[#FFF7ED] text-[#C2410C] text-[12px] font-bold rounded-lg border border-[#FED7AA]">
-                          목표 {targetScore}점
-                        </span>
-                      </div>
-
-                      <div className="border-t border-[#F3F4F6] pt-3 space-y-1">
-                        <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-wide">담당 강사</p>
-                        <div className="flex items-center gap-2">
-                          <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-7 h-7 rounded-full object-cover border-2 border-[#DBEAFE]" />
-                          <span className="text-[#1C1B33] font-bold text-[14px]">{selectedInst.name} 강사</span>
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${selectedInst.badgeCls}`}>{selectedInst.badge}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg>
-                        </div>
-                        <p className="text-emerald-600 text-[12px] font-bold">교재 구성이 완료되었습니다</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── 목차 (로드맵) ── */}
-                <div>
-                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">목차</h4>
-                  <p className="text-[#9CA3AF] text-[14px] mb-6">단계별로 실력을 확실히 끌어올리는 학습 로드맵이에요.</p>
+                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">주차별 커리큘럼</h4>
+                  <p className="text-[#9CA3AF] text-[14px] mb-6">{selectedInst.name} 강사가 단계별로 실력을 끌어올리는 학습 로드맵이에요.</p>
                   <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -981,172 +791,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       </tbody>
                     </table>
                   </div>
-                  <div className="mt-6 flex items-center gap-2.5 px-5 py-4 bg-[#F8FAFF] rounded-xl border border-[#EFF6FF]">
-                    <div className="w-5 h-5 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-[10px] shrink-0">ℹ</div>
-                    <p className="text-[#6B7280] text-[13px] font-medium">매주 학습 진행 상황을 분석하여 커리큘럼을 유연하게 조정해 드려요.</p>
-                  </div>
                 </div>
 
               </div>
             )}
 
-            {activeTab === 'chat' && (
-              <div className="bg-white rounded-3xl border border-[#DBEAFE] overflow-hidden">
-                {/* 채팅 헤더 */}
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-[#DBEAFE] bg-[#F8FAFF]">
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#DBEAFE] shrink-0">
-                    <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-[#1C1B33] text-[14px]">{selectedInst.name} 선생님</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full transition-colors ${conversation.status === 'connected' ? 'bg-[#10B981] animate-pulse' : 'bg-[#9CA3AF]'}`} />
-                      <span className="text-[12px] text-[#9CA3AF]">
-                        {conversation.status === 'connected'
-                          ? conversation.isSpeaking ? '말하는 중...' : 'Listening'
-                          : conversation.status === 'connecting' ? '연결 중...' : 'AI 온라인 상담 중'}
-                      </span>
-                    </div>
-                  </div>
-                  {conversation.status === 'connected' && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          const next = !isMicMuted
-                          if (gainNodeRef.current) gainNodeRef.current.gain.value = next ? 0 : 1
-                          setIsMicMuted(next)
-                        }}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
-                          ${isMicMuted ? 'bg-[#FEF2F2] text-[#EF4444]' : 'text-[#9CA3AF] hover:text-[#1C1B33] hover:bg-[#F3F4F6]'}`}
-                        title={isMicMuted ? '마이크 켜기' : '마이크 음소거'}
-                      >
-                        {isMicMuted ? (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <line x1="1" y1="1" x2="23" y2="23"/>
-                            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
-                            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
-                            <line x1="12" y1="19" x2="12" y2="23"/>
-                            <line x1="8" y1="23" x2="16" y2="23"/>
-                          </svg>
-                        ) : (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                            <line x1="12" y1="19" x2="12" y2="23"/>
-                            <line x1="8" y1="23" x2="16" y2="23"/>
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => { conversation.endSession(); audioCtxRef.current?.close(); audioCtxRef.current = null; gainNodeRef.current = null }}
-                        className="text-[#9CA3AF] hover:text-[#EF4444] transition-colors text-[12px] font-medium px-2 py-1 rounded-lg hover:bg-[#FEF2F2]"
-                      >
-                        종료
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* 메시지 영역 */}
-                <div
-                  ref={messagesContainerRef}
-                  className="h-[360px] overflow-y-auto px-5 py-5 space-y-4"
-                >
-                  {chatMessages.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
-                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#DBEAFE]">
-                        <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
-                      </div>
-                      <p className="text-[#9CA3AF] text-[14px]">
-                        아래 버튼을 눌러<br />{selectedInst.name} 선생님과 대화를 시작하세요
-                      </p>
-                    </div>
-                  ) : (
-                    chatMessages.map((msg, i) => (
-                      <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {msg.role === 'ai' && (
-                          <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[#E5E7EB]">
-                            <img src={selectedInst.thumbnail} alt={selectedInst.name} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <div className={`max-w-[72%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed ${
-                          msg.role === 'user'
-                            ? 'bg-[#1C1B33] text-white rounded-br-sm'
-                            : 'bg-[#F3F4F6] text-[#1C1B33] rounded-bl-sm'
-                        }`}>
-                          {msg.text}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* 추천 질문 (대화 시작 전) */}
-                {chatMessages.length === 0 && (
-                  <div className="px-5 pb-4 space-y-2">
-                    <p className="text-[#9CA3AF] text-[11px] font-bold uppercase tracking-widest mb-2">이런 질문을 해보세요 — 클릭하면 바로 시작돼요</p>
-                    {selectedInst.guideQuestions.map((q: string, i: number) => (
-                      <button
-                        key={i}
-                        onClick={() => handleQuestionClick(q)}
-                        className="w-full text-left bg-[#F8FAFF] border border-[#DBEAFE] text-[#374151] px-4 py-3 rounded-xl text-[13px] font-medium hover:bg-[#EFF6FF] hover:border-[#BFDBFE] transition-colors active:scale-[0.99] flex items-center justify-between group"
-                      >
-                        <span>&ldquo;{q}&rdquo;</span>
-                        <svg className="shrink-0 text-[#BFDBFE] group-hover:text-[#2563EB] transition-colors ml-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* 입력 영역 */}
-                <div className="border-t border-[#DBEAFE] px-5 py-4">
-                  {conversation.status === 'connected' ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleChatSend() }}
-                        placeholder="Send a message..."
-                        className="flex-1 bg-[#F3F4F6] rounded-xl px-4 py-2.5 text-[14px] text-[#1C1B33] placeholder-[#9CA3AF] outline-none focus:ring-2 focus:ring-[#DBEAFE]"
-                      />
-                      <button
-                        onClick={handleChatSend}
-                        disabled={!chatInput.trim()}
-                        className="w-9 h-9 rounded-full bg-[#1C1B33] text-white flex items-center justify-center disabled:opacity-30 transition-opacity hover:bg-[#374151] active:scale-95"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleChatStart}
-                      disabled={conversation.status === 'connecting'}
-                      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-xl font-bold text-[15px] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {conversation.status === 'connecting' ? (
-                        <>
-                          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                          </svg>
-                          연결 중...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                          {selectedInst.name} 선생님과 대화 시작하기
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
