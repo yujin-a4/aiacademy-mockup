@@ -341,6 +341,35 @@ export function useDbLectures(): DbLecture[] {
   return data
 }
 
+/** 커리큘럼 전체 강의(문항 없는 강의 포함) + 문항 수. 실패 시 빈 배열.
+   내 학습을 커리큘럼(정규 42강)대로 보여주기 위한 목록 — 문항 있는 강의만 플레이 가능. */
+export async function fetchCurriculumLectures(): Promise<DbLecture[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const [lecRes, counts] = await Promise.all([
+    supabase.from('lectures').select('lecture_code, title, part, lc_rc'),
+    fetchLecturesWithQuestions(),
+  ])
+  if (lecRes.error || !lecRes.data) return []
+  const countByCode = new Map(counts.map((l) => [l.code, l.questionCount]))
+  return (lecRes.data as any[])
+    .map((l) => ({
+      code: l.lecture_code, title: l.title, part: l.part, lcRc: l.lc_rc,
+      questionCount: countByCode.get(l.lecture_code) ?? 0,
+    }))
+    .sort((a, b) => a.part - b.part || a.code.localeCompare(b.code))
+}
+
+export function useCurriculumLectures(): DbLecture[] {
+  const [data, setData] = useState<DbLecture[]>([])
+  useEffect(() => {
+    let alive = true
+    fetchCurriculumLectures().then((rows) => { if (alive) setData(rows) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  return data
+}
+
 /** 강의의 문항 전체 (code 순). 수업 화면은 첫 문항을 대표로 쓴다 */
 export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQuestion[]> {
   const supabase = getSupabase()
