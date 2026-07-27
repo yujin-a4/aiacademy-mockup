@@ -1,12 +1,16 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { getTypeLesson } from '@/data/typeLearning'
 import TypeLessonPlayer from '@/components/type-lesson/TypeLessonPlayer'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { INST_NAME } from '@/data/instructorData'
 import { useDbLectureQuestions } from '@/data/db/questionStore'
+import { useDbLectureSteps } from '@/data/db/lectureStepStore'
 import { buildLessonFromDb } from '@/data/typeLearning/fromDb'
+import { buildTurnsFromSteps } from '@/data/typeLearning/fromSteps'
+import { useRailPrompts } from '@/data/typeLearning/railPrompts'
 
 /* 유형 → DB 앵커 문항. 앵커가 속한 지문(또는 강의) 묶음이 통째로 딸려와 콘텐츠·레일이 된다.
    D1(FGI 5강) 범위만 연결 — 나머지 유형은 로컬 샘플 데이터 그대로 돈다. */
@@ -45,7 +49,36 @@ export default function TypeLessonPage() {
     (selected && INST_NAME[selected] ? selected : null) ??
     'lee_doyun'
 
-  if (!effectiveLesson) {
+  /* 스캐폴딩 레일(턴 순서·상호작용)도 DB에서 가져온다 — 정본은 시트, 넣는 건 import-instructor-rails.
+     콘텐츠팀이 시트에서 레일을 고치면 코드를 안 고쳐도 화면이 그대로 바뀌게 하는 게 목적. */
+  const { steps: dbSteps, source: railSource } = useDbLectureSteps(lectureCode, instructor)
+  const { lesson: playedLesson, rail } = useMemo(() => {
+    /* DB 콘텐츠로 갈아끼워진 강의에만 DB 레일을 얹는다.
+       (로컬 샘플 콘텐츠에 실제 강의 레일을 씌우면 발화와 화면이 어긋난다) */
+    const dbBacked = !!effectiveLesson && effectiveLesson !== lesson
+    if (!effectiveLesson || !dbBacked) return { lesson: effectiveLesson, rail: undefined }
+
+    const { turns, diags } = buildTurnsFromSteps(dbSteps, effectiveLesson.content, !!effectiveLesson.practice)
+    if (!turns.length) return { lesson: effectiveLesson, rail: undefined }  // 레일 없음/못 씀 → 기존 코드 레일 유지
+    const origin = railSource === 'composition' ? '부품 조합(rail_compositions)' : '강의별 원본(lecture_steps)'
+    return {
+      lesson: { ...effectiveLesson, turns },
+      rail: { diags, source: `${lectureCode} · ${INST_NAME[instructor] ?? instructor} · ${origin} · ${turns.length}턴` },
+    }
+  }, [effectiveLesson, lesson, dbSteps, railSource, lectureCode, instructor])
+
+  /* 학생 문구는 부품에 박아두지 않고 매번 만든다 — 강의가 늘어도 부품은 그대로.
+     생성 전·실패 시엔 원본(부품 기본값/이식 문구)이 그대로 남아 화면이 비지 않는다. */
+  const promptState = useRailPrompts(
+    playedLesson?.turns ?? [], dbSteps, playedLesson?.content ?? null,
+    playedLesson?.part ?? 0, !!rail,
+  )
+  const finalLesson = playedLesson && rail
+    ? { ...playedLesson, turns: promptState.turns }
+    : playedLesson
+  const finalRail = rail && { ...rail, generated: promptState.generated, status: promptState.status }
+
+  if (!finalLesson) {
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-[#F5F8FE]">
         <p className="text-sm text-gray-500">유형을 찾을 수 없어요. ({params.typeId})</p>
@@ -53,5 +86,5 @@ export default function TypeLessonPage() {
       </div>
     )
   }
-  return <TypeLessonPlayer lesson={effectiveLesson} instructor={instructor} />
+  return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} />
 }
