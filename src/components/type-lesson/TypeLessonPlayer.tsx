@@ -20,6 +20,8 @@ import TutorDock, { TutorComposer, type DockMode } from '@/components/type-lesso
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { useOnboardingStore } from '@/store/onboardingStore'
+import RailInspector from '@/components/type-lesson/RailInspector'
+import type { RailDiag } from '@/data/typeLearning/fromSteps'
 
 /* 레일 정본이 이도윤 ver 한 벌뿐 — 온보딩에서 다른 강사를 골라도 짚는 순서는 이 레일을 따르고
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
@@ -408,7 +410,12 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
   )
 }
 
-export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { lesson: TypeLesson; instructor?: string }) {
+export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail }: {
+  lesson: TypeLesson
+  instructor?: string
+  /** DB 레일로 돌 때의 해석 결과 — 넘기면 우하단에 검토 패널이 뜬다 (콘텐츠팀 확인용) */
+  rail?: { diags: RailDiag[]; source: string; generated?: Record<number, string>; status?: string }
+}) {
   const router = useRouter()
   const turns = lesson.turns
   const [turnIdx, setTurnIdx] = useState(0)
@@ -869,6 +876,13 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER }: { 
 
   return (
     <div className="h-dvh flex flex-col bg-[#F5F8FE] overflow-hidden">
+      {/* ── 레일 검토 패널 (DB 레일로 돌 때만) ── */}
+      {rail && (
+        <RailInspector
+          diags={rail.diags} currentNo={turnIdx + 1} source={rail.source}
+          generated={rail.generated} status={rail.status}
+        />
+      )}
       {/* ── 4단계 스텝퍼 (도입·수업·실전·정리) ── */}
       <PhaseStepper
         active={macroActive}
