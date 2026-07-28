@@ -1,8 +1,9 @@
 # 스캐폴딩 DB 재설계 — 실행 계획 (v4)
 
 **최종 갱신:** 2026-07-28 · **진단 근거:** [`docs/db-audit-0728.md`](./db-audit-0728.md)
-**상태:** STEP 0~5 + LC 화면 완료. **다음은 STEP 6**(학습자 상태·Fading).
-미완: STEP 1의 GCP 배포분 · STEP 5의 `TUTOR_RAILS` 이관(FGI 이후) · `lecture_steps` 삭제.
+**상태:** STEP 0~6 + LC 화면 완료. **다음은 STEP 7**(정리·인계).
+미완: STEP 1의 GCP 배포분 · STEP 5의 `TUTOR_RAILS` 이관(FGI 이후) · `lecture_steps` 삭제 ·
+STEP 6의 브라우저 클릭 검증과 Fading 실효화(D11).
 
 > **레일이 어디까지 접혔나:** `lecture_steps` **965행**은 강의마다 레일을 따로 적어놨기 때문이다
 > (강의 43 × 강사 3 × 턴 7~12). STEP 5에서 **429행(-56%)** 으로 접었고, 정본 화면이 보는
@@ -773,18 +774,73 @@ create table learner_progress (
 );
 ```
 
-- [ ] **`countPriorTagWrongs` 복구** — STEP 0에서 `learner_answer_log` 읽기를 본인+데모로 좁힌 결과, anon 키로 서버 조회하는 이 함수가 **항상 0을 돌려준다**(반복 오답 시 추가 단계가 안 붙음). 서버 전용 `service_role` 키를 도입하거나 `learning_events`로 옮겨서 해결
-- [ ] `/api/tutor`의 in-memory `mastery` Map → `learner_progress`
-- [ ] **Fading을 유형학습 레일에도 적용** — `fade_policy` + `occurrence`, §3 원리 3의 `WHERE` 한 줄
-- [ ] `normalizeLearnerId()`의 DEMO UUID 뭉침 제거
-- [ ] `learner_answer_log` → `learner_answer_log_archive` 리네임 (1,200행 보존)
+**작업** ✅ `0018_learner_state.sql` · `0019_program_view_variant_id.sql`
 
-**완료 조건**
-```sql
-select v.step_code, e.occurrence, avg(e.is_correct::int)
-from learning_events e join step_variants v on v.id = e.variant_id
-group by 1,2;    -- "S6를 받은 회차별 정답률"이 나오면 성공
+- [x] **`learning_events` 신설** — 턴 단위 로그. 문항 정오답만이 아니라 **`variant_id`(어느 변종)** 와
+      **`occurrence`(몇 번째 바퀴)** 를 남긴다. 기존 `learner_answer_log`로는 못 하던 것
+- [x] **변종 id 배선** — 뷰 → `lectureProgramStore` → `Turn` → 이벤트.
+      뷰에 `variant_id` 칸을 더했다(0019). 화면이 코드→id를 다시 조회하지 않게
+- [x] `src/data/db/learningEventStore.ts` + `TypeLessonPlayer` 배선 — 턴 진입·응답·완료를 기록.
+      **fire-and-forget이고 실패는 삼킨다** (로그 한 줄이 비는 게 수업이 죽는 것보다 낫다)
+- [x] `/api/tutor`의 in-memory `mastery` Map → `learner_progress`.
+      Map은 캐시로 격하하고 정본은 표. 인스턴스가 새로 뜨면 표에서 채운다
+- [x] `learner_progress` 신설
+
+**측정 결과 (2026-07-28)** — anon 키 REST로 실증(브라우저가 쓰는 것과 같은 경로)
+
 ```
+anon INSERT(learning_events)  → 201   통과
+anon UPSERT(learner_progress) → 201   통과
+anon SELECT(본인·데모 행)      → 200   통과
+anon SELECT(남의 행)          → 200 · 0건   ← 남의 학습 기록은 못 읽는다
+
+── 완료 조건 쿼리 ──
+step_code  interaction  occurrence  응답  정답률
+S6         choice       1           1     1.00
+S6         choice       2           1     0.00
+S6         choice       3           1     1.00   ← "S6를 받은 회차별 정답률"이 나온다
+```
+
+> 위 숫자는 진행표(35행)를 그대로 따라간 **모의 응답**이다. 확인 후 지웠다(현재 0행).
+> 확인한 것은 값이 아니라 **경로가 뚫려 있다는 것** — 권한·RLS·조인이 실제로 동작한다.
+
+**남은 것**
+
+- [ ] **브라우저 클릭 검증** — 코드 경로는 타입 통과·빌드 통과지만 실제 수업을 눌러서
+      행이 쌓이는 건 아직 못 봤다(로그인이 걸려 있어 헤드리스로 못 들어간다). **FGI 전 필수**
+- [ ] **`countPriorTagWrongs` 복구** — STEP 0에서 읽기를 좁힌 뒤 실계정에서 **항상 0**을 돌려준다
+      (반복 오답 시 추가 단계가 안 붙음). `learning_events`로 옮기거나 `service_role` 키 도입
+- [ ] **Fading을 정본 레일에도 적용** — 아래 §Fading 참조. 지금은 코드 레일(문항 2개)에서만 돈다
+- [ ] `normalizeLearnerId()`의 DEMO UUID 뭉침 제거 — 비로그인 학습자가 한 UUID로 합쳐진다
+- [ ] `learner_answer_log` → `_archive` 리네임 — `profile.ts`·`tutorDb.ts`를 옮긴 뒤에.
+      그때까지 로그 두 벌(계획서 §9가 인정한 것)
+- [ ] **개인정보 고지·동의** — 학습 기록을 계정에 붙여 남기는 것이라 FGI 참여자 동의 문구가 필요하다.
+      스키마와 별개로 반드시 먼저 정리할 것
+
+### Fading — 지금 실제로 이렇게 돈다
+
+```
+판정 입력:  이 학습자가 이 강의를 몇 번 끝냈나 (그것 하나뿐)
+   0~2회 → full      레일 전부
+   3~4회 → reduced   checkpoint 단계만 남긴다
+   5회~  → minimal   S6 하나만 (없으면 마지막 checkpoint 하나)
+```
+
+**한계 — 정직하게.**
+
+| | |
+|---|---|
+| 도는 곳 | `/api/tutor`의 `rail` 모드 = 코드 레일(`TUTOR_RAILS`). **문항 2개뿐** |
+| 안 도는 곳 | 정본 화면 `/lecture`, 유형학습 레일 — Fading이 **안 붙어 있다** |
+| 판정 근거 | **완료 횟수뿐.** 정답률도 오답 내용도 안 본다 |
+| `step_variants.fade_policy` | 칸은 0013에서 뚫었지만 **전부 null이고 아무도 안 읽는다** |
+
+이번 STEP 6에서 고친 건 **로직이 아니라 기억**이다 — 판정 상태가 서버 메모리에 있어 인스턴스가
+바뀌면 사라지던 것을 표로 옮겼다. 판정 방식 자체는 그대로다.
+
+**제대로 하려면 필요한 것:** `occurrence`(같은 유형 몇 번째 바퀴)와 `learning_events`의 정답률로
+"이 학생이 S1을 두 바퀴 연속 맞췄으니 S1을 뺀다" 같은 판정을 하는 것. 데이터는 이제 생겼다.
+다만 **언제 무엇을 줄일지는 교육 판단**이라 기획이 정해야 한다(§10에 **D11**로 올림).
 
 ---
 
@@ -840,6 +896,8 @@ group by 1,2;    -- "S6를 받은 회차별 정답률"이 나오면 성공
 | **D8** | 음원 지시를 변종 속성으로 둘까 조합에 둘까 (25 vs 77) | 기획 | STEP 5 — **본 문서는 "조합" 안으로 작성됨** |
 | **D9** | **윤다은·common 레일에 상호작용 열을 채울까?** 지금은 이도윤 레일만 화면 동작이 지정돼 있어 그 둘은 변종화가 안 된다(601행) | 콘텐츠팀 | STEP 5 (강사별 레일 확장) |
 | ~~D10~~ | **해소(2026-07-28): FGI에서 쉐도잉은 안 한다.** 안 쓰니 어느 단계로 볼지 정할 필요가 없다. 시트 레일의 쉐도잉 턴(`lecture_steps` 48행)은 **지우지 않고** 화면에서 건너뛴다 — 정본은 시트고, 결정이 뒤집히면 `fromSteps.ts`의 `SKIP_SHADOW` 한 줄만 되돌리면 된다 | 기획 | 완료 |
+
+| **D11** | **Fading을 무엇으로 판정할까.** 지금은 "이 강의를 몇 번 끝냈나"뿐이고 정답률을 안 본다. `learning_events`가 생겨 근거는 만들 수 있게 됐다 — 예: "같은 유형 2바퀴 연속 S1 정답 → 다음 바퀴에서 S1 생략". 무엇을 언제 줄일지는 교육 판단 | 기획+콘텐츠 | Fading 실효화 |
 
 **D1~D3은 한 번에 던져야 한다.** 시트 작업이라 리드타임이 있고 STEP 2가 전부 여기 걸린다.
 **D7이 일정을 가른다** — LC를 시연 안 하면 STEP 3이 1.5주 → 5일.

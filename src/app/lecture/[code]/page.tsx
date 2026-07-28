@@ -84,7 +84,7 @@ export default function LecturePage() {
   const steps = useMemo(() => program.items.flatMap((i) => i.steps), [program.items])
   const promptState = useRailPrompts(
     builtLesson?.turns ?? [], steps, builtLesson?.content ?? null,
-    builtLesson?.part ?? 0, !!rail,
+    builtLesson?.part ?? 0, !!rail, builtLesson?.items,
   )
   const finalLesson = builtLesson && rail
     ? { ...builtLesson, turns: promptState.turns }
@@ -103,5 +103,7 @@ export default function LecturePage() {
       </div>
     )
   }
-  return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} />
+  // 대사 생성이 끝나기 전에 들어가면 강사가 시트의 옛 예시 문구를 말한다 — 시작을 막는다
+  return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} lectureCode={code}
+    preparing={promptState.status === 'loading'} />
 }

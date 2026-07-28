@@ -17,9 +17,10 @@ import type { DbLectureStep, RailSource } from '@/data/db/lectureStepStore'
 /** 아이템 하나 = 레일이 한 바퀴 도는 단위 */
 export interface ProgramItem {
   itemSeq: number
-  /** 같은 유형이 이 강의에서 몇 번째로 나오는가 — Fading 의 근거 (STEP 6에서 쓴다) */
+  /** 같은 유형이 이 강의에서 몇 번째로 나오는가 — Fading 과 학습효과 분석의 축 */
   occurrence: number
   typeCode: string | null
+  questionTypeId: number | null
   /** 이 아이템이 다루는 문항 코드 (sub_order 순) */
   questionCodes: string[]
   /** 이 아이템에서 돌 레일 턴 */
@@ -49,6 +50,8 @@ function toStep(r: any): DbLectureStep {
     freeExpression: r.tutor_directive ?? null,
     dbFields: r.db_fields ?? null,
     partCode: r.variant_code ?? null,
+    variantId: r.variant_id ?? null,
+    railSource: r.rail_source ?? null,
   }
 }
 
@@ -66,7 +69,7 @@ export async function fetchLectureProgram(
 
   const query = (code: string) => supabase
     .from('v_lecture_program')
-    .select('item_seq, occurrence, type_code, questions, instructor_code, rail_source, step_order, step_code, interaction, audio_mode, script_mode, student_prompt, tutor_directive, section, fixed_rule, db_fields, variant_code')
+    .select('item_seq, occurrence, type_code, question_type_id, questions, instructor_code, rail_source, step_order, step_code, interaction, audio_mode, script_mode, student_prompt, tutor_directive, section, fixed_rule, db_fields, variant_code, variant_id')
     .eq('lecture_code', lectureCode)
     .eq('phase', phase)
     .eq('instructor_code', code)
@@ -90,6 +93,7 @@ export async function fetchLectureProgram(
         itemSeq: r.item_seq,
         occurrence: r.occurrence ?? 1,
         typeCode: r.type_code ?? null,
+        questionTypeId: r.question_type_id ?? null,
         questionCodes: ((r.questions as any[]) ?? []).map((q) => q.question_code),
         steps: [],
       })

@@ -29,6 +29,11 @@ export interface DbLectureStep {
   dbFields: string | null       // 이 턴이 참조하는 DB 필드 목록 (검토 패널용)
   /* ── 부품 조합(rail_compositions)에서 온 턴만 채워진다 ── */
   partCode?: string | null      // 'P5-02' — 이 턴이 쓰는 부품
+  /** 이 턴이 쓰는 변종 id (step_variants). 학습 로그가 이걸로 "무엇을 시켰나"를 남긴다 (STEP 6).
+   *  LC 처럼 아직 변종이 안 붙은 레일은 null */
+  variantId?: number | null
+  /** 이 턴의 레일이 어느 구조에서 왔나 — type_rails(새) / lecture_steps(옛). 이관 과도기 추적용 */
+  railSource?: string | null
   /** 학생 문구가 어디서 왔나. LLM 생성은 이 위에 덮인다(단 'override'는 못 덮음) */
   promptOrigin?: 'override' | 'part' | 'seed' | 'none'
   /** true면 이 강의 전용 예외가 지정돼 있어 LLM이 못 건드린다 */

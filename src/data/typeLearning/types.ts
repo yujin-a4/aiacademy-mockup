@@ -21,6 +21,8 @@ export interface OptionItem {
 export interface QuestionItem {
   q: string
   options: OptionItem[]
+  /** DB 문항 코드 ('RC-P5-08-Q002'). 학습 로그가 어느 문항이었는지 남기는 데 쓴다 */
+  code?: string
   /** P1 실전처럼 문항마다 사진이 다른 경우 — 없으면 content.photo를 쓴다 */
   photo?: string
   /** 문항 통음원 (DB `content.audio_url`) — 실제 시험처럼 보기 4개를 한 번에 듣는 용도 */
@@ -110,8 +112,15 @@ export interface Turn {
   no: number
   /** 이 턴이 속한 아이템(레일 한 바퀴)의 seq. 아이템 순회로 만든 수업만 채워진다 (STEP 4) */
   itemSeq?: number
-  /** 같은 유형이 이 강의에서 몇 번째 바퀴인가 — Fading 판정의 근거 (STEP 6에서 소비) */
+  /** 같은 유형이 이 강의에서 몇 번째 바퀴인가 — Fading 판정과 학습효과 분석의 축 */
   occurrence?: number
+  /** 이 턴이 쓰는 변종(step_variants.id). 학습 로그가 "무엇을 시켰나"를 이걸로 남긴다.
+   *  코드 생성 레일이거나 변종이 안 붙은 LC 레일이면 없다 */
+  variantId?: number | null
+  /** 레일에서 몇 번째 단계였나. 쉐도잉처럼 건너뛴 턴이 있어 `no`(화면 순번)와 다를 수 있다 */
+  stepOrder?: number
+  /** 이 턴의 레일 출처 — type_rails / lecture_steps */
+  railSource?: string | null
   /** S코드 단계명 — 상단 스텝 칩 (시트 '단계' 열) */
   stage: string
   /** 강사 발화 (말풍선 + TTS) — 시트 '자유 표현/말투 예시' 기반 이도윤 톤 */
@@ -148,6 +157,7 @@ export interface LessonItemRef {
   seq: number
   occurrence: number
   typeCode?: string | null
+  questionTypeId?: number | null
   /** content.questions 안에서 이 아이템의 범위 [qFrom, qTo) */
   qFrom: number
   qTo: number

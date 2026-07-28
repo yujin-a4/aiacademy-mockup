@@ -22,6 +22,11 @@ export interface ContentState {
   onPlaySentence?: (id: string, text: string) => void
   /** 스캐폴딩이 쉐도잉 단계에 도달했는가 — 스크립트 문장별 쉐도잉 버튼은 그 뒤부터 열린다 */
   shadowUnlocked?: boolean
+  /** 지금 도는 아이템의 문항 범위 [from, to). 아이템 순회 수업(STEP 4)에서만 온다.
+   *  강의 하나가 사진 3장·문장 5개로 돌면 문항이 전부 세로로 쌓여 한눈에 안 들어온다 —
+   *  지금 바퀴의 문항만 보여주고, 나머지는 단계가 넘어가면 나온다.
+   *  ⚠️ 인덱스는 그대로 둔다. 턴이 qIdx 로 문항을 가리키므로 배열을 자르면 어긋난다. */
+  visibleQ?: { from: number; to: number }
   focusQ?: number
   /** 'single': focusQ 문항만 선택 가능 / 'all': 전 문항 선택 가능 / 'none' */
   answerMode: 'none' | 'single' | 'all'
@@ -242,6 +247,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
 /* ── 문항 탭(P3·P4·P6·P7) — 한 화면에 한 문항만.
    탭으로 이전/이후 문항을 자유롭게 오갈 수 있고, 턴이 다루는 문항(focusQ)이 바뀌면 그 탭으로 자동 이동한다.
    탭 점: 채점 후엔 정/오답(초록/빨강), 채점 전 답만 고른 상태(실전)는 파랑. ── */
+/** 이 문항이 지금 바퀴에 속하나 (범위가 없으면 전부 보인다) */
+const qInView = (st: ContentState, i: number) =>
+  !st.visibleQ || (i >= st.visibleQ.from && i < st.visibleQ.to)
+
 function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentState; pane?: boolean }) {
   const qs = lesson.content.questions
   const [active, setActive] = useState(0)
@@ -612,7 +621,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
   ) : (
     <div className="space-y-3">
       {content.questions.map((q, i) => (
-        <QuestionCard key={i} q={q} qIdx={i} lesson={lesson} st={st} />
+        qInView(st, i) ? <QuestionCard key={i} q={q} qIdx={i} lesson={lesson} st={st} /> : null
       ))}
     </div>
   )
@@ -624,7 +633,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
       return (
         <div className="flex flex-col gap-6 max-w-[620px] mx-auto">
           {content.questions.map((q, i) => (
-            <div key={i} className="flex flex-col gap-3">
+            !qInView(st, i) ? null : <div key={i} className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
                 <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>
@@ -679,7 +688,11 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
 
   /* P5 — 문장 카드 + 보기. 실전은 문항마다 문장이 따로라 한 쌍씩 쌓는다(문장 i ↔ 문항 i) */
   if (part === 5) {
-    const sentences = content.passages?.[0]?.sentences ?? []
+    /* 문항 i ↔ 문장 i 로 짝짓는다. 지문이 어떤 모양이든 맞게 **전부 펼쳐서** 센다:
+         · 아이템 순회(STEP 4) — 아이템마다 지문 1개 × 문장 1개  → [s1][s2][s3]
+         · 예전 실전 세트      — 지문 1개 안에 문장 N개          → [s1,s2,s3]
+       예전에는 passages[0] 만 봐서, 아이템 순회로 바뀐 뒤 **2번째 문항부터 문장이 안 나왔다.** */
+    const sentences = (content.passages ?? []).flatMap((p) => p.sentences ?? [])
     const SentenceCard = ({ text }: { text: string }) => (
       <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
         <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
@@ -691,7 +704,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
       return (
         <div className="max-w-[560px] mx-auto space-y-6">
           {content.questions.map((q, i) => (
-            <div key={i} className="space-y-3">
+            !qInView(st, i) ? null : <div key={i} className="space-y-3">
               {sentences[i] && <SentenceCard text={sentences[i].en} />}
               <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
             </div>

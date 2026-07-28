@@ -164,6 +164,7 @@ export function buildLessonFromItems(
 
     refs.push({
       seq: item.itemSeq, occurrence: item.occurrence, typeCode: item.typeCode,
+      questionTypeId: item.questionTypeId,
       qFrom: qBase, qTo: content.questions.length,
       passageIds: docs.map((d) => d.id),
     })

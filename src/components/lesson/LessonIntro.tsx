@@ -18,6 +18,9 @@ interface LessonIntroProps {
   /** 오늘 배울 내용 */
   points: LessonIntroPoint[]
   onStart: () => void
+  /** 수업 대사를 아직 만드는 중인가. true 면 시작을 막는다 —
+   *  생성 전에 들어가면 강사가 **시트에 적힌 옛 예시 문구**를 말해버린다(실제로 그랬다). */
+  preparing?: boolean
   onEnd: () => void
   teacherImg?: string
   teacherName?: string
@@ -52,6 +55,7 @@ export default function LessonIntro({
   script,
   points,
   onStart,
+  preparing = false,
   onEnd,
   teacherImg = '/image_reference/park-3.jpg',
   teacherName = '박혜원 선생님',
@@ -159,8 +163,9 @@ export default function LessonIntro({
             <div className="h-2" />
           </div>
 
-          <button onClick={onStart} className="w-full bg-[#2277F0] text-white font-bold py-3 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg active:scale-[0.98] transition-transform">
-            수업 시작하기 →
+          <button onClick={onStart} disabled={preparing}
+            className="w-full bg-[#2277F0] text-white font-bold py-3 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-wait">
+            {preparing ? '수업 준비 중…' : '수업 시작하기 →'}
           </button>
         </div>
       </div>
@@ -184,8 +189,9 @@ export default function LessonIntro({
               ))}
             </div>
 
-            <button onClick={onStart} className="w-full bg-[#2277F0] text-white font-bold py-4 rounded-2xl text-lg hover:bg-[#1a66d4] transition-colors active:scale-[0.99]">
-              수업 시작하기 →
+            <button onClick={onStart} disabled={preparing}
+              className="w-full bg-[#2277F0] text-white font-bold py-4 rounded-2xl text-lg hover:bg-[#1a66d4] transition-colors active:scale-[0.99] disabled:opacity-50 disabled:cursor-wait">
+              {preparing ? '수업 준비 중…' : '수업 시작하기 →'}
             </button>
           </div>
         </div>

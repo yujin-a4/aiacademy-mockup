@@ -246,6 +246,13 @@ function shadowChunks(content: TypeLessonContent, focusQ: number, label: string 
     .map((c) => c.trim()).filter(Boolean)
 }
 
+/** 생성 전·실패 시 자리를 지키는 중립 안내. 문항 내용을 **아무것도 주장하지 않는다.**
+ *  밋밋한 건 괜찮다. 틀린 말을 하는 것보다 낫다. */
+function neutralLine(stepCode: string): string {
+  const label = String(stepCode || '').replace(/^S\d+(\+S\d+)*\s*/, '').replace(/^Q\d+[-\s·]*/, '').trim()
+  return label ? `${label} 단계예요. 화면을 같이 보면서 짚어볼게요.` : '화면을 같이 보면서 짚어볼게요.'
+}
+
 /* ── 턴 하나 만들기 ── */
 
 function buildTurn(
@@ -259,7 +266,14 @@ function buildTurn(
   const focusQ = readFocusQ(step, qCount) ?? 0
   const optLabel = readOptionLabel(step)
   const prompt = clean(step.studentPrompt)
-  const tutor = clean(step.freeExpression) ?? prompt ?? step.stepCode
+  /* ⚠️ 강사 발화에 **시트 문구(freeExpression)를 절대 쓰지 않는다.**
+     그 칸은 콘텐츠팀이 말투를 보여주려고 쓴 예시라 다른 문항을 상정하고 있다.
+     그대로 낭독하면 화면과 어긋난 말을 확신에 차서 한다 — 실측:
+       사진은 지하철인데 "책상 위에 서류가 쌓여 있네요"
+       정답은 A인데 "C가 정답입니다"
+     발화는 문항 사실을 보고 LLM 이 만든다(railPrompts). 여기서는 **틀릴 수 없는 중립 안내**만 둔다.
+     원문은 diag.raw 에 남아 검토 패널에서 볼 수 있다. */
+  const tutor = neutralLine(step.stepCode)
 
   const rawInteraction = clean(step.interaction)
   const { kind, matched } = readKind(rawInteraction)
@@ -380,6 +394,11 @@ function buildTurn(
 
   const turn: Turn = {
     no: step.order,
+    // 학습 로그가 "무엇을 시켰나"를 남기려면 여기서 실어 보내야 한다 (STEP 6).
+    // no 는 뒤에서 1..n 으로 다시 매겨지므로(쉐도잉 등 건너뛴 턴이 있다) step_order 를 따로 둔다.
+    stepOrder: step.order,
+    ...(step.variantId != null ? { variantId: step.variantId } : {}),
+    ...(step.railSource ? { railSource: step.railSource } : {}),
     stage: step.stepCode,
     tutor,
     ...(cue ? { audio: cue } : {}),

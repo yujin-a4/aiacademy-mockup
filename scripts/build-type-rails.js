@@ -135,7 +135,12 @@ async function main() {
       const sp = mode(cell.rows.map((r) => norm(r.student_prompt)));
       const td = mode(cell.rows.map((r) => norm(r.free_expression)));
 
-      for (const [label, m] of [['음원', audio], ['스크립트', script]]) {
+      /* 문구 손실도 반드시 리포트한다.
+         처음엔 음원·스크립트만 봤다가 놓쳤다 — RC-P5-03(명사 강의)이 접힌 뒤
+         RC-P5-08 의 "뒤에 to가 있으니 apply 같은 자동사" 문장을 말했다.
+         화면에는 LLM 생성분이 덮이지만(railPrompts), 말투 예시로 들어가는 값이라
+         내용어가 섞여 있으면 생성 품질을 끌어내린다. 무엇이 사라졌는지는 보여야 한다. */
+      for (const [label, m] of [['음원', audio], ['스크립트', script], ['강사 문구', td], ['학생 문구', sp]]) {
         if (m.others.length) {
           lost.push({
             type_code: r0.type_code, inst, order: Number(order), label,

@@ -80,6 +80,7 @@ function groupOf(rows: UiDbQuestion[], anchor: UiDbQuestion): UiDbQuestion[] {
 function toQuestion(q: UiDbQuestion, label?: string): QuestionItem {
   return {
     q: label ?? q.content.question_text ?? '알맞은 것을 고르세요.',
+    code: q.code,                       // 학습 로그가 어느 문항이었는지 남긴다 (STEP 6)
     audio: q.content.audio_url,
     options: q.options.map((o) => ({
       label: o.label,
