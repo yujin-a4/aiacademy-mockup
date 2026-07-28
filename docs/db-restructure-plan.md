@@ -948,7 +948,18 @@ node scripts/import-rail-components.js          # dry run — 이식 무손실 �
 ## 13. 인수인계 메모 (작업 중 걸릴 것들)
 
 - **`next dev`가 도는 중에 `npm run build`를 돌리면 `.next`가 덮여 dev 서버가 깨진다.** 코드 문제가 아니다 → `rm -rf .next && NODE_OPTIONS="--max-old-space-size=4096" npm run dev`
-- **문항 DB를 직접 수정하지 마라.** 매일 03:00 KST 크론이 시트에서 덮는다. 시트(`1VUGfsCvqvg1QNN9QTISfJWMUtPPim2Cz04KHO190fpY`)에서 고칠 것
+- **🔴 시트 → DB 문항 동기화는 중단됐다 (2026-07-28).** 이제 **DB가 문항의 정본**이다.
+  - 왜: 이 파이프라인이 DB 모델을 못 따라온다. 크론은 `questions.content`·`question_options`만 알고
+    **`lecture_items`(아이템)·`passages`(지문)·`question_type_id`·`audio_url`을 모른다.**
+    시트에서 문항을 추가해도 아이템에 안 붙어 정본 화면(`/lecture`)에 안 나온다 — 반쪽짜리로 돌고 있었다.
+  - 그리고 매일 `question_options`를 delete+insert 하며 붙여둔 값을 지웠다.
+    **실측: 성우 mp3 48개가 `public/`에 있는데 `audio_url`은 371개 중 0개였다.**
+    `gen_option_audio.js`가 `audio_url is null`만 만드는 구조라 **매일 밤 지워지고 다음날 전부 재합성**하고 있었다
+  - 코드 가드: `scripts/sync-questions.js`·`gcp/sync-questions-fn` 둘 다 `SHEET_SYNC_ENABLED=true` 없이는 즉시 종료
+  - **남은 조치(사람 손 필요): GCP Cloud Scheduler 작업을 실제로 비활성화할 것.** 코드 가드는 배포돼야 먹는다
+  - ※ **콘텐츠팀의 스캐폴딩 실험은 영향 없다.** 레일은 이 크론이 아니라 `sync-rails.js`로 온다
+  - 다시 켜려면: 아이템·지문 링크를 어떻게 이어줄지부터 정할 것
+    (동기화 뒤에 `build-passages.js` → `build-lecture-items.js`를 붙이는 식)
 - **크론이 무엇을 덮고 무엇을 안 덮는지** (STEP 3에서 실측. 새 컬럼 추가할 때 반드시 볼 것)
   - `questions` 는 **upsert**고 SET 절이 `lecture_id·part·difficulty·content·passage_id·display_order` 뿐이다
     → 그 밖의 컬럼(`question_type_id` 등)은 안 덮인다. 시트에 없는 문항도 안 지워진다

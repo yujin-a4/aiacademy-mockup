@@ -36,6 +36,9 @@ export interface SentenceItem {
   ko?: string         // 직독직해 해석 (P7 계열)
   speaker?: string    // LC 대화 화자 (W/M)
   blank?: number      // P5/P6: 이 문장에 포함된 빈칸 번호 (1~4)
+  /** 이 문장 전용 mp3 (DB `passage_sentences.audio_url`).
+   *  없으면 audioManifest → 브라우저 TTS 순으로 폴백 (보기 음원과 같은 규칙) */
+  audio?: string
 }
 
 export interface ChatMessage { id: string; speaker: string; time?: string; text: string }

@@ -122,8 +122,16 @@ async function main() {
         if (correct.length !== 1) add(FAIL, code, q.question_code, `정답이 ${correct.length}개 (정확히 1개여야 함)`);
         if (opts.length < 3) add(FAIL, code, q.question_code, `보기가 ${opts.length}개뿐`);
         if (!q.qtext) add(WARN, code, q.question_code, '문제문(question_text)이 비었다');
-        const noWhy = opts.filter((o) => !o.correct && !o.why).length;
-        if (noWhy) add(WARN, code, q.question_code, `오답 ${noWhy}개에 근거(오답이유)가 없다 — 튜터가 교정할 재료가 없다`);
+        /* 오답 근거는 **파트마다 교재가 주는 정도가 다르다.**
+           P1·P2 는 해설이 보기별로 오답 이유를 준다 → 없으면 채워야 한다.
+           P3·P4·P6·P7 은 교재가 문항 단위 해설만 준다(정답 근거 하나) → 오답별로는 원래 없다.
+           그걸 일괄로 경고하면 고칠 수 없는 경고가 쌓여 진짜 문제가 안 보인다. */
+        if ([1, 2].includes(part)) {
+          const noWhy = opts.filter((o) => !o.correct && !o.why).length;
+          if (noWhy) add(WARN, code, q.question_code, `오답 ${noWhy}개에 근거(오답이유)가 없다 — 튜터가 교정할 재료가 없다`);
+        } else if (!opts.some((o) => o.correct && o.why)) {
+          add(WARN, code, q.question_code, '정답 근거가 없다 — 튜터가 왜 정답인지 말할 재료가 없다');
+        }
 
         // [2] 사진 · 음원
         if (part === 1) {
@@ -214,6 +222,34 @@ async function main() {
         }));
       }
     }
+
+    /* ── 커리큘럼 채움 현황 ──
+       "정규 커리큘럼에서 뭐가 막혀 있나"를 볼 자리가 없었다. 위 검사는 문항이 **있는** 강의만
+       보기 때문에 빈 강의는 아예 안 나온다. 그래서 42강 전체를 따로 센다. */
+    const { rows: cur } = await c.query(`
+      select l.part, l.lecture_code, l.title,
+             (select count(*) from questions q where q.lecture_id = l.id) qn,
+             (select count(*) from lecture_items li where li.lecture_id = l.id) items,
+             (select count(*) from lecture_steps ls
+               where ls.lecture_id = l.id and ls.instructor_code = 'lee_doyun') rail
+        from lectures l where l.seq is not null order by l.seq`);
+
+    const filled = cur.filter((r) => Number(r.qn) > 0);
+    console.log(`
+커리큘럼 ${cur.length}강 — 문항 있는 강의 ${filled.length} / ${cur.length}`);
+    const parts = Array.from(new Set(cur.map((r) => r.part))).sort();
+    for (const part of parts) {
+      const rows = cur.filter((r) => r.part === part);
+      const done = rows.filter((r) => Number(r.qn) > 0);
+      const empty = rows.filter((r) => Number(r.qn) === 0);
+      const bar = '■'.repeat(done.length) + '·'.repeat(empty.length);
+      console.log(`  P${part}  ${bar.padEnd(16)} ${String(done.length).padStart(2)}/${rows.length}`
+        + (empty.length ? `   빈 강의: ${empty.map((r) => r.lecture_code).join(', ')}` : ''));
+    }
+    const noRail = cur.filter((r) => Number(r.rail) === 0);
+    const noItem = cur.filter((r) => Number(r.qn) > 0 && Number(r.items) === 0);
+    console.log(`  레일 없는 강의 ${noRail.length}개${noRail.length ? ': ' + noRail.map((r) => r.lecture_code).join(', ') : ' (전부 있음)'}`);
+    if (noItem.length) console.log(`  ⚠ 문항은 있는데 아이템이 없는 강의: ${noItem.map((r) => r.lecture_code).join(', ')}`);
 
     /* ── 리포트 ── */
     const fails = issues.filter((i) => i.level === FAIL);

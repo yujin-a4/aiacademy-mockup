@@ -794,28 +794,59 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
   )
 }
 
-/* ── 15문항 유형 그리드 ──
-   유형 축: "문항 유형(0703)" 시트 15유형 × 이도윤 스캐폴딩 레일.
-   각 카드 → /type-lesson/[id] 턴 기반 유형학습 플레이어. 데이터: src/data/typeLearning */
-function TypeCard({ t }: { t: TypeLessonData }) {
+/* ── 문항 유형 그리드 (캐치잇 소통용) ──
+   콘텐츠팀이 정의한 15유형("문항 유형(0703)" 시트) 그대로 보여준다.
+   목적은 학습이 아니라 **"문제 유형에 따라 화면이 어떻게 바뀌는지"를 보여주는 것** —
+   사진이 있는지, 듣기인지, 지문이 몇 개인지, 표가 붙는지.
+
+   예전에는 카드가 /type-lesson 샘플 화면으로 갔는데, 그 화면은 07-21 결정으로 격하됐고
+   지금은 제거했다. **대표 강의를 골라 정본(/lecture)으로 보낸다** — 캐치잇이 보는 화면이
+   실제 학습 화면과 같아야 소통이 된다.
+   문항이 아직 없는 유형은 '문항 준비 중'으로 잠긴다(그 자체가 진행 현황이 된다). */
+const TYPE_LECTURE: Record<string, string> = {
+  t01: 'LC-P1-01',   // 사진 묘사
+  t02: 'LC-P2-01',   // 질의응답
+  t03: 'LC-P3-01',   // 대화
+  t04: 'LC-P3-05',   // 대화 + 시각자료(표)
+  t05: 'LC-P4-01',   // 담화
+  t07: 'RC-P5-08',   // 단문 빈칸
+  t08: 'RC-P6-01',   // 장문 빈칸
+  t09: 'RC-P7-03',   // 1지문 독해
+  // t06·t10~t15 는 아직 해당 문항이 없다 → '문항 준비 중'
+}
+
+function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
   const router = useRouter()
   const lc = t.area === 'LC'
+  const playable = !!lecture && lecture.questionCount > 0
   return (
     <button
-      onClick={() => router.push(`/type-lesson/${t.id}`)}
-      className="group text-left bg-white rounded-2xl border border-[#E5E7EB] p-4 hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] transition-all active:scale-[0.99]"
+      disabled={!playable}
+      onClick={() => playable && router.push(`/lecture/${lecture!.code}`)}
+      className={`group text-left bg-white rounded-2xl border p-4 transition-all ${
+        playable
+          ? 'border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99]'
+          : 'border-[#F1F3F7] opacity-60 cursor-default'
+      }`}
     >
       <div className="flex items-center gap-1.5 mb-2.5">
         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
           Part {t.part}
         </span>
         <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F9FAFB] px-2 py-0.5 rounded-md truncate">{t.typeLabel}</span>
+        {playable && (
+          <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-2 py-0.5 rounded-md ml-auto shrink-0">
+            {lecture!.questionCount}문항
+          </span>
+        )}
       </div>
-      <p className="text-[14px] font-bold text-[#1C1B33] mb-1 group-hover:text-[#2563EB] transition-colors">{t.title}</p>
+      <p className={`text-[14px] font-bold mb-1 transition-colors ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{t.title}</p>
       <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.desc}</p>
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB]">
-        샘플 수업 시작
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${playable ? 'text-[#2563EB]' : 'text-[#C4C9D4]'}`}>
+        {playable ? `${lecture!.code} 로 보기` : '문항 준비 중'}
+        {playable && (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+        )}
       </span>
     </button>
   )
@@ -823,12 +854,14 @@ function TypeCard({ t }: { t: TypeLessonData }) {
 
 /* ── 커리큘럼 강의 그리드 (내 학습의 정본 축) ──
    lectures 테이블(정규 42강 + 데모)을 파트별로 나열. 문항 있는 강의만 플레이 가능(→ /lecture/[code]).
-   Part 2~4(LC 듣기)는 아직 화면 미지원이라 문항이 있어도 준비중으로 둔다. */
+   문항 수(questionCount)만으로 가른다 — 파트 제한은 위 PLAYABLE_PARTS 로 뺐다. */
 const PART_NAME: Record<number, string> = {
   1: '사진 묘사', 2: '질의·응답', 3: '짧은 대화', 4: '짧은 담화',
   5: '단문 빈칸', 6: '장문 빈칸', 7: '독해',
 }
-const PLAYABLE_PARTS = new Set([1, 5, 6, 7])
+/* 문항이 들어 있고 화면이 도는 파트. LC(2·3·4)는 화면 형판이 없어 막아뒀었는데,
+   2026-07-28 에 LC 화면을 붙이고 교재 문항까지 넣어서 열었다. */
+const PLAYABLE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
 
 /* 실전 최소 3문제 원칙 — 1~2문항짜리 placeholder는 누르면 깨지므로 "준비 중"으로.
    실제 강의는 모두 4문항 이상(수업+실전 3). questionCount는 전체 문항 수. */
@@ -904,7 +937,9 @@ function CurriculumGrid() {
 }
 
 function TypeGrid() {
-  /* 파트별(1~7) 그룹 — 2분할 그리드 대신 한 줄로 쭉, 파트마다 구분해서 나열 */
+  const lectures = useCurriculumLectures()
+  const byCode = useMemo(() => new Map(lectures.map((l) => [l.code, l])), [lectures])
+
   const parts = useMemo(() => {
     const map = new Map<number, TypeLessonData[]>()
     for (const t of TYPE_LESSONS) {
@@ -913,11 +948,23 @@ function TypeGrid() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
   }, [])
+
+  const ready = TYPE_LESSONS.filter((t) => {
+    const l = byCode.get(TYPE_LECTURE[t.id] ?? '')
+    return l && l.questionCount > 0
+  }).length
+
   return (
     <div className="space-y-5">
       <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-        <p className="text-[13px] font-bold text-[#1C1B33]">문항 유형별 샘플 수업 <span className="text-[#2563EB]">15</span></p>
-        <p className="text-[11px] text-[#9CA3AF] mt-0.5">유형마다 이도윤 강사의 스캐폴딩 단계(S1~S7)를 따라가는 샘플 1개씩 — 파트 안에서도 자료 형태에 따라 수업 UI가 달라져요.</p>
+        <p className="text-[13px] font-bold text-[#1C1B33]">
+          문항 유형별 화면 <span className="text-[#2563EB]">{TYPE_LESSONS.length}</span>
+          <span className="text-[11px] font-semibold text-[#9CA3AF] ml-1.5">· 지금 볼 수 있는 유형 {ready}</span>
+        </p>
+        <p className="text-[11px] text-[#9CA3AF] mt-0.5">
+          같은 커리큘럼 안에서도 문제 유형에 따라 화면이 달라집니다 — 사진이 있는지, 듣기인지, 지문이 몇 개인지, 표가 붙는지.
+          카드를 누르면 그 유형의 대표 강의로 들어가요.
+        </p>
       </div>
       {parts.map(([part, lessons]) => {
         const lc = lessons[0].area === 'LC'
@@ -931,7 +978,9 @@ function TypeGrid() {
               <span className="text-[11px] text-[#C4C9D4]">{lessons.length}유형</span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {lessons.map(t => <TypeCard key={t.id} t={t} />)}
+              {lessons.map((t) => (
+                <TypeCard key={t.id} t={t} lecture={byCode.get(TYPE_LECTURE[t.id] ?? '')} />
+              ))}
             </div>
           </div>
         )
