@@ -416,6 +416,45 @@ export async function fetchCurriculumLectures(): Promise<DbLecture[]> {
     .sort((a, b) => a.part - b.part || a.code.localeCompare(b.code))
 }
 
+/* ── 문항 유형 (question_types, 0014) ──
+   내 학습의 "문항 유형별" 그리드가 이걸로 그려진다.
+   예전에는 로컬 TS 의 15유형(TYPE_LESSONS)을 그리고 /type-lesson 샘플 화면으로 보냈는데,
+   그 화면은 07-21 결정으로 격하됐고 지금은 유형이 DB(19종)에 있다.
+   카드는 그 유형에 속한 **문항 있는 강의**로 바로 보낸다 → /lecture/[code] (정본). */
+
+export interface DbQuestionType {
+  typeCode: string
+  part: number
+  name: string
+  description: string | null
+  lectureCodes: string[]
+}
+
+export async function fetchQuestionTypes(): Promise<DbQuestionType[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('question_types')
+    .select('type_code, part, name, description, lecture_codes')
+  if (error || !data) return []
+  return (data as any[])
+    .map((r) => ({
+      typeCode: r.type_code, part: r.part, name: r.name,
+      description: r.description ?? null, lectureCodes: r.lecture_codes ?? [],
+    }))
+    .sort((a, b) => a.part - b.part || a.typeCode.localeCompare(b.typeCode))
+}
+
+export function useQuestionTypes(): DbQuestionType[] {
+  const [data, setData] = useState<DbQuestionType[]>([])
+  useEffect(() => {
+    let alive = true
+    fetchQuestionTypes().then((r) => { if (alive) setData(r) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  return data
+}
+
 export function useCurriculumLectures(): DbLecture[] {
   const [data, setData] = useState<DbLecture[]>([])
   useEffect(() => {

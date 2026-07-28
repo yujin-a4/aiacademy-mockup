@@ -5,8 +5,7 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
-import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
-import { useCurriculumLectures, type DbLecture } from '@/data/db/questionStore'
+import { useCurriculumLectures, useQuestionTypes, type DbQuestionType, type DbLecture } from '@/data/db/questionStore'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -794,28 +793,43 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
   )
 }
 
-/* ── 15문항 유형 그리드 ──
-   유형 축: "문항 유형(0703)" 시트 15유형 × 이도윤 스캐폴딩 레일.
-   각 카드 → /type-lesson/[id] 턴 기반 유형학습 플레이어. 데이터: src/data/typeLearning */
-function TypeCard({ t }: { t: TypeLessonData }) {
+/* ── 문항 유형 그리드 ──
+   유형은 DB(question_types 19종)에서 온다. 카드는 그 유형에 속한 **문항 있는 강의**로
+   바로 보낸다 → /lecture/[code] (정본).
+   예전에는 로컬 TS 15유형을 그리고 /type-lesson 샘플 화면으로 보냈는데,
+   그 화면은 07-21 결정으로 격하됐고 지금은 /lecture 가 7개 파트를 전부 돈다. */
+function TypeCard({ t, lecture }: { t: DbQuestionType; lecture?: DbLecture }) {
   const router = useRouter()
-  const lc = t.area === 'LC'
+  const lc = t.part <= 4
+  const playable = !!lecture
   return (
     <button
-      onClick={() => router.push(`/type-lesson/${t.id}`)}
-      className="group text-left bg-white rounded-2xl border border-[#E5E7EB] p-4 hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] transition-all active:scale-[0.99]"
+      disabled={!playable}
+      onClick={() => lecture && router.push(`/lecture/${lecture.code}`)}
+      className={`group text-left bg-white rounded-2xl border p-4 transition-all ${
+        playable
+          ? 'border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99]'
+          : 'border-[#F1F3F7] opacity-60 cursor-default'
+      }`}
     >
       <div className="flex items-center gap-1.5 mb-2.5">
         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
           Part {t.part}
         </span>
-        <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F9FAFB] px-2 py-0.5 rounded-md truncate">{t.typeLabel}</span>
+        <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F9FAFB] px-2 py-0.5 rounded-md truncate">{t.typeCode}</span>
+        {playable && (
+          <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-2 py-0.5 rounded-md ml-auto shrink-0">
+            {lecture!.questionCount}문항
+          </span>
+        )}
       </div>
-      <p className="text-[14px] font-bold text-[#1C1B33] mb-1 group-hover:text-[#2563EB] transition-colors">{t.title}</p>
-      <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.desc}</p>
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB]">
-        샘플 수업 시작
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+      <p className={`text-[14px] font-bold mb-1 transition-colors ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{t.name}</p>
+      {t.description && <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.description}</p>}
+      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${playable ? 'text-[#2563EB]' : 'text-[#C4C9D4]'}`}>
+        {playable ? `${lecture!.title.split(' — ')[0]} 수업 시작` : '문항 준비 중'}
+        {playable && (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
+        )}
       </span>
     </button>
   )
@@ -906,38 +920,49 @@ function CurriculumGrid() {
 }
 
 function TypeGrid() {
-  /* 파트별(1~7) 그룹 — 2분할 그리드 대신 한 줄로 쭉, 파트마다 구분해서 나열 */
+  const types = useQuestionTypes()
+  const lectures = useCurriculumLectures()
+
+  /* 유형 → 그 유형에 속한 **문항 있는 첫 강의**. 없으면 '문항 준비 중' */
   const parts = useMemo(() => {
-    const map = new Map<number, TypeLessonData[]>()
-    for (const t of TYPE_LESSONS) {
+    const byCode = new Map(lectures.map((l) => [l.code, l]))
+    const map = new Map<number, { t: DbQuestionType; lecture?: DbLecture }[]>()
+    for (const t of types) {
+      const lec = t.lectureCodes
+        .map((c) => byCode.get(c))
+        .find((l): l is DbLecture => !!l && l.questionCount > 0)
       if (!map.has(t.part)) map.set(t.part, [])
-      map.get(t.part)!.push(t)
+      map.get(t.part)!.push({ t, lecture: lec })
     }
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
-  }, [])
+  }, [types, lectures])
+
+  const ready = parts.reduce((n, [, rows]) => n + rows.filter((r) => r.lecture).length, 0)
+  if (!types.length) return null
+
   return (
     <div className="space-y-5">
       <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-        <p className="text-[13px] font-bold text-[#1C1B33]">문항 유형별 샘플 수업 <span className="text-[#2563EB]">15</span></p>
-        <p className="text-[11px] text-[#9CA3AF] mt-0.5">유형마다 이도윤 강사의 스캐폴딩 단계(S1~S7)를 따라가는 샘플 1개씩 — 파트 안에서도 자료 형태에 따라 수업 UI가 달라져요.</p>
+        <p className="text-[13px] font-bold text-[#1C1B33]">
+          문항 유형별 수업 <span className="text-[#2563EB]">{types.length}</span>
+          <span className="text-[11px] font-semibold text-[#9CA3AF] ml-1.5">· 지금 풀 수 있는 유형 {ready}</span>
+        </p>
+        <p className="text-[11px] text-[#9CA3AF] mt-0.5">유형마다 푸는 절차(스캐폴딩 레일)가 다릅니다. 카드를 누르면 그 유형의 강의로 들어가요.</p>
       </div>
-      {parts.map(([part, lessons]) => {
-        const lc = lessons[0].area === 'LC'
-        return (
-          <div key={part}>
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
-                Part {part}
-              </span>
-              <p className="text-[12px] font-bold text-[#374151]">{lessons[0].partName}</p>
-              <span className="text-[11px] text-[#C4C9D4]">{lessons.length}유형</span>
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {lessons.map(t => <TypeCard key={t.id} t={t} />)}
-            </div>
+      {parts.map(([part, rows]) => (
+        <div key={part}>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${part <= 4 ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
+              Part {part}
+            </span>
+            <p className="text-[12px] font-bold text-[#374151]">{PART_NAME[part] ?? ''}</p>
+            <span className="text-[11px] text-[#C4C9D4]">{rows.length}유형</span>
           </div>
-        )
-      })}
+          <div className="flex flex-col gap-2.5">
+            {rows.map((r) => <TypeCard key={r.t.typeCode} t={r.t} lecture={r.lecture} />)}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
