@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getTutorQuestion, TUTOR_RAILS, type TutorStep } from '@/data/tutorContent'
 import {
   loadDbQuestion, loadStepTypes, loadLectureSteps, logAnswer, countPriorTagWrongs, normalizeLearnerId,
+  loadCompletedCount, bumpCompleted,
   type DbTutorQuestion, type DbOption, type StepTypeInfo, type LectureStep,
 } from '@/lib/tutorDb'
 
@@ -101,6 +102,9 @@ const sessions = new Map<string, Session>()
 const sessionByKey = new Map<string, string>()
 const sessionKey = (learnerId: string, questionCode: string) => `${learnerId}:${questionCode}`
 // 강의코드별 연속 완료 누적 → Fading 판정 (rail 모드)
+// ⚠️ 이 Map 은 이제 **캐시일 뿐**이다. 정본은 learner_progress 표다 (STEP 6).
+//    서버리스는 인스턴스가 바뀌면 Map 이 비어서, 학생이 다섯 번을 끝내도 Fading 이
+//    늘 'full' 로 되돌아갔다. 세션 시작 때 DB에서 채우고, 완료 때 DB에 올린다.
 const mastery = new Map<string, number>()
 
 const TURN_RULES = [
@@ -156,8 +160,14 @@ function buildFacts(q: DbTutorQuestion): RailFacts {
 
 /* ── rail 모드 (기존 로직 유지) ── */
 
-function fadingLevelFor(learnerId: string, lectureCode: string): FadingLevel {
-  const n = mastery.get(`${learnerId}:${lectureCode}`) ?? 0
+async function fadingLevelFor(learnerId: string, lectureCode: string): Promise<FadingLevel> {
+  const key = `${learnerId}:${lectureCode}`
+  let n = mastery.get(key)
+  if (n == null) {
+    // 인스턴스가 새로 떴다 — 표에서 채운다. 실패하면 0(= full)으로 떨어져 기존 동작 유지
+    n = await loadCompletedCount(learnerId, lectureCode).catch(() => 0)
+    mastery.set(key, n)
+  }
   if (n >= 5) return 'minimal'
   if (n >= 3) return 'reduced'
   return 'full'
@@ -337,7 +347,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (rail) {
-        const level = fadingLevelFor(learnerId, q.lectureCode)
+        const level = await fadingLevelFor(learnerId, q.lectureCode)
         const steps = selectSteps(rail, level)
         sessions.set(id, {
           mode: 'rail', id, learnerId, questionCode, lectureCode: q.lectureCode,
@@ -411,6 +421,8 @@ function answerRail(s: RailSession, text: string) {
     if (s.stepIdx >= s.steps.length) {
       const key = `${s.learnerId}:${s.lectureCode}`
       mastery.set(key, (mastery.get(key) ?? 0) + 1)
+      // 정본은 표다 — 인스턴스가 바뀌어도 남는다. 실패해도 수업은 그대로 끝난다
+      void bumpCompleted(s.learnerId, s.lectureCode, s.fadingLevel).catch(() => {})
       return {
         done: true,
         contextual: '모든 단계 완료. 더 새 질문을 던지지 말고, 학생이 방금 정리한 핵심을 한 문장으로 확인해 주며 수업을 마무리해라.',
@@ -573,8 +585,8 @@ async function answerTag(s: TagSession, text: string) {
 
 /* ── DB 불가 시 legacy 폴백 (기존 tutorContent 하드코딩 그대로) ── */
 
-function startLegacy(q: NonNullable<ReturnType<typeof getTutorQuestion>>, learnerId: string) {
-  const level = fadingLevelFor(learnerId, q.type)
+async function startLegacy(q: NonNullable<ReturnType<typeof getTutorQuestion>>, learnerId: string) {
+  const level = await fadingLevelFor(learnerId, q.type)
   const steps = selectSteps(q.rail, level)
   const id = crypto.randomUUID()
   const choices = q.choices.map((c) => `${c.id}) ${c.text}`).join('  ')

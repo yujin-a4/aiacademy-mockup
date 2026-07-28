@@ -40,6 +40,7 @@ bad data/types. **Run it after any non-trivial data or type change** before cons
 
 | Need to touch… | Go to |
 |---|---|
+| **Supabase DB / 스캐폴딩 구조** (스키마·레일·문항) | **`docs/db-restructure-plan.md`** (read first — 용어·재설계 계획·인수인계), `docs/db-audit-0728.md` (실측 진단) |
 | Lesson/quiz **content** (scripts, branches, choices) | `src/data/*Scenario.ts`, `src/data/tutorContent.ts`, `vocaData.ts`, `rcData.ts` |
 | The **engine** that plays scenarios | `src/components/lesson/LessonRouter.tsx`, `src/components/part7/*Screen.tsx` |
 | Live AI voice tutor design | **`docs/tutor-engine.md`** (read first), `src/app/api/tutor/route.ts` |

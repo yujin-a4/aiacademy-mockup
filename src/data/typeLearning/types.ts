@@ -21,6 +21,8 @@ export interface OptionItem {
 export interface QuestionItem {
   q: string
   options: OptionItem[]
+  /** DB 문항 코드 ('RC-P5-08-Q002'). 학습 로그가 어느 문항이었는지 남기는 데 쓴다 */
+  code?: string
   /** P1 실전처럼 문항마다 사진이 다른 경우 — 없으면 content.photo를 쓴다 */
   photo?: string
   /** 문항 통음원 (DB `content.audio_url`) — 실제 시험처럼 보기 4개를 한 번에 듣는 용도 */
@@ -40,11 +42,14 @@ export interface ChatMessage { id: string; speaker: string; time?: string; text:
 
 export interface TableData { headers: string[]; rows: string[][] }
 
-/** 지문 하나 — P6/P7용. LC 시각자료(표)도 kind='table'로 표현 */
+/** 지문 하나 — P6/P7용. LC 시각자료(표)도 kind='table'로 표현.
+ *  kind는 DB `passages.kind`(0014)의 CHECK 목록과 1:1이다 — 한쪽만 늘리지 말 것.
+ *  LC 3종(utterance·dialogue·talk)은 Part 2·3·4 스크립트를 담기 위한 것(STEP 3). */
 export interface PassageDoc {
   id: string
   label?: string                    // '지문 1 · 공지'
   kind: 'text' | 'email' | 'notice' | 'ad' | 'article' | 'chat' | 'table' | 'form'
+      | 'utterance' | 'dialogue' | 'talk'
   title?: string
   meta?: { k: string; v: string }[] // 이메일 To/From/Subject 등
   sentences?: SentenceItem[]
@@ -105,6 +110,17 @@ export type Interaction =
 
 export interface Turn {
   no: number
+  /** 이 턴이 속한 아이템(레일 한 바퀴)의 seq. 아이템 순회로 만든 수업만 채워진다 (STEP 4) */
+  itemSeq?: number
+  /** 같은 유형이 이 강의에서 몇 번째 바퀴인가 — Fading 판정과 학습효과 분석의 축 */
+  occurrence?: number
+  /** 이 턴이 쓰는 변종(step_variants.id). 학습 로그가 "무엇을 시켰나"를 이걸로 남긴다.
+   *  코드 생성 레일이거나 변종이 안 붙은 LC 레일이면 없다 */
+  variantId?: number | null
+  /** 레일에서 몇 번째 단계였나. 쉐도잉처럼 건너뛴 턴이 있어 `no`(화면 순번)와 다를 수 있다 */
+  stepOrder?: number
+  /** 이 턴의 레일 출처 — type_rails / lecture_steps */
+  railSource?: string | null
   /** S코드 단계명 — 상단 스텝 칩 (시트 '단계' 열) */
   stage: string
   /** 강사 발화 (말풍선 + TTS) — 시트 '자유 표현/말투 예시' 기반 이도윤 톤 */
@@ -134,6 +150,20 @@ export interface LessonRecap {
   closing: string              // 마지막에 강사가 하는 마무리 멘트
 }
 
+/** 아이템 하나가 수업 안에서 차지하는 범위 (STEP 4).
+ *  턴은 itemSeq 로 자기 아이템을 가리키고, 화면·에이전트는 이 표로 "지금 몇 번째 바퀴의
+ *  어떤 문항·지문을 다루는지"를 안다. 아이템 순회로 만든 수업에만 있다. */
+export interface LessonItemRef {
+  seq: number
+  occurrence: number
+  typeCode?: string | null
+  questionTypeId?: number | null
+  /** content.questions 안에서 이 아이템의 범위 [qFrom, qTo) */
+  qFrom: number
+  qTo: number
+  passageIds: string[]
+}
+
 export interface TypeLesson {
   id: string          // 't01' ~ 't15'
   typeNo: number      // 시트 no. 1~15
@@ -148,6 +178,8 @@ export interface TypeLesson {
   /** 실전 문제(수업 뒤 단계)에서 풀 별도 문항 세트. 없으면 수업에서 다룬 content를 그대로 다시 푼다.
    *  DB 구동 시 같은 강의의 `stage='practice'` 문항(P00x)이 여기로 들어온다. */
   practice?: TypeLessonContent
+  /** 아이템 순회로 만든 수업이면 아이템 목록. 앵커 1문항짜리(구방식)면 없음 */
+  items?: LessonItemRef[]
   turns: Turn[]
   recap: LessonRecap   // 세션 정리 화면(실전 문제 이후) — 핵심 문장 3개 + 마무리 멘트
 }
