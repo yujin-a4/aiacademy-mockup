@@ -121,7 +121,28 @@ async function syncPassages(client, sheets) {
   return { tab: true, passages: pn, sentences: sn, warnings };
 }
 
+/* ⚠️ 시트 → DB 문항 동기화는 **중단됐다** (2026-07-28 결정).
+
+   왜 껐나 — 이 파이프라인은 DB 모델을 따라오지 못한다.
+     · 크론이 아는 것 : questions.content · question_options
+     · 크론이 모르는 것: lecture_items(아이템) · passages(지문) · question_type_id · audio_url
+   그래서 시트에서 문항을 추가해도 아이템에 안 붙어 정본 화면(/lecture)에 안 나온다.
+     — 이미 반쪽짜리로 돌고 있었다.
+   게다가 question_options 를 매일 delete+insert 하면서 붙여둔 값을 지운다.
+   실측: 성우 음원 mp3 48개가 public/ 에 있는데 audio_url 은 371개 중 0개였다
+        (매일 밤 지워지고 다음날 전부 재합성 — 돈과 시간을 계속 태우고 있었다).
+
+   ※ 콘텐츠팀의 스캐폴딩 실험은 영향 없다. 레일은 이 크론이 아니라 sync-rails.js 로 온다.
+
+   다시 켜려면 SHEET_SYNC_ENABLED=true 를 주고, 그 전에 아이템·지문 링크를 어떻게
+   이어줄지부터 정할 것 (build-passages.js / build-lecture-items.js 를 뒤에 붙이는 식). */
 async function main() {
+  if (process.env.SHEET_SYNC_ENABLED !== 'true') {
+    const msg = '시트 → DB 문항 동기화는 중단됐습니다. 켜려면 SHEET_SYNC_ENABLED=true (이유는 위 주석)';
+    console.warn(msg);
+    return;
+  }
+
   const auth = await getAuthClient();
   const sheets = google.sheets({ version: 'v4', auth });
   const client = new Client({ connectionString: process.env.SUPABASE_DB_URL, ssl: { rejectUnauthorized: false } });
