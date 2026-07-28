@@ -159,9 +159,24 @@ function optionSrc(lesson: TypeLesson, id: string): string | undefined {
   return lesson.content.questions[Number(m[1])]?.options.find((o) => o.label === m[2])?.audio
 }
 
-/** 재생 아이템에 mp3 경로를 붙인다 (DB 보기 음원 → 매니페스트 → 없으면 브라우저 TTS) */
+/** 문장 음원 (DB `passage_sentences.audio_url`) — LC 질문 발화·대화·담화가 여기서 나온다.
+ *  이게 없어서 보기는 성우인데 **문제 음원만 브라우저 TTS**로 나갔다. */
+function sentenceSrc(lesson: TypeLesson, id: string): string | undefined {
+  const inScript = lesson.content.audioScript?.find((s) => s.id === id)?.audio
+  if (inScript) return inScript
+  for (const p of lesson.content.passages ?? []) {
+    const hit = p.sentences?.find((s) => s.id === id)?.audio
+    if (hit) return hit
+  }
+  return undefined
+}
+
+/** 재생 아이템에 mp3 경로를 붙인다 (DB 음원 → 매니페스트 → 없으면 브라우저 TTS) */
 const withSrc = (lesson: TypeLesson, items: { id: string; text: string }[]) =>
-  items.map((it) => ({ ...it, src: optionSrc(lesson, it.id) ?? srcOf(lesson.id, it.id) }))
+  items.map((it) => ({
+    ...it,
+    src: optionSrc(lesson, it.id) ?? sentenceSrc(lesson, it.id) ?? srcOf(lesson.id, it.id),
+  }))
 
 /* 음원 지시 → 재생 아이템 목록 */
 function cueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: string; src?: string }[] {
