@@ -50,6 +50,7 @@ function passageDocOf(q: UiDbQuestion | undefined, id = 'p1'): PassageDoc | null
       ...(s.ko ? { ko: s.ko } : {}),
       ...(s.speaker ? { speaker: s.speaker } : {}),
       ...(s.blankNo != null ? { blank: s.blankNo } : {}),
+      ...(s.audioUrl ? { audio: s.audioUrl } : {}),
     })),
   }
 }
@@ -217,6 +218,7 @@ function lcScript(q: UiDbQuestion | undefined): SentenceItem[] {
     en: s.en,
     ...(s.ko ? { ko: s.ko } : {}),
     ...(s.speaker ? { speaker: s.speaker } : {}),
+    ...(s.audioUrl ? { audio: s.audioUrl } : {}),
   }))
 }
 
