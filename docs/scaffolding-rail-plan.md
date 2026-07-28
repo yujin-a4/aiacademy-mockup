@@ -1,5 +1,13 @@
 # 스캐폴딩 레일 DB 구동 · 부품화 — 진행 상황과 다음 할 일
 
+> ⚠️ **이 문서는 과거 기록이다. 앞으로 할 일은 [`docs/db-restructure-plan.md`](./db-restructure-plan.md)(v4)를 따를 것.**
+> 용어와 구조가 바뀌었다:
+> - **"부품" → "변종(step_variants)"** · `rail_steps` → `step_variants` · `rail_compositions` → `type_rails`
+> - 레일의 소유자가 **강의 → 문항 유형**으로 바뀐다 (`question_types` 신설)
+> - 이 문서의 "다음 할 일"(§3 P0~P5)은 v4의 STEP 0~7로 대체됨
+>
+> 아래 내용 중 **실측 기록·인수인계 메모는 여전히 유효**하다.
+
 **최종 갱신:** 2026-07-27 · 관련 PR [#61](https://github.com/yujin-a4/aiacademy-mockup/pull/61)(develop 머지 완료)
 
 ---
