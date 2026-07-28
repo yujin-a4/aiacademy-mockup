@@ -524,6 +524,7 @@ create table learner_progress (
 );
 ```
 
+- [ ] **`countPriorTagWrongs` 복구** — STEP 0에서 `learner_answer_log` 읽기를 본인+데모로 좁힌 결과, anon 키로 서버 조회하는 이 함수가 **항상 0을 돌려준다**(반복 오답 시 추가 단계가 안 붙음). 서버 전용 `service_role` 키를 도입하거나 `learning_events`로 옮겨서 해결
 - [ ] `/api/tutor`의 in-memory `mastery` Map → `learner_progress`
 - [ ] **Fading을 유형학습 레일에도 적용** — `fade_policy` + `occurrence`, §3 원리 3의 `WHERE` 한 줄
 - [ ] `normalizeLearnerId()`의 DEMO UUID 뭉침 제거
