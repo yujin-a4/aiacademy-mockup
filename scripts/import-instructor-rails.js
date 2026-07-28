@@ -125,8 +125,29 @@ async function main() {
     }
 
     const warnings = [];
+    /** 시트 탭 이름이 바뀌면 덤프 파일명도 같이 바뀐다. CONFIG.dump 와 정확히 일치하는 파일이
+     *  없으면, 같은 강사 접두사(`[이도윤 ver]` …) 중 **가장 최근 파일**로 대체하고 시끄럽게 알린다.
+     *  (예전에는 여기서 조용히 죽거나 옛 덤프를 그대로 다시 넣을 수 있었다) */
+    const resolveDump = (fileName) => {
+      const dir = path.join(__dirname, 'dump');
+      const exact = path.join(dir, fileName);
+      if (fs.existsSync(exact)) return exact;
+      const prefix = (fileName.match(/^\[[^\]]+\]/) || [''])[0];
+      const cands = fs.readdirSync(dir)
+        .filter((f) => f.endsWith('.json') && f.startsWith(prefix) && f.includes('스케폴딩'))
+        .map((f) => ({ f, m: fs.statSync(path.join(dir, f)).mtime }))
+        .sort((a, b) => b.m - a.m);
+      if (!cands.length) {
+        throw new Error(`덤프를 찾을 수 없다: "${fileName}"\n  ${prefix} 로 시작하는 대체 파일도 없다. `
+          + `먼저 node scripts/dump-sheet.js "<탭 이름>" 을 돌려라.`);
+      }
+      console.warn(`⚠ 덤프 파일명 불일치\n    CONFIG: "${fileName}"\n    대신 사용: "${cands[0].f}" (가장 최근)\n`
+        + `    시트 탭 이름이 바뀐 것 같다. CONFIG.dump 를 갱신해라.`);
+      return path.join(dir, cands[0].f);
+    };
+
     const plan = CONFIG.map((cfg) => {
-      const { rows } = JSON.parse(fs.readFileSync(path.join(__dirname, 'dump', cfg.dump), 'utf-8'));
+      const { rows } = JSON.parse(fs.readFileSync(resolveDump(cfg.dump), 'utf-8'));
       const rails = [];
       for (const cols of cfg.parts) {
         rails.push(...parsePart(rows, cols, tokenToCode, (m) => warnings.push(`[${cfg.instructor}] ${m}`)));
