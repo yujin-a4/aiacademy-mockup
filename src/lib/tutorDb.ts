@@ -194,6 +194,42 @@ export function normalizeLearnerId(studentId: string | undefined): string {
   return studentId && UUID_RE.test(studentId) ? studentId : DEMO_LEARNER_UUID
 }
 
+/* ── 진도 · Fading 상태 (STEP 6) ──
+   이전에는 /api/tutor 안의 `const mastery = new Map()` 이 이 값을 들고 있었다.
+   서버리스에서는 인스턴스가 바뀌면 사라지므로, 학생이 다섯 번을 끝내도 Fading 이 늘 'full' 로
+   되돌아갔다. 표로 옮겨 남게 한다. 실패하면 0을 돌려 기존 동작(full)으로 떨어진다. */
+
+/** 이 학습자가 이 강의를 몇 번 끝냈나 */
+export async function loadCompletedCount(learnerId: string, lectureCode: string): Promise<number> {
+  const supabase = getSupabase()
+  if (!supabase) return 0
+  const { data } = await supabase
+    .from('learner_progress')
+    .select('completed_count')
+    .eq('learner_id', learnerId)
+    .eq('lecture_code', lectureCode)
+    .maybeSingle()
+  return (data as { completed_count?: number } | null)?.completed_count ?? 0
+}
+
+/** 수업을 하나 끝냈다 — 누적 + Fading 단계 갱신 */
+export async function bumpCompleted(
+  learnerId: string, lectureCode: string, fadingLevel: string,
+): Promise<number> {
+  const supabase = getSupabase()
+  if (!supabase) return 0
+  const next = (await loadCompletedCount(learnerId, lectureCode)) + 1
+  await supabase.from('learner_progress').upsert({
+    learner_id: learnerId,
+    lecture_code: lectureCode,
+    completed_count: next,
+    mastery: next,
+    fading_level: fadingLevel,
+    last_at: new Date().toISOString(),
+  }, { onConflict: 'learner_id,lecture_code' })
+  return next
+}
+
 /** 답안 기록. questions.id가 필요해 question_code로 조회 후 insert */
 export async function logAnswer(
   learnerId: string,

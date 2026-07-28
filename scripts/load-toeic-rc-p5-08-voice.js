@@ -1,3 +1,24 @@
+/* ⚠️ 폐기 예정 (deprecated) — 이 스크립트는 DB에 **직접** 쓴다.
+ *
+ * 지금 문항의 정본은 구글시트 "AI어학원 문항 입력"이고, 매일 03:00 KST GCP 크론이
+ * 시트 → DB 로 덮어쓴다(gcp/sync-questions-fn). 그래서 여기서 DB를 직접 고쳐도
+ * **다음 새벽에 되돌아간다.**
+ *
+ * 교재(YBM 실전토익 LC/RC 1000) 문항을 새로 넣으려면 DB가 아니라 시트에 기입할 것.
+ *   참고: scripts/write-rc-p5-*-to-sheet.js (시트 기입 방식 예시)
+ *         scripts/export_part1_sheet.js     (DB → 시트 붙여넣기용 TSV 추출)
+ *
+ * 이 파일은 "어떤 교재 문항을 어떻게 매핑했는지"의 기록으로 남겨둔다. 실행은 막아뒀다.
+ * 정말 돌려야 하면 --force-direct-db 를 붙여라(권장하지 않음).
+ * 자세한 배경: docs/db-restructure-plan.md §7 STEP 1
+ */
+if (!process.argv.includes('--force-direct-db')) {
+  console.error('✗ 이 스크립트는 폐기됐다 — DB 직접 쓰기는 새벽 크론(시트 → DB)에 덮인다.');
+  console.error('  문항은 구글시트 "AI어학원 문항 입력"에 기입할 것.');
+  console.error('  그래도 강행하려면: --force-direct-db');
+  process.exit(1);
+}
+
 /**
  * YBM 실전토익 RC 1000 → RC-P5-08 (능동태·수동태) 문항 6개 적재. Part5=읽기, 음원 없음.
  * 10개 TEST Part5에서 순수 '태' 문항만 선별(희소, 6개):

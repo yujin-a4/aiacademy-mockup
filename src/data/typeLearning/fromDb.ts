@@ -21,25 +21,66 @@ import type {
 
 /* ── 공통 유틸 ── */
 
+const PASSAGE_KINDS = new Set<PassageDoc['kind']>([
+  'text', 'email', 'notice', 'ad', 'article', 'chat', 'table', 'form', 'utterance', 'dialogue', 'talk',
+])
+
+/**
+ * DB `passages`(0014)를 화면 PassageDoc으로. 지문이 이관돼 있으면 이걸 쓴다.
+ * 지문이 아직 없는 문항은 null → 호출부가 예전처럼 content 문자열을 쪼갠다(폴백).
+ *
+ * 이관 전에는 화면이 매번 content의 긴 문자열을 정규식으로 쪼개고 있었다.
+ * 문장 분할 규칙이 화면 코드에 박혀 있었다는 뜻이라, 표·화자·이메일 메타처럼
+ * 문자열로 표현이 안 되는 건 담을 방법이 없었다. 이제 그 구조가 DB에 있다.
+ */
+function passageDocOf(q: UiDbQuestion | undefined, id = 'p1'): PassageDoc | null {
+  const p = q?.passage
+  if (!p || p.sentences.length === 0) return null
+  const kind = (PASSAGE_KINDS.has(p.kind as PassageDoc['kind']) ? p.kind : 'article') as PassageDoc['kind']
+  const table = (p.body as { table?: { headers: string[]; rows: string[][] } } | null)?.table
+  return {
+    id,
+    kind,
+    ...(p.title ? { title: p.title } : {}),
+    ...(p.meta?.length ? { meta: p.meta } : {}),
+    ...(table ? { table } : {}),
+    sentences: p.sentences.map((s) => ({
+      id: `s${s.seq}`,
+      en: s.en,
+      ...(s.ko ? { ko: s.ko } : {}),
+      ...(s.speaker ? { speaker: s.speaker } : {}),
+      ...(s.blankNo != null ? { blank: s.blankNo } : {}),
+    })),
+  }
+}
+
 const BLANK = '______'                       // ContentView가 렌더하는 단일 빈칸 마커
 const numBlank = (n: number) => `___(${n})___` // ContentView가 렌더하는 번호 빈칸 마커
 
 const qNo = (q: UiDbQuestion) => Number(q.content.question_number) || 0
 const correctOf = (q: UiDbQuestion): UiDbOption | undefined => q.options.find((o) => o.correct)
 
-/** 같은 지문(passage_text/passage_context) 묶음. 지문 개념이 없는 Part5는 앵커 1문항만. */
+/** 같은 지문 묶음. 지문 개념이 없는 Part1·5는 앵커 1문항만.
+ *  0014 이후로는 `passages`(정규화된 지문)가 1차 기준이다 — LC(P2·3·4)는 content에 지문 문자열이
+ *  아예 없어서 예전 기준(passage_text/passage_context)으로는 묶이지 않는다. 그 둘은 폴백. */
 function groupOf(rows: UiDbQuestion[], anchor: UiDbQuestion): UiDbQuestion[] {
+  const pCode = anchor.passage?.code
   const key = anchor.content.passage_text ?? anchor.content.passage_context
-  const same = key
-    ? rows.filter((r) => (r.content.passage_text ?? r.content.passage_context) === key)
-    : [anchor]
-  return [...same].sort((a, b) => qNo(a) - qNo(b) || a.code.localeCompare(b.code))
+  const same = pCode
+    ? rows.filter((r) => r.passage?.code === pCode)
+    : key
+      ? rows.filter((r) => (r.content.passage_text ?? r.content.passage_context) === key)
+      : [anchor]
+  return [...same].sort(
+    (a, b) => (a.displayOrder || qNo(a)) - (b.displayOrder || qNo(b)) || a.code.localeCompare(b.code),
+  )
 }
 
 /** DB 보기 → 화면 문항 (why = 정답이면 근거, 오답이면 오답이유) */
 function toQuestion(q: UiDbQuestion, label?: string): QuestionItem {
   return {
     q: label ?? q.content.question_text ?? '알맞은 것을 고르세요.',
+    code: q.code,                       // 학습 로그가 어느 문항이었는지 남긴다 (STEP 6)
     audio: q.content.audio_url,
     options: q.options.map((o) => ({
       label: o.label,
@@ -154,6 +195,168 @@ function buildPart1(local: TypeLesson, rows: UiDbQuestion[], q: UiDbQuestion): T
     },
     turns: part1Turns(q),
     recap: part1Recap(rows, q, local.recap),
+  }
+}
+
+/* ═══════════ Part 2·3·4 · LC 듣기 ═══════════
+   FGI에서 LC도 시연한다(2026-07-28 기획 결정, D7). 쉐도잉은 범위 밖이다(D10 → fromSteps.SKIP_SHADOW).
+
+   LC는 RC와 콘텐츠 모양이 다르다. 지문을 눈으로 읽는 게 아니라 **음원 스크립트**를 듣는다.
+     · 화면은 `content.audioScript`(문장 단위 = 구간 재생 단위)를 본다. `passages`가 아니다
+     · 표/자료형은 `content.visual` — 음원 듣는 동안 화면에 상시 노출
+     · Part2는 보기까지 음성이라 `optionAudio: true` (텍스트는 공개 전 숨김)
+   재료는 전부 passages/passage_sentences(0014)에서 온다 — 화자·표를 담을 자리가 그때 생겼다.
+
+   ⚠️ 문장 mp3(`passage_sentences.audio_url`)는 지금 전부 비어 있다.
+      플레이어가 브라우저 TTS로 폴백하므로 수업은 돌지만, 성우 음원이 아니다. */
+
+/** 지문 → LC 음원 스크립트. 화자(W/M)가 있으면 그대로 살린다 */
+function lcScript(q: UiDbQuestion | undefined): SentenceItem[] {
+  return (q?.passage?.sentences ?? []).map((s) => ({
+    id: `s${s.seq}`,
+    en: s.en,
+    ...(s.ko ? { ko: s.ko } : {}),
+    ...(s.speaker ? { speaker: s.speaker } : {}),
+  }))
+}
+
+/** 지문 body의 표 → 시각자료 (P3·P4 표/자료형) */
+function lcVisual(q: UiDbQuestion | undefined): TypeLessonContent['visual'] {
+  const body = q?.passage?.body as
+    { table?: { headers: string[]; rows: string[][] }; visual_title?: string } | null | undefined
+  if (!body?.table) return undefined
+  return { title: body.visual_title ?? '시각자료', table: body.table }
+}
+
+/** Part2 — 질문 발화 1개 + 응답 3개. 아이템 = 문항 1개 */
+function part2Turns(q: UiDbQuestion, script: SentenceItem[]): Turn[] {
+  const correct = correctOf(q)
+  const first = script[0]
+  const turns: Turn[] = [
+    {
+      no: 1, stage: 'S0 질문 1차 청취',
+      tutor: '먼저 질문만 들어볼게요. 첫 단어, 그러니까 의문사를 잡는 게 목표예요. 선택지는 아직 안 나옵니다.',
+      ...(first ? { audio: { kind: 'sentences', ids: [first.id] } as const } : {}),
+      interaction: { kind: 'next', label: '들었어요' },
+    },
+    {
+      no: 2, stage: 'S1 핵심 단서',
+      tutor: '질문의 첫 단어는 뭐였나요? 의문사 하나, 핵심 동사 하나, 명사 하나면 됩니다.',
+      interaction: { kind: 'subjective', prompt: '들은 의문사·핵심 동사·명사를 말해보세요', hint: '예) Where / held / meeting' },
+    },
+    {
+      no: 3, stage: 'S3 응답 예측',
+      tutor: '무엇을 묻는지 잡았으면, 어떤 답이 올 수 있는지 범위를 먼저 정해두고 선택지를 듣습니다.',
+      interaction: { kind: 'next', label: '선택지 들으러 가기' },
+    },
+    {
+      no: 4, stage: 'S0 선택지 청취 + 답 선택', focusQ: 0,
+      tutor: `이제 ${q.options.map((o) => o.label).join(', ')}를 이어서 들려드릴게요. 질문에 맞는 응답을 골라보세요.`,
+      audio: { kind: 'options', qIdx: 0, labels: q.options.map((o) => o.label) },
+      interaction: { kind: 'pickAnswer', qIdx: 0, prompt: '정답을 고르세요' },
+    },
+  ]
+  q.options.forEach((o) => {
+    turns.push({
+      no: turns.length + 1, stage: `선택지 ${o.label} · S6`,
+      tutor: `${o.label} 다시 들어볼게요.`,
+      audio: { kind: 'option', qIdx: 0, label: o.label },
+      reveal: { optionText: [{ qIdx: 0, labels: [o.label] }] },
+      interaction: {
+        kind: 'choice',
+        prompt: `${o.label}는 질문에 맞는 응답인가요?`,
+        choices: o.correct
+          ? [{ text: '맞는 응답이에요', correct: true }, { text: '맞지 않아요' }]
+          : [{ text: '맞는 응답이에요' }, { text: '맞지 않아요', correct: true }],
+        feedback: (o.correct ? o.evidence : o.explanation) ?? '',
+      },
+    })
+  })
+  turns.push({
+    no: turns.length + 1, stage: 'S7 표현 정리',
+    tutor: correct
+      ? `정리할게요. 정답은 ${correct.label}) ${correct.text} 예요. ${correct.evidence ?? ''}`.trim()
+      : '정리할게요.',
+    reveal: { scriptIds: 'all', optionText: [{ qIdx: 0, labels: 'all' }] },
+    interaction: { kind: 'next', label: '수업 마치기' },
+  })
+  return turns
+}
+
+/** Part3·4 — 대화/담화 1개 + 문항 3개. 아이템 = 지문 1개 */
+function part34Turns(group: UiDbQuestion[], hasVisual: boolean): Turn[] {
+  const turns: Turn[] = [
+    {
+      no: 1, stage: 'S1 핵심 단서',
+      tutor: '음원 틀기 전에 문제와 선택지부터 빠르게 볼게요. 주요 명사와 동사를 탭해서 표시해 보세요.',
+      interaction: { kind: 'mark', prompt: '문제·선택지의 핵심 단어를 표시해 보세요' },
+    },
+  ]
+  if (hasVisual) {
+    turns.push({
+      no: 2, stage: 'S3 시각자료 확인',
+      tutor: '표를 먼저 볼게요. 보기에 항목 이름이 있으면, 음원에서는 이름이 아니라 다른 값(가격·시간)을 말해줄 가능성이 큽니다. 짝을 미리 눈에 넣어두세요.',
+      interaction: { kind: 'next', label: '표 확인했어요' },
+    })
+  }
+  turns.push(
+    {
+      no: turns.length + 1, stage: 'S2 유형·역할 판별',
+      tutor: '문제 세 개가 각각 무엇을 묻는지 먼저 갈라둡니다. 주제·세부정보·다음 행동 — 어느 쪽인지에 따라 들을 위치가 달라져요.',
+      interaction: { kind: 'next', label: '음원 들으러 가기' },
+    },
+    {
+      no: turns.length + 2, stage: 'S0 전체 음원 재생 + 학생 풀이',
+      tutor: '이제 전체를 한 번에 들려드릴게요. 실제 시험처럼 중간에 멈추지 않습니다. 들으면서 바로 풀어보세요.',
+      audio: { kind: 'full' },
+      interaction: { kind: 'solveAll', prompt: '들으면서 세 문항을 풀어보세요' },
+    },
+    {
+      no: turns.length + 3, stage: 'S5 정답·스크립트 공개 + 흐름 확인',
+      tutor: '스크립트를 열게요. 어디서 답이 나왔는지 위치부터 확인합니다.',
+      reveal: { scriptIds: 'all' },
+      interaction: { kind: 'next', label: '문항별로 보기' },
+    },
+  )
+  group.forEach((q, i) => {
+    const c = correctOf(q)
+    turns.push({
+      no: turns.length + 1, stage: `Q${i + 1} · S2+S5 근거 확인`, focusQ: i,
+      tutor: c
+        ? `Q${i + 1} 갑니다. 정답은 ${c.label}) ${c.text}. ${c.evidence ?? ''} 스크립트에서 이 부분이 어떻게 바뀌어 보기로 나왔는지 보세요.`.replace(/\s+/g, ' ').trim()
+        : `Q${i + 1} 갑니다. 근거가 되는 문장을 찾아보세요.`,
+      interaction: { kind: 'next' },
+    })
+  })
+  turns.push({
+    no: turns.length + 1, stage: 'S7 표현 정리',
+    tutor: '듣기는 스크립트 표현이 보기에서 그대로 안 나옵니다. 오늘처럼 같은 내용이 다른 말로 바뀌어 보기가 됩니다. 그 바꿔치기를 알아보는 게 전부예요.',
+    interaction: { kind: 'next', label: '수업 마치기' },
+  })
+  return turns
+}
+
+function buildLc(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
+  const script = lcScript(group[0])
+  if (!script.length) return local
+  const visual = lcVisual(group[0])
+  const isP2 = local.part === 2
+  const title = group[0].passage?.title
+
+  return {
+    ...local,
+    ...(title ? { title } : {}),
+    desc: isP2
+      ? '질문 음원 1개 + 응답 — 의문사·핵심어 잡기'
+      : `${local.part === 3 ? '대화' : '담화'} 1개 + 문항 ${group.length}개 — 문제 먼저 읽고 타이밍 잡기`,
+    content: {
+      audioScript: script,
+      ...(visual ? { visual } : {}),
+      ...(isP2 ? { optionAudio: true } : {}),
+      questions: group.map((q) => toQuestion(q)),
+    },
+    turns: isP2 ? part2Turns(group[0], script) : part34Turns(group, !!visual),
+    recap: local.recap,     // LC 세션 정리는 아직 로컬 형판 그대로 (문장 해석이 DB에 없다)
   }
 }
 
@@ -357,8 +560,10 @@ function part6Recap(group: UiDbQuestion[], sentences: SentenceItem[], fallback: 
 
 function buildPart6(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
   const passage = group[0]?.content.passage_context
-  if (!passage || group.length === 0) return local
-  const sentences = clozeSentences(passage)
+  const doc = passageDocOf(group[0])
+    ?? (passage ? { id: 'p1', kind: passageKind(undefined, passage), sentences: clozeSentences(passage) } : null)
+  if (!doc || group.length === 0) return local
+  const sentences = doc.sentences ?? []
   const types = Array.from(new Set(group.map((q) => q.content.blank_type).filter(Boolean)))
   return {
     ...local,
@@ -366,7 +571,7 @@ function buildPart6(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
     title: `장문 빈칸 — 빈칸 ${group.length}개`,
     desc: types.length ? `지문 흐름 속 ${types.join('·')} 빈칸 ${group.length}개` : local.desc,
     content: {
-      passages: [{ id: 'p1', kind: passageKind(undefined, passage), sentences }],
+      passages: [doc],
       questions: group.map((q, i) => toQuestion(q, `빈칸 (${qNo(q) || i + 1})`)),
     },
     turns: part6Turns(group),
@@ -463,21 +668,26 @@ function part7Recap(group: UiDbQuestion[], fallback: TypeLesson['recap']): TypeL
 
 function buildPart7(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
   const text = group[0]?.content.passage_text
-  if (!text || group.length === 0) return local
-  const kind = passageKind(group[0].content.passage_type, text)
-  const sentences: SentenceItem[] = text
-    .split(/\n+/).map((l) => l.trim()).filter(Boolean)
-    .map((en, i) => ({ id: `e${i + 1}`, en }))
+  const fromDb = passageDocOf(group[0])
+  if (!fromDb && (!text || group.length === 0)) return local
+  const doc: PassageDoc = fromDb ?? {
+    id: 'p1',
+    kind: passageKind(group[0].content.passage_type, text!),
+    sentences: text!.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+      .map((en, i) => ({ id: `e${i + 1}`, en })),
+  }
+  // 지문 종류 라벨은 시트 원문 표기를 그대로 보여준다 ('광고·홍보문')
+  if (group[0].content.passage_type) doc.label = group[0].content.passage_type
 
   return {
     ...local,
     title: `독해 — ${group[0].content.passage_type ?? '1지문'} 지문`,
     desc: `${group[0].content.passage_structure ?? group[0].content.passage_type ?? '지문'} 1개 + 문항 ${group.length}개 — 질문 먼저, 근거 문장으로`,
     content: {
-      passages: [{ id: 'p1', kind, label: group[0].content.passage_type, sentences }],
+      passages: [doc],
       questions: group.map((q) => toQuestion(q)),
     },
-    turns: part7Turns(group, kind),
+    turns: part7Turns(group, doc.kind),
     recap: part7Recap(group, local.recap),
   }
 }
@@ -513,22 +723,26 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
       }
     case 6: {
       const passage = group[0].content.passage_context
-      if (!passage) return undefined
+      const doc = passageDocOf(group[0])
+        ?? (passage ? { id: 'p1', kind: passageKind(undefined, passage), sentences: clozeSentences(passage) } : null)
+      if (!doc || !passage) return undefined
       const same = group.filter((q) => q.content.passage_context === passage)
       return {
-        passages: [{ id: 'p1', kind: passageKind(undefined, passage), sentences: clozeSentences(passage) }],
+        passages: [doc],
         questions: same.map((q, i) => toQuestion(q, `빈칸 (${qNo(q) || i + 1})`)),
       }
     }
     case 7: {
       const text = group[0].content.passage_text
       if (!text) return undefined
+      const doc: PassageDoc = passageDocOf(group[0]) ?? {
+        id: 'p1', kind: passageKind(group[0].content.passage_type, text),
+        sentences: text.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((en, i) => ({ id: `e${i + 1}`, en })),
+      }
+      if (group[0].content.passage_type) doc.label = group[0].content.passage_type
       const same = group.filter((q) => q.content.passage_text === text)
       return {
-        passages: [{
-          id: 'p1', kind: passageKind(group[0].content.passage_type, text), label: group[0].content.passage_type,
-          sentences: text.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((en, i) => ({ id: `e${i + 1}`, en })),
-        }],
+        passages: [doc],
         questions: same.map((q) => toQuestion(q)),
       }
     }
@@ -553,6 +767,9 @@ export function buildLessonFromDb(local: TypeLesson, rows: UiDbQuestion[], ancho
   let built: TypeLesson
   switch (local.part) {
     case 1: built = buildPart1(local, lessonRows, anchor); break
+    case 2: built = buildLc(local, [anchor]); break          // 질문 1개가 한 바퀴
+    case 3:
+    case 4: built = buildLc(local, group); break             // 지문(대화·담화) 1개가 한 바퀴
     case 5: built = buildPart5(local, lessonRows, anchor); break
     case 6: built = buildPart6(local, group); break
     case 7: built = buildPart7(local, group); break

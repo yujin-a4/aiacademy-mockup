@@ -22,6 +22,29 @@ export interface UiDbOption {
   evidence: string | null
   /** 이 보기만 재생하는 mp3 (없으면 통합 음원으로 폴백) — scripts/gen_option_audio.js가 채운다 */
   audioUrl: string | null
+  /** 화면에 그릴 순서 (0014). 크론이 보기를 지웠다 다시 넣어도 트리거가 채운다 */
+  displayOrder: number
+}
+
+/** 지문 문장 하나 (`passage_sentences`) — 음원 구간 재생·직독직해의 최소 단위 */
+export interface UiDbSentence {
+  seq: number
+  en: string
+  ko: string | null
+  speaker: string | null
+  blankNo: number | null
+  audioUrl: string | null
+}
+
+/** 지문 (`passages`, 0014) — 표·대화·이메일 메타를 담는다. content 문자열을 대체한다 */
+export interface UiDbPassage {
+  code: string | null
+  kind: string
+  title: string | null
+  meta: { k: string; v: string }[] | null
+  /** 문장으로 안 쪼개지는 것: { table: { headers, rows } } 등 */
+  body: Record<string, unknown> | null
+  sentences: UiDbSentence[]
 }
 
 export interface UiDbQuestion {
@@ -29,9 +52,60 @@ export interface UiDbQuestion {
   part: number
   content: Record<string, string>
   options: UiDbOption[]
+  /** 지문 안에서 몇 번째 문항인가 (0014). 교재 원문 번호(147 같은 값)와 다르다 */
+  displayOrder: number
+  /** 이 문항이 붙은 지문. 지문 개념이 없는 Part1·5는 null */
+  passage: UiDbPassage | null
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/* 세 군데서 같은 select/매핑을 하던 것을 한 곳으로. 컬럼이 늘 때 한 군데만 고치면 된다 */
+const Q_SELECT =
+  'question_code, part, content, display_order, ' +
+  'question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url, display_order), ' +
+  'passages(passage_code, kind, title, meta, body, passage_sentences(seq, en, ko, speaker, blank_no, audio_url))'
+
+function mapPassage(row: any): UiDbPassage | null {
+  const p = Array.isArray(row?.passages) ? row.passages[0] : row?.passages
+  if (!p) return null
+  return {
+    code: p.passage_code ?? null,
+    kind: p.kind,
+    title: p.title ?? null,
+    meta: (p.meta as { k: string; v: string }[] | null) ?? null,
+    body: (p.body as Record<string, unknown> | null) ?? null,
+    sentences: ((p.passage_sentences as any[]) ?? [])
+      .map((s) => ({
+        seq: s.seq, en: s.en, ko: s.ko ?? null, speaker: s.speaker ?? null,
+        blankNo: s.blank_no ?? null, audioUrl: s.audio_url ?? null,
+      }))
+      .sort((a, b) => a.seq - b.seq),
+  }
+}
+
+function mapQuestion(row: any): UiDbQuestion {
+  return {
+    code: row.question_code,
+    part: row.part,
+    content: (row.content as Record<string, string>) ?? {},
+    displayOrder: row.display_order ?? 0,
+    passage: mapPassage(row),
+    options: ((row.question_options as any[]) ?? [])
+      // display_order 우선(0014). 없던 시절 데이터/폴백을 위해 label 순으로 떨어진다
+      .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
+        || String(a.option_label).localeCompare(String(b.option_label)))
+      .map((o, i) => ({
+        label: o.option_label,
+        text: o.option_text,
+        correct: o.is_correct,
+        explanation: o.option_explanation,
+        evidence: o.correct_evidence,
+        audioUrl: o.audio_url ?? null,
+        displayOrder: o.display_order ?? i + 1,
+      })),
+  }
+}
 
 /** codes 순서대로 정렬해 반환. 하나라도 없거나 실패하면 null (→ 폴백) */
 export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuestion[] | null> {
@@ -40,30 +114,13 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
 
   const { data, error } = await supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url)')
+    .select(Q_SELECT)
     .in('question_code', codes)
 
   if (error || !data) return null
 
   const byCode = new Map<string, UiDbQuestion>(
-    data.map((row: any) => [
-      row.question_code,
-      {
-        code: row.question_code,
-        part: row.part,
-        content: (row.content as Record<string, string>) ?? {},
-        options: ((row.question_options as any[]) ?? [])
-          .sort((a, b) => String(a.option_label).localeCompare(String(b.option_label)))
-          .map((o) => ({
-            label: o.option_label,
-            text: o.option_text,
-            correct: o.is_correct,
-            explanation: o.option_explanation,
-            evidence: o.correct_evidence,
-            audioUrl: o.audio_url ?? null,
-          })),
-      },
-    ]),
+    data.map((row: any) => [row.question_code, mapQuestion(row)]),
   )
 
   const ordered = codes.map((c) => byCode.get(c))
@@ -111,7 +168,7 @@ export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<U
   const passageText = (anchorRow.content as Record<string, string>)?.passage_text
   let query = supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url)')
+    .select(Q_SELECT)
     .eq('lecture_id', anchorRow.lecture_id as number)
   if (passageText) query = query.eq('content->>passage_text', passageText)
 
@@ -119,21 +176,7 @@ export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<U
   if (error || !data || data.length === 0) return null
 
   const rows: UiDbQuestion[] = (data as any[])
-    .map((row) => ({
-      code: row.question_code,
-      part: row.part,
-      content: (row.content as Record<string, string>) ?? {},
-      options: ((row.question_options as any[]) ?? [])
-        .sort((a, b) => String(a.option_label).localeCompare(String(b.option_label)))
-        .map((o) => ({
-          label: o.option_label,
-          text: o.option_text,
-          correct: o.is_correct,
-          explanation: o.option_explanation,
-          evidence: o.correct_evidence,
-            audioUrl: o.audio_url ?? null,
-        })),
-    }))
+    .map(mapQuestion)
     .filter((q) => q.options.length > 0)
     .sort((a, b) => a.code.localeCompare(b.code))
 
@@ -162,10 +205,23 @@ function correctOf(q: UiDbQuestion): UiDbOption {
   return q.options.find((o) => o.correct) ?? q.options[0]
 }
 
+/** 화면에 넘길 보기 4칸. Part2처럼 3개뿐이면 빈 칸으로 채운다 */
 function choicesTuple(q: UiDbQuestion): RCChoices {
   const texts = q.options.map((o) => o.text)
   while (texts.length < 4) texts.push('')
   return texts.slice(0, 4) as RCChoices
+}
+
+/**
+ * 정답 위치. 화면 타입(rcData)이 `answer: number`라 인덱스를 넘기지만,
+ * **그 인덱스를 label로부터 계산한다.** 예전에는 options 배열을 findIndex 했는데,
+ * 그건 choicesTuple이 만든 배열과 우연히 순서가 같아서 맞던 것이었다.
+ * 이제 보기 정렬 기준이 display_order(0014)라 둘이 갈릴 수 있어 명시적으로 맞춘다.
+ */
+function answerIndex(q: UiDbQuestion): number {
+  const label = correctOf(q)?.label
+  const i = q.options.findIndex((o) => o.label === label)
+  return i >= 0 ? Math.min(i, 3) : 0
 }
 
 /** Part7Set (part7Scenario 모양) — Part7ConvAIScreen / Part7AIScreen / Part7Screen / Part7ReadingScreen(수업 세트) */
@@ -194,7 +250,7 @@ export function toP6Passage(rows: UiDbQuestion[], fallback: P6Passage): P6Passag
     questions: rows.map((q, i) => ({
       blankNum: Number(q.content.question_number) || i + 1,
       choices: choicesTuple(q),
-      answer: q.options.findIndex((o) => o.correct),
+      answer: answerIndex(q),
       explanation: correctOf(q).evidence ?? '',
       category: q.content.blank_type ?? fallback.questions[i]?.category ?? '문법',
     })),
@@ -212,7 +268,7 @@ export function toP7Passage(rows: UiDbQuestion[], fallback: P7Passage): P7Passag
       id: Number(q.content.question_number) || i + 1,
       question: q.content.question_text ?? '',
       choices: choicesTuple(q),
-      answer: q.options.findIndex((o) => o.correct),
+      answer: answerIndex(q),
       explanation: correctOf(q).evidence ?? '',
     })),
   }
@@ -224,7 +280,7 @@ export function toP5Questions(rows: UiDbQuestion[], fallback: P5Question[]): P5Q
     id: i + 1,
     sentence: q.content.blank_sentence ?? fallback[i]?.sentence ?? '',
     choices: choicesTuple(q),
-    answer: q.options.findIndex((o) => o.correct),
+    answer: answerIndex(q),
     explanation: correctOf(q).evidence ?? '',
     category: q.content.grammar_point ?? fallback[i]?.category ?? '',
   }))
@@ -376,25 +432,11 @@ export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQu
   if (!supabase) return []
   const { data, error } = await supabase
     .from('questions')
-    .select('question_code, part, content, question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url), lectures!inner(lecture_code)')
+    .select(`${Q_SELECT}, lectures!inner(lecture_code)`)
     .eq('lectures.lecture_code', lectureCode)
   if (error || !data) return []
   return (data as any[])
-    .map((row) => ({
-      code: row.question_code,
-      part: row.part,
-      content: (row.content as Record<string, string>) ?? {},
-      options: ((row.question_options as any[]) ?? [])
-        .sort((a, b) => String(a.option_label).localeCompare(String(b.option_label)))
-        .map((o) => ({
-          label: o.option_label,
-          text: o.option_text,
-          correct: o.is_correct,
-          explanation: o.option_explanation,
-          evidence: o.correct_evidence,
-            audioUrl: o.audio_url ?? null,
-        })),
-    }))
+    .map(mapQuestion)
     .filter((q) => q.options.length > 0)
     .sort((a, b) => a.code.localeCompare(b.code))
 }
