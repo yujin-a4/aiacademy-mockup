@@ -70,18 +70,34 @@ function poseForTurn(turn: Turn, speaking: boolean): InstPose {
    /type-lesson은 그동안 에이전트에 단계 지시(turn.tutor)만 줬고 문항의 실제 내용(사진 묘사·보기·정답·근거)은
    안 줬다 → 에이전트가 사진/지문을 지어내거나(할루시네이션), 오답을 교정하지 못했다.
    세션이 붙으면 이 사실 뭉치를 sendContextualUpdate로 한 번 주입해 에이전트를 실제 문항에 묶는다. */
-function buildLessonFacts(lesson: TypeLesson): string {
+/**
+ * @param itemSeq 지금 도는 아이템(레일 한 바퀴). 주면 **그 아이템의 문항·지문만** 넣는다.
+ *   강의 하나가 아이템 여러 개(사진 3장·문장 5개)로 돌기 때문에(STEP 4), 전체를 한 번에 주면
+ *   에이전트가 지금 화면에 없는 문항 이야기를 한다. 아이템이 넘어갈 때마다 다시 주입한다.
+ */
+function buildLessonFacts(lesson: TypeLesson, itemSeq?: number): string {
   const c = lesson.content
+  const ref = itemSeq != null ? lesson.items?.find((i) => i.seq === itemSeq) : undefined
+  const questions = ref ? c.questions.slice(ref.qFrom, ref.qTo) : c.questions
+  const passages = ref
+    ? (c.passages ?? []).filter((p) => ref.passageIds.includes(p.id))
+    : (c.passages ?? [])
+  const total = lesson.items?.length ?? 1
+
   const lines: string[] = [
     '[이번 수업의 실제 자료 — 아래 사실만 근거로 삼는다. 여기 없는 사진·지문 내용을 절대 지어내지 마라.]',
     `유형: Part ${lesson.part} · ${lesson.typeLabel}`,
   ]
-  if (c.photo) lines.push(`사진 속 내용: ${c.photoDesc ?? '(설명 없음 — 사진 세부를 임의로 단정하지 말고 학생 관찰을 따라가라)'}`)
-  for (const p of c.passages ?? []) {
+  if (ref && total > 1) {
+    lines.push(`지금 다루는 것: ${total}개 중 ${ref.seq}번째. 아래 자료만이 지금 화면에 있는 것이다. 이전 문항 이야기로 돌아가지 마라.`)
+  }
+  const photo = questions.find((q) => q.photo)?.photo ?? c.photo
+  if (photo) lines.push(`사진 속 내용: ${c.photoDesc ?? '(설명 없음 — 사진 세부를 임의로 단정하지 말고 학생 관찰을 따라가라)'}`)
+  for (const p of passages) {
     const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
     if (body) lines.push(`지문(${p.label ?? p.kind}): ${body}`)
   }
-  c.questions.forEach((q, i) => {
+  questions.forEach((q, i) => {
     lines.push(`문항 ${i + 1}: ${q.q}`)
     q.options.forEach((o) =>
       lines.push(`  ${o.label}) ${o.text}${o.correct ? ' ← 정답' : ''}${o.why ? `  (${o.why})` : ''}`))
@@ -538,19 +554,24 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     return `[학생 행동] ${label} 이 행동에 맞춰 짧게 반응하라.`
   }
 
-  /* 세션이 붙으면 "이번 수업의 실제 사실"을 한 번 주입 — 에이전트가 사진/지문을 지어내지 않고
-     오답을 실제 근거로 교정하게 한다(Contextual Update: 화면·음성엔 안 나오는 귓속말). */
-  const factsSentRef = useRef(false)
+  /* "이번 수업의 실제 사실"을 주입 — 에이전트가 사진/지문을 지어내지 않고
+     오답을 실제 근거로 교정하게 한다(Contextual Update: 화면·음성엔 안 나오는 귓속말).
+     세션이 붙을 때 한 번, 그리고 **아이템이 넘어갈 때마다 다시**(STEP 4).
+     아이템 순회 전에는 주입이 1회뿐이었는데, 강의 하나가 사진 3장·문장 5개로 도는 지금은
+     그러면 에이전트가 2번째 바퀴에서도 1번째 사진 이야기를 한다. */
+  const curItemSeq = turn.itemSeq
+  const factsSentRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!agentConnected) { factsSentRef.current = false; return }
-    if (factsSentRef.current) return
-    factsSentRef.current = true
+    if (!agentConnected) { factsSentRef.current = null; return }
+    const key = String(curItemSeq ?? 'all')
+    if (factsSentRef.current === key) return
+    factsSentRef.current = key
     try {
       ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void })
-        .sendContextualUpdate?.(buildLessonFacts(lesson))
+        .sendContextualUpdate?.(buildLessonFacts(lesson, curItemSeq))
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentConnected])
+  }, [agentConnected, curItemSeq])
 
   /* 대화 흐름은 항상 마지막 발화가 보이게 — 턴이 넘어가거나 새 메시지가 오면 아래로 */
   useEffect(() => {

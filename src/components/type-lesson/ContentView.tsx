@@ -427,6 +427,8 @@ function TableView({ table, accent = '#475569', docId, st }: { table: { headers:
 /* ── RC 지문 (점진 공개 · 이메일/공지/채팅/표/양식) ── */
 const KIND_LABEL: Record<PassageDoc['kind'], string> = {
   text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사', chat: '문자 대화', table: '표', form: '양식',
+  // LC 스크립트 (Part 2·3·4) — 화면은 아직 미지원이지만 라벨은 타입상 있어야 한다
+  utterance: '질문 발화', dialogue: '대화 스크립트', talk: '담화 스크립트',
 }
 
 function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson: TypeLesson; st: ContentState; focusBlank?: number }) {

@@ -27,6 +27,13 @@ import type {
   AudioCue, Interaction, RevealState, Turn, TypeLessonContent,
 } from './types'
 
+/* ── FGI 범위 ──
+   2026-07-28 기획 결정: **FGI에서 LC(Part 2·3·4)는 시연하되, 쉐도잉은 하지 않는다.**
+   시트 레일에는 쉐도잉 턴이 남아 있으므로(lecture_steps 48행, 대부분 Part2) 화면에서 건너뛴다.
+   레일 데이터를 지우지 않는 이유: 정본은 시트고, 결정이 뒤집히면 이 상수만 되돌리면 된다.
+   계획서 §10 D10("쉐도잉을 어느 단계로 볼까")도 이 결정으로 해소됐다 — 안 쓰니 정할 필요가 없다. */
+export const SKIP_SHADOW = true
+
 /* ── 검토 결과 ── */
 
 /** 턴 하나가 어떻게 해석됐는지 — 검토 패널이 그대로 보여준다 */
@@ -90,7 +97,7 @@ function readOptionLabel(step: DbLectureStep): string | null {
 const CONDITIONAL = /근거가\s*(명확|불명확)|멈추거나 표시|보류|예상 타이밍|필요하면|못 잡으면/
 
 function readAudio(
-  step: DbLectureStep, focusQ: number, warn: (m: string) => void,
+  step: DbLectureStep, content: TypeLessonContent, focusQ: number, warn: (m: string) => void,
 ): { cue?: AudioCue; note: string } {
   const raw = clean(step.audioMode)
   if (!raw) return { note: '없음 (빈 칸)' }
@@ -116,9 +123,16 @@ function readAudio(
     return { cue: { kind: 'full' }, note: '전체 음원 재생' }
   }
 
+  /* "질문 음원"·"발화 음원" (Part2) — 지문이 정규화되기 전(0014 이전)에는 재생할 방법이 없었다.
+     지금은 스크립트가 문장 단위라 **한 문장짜리 스크립트면 그게 곧 질문 발화**다. 그것만 재생한다.
+     여러 문장이면 어느 게 질문인지 데이터에 없으므로 예전처럼 경고만 남긴다(추측하지 않는다). */
   if (/질문 음원|발화 음원/.test(raw)) {
-    warn('"질문 음원"·"발화 음원"은 화면이 아직 구분해서 재생하지 못해요. (Part 2·3용 — 지금 화면은 보기 음원과 전체 음원만 압니다)')
-    return { note: '질문/발화 음원 → 미지원' }
+    const script = content.audioScript ?? []
+    if (script.length === 1) {
+      return { cue: { kind: 'sentences', ids: [script[0].id] }, note: '질문/발화 음원 재생' }
+    }
+    warn(`"질문 음원"·"발화 음원"인데 스크립트가 ${script.length}문장이라 어느 게 질문인지 알 수 없어요. (한 문장이면 그것을 재생합니다)`)
+    return { note: '질문/발화 음원 → 대상 불명' }
   }
 
   warn(`음원 지시를 못 알아들었어요: "${raw.slice(0, 40)}…" — 쓸 수 있는 표현: "재생 없음", "선택지 A 음원만 재생한다", "선택지 A~C를 이어서 재생한다", "전체 음원을 처음부터 끝까지 재생한다"`)
@@ -128,7 +142,7 @@ function readAudio(
 /* ── 스크립트 공개 (script_mode → RevealState) ── */
 
 function readReveal(
-  step: DbLectureStep, focusQ: number, warn: (m: string) => void,
+  step: DbLectureStep, content: TypeLessonContent, focusQ: number, warn: (m: string) => void,
 ): { reveal?: RevealState; note: string } {
   const raw = clean(step.scriptMode)
   if (!raw) return { note: '없음 (빈 칸)' }
@@ -149,8 +163,13 @@ function readReveal(
     }
   }
 
+  /* 음원과 같은 규칙 — 한 문장짜리 스크립트면 그게 질문 발화다 */
   if (/질문 스크립트|발화 스크립트/.test(raw)) {
-    warn('"질문 스크립트"·"발화 스크립트"는 화면이 아직 따로 공개하지 못해요. (Part 2·3용) — 전체 공개로 처리합니다.')
+    const script = content.audioScript ?? []
+    if (script.length === 1) {
+      return { reveal: { scriptIds: [script[0].id] }, note: '질문/발화 스크립트 공개' }
+    }
+    warn('"질문 스크립트"·"발화 스크립트"인데 스크립트가 여러 문장이라 어느 게 질문인지 알 수 없어요 — 전체 공개로 처리합니다.')
     return { reveal: { scriptIds: 'all' }, note: '질문/발화 스크립트 → 전체 공개로 대체' }
   }
 
@@ -231,7 +250,7 @@ function shadowChunks(content: TypeLessonContent, focusQ: number, label: string 
 
 function buildTurn(
   step: DbLectureStep, content: TypeLessonContent, isLast: boolean, hasPractice: boolean,
-): { turn: Turn; diag: RailDiag } {
+): { turn: Turn | null; diag: RailDiag } {
   const warnings: string[] = []
   const warn = (m: string) => warnings.push(m)
   const read: { label: string; value: string }[] = []
@@ -242,11 +261,31 @@ function buildTurn(
   const prompt = clean(step.studentPrompt)
   const tutor = clean(step.freeExpression) ?? prompt ?? step.stepCode
 
-  const { cue, note: audioNote } = readAudio(step, focusQ, warn)
-  const { reveal, note: revealNote } = readReveal(step, focusQ, warn)
-
   const rawInteraction = clean(step.interaction)
   const { kind, matched } = readKind(rawInteraction)
+
+  /* 버릴 턴은 먼저 걸러낸다 — 음원·스크립트를 해석하면 **버릴 턴에 대한 경고**가 쌓인다.
+     (Part3 쉐도잉 턴의 "Qn 근거 구간을 다시 재생한다"가 그랬다. 안 쓸 턴인데 검토 패널만 시끄러워진다) */
+  if (kind === 'shadow' && SKIP_SHADOW) {
+    return {
+      turn: null,
+      diag: {
+        no: step.order, stepCode: step.stepCode, partCode: step.partCode ?? null,
+        promptOrigin: step.promptOrigin,
+        raw: {
+          audioMode: step.audioMode, scriptMode: step.scriptMode, interaction: step.interaction,
+          studentPrompt: step.studentPrompt, section: step.section, dbFields: step.dbFields,
+          fixedRule: step.fixedRule,
+        },
+        read: [{ label: '상호작용', value: '쉐도잉 → FGI 범위 밖이라 이 턴은 건너뜁니다' }],
+        warnings: [],
+      },
+    }
+  }
+
+  const { cue, note: audioNote } = readAudio(step, content, focusQ, warn)
+  const { reveal, note: revealNote } = readReveal(step, content, focusQ, warn)
+
   if (!kind && rawInteraction) {
     warn(`상호작용을 못 알아들었어요: "${rawInteraction}" — 쓸 수 있는 표현: AI 진행 / 선택 응답 / 필수 응답 / 주관식 응답 / 필수 수행 (필기 인식·쉐도잉·매칭)`)
   }
@@ -312,6 +351,7 @@ function buildTurn(
       break
 
     case 'shadow': {
+      // SKIP_SHADOW 인 경우는 위에서 이미 걸러졌다 — 여기는 쉐도잉을 다시 켰을 때의 경로
       const chunks = shadowChunks(content, focusQ, optLabel)
       if (chunks.length) {
         interaction = { kind: 'shadow', chunks }
@@ -383,8 +423,9 @@ export function buildTurnsFromSteps(
   if (!steps.some((s) => clean(s.interaction))) return { turns: [], diags: [] }
 
   const built = steps.map((s, i) => buildTurn(s, content, i === steps.length - 1, hasPractice))
+  // 버려진 턴(쉐도잉)이 있어도 diag 는 전부 남긴다 — 검토 패널에서 "왜 빠졌는지"가 보여야 한다
   return {
-    turns: built.map((b, i) => ({ ...b.turn, no: i + 1 })),
+    turns: built.map((b) => b.turn).filter((t): t is Turn => !!t).map((t, i) => ({ ...t, no: i + 1 })),
     diags: built.map((b) => b.diag),
   }
 }

@@ -1,7 +1,13 @@
 # 스캐폴딩 DB 재설계 — 실행 계획 (v4)
 
 **최종 갱신:** 2026-07-28 · **진단 근거:** [`docs/db-audit-0728.md`](./db-audit-0728.md)
-**상태:** 착수 전. STEP 0부터 시작하면 됨.
+**상태:** STEP 0~5 + LC 화면 완료. **다음은 STEP 6**(학습자 상태·Fading).
+미완: STEP 1의 GCP 배포분 · STEP 5의 `TUTOR_RAILS` 이관(FGI 이후) · `lecture_steps` 삭제.
+
+> **레일이 어디까지 접혔나:** `lecture_steps` **965행**은 강의마다 레일을 따로 적어놨기 때문이다
+> (강의 43 × 강사 3 × 턴 7~12). STEP 5에서 **429행(-56%)** 으로 접었고, 정본 화면이 보는
+> Part 1·5·6·7은 `type_rails` **325행**으로 돈다. **강의가 500개로 늘어도 이 표는 안 늘어난다.**
+> LC(P2·3·4)는 접으면 강의별 내용이 사라져서 일부러 남겼다(아래 STEP 5 참조).
 
 ---
 
@@ -65,12 +71,14 @@ curl -s -X POST "$SUPABASE_URL/rest/v1/<table>" -H "apikey: $ANON" \
 
 ### 0-4. 지금 어디까지 와 있나
 
-| | 상태 |
+| | 상태 (STEP 3 반영) |
 |---|---|
-| 문항 | **83개** (Part 1·5·6·7만). Part 2·3·4는 **0개** — 담을 스키마가 없어서 |
-| 강의 | 43개 중 **28개가 문항 0개** |
+| 문항 | **93개** — Part 1·5·6·7 83 + **Part 2·3·4 10**(STEP 3에서 스키마가 생겨 들어감) |
+| 지문 | `passages` **10개**(이관 6 + LC 실증 4) · 문장 52행. 이관 전에는 문항마다 통째로 중복 |
+| 유형 | `question_types` **17종** — 레일 뼈대 수 기준 |
+| 강의 | 43개 중 **24개가 문항 0개** |
 | 레일 | `lecture_steps` 965행(강의별) · `rail_compositions` 112행(Part5만 변종화) |
-| 화면 | `/lecture/[code]` 가 정본 진입점. Part 1·5·6·7 4개 강의만 DB로 돎 |
+| 화면 | `/lecture/[code]` 가 정본 진입점. Part 1·5·6·7 4개 강의만 DB로 돎. **LC 화면은 미지원(D7 대기)** |
 | 실험 로그 | **불가능** — 어떤 레일로 학습했는지 기록이 없음 |
 
 ---
@@ -420,45 +428,96 @@ node scripts/check-rail-sync.js
 > **왜:** 코드 `PassageDoc`(`src/data/typeLearning/types.ts`)은 표·채팅·이메일 메타·문장 단위를 표현하는데, DB `questions.content`가 가진 건 `passage_text` **문자열 하나**다.
 > → **"표 보고 푸는 유형"을 DB가 못 담는다. Part 2·3·4 문항이 DB에 0개인 것도 이 때문이다** — 안 넣은 게 아니라 넣을 데가 없다.
 
-**작업 — DB** `0014_content_model.sql`
+**작업 — DB** `supabase/migrations/0014_content_model.sql` ✅ 적용 완료
 
-```sql
-create table passages (
-  id bigserial primary key, passage_code text unique,
-  kind text not null,        -- text|email|notice|ad|article|chat|table|form
-  title text, meta jsonb,    -- 이메일 To/From/Subject
-  body jsonb                 -- table{headers,rows} / chat[] — 문장형이 아닌 것
-);
-create table passage_sentences (
-  id bigserial primary key,
-  passage_id bigint not null references passages(id) on delete cascade,
-  seq smallint not null, en text not null, ko text,
-  speaker text, blank_no smallint, audio_url text,
-  unique (passage_id, seq)
-);
-create table question_types (
-  id bigserial primary key, part smallint not null,
-  type_code text not null unique, name text not null, description text
-);
-alter table questions
-  add column question_type_id bigint references question_types(id),
-  add column passage_id       bigint references passages(id),
-  add column display_order    smallint;
-alter table question_options add column display_order smallint;
+- [x] `passages`·`passage_sentences` 신설 + `scripts/build-passages.js` 로 지문 이관
+- [x] **`question_types` 17종 시드 — 레일 뼈대 수 기준**(강의 수 아님). 아래 실측 참조
+- [x] `content` 표기 흔들림은 **DB에서 고치지 않고 `passage_type_aliases`(별칭표)로 해석** —
+      `광고·홍보문` 6 / `광고` 2 는 크론이 매일 시트에서 덮으므로 DB에서 통일해도 되돌아간다.
+      STEP 2가 상호작용에 쓴 방식과 같다. 시트 통일은 `needs_review = true` 로 남겨 뒀다
+- [x] `display_order` 추가 + 어댑터가 **정답 위치를 label에서 계산**하도록 (`answerIndex()`)
+- [x] `TypeLesson` 형판 의존 축소 — `fromDb.ts` 가 지문을 `passages` 에서 읽는다(`passageDocOf`).
+      DB에 지문이 없으면 예전처럼 문자열을 쪼개는 폴백이 남아 있다
+- [x] **`question_options.display_order` 트리거** — 이 컬럼은 밤마다 날아간다(§13 참조). 트리거로 막았다
+
+**작업 — 시트 경로 (D4)** ✅ 설계·구현 완료 · 탭 개설은 콘텐츠팀
+
+- [x] `지문입력` 탭 규격 확정 + `scripts/sync-questions.js`·`gcp/sync-questions-fn` 양쪽에 구현.
+      탭이 없으면 조용히 건너뛴다(지금 상태). **탭만 만들면 바로 돈다**
+
+```
+passage_code | lecture_code | kind | title | meta | row_kind | seq | speaker | en | ko | blank_no | audio_url
 ```
 
-- [ ] `passages`·`passage_sentences` 신설, 지문 이관 (지금 9행 중 distinct 4 = 중복 저장)
-- [ ] **`question_types` 시드는 레일 뼈대 수 기준** — 강의 수가 아니다. Part5는 16강이지만 뼈대 6종. Part7은 8강 8유형(1:1)이어도 **테이블은 거친다**(나중에 한 강의에 유형이 섞일 때 구조가 안 바뀌게)
-- [ ] `content` 표기 흔들림 정리 후 `question_type_id` 배정 — `광고·홍보문` 6 / `광고` 2 / `null` 1 → 하나로
-- [ ] `display_order` 추가 → **정답을 배열 인덱스가 아니라 label로** 전달하도록 `questionStore.ts`의 어댑터 4개(`toP6Passage`·`toP7Passage`·`toP5Questions`·`toPart7Set`) 수정
-- [ ] `TypeLesson` 형판 의존 축소 — `/lecture/[code]`의 `TEMPLATE_BY_PART`가 담던 지문 구조를 `passages`에서 읽게
+- **문장 한 줄 = 행 하나.** 지문 단위 값(kind·title·meta)은 그 지문 첫 행에만 —
+  문항입력 탭이 "보기 한 줄 = 행 하나"인 것과 같은 규칙이라 콘텐츠팀이 새로 배울 게 없다
+- `meta` = `To=All Managers | From=Jennifer Walsh`
+- `row_kind` 를 `표머리`/`표행` 으로 두면 `en` 을 `Item | Price` 로 나눠 **표**가 된다 (P3·P4 시각자료)
+- 문항입력_P* 탭에 **`passage_code` 열 하나**를 추가하면 문항이 지문에 붙는다
 
-**작업 — 콘텐츠팀 (D4. 최대 난관)**
+**측정 결과 (2026-07-28)**
 
-- [ ] **시트에 지문 입력 탭 신설** — 평면 시트에 정규화 테이블(지문 1 : 문장 N)을 어떻게 넣을지 설계 필요
+```
+node scripts/build-passages.js --go
+  문항 83행 · 지문 6개 · 문장 35행 · 문항 링크 17건
+    RC-P6-01-PSG1  email   문장 8 · 빈칸 4 · meta 3   ← To/From/Subject 가 본문에서 분리됐다
+    RC-P6-01-PSG2  email   문장 10 · 빈칸 4
+    RC-P7-03-PSG1  ad      문장 9
+    RC-P7-03-PSG2  ad      문장 1     ← 원문에 줄바꿈이 없어 한 덩어리. 시트에서 쪼개야 문장 단위가 산다
+    RC-P7-03-PSG3  ad      문장 5
+    RC-P7-99-PSG1  notice  문장 2
+```
+
+| | 이관 전 | 이관 후 |
+|---|---|---|
+| 지문 저장 | 문항마다 통째로 중복 (17행) | **6개** + 문장 35행 |
+| 이메일 머리(To/From) | 본문 문자열에 섞여 있음 | `passages.meta` |
+| 빈칸 위치 | 화면이 정규식으로 매번 추출 | `passage_sentences.blank_no` |
+| 표·화자 | **담을 자리 없음** | `body.table` · `sentences.speaker` |
+
+**`question_types` 시드 근거 — 뼈대 17종** (`lecture_steps` 의 `lee_doyun` 레일 순서열 distinct)
+
+| 파트 | 강의 | 뼈대 |
+|---|---|---|
+| P1 | 2 | 2 |
+| P2 | 4 | 2 |
+| P3 | 5 | **1** |
+| P4 | 5 | **1** |
+| P5 | 16 | **6** ← 계획서가 말한 그 숫자 |
+| P6 | 2 | 1 |
+| P7 | 8 | **4** |
+
+> ⚠️ **진단 수정:** 계획서 원문은 "Part7은 8강 8유형(1:1)"이라고 했으나 **실측은 4다.**
+> RC-P7-01~05(이메일·공지·광고·기사·채팅)가 **레일이 완전히 같다.** 지문 종류가 다를 뿐이고,
+> 그건 `passages.kind` 가 들고 있다. 갈리는 건 양식(06)·이중(07)·삼중(08) 셋뿐이다.
+> S코드로 정규화하면 17 → 13까지 더 줄어든다. 그래도 **17로 시드했다** — §8 "나중에 합쳐 나간다".
+> 합치는 건 `UPDATE` 한 줄이고 쪼개는 건 데이터 재배정이라 비싸다.
 
 **완료 조건**
-- **Part 2·3·4 문항을 DB에 넣을 수 있게 된다** (실제로 1강 분량 넣어서 확인)
+
+- [x] **Part 2·3·4 문항을 DB에 넣을 수 있게 된다** — `scripts/seed-lc-sample.js --go` 로 실증
+
+```
+LC-P2-01  utterance 문장1        문항 1 · 보기 3    (질문 발화)
+LC-P3-01  dialogue  문장8 화자8  문항 3 · 보기 12   (대화)
+LC-P3-05  dialogue  문장5 화자5 + 표(Item|Price)  문항 3 · 보기 12   (시각자료형)
+LC-P4-01  talk      문장4        문항 3 · 보기 12   (담화)
+```
+
+> 콘텐츠 출처는 `src/data/typeLearning/lessonsLC.ts` 의 T2~T5다. 지어낸 게 아니라 레포에 이미
+> 있던 것을 옮긴 것이고, 이건 "로컬 TS 형판 의존 축소"와 같은 방향이다.
+> 시트에 같은 `question_id` 가 생기면 그쪽이 이긴다(크론이 upsert 하므로 그게 맞다).
+
+**남은 것**
+
+- [ ] **콘텐츠팀: 시트에 `지문입력` 탭 개설** (규격은 위. 코드는 준비돼 있음) — D4
+- [x] **LC 화면**(Part 2·3·4) — D7 해소로 착수·완료. 아래 참조
+- [ ] `RC-P7-03-PSG2` 처럼 줄바꿈 없는 지문은 문장 1개로 잡힌다. 문장 단위 기능(구간 재생·직독직해)이
+      안 걸리므로 시트에서 줄을 나눠야 한다
+- [ ] `passage_sentences.ko`(직독직해)가 **전부 null** — 시트에 해석 열이 없다. P7 레일이 '문장 탭해서
+      해석' 대신 '근거 문장 표시'로 도는 이유가 이것(`fromDb.ts` 머리 주석)
+- [ ] `questions.content` 의 지문 문자열은 **아직 안 지웠다.** 시트가 정본이라 지워도 새벽에 돌아온다.
+      `지문입력` 탭으로 옮긴 뒤 문항 탭에서 지문 열을 빼는 게 순서다
 
 ---
 
@@ -485,15 +544,96 @@ create table item_questions (
 );
 ```
 
-- [ ] `content->>'stage'` → `phase` 이관, jsonb에서 제거
-- [ ] `RC-P7-99`(데모 시뮬레이션용) → `is_demo = true`
-- [ ] **`v_lecture_program` 뷰 생성** (§4 쿼리)
-- [ ] **`/lecture/[code]`가 아이템을 순회** — Part1·5가 앵커 1문항만 수업하던 문제 해소
-- [ ] 런타임에 회차(`occurrence`) 전달 — Fading의 전제
-- [ ] 아이템이 넘어갈 때 `sendContextualUpdate` 재주입 (지금은 세션 시작 시 1회뿐)
+- [x] `content->>'stage'` → `phase` 이관. **jsonb에서는 못 지운다** — 지워도 새벽 크론이 시트에서 되돌린다.
+      정본은 `lecture_items.phase`, jsonb는 잔존. 시트 문항 탭에서 stage 열을 빼는 게 먼저다
+- [x] `RC-P7-99`(데모 시뮬레이션용) → `is_demo = true` · `lectures.seq` 1~42 부여
+- [x] **`v_lecture_program` 뷰 생성**
+- [x] **`/lecture/[code]`가 아이템을 순회** (`fromItems.ts` 신설)
+- [x] 런타임에 회차(`occurrence`) 전달 — `Turn.occurrence` · `TypeLesson.items`
+- [x] 아이템이 넘어갈 때 `sendContextualUpdate` 재주입
 
-**완료 조건**
-- `/lecture/LC-P1-01` = **21턴**(7×3), `/lecture/RC-P5-08` = **35턴**(7×5), `/lecture/RC-P6-01` = **11턴**, `/lecture/RC-P7-03` = **14턴**
+> **뷰에 대해 — 데이터가 아니다.** `v_lecture_program` 은 저장 행이 **0개**인 저장된 쿼리다.
+> 발화 문구도 안 들어간다(문구는 `railPrompts.ts` 가 LLM으로 매번 만든다).
+> 만든 이유는 하나: 지금 화면이 레일을 읽으려면 원시 테이블 두 개(`rail_compositions` 먼저,
+> 없으면 `lecture_steps`)와 강사 폴백 규칙을 알아야 하는데, STEP 5에서 그게 `type_rails` 하나로
+> 바뀐다. 뷰를 끼워두면 **그때 뷰 안쪽만 고치고 화면은 안 고친다.** 부담되면 걷어내도 된다(클라이언트 20줄).
+
+**측정 결과 (2026-07-28) — 계획서 완료 조건 그대로**
+
+```
+node scripts/build-lecture-items.js --go     → 아이템 76개 · 문항 링크 93건
+
+LC-P1-01  21턴 (기대 21) ✓  아이템 3 · 레일 DB · 회차 1,2,3  · 경고 0
+RC-P5-08  35턴 (기대 35) ✓  아이템 5 · 레일 DB(변종 조합) · 회차 1~5 · 경고 0
+RC-P6-01  11턴 (기대 11) ✓  아이템 1 · 레일 DB · 회차 1 · 경고 1
+RC-P7-03  14턴 (기대 14) ✓  아이템 2 · 레일 DB · 회차 1,2 · 경고 0
+```
+
+**턴 수는 저장한 값이 아니라 계산값이다.** 21 = 레일 7단계 × 사진 3장.
+사진이 5장으로 늘어도 레일 행은 그대로 7행이고 35턴이 된다. 그게 이 구조의 목적이다.
+
+> 🔴 **점검 중 발견 — 정본 화면이 DB 레일을 안 읽고 있었다.**
+> `/lecture/[code]`(정본)는 문항만 DB에서 읽고 **레일은 코드 생성분을 썼다.** DB 레일을 읽는 건
+> `/type-lesson`(문항 렌더러 프리셋, 07-21에 격하된 쪽)뿐이었다.
+> → **콘텐츠팀이 시트에서 레일을 고쳐도 정본 화면에는 안 닿았다.** STEP 1의 진단("2단계가 안 돎")은
+> 유입 경로만 봤기 때문에 이걸 못 잡았다. 이번에 연결했고, RailInspector도 정본에서 뜬다.
+
+**남은 것**
+
+- [ ] **경고 1건 — `RC-P6-01` 1번 턴 `S4 지문 읽기 시작`.** 상호작용이 `선택 응답 또는 AI 진행`이라
+      화면이 뭘 할지 못 정한다(**D1**, 66행짜리 문제). 지문 읽기 시작이니 `AI 진행`이 맞아 보이지만
+      기획이 정할 일이다. 지금은 현행대로 앞것(선택 응답)을 취해 정답 고르기로 떨어진다
+- [ ] `/type-lesson/[typeId]` 는 **아직 앵커 1문항 방식**이다. 정본이 아니라 그대로 뒀다(t01 = 7턴).
+      정본(`/lecture/LC-P1-01` = 21턴)과 턴 수가 다른 건 이 때문이고, 의도된 것이다
+- [ ] `lecture_steps` **965행은 아직 그대로다.** 뼈대 17종 × 7단계 ≈ 120행이면 덮인다. 걷어내는 건 STEP 5
+
+---
+
+### 🟢 LC 화면 (Part 2·3·4) — D7 해소로 착수 · 완료
+
+> **왜 여기 있나:** STEP 3에서 DB는 담게 됐지만 화면 형판이 1·5·6·7뿐이었다.
+> 2026-07-28 기획 결정으로 **FGI에서 LC도 시연**하기로 해서 붙였다. 쉐도잉은 범위 밖(D10).
+
+**작업** ✅
+
+- [x] `fromDb.ts` `buildLc()` — P2(질문 발화 청취 → 보기별 판단) · P3·P4(문제 먼저 → 전체 청취 → 문항별 근거)
+- [x] LC는 지문을 눈으로 읽는 게 아니라 **음원 스크립트**를 듣는다 → `content.audioScript`(문장 단위 =
+      구간 재생 단위) · 표는 `content.visual` · P2는 `optionAudio`. 재료는 전부 `passage_sentences`(0014)
+- [x] **같은 지문 묶는 기준을 `passages` 로 교체** — LC는 `content` 에 지문 문자열이 아예 없어서
+      예전 기준(`passage_text`/`passage_context`)으로는 대화 3문항이 안 묶였다
+- [x] `fromItems` 가 음원 스크립트·시각자료도 아이템 접두어 붙여 병합
+- [x] `TEMPLATE_BY_PART` 에 2·3·4 추가
+- [x] **쉐도잉 턴은 상호작용 해석 직후에 버린다** — 음원·스크립트를 먼저 해석하면 *버릴 턴에 대한*
+      경고가 쌓인다(Part3에서 3건씩). 검토 패널이 시끄러워지면 진짜 문제가 안 보인다
+
+**측정 결과 (2026-07-28)**
+
+```
+LC-P2-01   8턴 · 아이템 1 · 문항 1 · 스크립트 1문장        · 레일 DB · 경고 0
+LC-P3-01   9턴 · 아이템 1 · 문항 3 · 스크립트 8문장        · 레일 DB · 경고 6
+LC-P3-05   9턴 · 아이템 1 · 문항 3 · 스크립트 5문장 + 표   · 레일 DB · 경고 6
+LC-P4-01   9턴 · 아이템 1 · 문항 3 · 스크립트 4문장        · 레일 DB · 경고 6
+```
+
+레일은 12단계인데 9턴인 이유: **쉐도잉 3턴을 건너뛴다**(FGI 결정).
+
+**남은 경고 6건은 전부 기획 결정 대기 — 코드로 풀 수 없다**
+
+| 건수 | 내용 | 결정 |
+|---|---|---|
+| 3 | `Qn-S2+S4` 음원 지시가 조건부 — *"Q1 예상 타이밍을 안내하고, **근거가 명확하면** 해당 지점에서 멈추거나 표시한다. **근거가 불명확하면** Q1을 보류하고 Q2로 이동한다"*. 화면은 '근거가 명확한지'를 판단할 수 없다 | **D5** |
+| 3 | `선택 응답 또는 AI 진행` — 무엇을 보고 가를지 정의된 적이 없다 | **D1** |
+
+> **D5에 실물 근거가 생겼다.** "규격화 / 튜터 위임 / 단순화" 중 고르려면 실제 문장이 필요했는데,
+> 이제 어느 강의 몇 번째 턴인지까지 나온다(위 표). 셋 중 **튜터 위임**이 제일 가까워 보인다 —
+> "근거가 명확한지"는 에이전트가 학생 답을 듣고 판단할 수 있고, 화면은 못 한다. 다만 기획 결정이다.
+
+**남은 것**
+
+- [ ] **문장 mp3가 없다** — `passage_sentences.audio_url` 전부 null. 지금은 브라우저 TTS로 읽는다.
+      수업은 돌지만 성우 음원이 아니다. **FGI 시연 전에 채워야 한다**
+- [ ] LC 세션 정리(recap)는 로컬 형판 그대로 — 문장 해석(`ko`)이 DB에 없다
+- [ ] LC는 실전(practice) 문항이 아직 없다 (수업 문항만 넣었다)
 
 ---
 
@@ -533,15 +673,78 @@ alter table step_variants
   add column min_level smallint;
 ```
 
-- [ ] `rail_compositions` → `type_rails` 이관 (소유자 강의 → 유형)
-- [ ] **`TUTOR_RAILS` 371줄 → `variant_checks` 이관.** `/api/tutor:311`의 "코드 레일 우선" 분기 제거
-- [ ] **임포터 보강** — 지금 `rail_steps.tutor_directive`가 **13개 전부 null**이다(임포터가 아예 안 채움). 최빈 문구를 변종 기본값으로, 나머지를 seed로. **안 고치면 변종화가 명목뿐이다**
-- [ ] 임포트를 **delete+insert → version append**로 (과거 로그 보존)
-- [ ] 이관 끝난 파트의 `lecture_steps` 행 삭제. **Part3·4만 잔존**(D5 미결)
+**작업** ✅ `0016_rails_unified.sql` · `0017_program_view_type_rails.sql`
 
-**완료 조건**
-- `src/data/tutorContent.ts`의 `TUTOR_RAILS`가 코드에서 사라진다
-- 4개 강의 재생 + RailInspector 경고 0
+- [x] **`type_rails` 신설 + 레일의 소유자를 강의 → 유형으로** (`scripts/build-type-rails.js`)
+- [x] **유형 17 → 19 재시드** — 유형 안에서 레일이 갈리는 2강을 분리해 "유형 = 레일"을 1:1로
+- [x] 임포트를 **delete+insert → version append**로 (과거 로그가 어느 레일이었는지 되짚을 수 있게)
+- [x] **`v_lecture_program` 의 rail CTE 교체** — 화면 코드는 **한 줄도 안 고쳤다.** 0015에서 뷰를 미리
+      만들어 둔 이유가 이거다
+
+**측정 결과 (2026-07-28)**
+
+```
+node scripts/build-type-rails.js --go
+  lecture_steps 965행 → type_rails 429행 (56% 감소)
+    강사          레일(유형)   단계 행   변종 미매핑
+    common              19       132         132     ← D9: 상호작용 열이 없다
+    lee_doyun           19       159           4
+    yun_daeun           19       138         138     ← D9
+  반영: Part 1·5·6·7 — 325행 (LC 104행은 접지 않음)
+```
+
+**이관 전후 화면 무변화 확인** — 이게 이 단계의 진짜 완료 조건이다.
+
+```
+LC-P1-01 21턴 · RC-P5-08 35턴 · RC-P6-01 11턴 · RC-P7-03 14턴   (경고 0/0/1/0)
+LC-P2-01  8턴 · LC-P3-01  9턴 · LC-P3-05  9턴 · LC-P4-01  9턴   (경고 0/6/6/6)
+→ 턴 수·경고 수 모두 이관 전과 동일. 레일 원천만 바뀌었다.
+```
+
+| 파트 | 레일 원천 (지금) |
+|---|---|
+| 1·5·6·7 | **`type_rails`** (유형 단위) |
+| 2·3·4 | `lecture_steps` (강의별) — 아래 이유 |
+
+> **🔴 LC(P2·3·4)는 접지 않았다 — 실측 근거.**
+> 접으면서 값이 버려지는 자리 **17곳이 전부 LC**였다. LC의 음원 지시가 순수한 진행 지시가 아니라
+> **강의별 내용**을 담고 있기 때문이다:
+> ```
+> P3-DIALOGUE 8단계 — 강의 5개를 하나로 접으면
+>   남김: "Q1 이후 흐름 또는 Q2 근거 직전부터 재생한다…"
+>   버림: "수량·파손·누락·조건 정보가 나오면 멈추거나 표시한다"   (LC-P3-05)
+>   버림: "이유·원인·조건 표현이 나오면 멈추거나 표시한다"        (LC-P3-03)
+> ```
+> 계획서 §8의 "Part3·4 변종화 하지 말 것(D5 미결)" 판단이 실측으로 확인됐고, **P2도 같았다.**
+
+> **⚠️ 접으면서 한 번 잘못했고, 검증으로 걸렀다.**
+> 처음에 `step_code` 를 변종 이름으로 대체했더니 RC-P6-01 경고가 1 → 4로 늘었다.
+> 원문 단계명에 **Qn 지목**(`Q2 근거 확인` → 2번 문항)과 **의미 단서**(`오답 제거` → 정답이 아니라
+> 오답을 고르게)가 들어 있고 화면 해석이 그 문자열을 읽기 때문이다.
+> → `type_rails.step_label` 로 원문을 보존한다. **접을 때 무엇이 의미를 지고 있는지 먼저 봐야 한다.**
+
+**🔴 계획서 진단 수정 — `TUTOR_RAILS`는 변종 단위로 못 옮긴다**
+
+계획서는 "`TUTOR_RAILS` 371줄 → `variant_checks`(변종 단위) 이관"이라고 썼다. 실측하니
+
+- `TUTOR_RAILS`가 덮는 건 **문항 2개뿐**이다 (`RC-P7-03-Q006` · `RC-P5-08-Q002`). 371줄이지만 커버리지는 2문항
+- 내용(`keywords`·`hints`·`branches`)이 전부 **그 문항 고유**다. 변종 단위로 옮기면 같은 변종을 쓰는
+  다른 문항이 엉뚱한 키워드로 채점된다
+
+→ `rail_checks(question_code, step_order, …)` **문항 단위**로 표만 만들어 뒀다(0016). 변종 단위
+기본값이 필요해지면 `question_code` 를 null 로 두는 행을 더하면 된다 — 지금 만들면 추측이 스키마로
+굳는다(§8).
+
+**남은 것**
+
+- [ ] **`TUTOR_RAILS` 이관은 안 했다.** `/api/tutor` 는 ElevenLabs 음성 수업이 실제로 도는 경로라
+      FGI 직전에 건드리기에 위험이 크다. 계획서도 "STEP 5~6은 FGI 이후 가능"이라고 했다.
+      표(`rail_checks`)와 설계는 준비돼 있다
+- [ ] **`lecture_steps` 965행은 아직 못 지운다.** 정본 화면(`/lecture`)은 `type_rails` 를 보지만
+      `/type-lesson` 과 `/api/tutor` 가 아직 원시 테이블을 직접 읽는다. 그 둘을 뷰로 옮겨야 지울 수 있다
+- [ ] **`common`·`yun_daeun` 레일 274행은 변종에 못 붙었다** — 시트에 상호작용 열이 없다(**D9**).
+      유형 단위로 접히긴 했으나(각 19벌) 변종 사전을 안 쓰므로 화면 동작이 지정돼 있지 않다
+- [ ] `type_rails.tutor_directive` 기본값 채우기 — 지금은 강의별 seed만 있다
 
 ---
 
@@ -630,13 +833,13 @@ group by 1,2;    -- "S6를 받은 회차별 정답률"이 나오면 성공
 | **D1** | "또는" 66행 단일값 확정 | 콘텐츠팀 | STEP 2 |
 | **D2** | **시트 `S단계` 열 + 드롭다운 신설** | 콘텐츠팀 | **STEP 2 (핵심)** |
 | **D3** | 한 턴에 S 여러 개(187행) → 대표 S 하나 / `(S없음)` 30행 부여 | 콘텐츠팀 | STEP 2 |
-| **D4** | **시트 지문(표·대화·문장) 입력 탭** | 콘텐츠팀+기획 | **STEP 3 (최대 난관)** |
-| **D5** | Part3·4 `audio_mode` 조건부 — 규격화 / 튜터 위임 / 단순화 | 기획+콘텐츠 | STEP 5 |
-| **D6** | `P5-07`(S2 유형·역할 판별) · `P5-08`(S2 유형 판별) 같은 변종인가 | 콘텐츠팀 | STEP 5 |
-| **D7** | **FGI에서 LC(Part2·3·4) 시연하나?** | 기획 | **STEP 3 규모** |
+| **D4** | ~~시트 지문 입력 탭을 어떻게 설계하나~~ → **규격 확정·코드 구현 완료(STEP 3).** 남은 건 콘텐츠팀이 `지문입력` 탭을 실제로 만드는 것 | 콘텐츠팀 | STEP 3 (해소) |
+| **D5** | Part3·4 `audio_mode` 조건부 — 규격화 / 튜터 위임 / 단순화. **실물 근거 확보됨**: LC 화면에서 강의당 3턴씩 경고로 뜬다(위 LC 절). 화면은 "근거가 명확한지"를 판단 못 한다 → **튜터 위임이 유력** | 기획+콘텐츠 | **LC 시연 품질** |
+| **D6** | 병합 후보 2건 — `P5-STRUCTURE-FIRST-AI`(RC-P5-02, 1단계만 `S1-next` vs `S1-mark`) · `P6-CLOZE-B`(RC-P6-02, 3단계만 `S5-next` vs `S5-choice`). **의도된 차이인가 오기입인가.** 병합하면 유형 19 → 17 | 콘텐츠팀 | 정리(막지 않음) |
+| ~~D7~~ | **해소(2026-07-28): FGI에서 LC도 시연한다.** → LC 화면(Part 2·3·4) 착수 | 기획 | 완료 |
 | **D8** | 음원 지시를 변종 속성으로 둘까 조합에 둘까 (25 vs 77) | 기획 | STEP 5 — **본 문서는 "조합" 안으로 작성됨** |
 | **D9** | **윤다은·common 레일에 상호작용 열을 채울까?** 지금은 이도윤 레일만 화면 동작이 지정돼 있어 그 둘은 변종화가 안 된다(601행) | 콘텐츠팀 | STEP 5 (강사별 레일 확장) |
-| **D10** | `쉐도잉`을 S1~S7 중 어디로 볼까 / 별도 단계로 승격할까 (18행). 지금 8단계에 "따라 말하기"가 없다 | 콘텐츠팀 | STEP 5 |
+| ~~D10~~ | **해소(2026-07-28): FGI에서 쉐도잉은 안 한다.** 안 쓰니 어느 단계로 볼지 정할 필요가 없다. 시트 레일의 쉐도잉 턴(`lecture_steps` 48행)은 **지우지 않고** 화면에서 건너뛴다 — 정본은 시트고, 결정이 뒤집히면 `fromSteps.ts`의 `SKIP_SHADOW` 한 줄만 되돌리면 된다 | 기획 | 완료 |
 
 **D1~D3은 한 번에 던져야 한다.** 시트 작업이라 리드타임이 있고 STEP 2가 전부 여기 걸린다.
 **D7이 일정을 가른다** — LC를 시연 안 하면 STEP 3이 1.5주 → 5일.
@@ -647,11 +850,11 @@ group by 1,2;    -- "S6를 받은 회차별 정답률"이 나오면 성공
 
 | 주차 | 단계 | 산출물 |
 |---|---|---|
-| 7/28 (반나절) | STEP 0 | `0012` 보안 + `survey_responses` |
+| 7/28 ✅ | STEP 0 | `0012` 보안 + `survey_responses` |
 | 7/28 | D1~D3 전달 | 콘텐츠팀 시트 요청 |
-| 7/29~7/30 | STEP 1 | 유입 경로 일원화 |
-| 7/31~8/5 | STEP 2 | `0013` 어휘 확정 (변종 89→51) |
-| 8/6~8/18 | STEP 3 | `0014` 지문 모델 |
+| 7/28 ✅ | STEP 1 | 유입 경로 일원화 (GCP 배포분 미완) |
+| 7/28 ✅ | STEP 2 | `0013` 어휘 확정 (변종 20종·커버리지 98.4%) |
+| 7/28 ✅ | STEP 3 | `0014` 지문 모델 + 유형 17종 + Part 2·3·4 실증 |
 | 8/19~8/25 | STEP 4 | `0015` 아이템 + `v_lecture_program` |
 | 8/26~9/1 | STEP 5 | `0016` 레일 3벌 → 1벌 |
 | 9/2~9/6 | STEP 6 | `0017` 이벤트 로그 + Fading |
@@ -688,6 +891,12 @@ node scripts/import-rail-components.js          # dry run — 이식 무손실 �
 
 - **`next dev`가 도는 중에 `npm run build`를 돌리면 `.next`가 덮여 dev 서버가 깨진다.** 코드 문제가 아니다 → `rm -rf .next && NODE_OPTIONS="--max-old-space-size=4096" npm run dev`
 - **문항 DB를 직접 수정하지 마라.** 매일 03:00 KST 크론이 시트에서 덮는다. 시트(`1VUGfsCvqvg1QNN9QTISfJWMUtPPim2Cz04KHO190fpY`)에서 고칠 것
+- **크론이 무엇을 덮고 무엇을 안 덮는지** (STEP 3에서 실측. 새 컬럼 추가할 때 반드시 볼 것)
+  - `questions` 는 **upsert**고 SET 절이 `lecture_id·part·difficulty·content·passage_id·display_order` 뿐이다
+    → 그 밖의 컬럼(`question_type_id` 등)은 안 덮인다. 시트에 없는 문항도 안 지워진다
+  - `question_options` 는 **매번 delete + insert** 다 → 여기 붙인 컬럼은 밤마다 사라진다.
+    `display_order` 는 트리거 `trg_option_display_order` 로 막았다. 새 컬럼도 같은 방식이 필요하다
+  - `content` 의 표기 흔들림은 **DB에서 고쳐도 새벽에 되돌아간다.** 별칭표(`*_aliases`)로 해석할 것
 - **구글 시트 토큰**: `scripts/token.json`은 만료(`invalid_grant`). `scripts/token_sheets_rw.json`은 살아 있으나 Python 형식이라 Node에서는 `OAuth2` + `setCredentials({refresh_token})`으로 붙여야 한다. `scripts/google-auth.js`는 `token.json`만 본다
 - **Gemini**: `gemini-2.5-flash`는 신규 사용자에게 폐기됨 → `gemini-3.5-flash` 사용 중. thinking이 기본 on이라 `maxOutputTokens`를 넉넉히(4000). 키 없으면 `/api/rail-prompts`가 조용히 빈 값을 주고 화면은 폴백 문구로 정상 동작
 - **폴백이 오류를 삼킨다**: `fetchQuestionsByCodes`는 코드 하나라도 없으면 `null` → 화면이 하드코딩 데이터로 조용히 되돌아간다. DB가 비어도 화면은 멀쩡해 보인다
