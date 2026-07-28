@@ -162,6 +162,23 @@ def clean_lines(text):
     return "\n".join(clean(l) for l in text.splitlines())
 
 
+def script_ends(line):
+    """이 줄부터는 스크립트가 아니다.
+
+    Part 4 는 **한국어 번역이 '번역' 표시 없이** 영어 스크립트 바로 뒤에 붙는다.
+    그래서 '번역' 으로만 잘랐더니 어휘 섹션('어휘 portable 휴대가 쉬운 …' — 영문이 섞여 있다)과
+    문항·보기까지 담화에 딸려 들어갔고, 화면에서 **문제 음원이 질문 텍스트까지 읽어버렸다.**
+    """
+    if re.match(r"^(어휘|해설|번역|Paraphrasing)\b", line):
+        return True
+    if re.match(r"^\([A-D]\)", line):            # 보기
+        return True
+    if re.match(r"^\d{2}\s+[A-Z]", line):        # '77 What kind of equipment …'
+        return True
+    hangul = sum(1 for ch in line if "가" <= ch <= "힣")
+    return hangul >= 4 and hangul / max(len(line), 1) > 0.3   # 한국어 번역 줄
+
+
 def parse_part34(text, lo, hi):
     """Part 3·4 → [{range, script[{speaker,en,for_q}], questions[{no,question,options,explain}]}]"""
     text = clean_lines(text)
@@ -180,7 +197,7 @@ def parse_part34(text, lo, hi):
         body = text[start:end]
 
         script, cur = [], None
-        for raw in body.split("번역", 1)[0].splitlines():
+        for raw in body.splitlines():
             l = clean(raw)
             if not l:
                 continue
@@ -189,7 +206,10 @@ def parse_part34(text, lo, hi):
                 if cur:
                     script.append(cur)
                 cur = {"speaker": ms.group(1), "en": ms.group(2).strip()}
-            elif cur and re.search(r"[A-Za-z]", l):
+                continue
+            if script_ends(l):
+                break
+            if cur and re.search(r"[A-Za-z]", l):
                 cur["en"] += " " + l
         if cur:
             script.append(cur)

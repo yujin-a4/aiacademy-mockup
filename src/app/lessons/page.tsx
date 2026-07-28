@@ -823,12 +823,14 @@ function TypeCard({ t }: { t: TypeLessonData }) {
 
 /* ── 커리큘럼 강의 그리드 (내 학습의 정본 축) ──
    lectures 테이블(정규 42강 + 데모)을 파트별로 나열. 문항 있는 강의만 플레이 가능(→ /lecture/[code]).
-   Part 2~4(LC 듣기)는 아직 화면 미지원이라 문항이 있어도 준비중으로 둔다. */
+   문항 수(questionCount)만으로 가른다 — 파트 제한은 위 PLAYABLE_PARTS 로 뺐다. */
 const PART_NAME: Record<number, string> = {
   1: '사진 묘사', 2: '질의·응답', 3: '짧은 대화', 4: '짧은 담화',
   5: '단문 빈칸', 6: '장문 빈칸', 7: '독해',
 }
-const PLAYABLE_PARTS = new Set([1, 5, 6, 7])
+/* 문항이 들어 있고 화면이 도는 파트. LC(2·3·4)는 화면 형판이 없어 막아뒀었는데,
+   2026-07-28 에 LC 화면을 붙이고 교재 문항까지 넣어서 열었다. */
+const PLAYABLE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
 
 /* 실전 최소 3문제 원칙 — 1~2문항짜리 placeholder는 누르면 깨지므로 "준비 중"으로.
    실제 강의는 모두 4문항 이상(수업+실전 3). questionCount는 전체 문항 수. */
