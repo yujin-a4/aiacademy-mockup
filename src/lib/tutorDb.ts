@@ -125,6 +125,9 @@ export interface LectureStep {
   code: string          // 'S2', 'S2+S3', 'S5①' 등 시트 원문
   rule: string          // AI가 따라야 할 규칙 (고정) — 에이전트 지시문용, 클라이언트엔 안 보냄
   dbFields: string | null
+  /** 시트 '자유 표현(말투 예시)'. **어디에도 내보내지 않는다** — 가상 문항 기준으로 쓰인 예시라
+   *  정답·사진 묘사가 박혀 있다(965행 중 10행). 이유는 api/tutor 의 sheetStepDirective 주석 참조.
+   *  검토용으로만 남긴 필드다. 프롬프트에 다시 넣지 말 것. */
   freeExpression: string | null
   // ── 0010 턴 상세 (이도윤 레일에만 채워짐; common·윤다은 4열 레일은 null) ──
   // 화면 렌더러가 "이 스텝을 어떻게 그릴지" 판단하는 근거. Phase 3 UI 재편에서 소비.
