@@ -46,6 +46,7 @@ const SYSTEM = `너는 TOEIC 수업 화면의 대사를 만드는 도구다.
 interface ReqTurn {
   no: number
   stage: string          // 부품 이름 'S6 오답 제거'
+  role?: string          // 이 단계에서 강사가 할 일 (시트 [설명] — 콘텐츠팀이 쓴 지시)
   interaction: string    // 학생이 할 일 '보기 중에서 고르기'
   seed?: string | null       // 학생 질문 말투 참고용
   tutorSeed?: string | null  // 강사 발화 말투 참고용 (시트 '자유 표현' — 내용은 쓰지 않는다)
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
     const turnLines = turns.map((t) => [
       `- 턴 ${t.no}`,
       `  단계: ${t.stage}`,
+      t.role ? `  이 단계에서 강사가 할 일: ${t.role}` : '',
       `  학생이 할 일: ${t.interaction}`,
       t.needsPrompt === false ? '  (학생 질문 없음 — tutor 만 만든다)' : '',
       t.tutorSeed ? `  강사 말투 참고(내용은 쓰지 말 것): ${t.tutorSeed}` : '',
