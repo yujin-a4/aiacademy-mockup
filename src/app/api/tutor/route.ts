@@ -288,7 +288,16 @@ function sheetStepDirective(s: SheetRailSession, step: LectureStep): string {
   } else if (!/S6/.test(code)) {
     lines.push('정답·근거는 아직 말하지 마라.')
   }
-  if (step.freeExpression) lines.push(`(말투·표현만 자유: ${step.freeExpression})`)
+  /* ⚠️ `step.freeExpression`(시트 free_expression)은 **에이전트에게 주지 않는다.**
+     그 칸은 콘텐츠팀이 말투를 보여주려고 쓴 예시라 다른(가상의) 문항을 상정하고 있다.
+     프롬프트에 넣으면 "말투만 참고하라"고 감싸도 LLM 은 내용을 사실로 흡수한다 — 실측(965행 중 10행 오염):
+       LC-P1-01 정답은 Q001→A·Q002→B·Q003→D 인데 "이 표현이 정답입니다"(C 를 가리킴)
+       LC-P2-01 정답은 A·C 인데 "그래서 이 선택지가 정답입니다"(B 를 가리킴)
+       사진은 지하철인데 "책상 위에 서류가 쌓여 있네요"
+     레일은 아이템마다 다시 도는데 대사는 한 벌뿐이라 특정 정답이 박힌 문장이 전 문항에 나간다.
+     말투는 강사별 에이전트(tutorAgentFor)의 페르소나가 이미 담당한다 — 이 칸 없이도 안 밋밋하다.
+     화면 경로는 같은 이유로 이미 버리고 있다: src/data/typeLearning/fromSteps.ts:269
+     (그래서 지금까지 같은 /lecture 안에서 말풍선은 중립인데 음성만 틀린 답을 단정했다) */
   lines.push('이 한 가지만 짧게 진행해라. 한두 문장으로 말하고 멈춰서 학생 반응을 기다려라.')
   return lines.join('\n')
 }
@@ -334,8 +343,9 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({
             sessionId: id, mode: 'sheetRail', lectureCode: q.lectureCode, instructor: instructorCode,
             steps: steps.map((st) => st.code),
-            // UI 렌더러용 스텝 상세(0010 컬럼). rule/dbFields/freeExpression은 에이전트 지시문
-            // 재료라 클라이언트로 내보내지 않는다(DB=뇌, 에이전트=입 원칙).
+            // UI 렌더러용 스텝 상세(0010 컬럼). rule/dbFields는 에이전트 지시문 재료라
+            // 클라이언트로 내보내지 않는다(DB=뇌, 에이전트=입 원칙).
+            // freeExpression은 어느 쪽으로도 안 나간다 — sheetStepDirective 의 경고 주석 참조.
             stepDetails: steps.map((st) => ({
               order: st.order, code: st.code, turnLabel: st.turnLabel, section: st.section,
               audioMode: st.audioMode, scriptMode: st.scriptMode,

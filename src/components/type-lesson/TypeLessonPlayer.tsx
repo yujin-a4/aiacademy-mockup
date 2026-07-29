@@ -242,8 +242,13 @@ function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => v
 
 /* 스캐폴딩 레일 — 턴별 단계(S코드)를 칩으로. 현재=파랑, 완료=초록. 칩을 탭하면 그 턴으로 바로 이동한다
    (원래는 강사 에이전트 발화로 자동 전환될 예정 — 지금은 UI 확인용으로 수동 이동만 구현).
-   스크롤바 숨기고 포인터 드래그(터치/마우스)로 좌우 이동 */
+   스크롤바 숨기고 포인터 드래그(터치/마우스)로 좌우 이동
+
+   **기본은 접혀 있다.** 칩을 전부 펼쳐두면 학생 화면 위쪽을 레일이 차지하는데, 학생이 볼 것은
+   지금 어느 단계인지 하나뿐이다. 접힌 줄에도 현재 단계명과 n/총은 남겨서 위치는 늘 보인다.
+   펼치면 전체 레일 + 턴 점프가 나온다(검토·시연용). */
 function ScaffoldRail({ turns, turnIdx, onJump }: { turns: Turn[]; turnIdx: number; onJump: (i: number) => void }) {
+  const [open, setOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ x: number; left: number; dragging: boolean; pointerId: number } | null>(null)
   const DRAG_THRESHOLD = 6 // px — 이보다 적게 움직이면 드래그가 아니라 칩 탭(클릭)으로 본다
@@ -268,24 +273,44 @@ function ScaffoldRail({ turns, turnIdx, onJump }: { turns: Turn[]; turnIdx: numb
   }
   const onUp = () => { dragRef.current = null }
   return (
-    <div ref={scrollRef}
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-      className="bg-[#F7FAFF] border-b border-[#E5EDFA] px-3 md:px-5 py-2 shrink-0 overflow-x-auto cursor-grab active:cursor-grabbing select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div className="flex items-center gap-1.5 min-w-max">
-        <span className="text-[10px] font-black text-[#94A3B8] tracking-wide mr-1 shrink-0">스캐폴딩</span>
-        {turns.map((t, i) => (
-          <div key={i} className="flex items-center gap-1.5 shrink-0">
-            <button onClick={() => onJump(i)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors ${
-              i === turnIdx ? 'bg-[#2563EB] text-white'
-                : i < turnIdx ? 'bg-[#DCFCE7] text-[#15803D] hover:bg-[#BBF7D0]'
-                : 'bg-white border border-gray-200 text-gray-400 hover:border-[#93C5FD] hover:text-[#2563EB]'
-            }`}>{t.stage}</button>
-            {i < turns.length - 1 && (
-              <svg viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" className="w-2.5 h-2.5 shrink-0"><path d="M9 18l6-6-6-6" /></svg>
-            )}
+    <div className="bg-[#F7FAFF] border-b border-[#E5EDFA] shrink-0">
+      {/* 접힘 줄 — 항상 보인다. 통째로 토글 버튼이라 어디를 눌러도 열린다 */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2 px-3 md:px-5 py-1.5 text-left hover:bg-[#EEF4FF] transition-colors"
+      >
+        <span className="text-[10px] font-black text-[#94A3B8] tracking-wide shrink-0">스캐폴딩</span>
+        {!open && turns[turnIdx] && (
+          <span className="text-[11px] font-bold text-[#2563EB] truncate">{turns[turnIdx].stage}</span>
+        )}
+        <span className="ml-auto text-[10px] font-bold text-[#94A3B8] shrink-0 tabular-nums">
+          {turnIdx + 1}/{turns.length}
+        </span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+
+      {open && (
+        <div ref={scrollRef}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          className="px-3 md:px-5 pb-2 overflow-x-auto cursor-grab active:cursor-grabbing select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {turns.map((t, i) => (
+              <div key={i} className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => onJump(i)} className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors ${
+                  i === turnIdx ? 'bg-[#2563EB] text-white'
+                    : i < turnIdx ? 'bg-[#DCFCE7] text-[#15803D] hover:bg-[#BBF7D0]'
+                      : 'bg-white border border-gray-200 text-gray-400 hover:border-[#93C5FD] hover:text-[#2563EB]'
+                }`}>{t.stage}</button>
+                {i < turns.length - 1 && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" className="w-2.5 h-2.5 shrink-0"><path d="M9 18l6-6-6-6" /></svg>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -997,8 +1022,13 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           )}
           {/* 지문/문항에서 직접 할 일 — 콘텐츠 바로 위 작은 안내 (설명 영역에서 뺀 지시) */}
           <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped} />
+          {/* 파트1 수업(문항 1개)도 P6·P7과 같이 **높이를 주고 스크롤을 막는다** —
+              사진과 보기가 한 화면에 있어야 하는 수업이라 스크롤이 생기면 안 된다.
+              실전(문항 여러 개)은 사진이 장마다 달라 세로로 쌓이므로 스크롤을 유지한다. */}
           <div ref={contentRef} className={`flex-1 min-h-0 px-3 md:px-6 py-4 ${
-            lesson.part === 6 || lesson.part === 7 ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
+            lesson.part === 6 || lesson.part === 7
+              || (lesson.part === 1 && lesson.content.questions.length === 1)
+              ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
           }`}>
             <ContentView lesson={lesson} st={st} readingSideBySide={dockMode === 'bottom'} />
           </div>

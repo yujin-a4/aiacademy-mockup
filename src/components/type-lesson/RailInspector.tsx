@@ -35,7 +35,8 @@ export default function RailInspector({
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`fixed bottom-4 right-4 z-[60] rounded-full px-4 py-2.5 text-[13px] font-bold shadow-lg border transition ${
+        /* 왼쪽 하단 — 패널이 오른쪽에서 열리므로 버튼이 패널 위에 겹쳐 앉지 않는다 */
+        className={`fixed bottom-4 left-4 z-[60] rounded-full px-4 py-2.5 text-[13px] font-bold shadow-lg border transition ${
           warnCount
             ? 'bg-[#FEF2F2] border-[#FCA5A5] text-[#B91C1C]'
             : 'bg-white border-[#CBD5E1] text-[#334155]'
