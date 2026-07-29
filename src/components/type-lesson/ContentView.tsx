@@ -651,8 +651,12 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                 )}
               </div>
               {(q.photo ?? content.photo) && (
+                /* 실전은 사진 4장이 세로로 쌓여 한 화면에 못 넣는다(스크롤 유지).
+                   대신 장당 높이를 묶어 한 쌍(사진+보기)이 화면 안에 들어오게 한다.
+                   object-contain — 파트1은 사진 구석의 사물이 정답 근거라 잘라내면 안 된다. */
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={q.photo ?? content.photo} alt={`문제 ${i + 1} 사진`} className="w-full rounded-2xl border border-[#E5E7EB] object-cover" />
+                <img src={q.photo ?? content.photo} alt={`문제 ${i + 1} 사진`}
+                  className="w-full max-h-[34vh] rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]" />
               )}
               <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
             </div>
@@ -660,13 +664,22 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         </div>
       )
     }
+    /* 수업(문항 1개) — 사진과 보기가 **스크롤 없이 한 화면**에 들어와야 한다.
+       파트1은 사진을 보면서 보기를 하나씩 지워나가는 수업이라, 둘 중 하나가 화면 밖으로
+       나가면 수업 자체가 성립하지 않는다.
+       그래서 부모가 준 높이를 세로로 나눠 쓴다 — 보기는 shrink-0으로 항상 온전히 두고,
+       사진이 남는 높이를 전부 먹는다(P6·P7이 지문/문항을 나누는 방식과 같다).
+       사진은 object-contain — 구석의 사물이 정답 근거라 잘라내면 안 된다. */
     return (
-      <div className="flex flex-col gap-4 max-w-[620px] mx-auto">
+      <div className="h-full min-h-0 flex flex-col gap-4 max-w-[620px] mx-auto">
         {content.photo && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={content.photo} alt="문제 사진" className="w-full rounded-2xl border border-[#E5E7EB] object-cover" />
+          <div className="flex-1 min-h-[120px] flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={content.photo} alt="문제 사진"
+              className="max-h-full max-w-full rounded-2xl border border-[#E5E7EB] object-contain" />
+          </div>
         )}
-        <div className="min-w-0">{questionsBlock}</div>
+        <div className="shrink-0 min-w-0 overflow-y-auto">{questionsBlock}</div>
       </div>
     )
   }
