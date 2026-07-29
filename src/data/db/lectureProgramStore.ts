@@ -81,6 +81,9 @@ export async function fetchLectureProgram(
   const supabase = getSupabase()
   if (!supabase || !lectureCode) return EMPTY
 
+  /* sandbox = 실험장 스키마. 브라우저에는 안 열려 있어서(0025) 서버 라우트를 거친다. */
+  if (draftId === 'sandbox') return fetchSandboxProgram(lectureCode, instructorCode, phase)
+
   const query = (code: string) => (
     draftId
       ? supabase.from('v_lecture_program_draft').select(COLUMNS).eq('draft_id', draftId)
@@ -101,7 +104,11 @@ export async function fetchLectureProgram(
     used = 'common'
   }
   if (!rows?.length) return EMPTY
+  return toProgram(rows as any[], used)
+}
 
+/** 뷰 행 묶음 → 진행표 (정본·드래프트·sandbox 가 같은 모양이라 변환도 하나로 쓴다) */
+function toProgram(rows: any[], used: string): LectureProgram {
   const byItem = new Map<number, ProgramItem>()
   for (const r of rows as any[]) {
     if (!byItem.has(r.item_seq)) {
@@ -123,6 +130,21 @@ export async function fetchLectureProgram(
     source: first.rail_source === 'composition' ? 'composition' : 'lecture_steps',
     instructorCode: used,
   }
+}
+
+/** sandbox 스키마의 진행표 — `?sandbox=1` 미리보기.
+ *  sandbox 는 anon 에게 열려 있지 않으므로(0025) supabase 클라이언트로 못 읽는다.
+ *  `/api/sandbox-program` 서버 라우트가 대신 읽어준다. */
+async function fetchSandboxProgram(
+  lectureCode: string, instructorCode: string, phase: string,
+): Promise<LectureProgram> {
+  try {
+    const res = await fetch(`/api/sandbox-program?lecture=${encodeURIComponent(lectureCode)}`
+      + `&instructor=${encodeURIComponent(instructorCode)}&phase=${phase}`)
+    if (!res.ok) return EMPTY
+    const { rows } = await res.json()
+    return toProgram(rows ?? [], instructorCode)
+  } catch { return EMPTY }
 }
 
 /** 훅. 실패하면 빈 진행표 → 호출부가 예전 방식(앵커 1문항 + 코드 레일)으로 폴백한다.

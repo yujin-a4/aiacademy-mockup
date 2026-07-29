@@ -60,7 +60,10 @@ export default function LecturePage() {
      레일을 평가하러 열었는데 강사 목소리가 다른 사람이 된다.
        /lecture/LC-P1-01?instructor=lee_doyun&rail=kim-0729
      ↑ 목소리·얼굴은 instructor 가, 단계 순서는 rail 이 정한다. */
-  const draftId = search.get('rail')
+  /* ?sandbox=1 — 실험장 스키마로 돌린다 (docs/rail-editor-plan.md).
+     ?rail=<id> 는 옛 드래프트 방식. 둘 다 "정본 대신 다른 레일로 돈다" 는 같은 뜻이라
+     아래 한 값으로 합쳐서 넘긴다. */
+  const draftId = search.get('sandbox') === '1' ? 'sandbox' : search.get('rail')
 
   /* 문항(재료)과 진행표(아이템 × 레일)를 따로 읽어 여기서 합친다.
      문항은 드래프트에서도 **정본을 그대로** 읽는다 — 드래프트가 바꾸는 것은 레일뿐이다. */
