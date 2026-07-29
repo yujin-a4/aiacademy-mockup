@@ -47,7 +47,7 @@ function toStep(r: any): DbLectureStep {
     scriptMode: r.script_mode ?? null,
     interaction: r.interaction ?? null,
     studentPrompt: r.student_prompt ?? null,
-    freeExpression: r.tutor_directive ?? null,
+    freeExpression: null,   // 0024 에서 제거 — 강사 발화는 DB에 없다
     dbFields: r.db_fields ?? null,
     partCode: r.variant_code ?? null,
     variantId: r.variant_id ?? null,
@@ -55,21 +55,37 @@ function toStep(r: any): DbLectureStep {
   }
 }
 
+/* 강사 발화 칸(tutor_directive)은 0024 에서 뷰·테이블 양쪽에서 제거됐다.
+   발화는 DB에 없다 — 문항 사실 + 단계 지시로 LLM 이 매번 만든다. */
+const COLUMNS =
+  'item_seq, occurrence, type_code, question_type_id, questions, instructor_code, rail_source,'
+  + ' step_order, step_code, interaction, audio_mode, script_mode, student_prompt,'
+  + ' section, fixed_rule, db_fields, variant_code, variant_id'
+
 /**
  * 강의 하나의 진행표. 해당 강사 레일이 없으면 'common' 으로 폴백한다
  * (튜터 엔진·`lectureStepStore` 와 같은 폴백 규칙 — 세 곳이 같은 레일을 보게).
+ *
+ * `draftId` 를 주면 **레일 편집기 드래프트**를 읽는다(`?rail=` 미리보기).
+ *   · 읽는 뷰가 통째로 다르다 — `v_lecture_program_draft`.
+ *     정본 뷰는 `draft_id is null` 로 드래프트를 구조적으로 차단하므로(0021) 여기로 못 온다.
+ *   · **'common' 폴백을 하지 않는다.** 드래프트는 "지금 이 레일을 이렇게 바꿔봤다" 를 보는 것이라,
+ *     비어 있으면 조용히 다른 레일을 보여주는 게 아니라 **비어 있다고 알려야** 한다.
  */
 export async function fetchLectureProgram(
   lectureCode: string,
   instructorCode = 'common',
   phase: 'lesson' | 'practice' = 'lesson',
+  draftId?: string | null,
 ): Promise<LectureProgram> {
   const supabase = getSupabase()
   if (!supabase || !lectureCode) return EMPTY
 
-  const query = (code: string) => supabase
-    .from('v_lecture_program')
-    .select('item_seq, occurrence, type_code, question_type_id, questions, instructor_code, rail_source, step_order, step_code, interaction, audio_mode, script_mode, student_prompt, tutor_directive, section, fixed_rule, db_fields, variant_code, variant_id')
+  const query = (code: string) => (
+    draftId
+      ? supabase.from('v_lecture_program_draft').select(COLUMNS).eq('draft_id', draftId)
+      : supabase.from('v_lecture_program').select(COLUMNS)
+  )
     .eq('lecture_code', lectureCode)
     .eq('phase', phase)
     .eq('instructor_code', code)
@@ -79,7 +95,7 @@ export async function fetchLectureProgram(
   let used = instructorCode
   const { data, error } = await query(instructorCode)
   let rows = error ? null : data
-  if (!rows?.length && instructorCode !== 'common') {
+  if (!rows?.length && instructorCode !== 'common' && !draftId) {
     const fb = await query('common')
     rows = fb.error ? null : fb.data
     used = 'common'
@@ -109,16 +125,19 @@ export async function fetchLectureProgram(
   }
 }
 
-/** 훅. 실패하면 빈 진행표 → 호출부가 예전 방식(앵커 1문항 + 코드 레일)으로 폴백한다 */
-export function useLectureProgram(lectureCode: string, instructorCode: string): LectureProgram {
+/** 훅. 실패하면 빈 진행표 → 호출부가 예전 방식(앵커 1문항 + 코드 레일)으로 폴백한다.
+ *  `draftId` 를 주면 드래프트 진행표를 읽는다(미리보기). */
+export function useLectureProgram(
+  lectureCode: string, instructorCode: string, draftId?: string | null,
+): LectureProgram {
   const [state, setState] = useState<LectureProgram>(EMPTY)
   useEffect(() => {
     let alive = true
     if (!lectureCode) return
-    fetchLectureProgram(lectureCode, instructorCode)
+    fetchLectureProgram(lectureCode, instructorCode, 'lesson', draftId)
       .then((p) => { if (alive) setState(p) })
       .catch(() => { /* 폴백 유지 */ })
     return () => { alive = false }
-  }, [lectureCode, instructorCode])
+  }, [lectureCode, instructorCode, draftId])
   return state
 }

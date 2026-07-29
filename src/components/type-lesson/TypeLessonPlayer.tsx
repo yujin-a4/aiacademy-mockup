@@ -467,15 +467,17 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
   )
 }
 
-export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail, lectureCode, preparing }: {
+export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail, lectureCode, draftId, preparing }: {
   lesson: TypeLesson
   instructor?: string
-  /** DB 레일로 돌 때의 해석 결과 — 넘기면 우하단에 검토 패널이 뜬다 (콘텐츠팀 확인용) */
+  /** DB 레일로 돌 때의 해석 결과 — 넘기면 좌하단에 검토 패널이 뜬다 (콘텐츠팀 확인용) */
   rail?: { diags: RailDiag[]; source: string; generated?: Record<number, string>; status?: string }
   /** 대사 생성이 아직 안 끝났는가 — 끝나기 전에 수업을 시작하면 옛 문구를 말한다 */
   preparing?: boolean
   /** 강의 코드. 넘기면 학습 로그를 남긴다(STEP 6). 없으면 기록하지 않는다 */
   lectureCode?: string
+  /** 레일 편집기 드래프트로 열렸는가 — 배너를 띄운다. 정본과 헷갈리면 안 된다 */
+  draftId?: string | null
 }) {
   const router = useRouter()
   const turns = lesson.turns
@@ -983,6 +985,16 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           diags={rail.diags} currentNo={turnIdx + 1} source={rail.source}
           generated={rail.generated} status={rail.status}
         />
+      )}
+      {/* ── 드래프트 미리보기 배너 ──
+           정본과 헷갈리면 "학생한테 이게 나가고 있나?" 를 착각한다. 화면 맨 위에 항상 띄운다.
+           학습 로그도 이 모드에서는 꺼져 있다(호출부에서 lectureCode 를 안 넘긴다). */}
+      {draftId && (
+        <div className="shrink-0 flex items-center gap-2 px-3 md:px-5 py-1.5 bg-[#FFF7ED] border-b border-[#FED7AA]">
+          <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-[#EA580C] text-white shrink-0">드래프트</span>
+          <span className="text-[11px] font-bold text-[#9A3412] truncate">{draftId}</span>
+          <span className="text-[11px] text-[#C2410C] hidden sm:inline">· 학생에게 안 나갑니다 · 학습 기록 안 남김</span>
+        </div>
       )}
       {/* ── 4단계 스텝퍼 (도입·수업·실전·정리) ── */}
       <PhaseStepper
