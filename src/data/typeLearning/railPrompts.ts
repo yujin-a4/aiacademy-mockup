@@ -65,6 +65,12 @@ async function fetchPrompts(
   const lockedStages = new Set(
     steps.filter((st) => st.promptLocked).map((st) => st.stepCode),
   )
+  /* 시트 "스캐폴딩 입력"의 [설명] — 이 단계에서 강사가 뭘 시키는지.
+     발화 문장이 아니라 **지시**라서 (옛 seed 와 달리) 다른 문항의 내용어가 없다.
+     단계 코드로 짝짓는다 — 인덱스로 하면 건너뛴 턴에서 어긋난다(위 주석과 같은 이유). */
+  const roleByStage = new Map(
+    steps.filter((st) => st.fixedRule).map((st) => [st.stepCode, st.fixedRule as string]),
+  )
   const payload = turns.flatMap((t) => {
     if (lockedStages.has(t.stage)) return []   // 이 강의 전용 예외 — LLM이 건드리지 않는다
     const needsPrompt = NEEDS_PROMPT.has(t.interaction.kind)
@@ -72,6 +78,7 @@ async function fetchPrompts(
     return [{
       no: t.no,
       stage: t.stage,
+      role: roleByStage.get(t.stage),
       interaction: KIND_LABEL[t.interaction.kind],
       needsPrompt,
       /* ⚠️ 시트에 적힌 문구(seed)는 **보내지 않는다.**
