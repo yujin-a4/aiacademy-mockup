@@ -99,7 +99,7 @@ async function main() {
     const { rows: rails } = await c.query(`
       select lecture_code, instructor_code, phase, count(*) steps,
              count(variant_id) with_variant,
-             string_agg(coalesce(tutor_directive,''), ' ¶ ') tutor_text
+             string_agg(coalesce(student_prompt,''), ' ¶ ') tutor_text
         from v_lecture_program ${where} group by 1,2,3`, args);
     const railsOf = new Map();
     for (const r of rails) {
@@ -175,9 +175,13 @@ async function main() {
         if (Number(r.with_variant) === 0) {
           add(WARN, code, `레일/${r.instructor_code}`, '변종이 하나도 안 붙었다 (D9 — 시트에 상호작용 열 없음)');
         }
-        // 레일 문구가 특정 보기를 정답이라 단정하는가
-        // 단계 하나(¶ 구분) 안에서 "정답"을 말하면서 보기 라벨이 딱 하나만 나오면 그걸 단정으로 본다.
-        // (실측 예: "C는 사진과 맞습니다. … 이 표현이 정답입니다." — 라벨과 '정답'이 두 문장 떨어져 있다)
+        /* 레일 문구가 특정 보기를 정답이라 단정하는가.
+           단계 하나(¶ 구분) 안에서 "정답"을 말하면서 보기 라벨이 딱 하나만 나오면 단정으로 본다.
+
+           **검사 대상이 바뀌었다(0024).** 원래는 강사 발화 칸(tutor_directive)을 봤는데,
+           그 칸은 아무도 안 읽는 죽은 칸이라 컬럼째로 지웠다 — 강사 발화는 DB에 없고
+           문항 사실을 보고 LLM 이 매번 만든다. 그래서 이제 **학생 문구(student_prompt)** 를 본다.
+           그 칸은 LLM 에 말투 참고로 들어갈 수 있어 같은 오염이 생길 수 있다. */
         const text = r.tutor_text || '';
         const claimed = new Set();
         for (const chunk of text.split('¶')) {

@@ -22,7 +22,9 @@ export interface DbLectureStep {
   scriptMode: string | null     // '전체 스크립트 공개' / 'A 스크립트만 표시' / '표시 없음'
   interaction: string | null    // 'AI 진행' / '선택 응답' / '필수 수행 / 필기 인식' …
   studentPrompt: string | null  // 학생에게 던지는 질문 ('—'면 없음)
-  freeExpression: string | null // 강사 발화 예시 → 말풍선·TTS
+  /** @deprecated 강사 발화는 DB에 없다. type_rails 쪽 칸은 0024 에서 제거됐고 여기는 항상 null.
+   *  (`lecture_steps.free_expression` 은 다른 표이고 `lib/tutorDb.ts` 가 따로 다룬다) */
+  freeExpression: string | null
   dbFields: string | null       // 이 턴이 참조하는 DB 필드 목록 (검토 패널용)
   /* ── 부품 조합(rail_compositions)에서 온 턴만 채워진다 ── */
   partCode?: string | null      // 'P5-02' — 이 턴이 쓰는 부품
