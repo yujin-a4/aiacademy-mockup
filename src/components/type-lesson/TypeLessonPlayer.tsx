@@ -40,14 +40,54 @@ const INTERACTION_HINT: Record<Interaction['kind'], string> = {
   match: '지문에서 근거가 되는 문장을 직접 탭하게 한다.',
 }
 
+/** 학생이 할 일이 있는 턴인가 — 진행 규칙이 여기서 갈린다.
+ *  'next'(AI 진행)는 들려주고 넘어가는 턴이라 응답을 기다리면 답답해지고,
+ *  나머지는 응답을 안 받고 넘어가면 스캐폴딩이 무의미해진다. */
+const needsAnswer = (turn: Turn) => turn.interaction.kind !== 'next'
+
+/** 응답 없는 턴에서 다시 물어볼 최대 횟수. 넘으면 붙잡아두지 않고 낮춰서 진행한다(Fading). */
+const MAX_REASK = 2
+/** 재질문 사이 최소 간격(ms). 에이전트는 거절당하면 **곧바로 다시 호출**하는 습성이 있어서,
+ *  횟수만 세면 2회가 1~2초에 소진되고 그냥 넘어간 것처럼 보인다. 실제로 물어볼 시간을 강제한다. */
+const REASK_MIN_GAP = 6000
+/** 마지막 재질문 뒤 이만큼은 더 기다린다 — 학생이 답할 시간을 주고 나서야 포기한다. */
+const GIVEUP_WAIT = 8000
+/** 내용 없는 응답인가 — 학생이 가만히 있으면 STT 가 침묵을 "..." 로 전사해서 보낸다.
+ *  그걸 답으로 세면 응답 게이트가 그냥 열린다(실측: 답 안 해도 넘어가던 원인).
+ *  문장부호·말줄임·감탄사만 남는 것은 답이 아니다. "네"·"몰라요" 같은 짧은 답은 답으로 센다. */
+function isEmptyAnswer(text: string): boolean {
+  const t = text.replace(/[\s.,!?~\-·"'’”…‥。]/g, '')
+  if (!t) return true                  // "..." 처럼 부호만 남는 것
+  return /^[음어아으엄흠허]$/.test(t)   // 한 글자 감탄사 ("네"·"응"·"몰라요"는 답으로 센다)
+}
+
+/** 진행 판단을 콘솔에 남긴다 — "왜 넘어갔지"를 눈으로 확인해야 페이싱을 맞출 수 있다.
+ *  (프로토타입이라 개발 중엔 켜 둔다. 끄려면 false) */
+const PACE_LOG = true
+
 /** 턴 하나를 에이전트 지시(directive)로 — 강사는 이걸 자기 말투로 바꿔 말한다(낭독 금지). */
 function directiveOf(turn: Turn): string {
   const todo = INTERACTION_HINT[turn.interaction.kind]
+  const it = turn.interaction
+  /* ⚠️ 화면에 뜬 질문·선택지를 반드시 같이 준다.
+     이게 없으면 에이전트는 자기 나름의 질문을 만들고 화면은 다른 선택지를 띄운다
+     — "강사가 묻는 것과 선택지가 안 맞는다"의 원인이었다. */
+  const ask = 'prompt' in it ? (it as { prompt?: string }).prompt : undefined
+  const choices = it.kind === 'choice'
+    ? it.choices.map((c, i) => `${i + 1}) ${c.text}`).join('  ')
+    : undefined
   return [
     `[단계] ${turn.stage}`,
     `[이번 턴에 전달할 내용] ${turn.tutor}`,
+    ask ? `[학생에게 물을 질문 — 화면에 뜬 문구] ${ask}` : '',
+    choices ? `[화면에 뜬 선택지] ${choices}` : '',
+    ask || choices
+      ? '질문은 화면 문구와 같은 뜻으로 물어라. 화면에 없는 선택지를 새로 만들지 마라.' : '',
     todo ? `[학생이 할 일] ${todo}` : '',
-    '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라.',
+    needsAnswer(turn)
+      ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라.'
+      // 들려주고 넘어가는 턴 — 대기를 지시하면 음원이 끝나고도 멈춰 있어 답답해진다
+      : '위 내용만 네 말투로 짧게 전달하고 멈춰라. 학생에게 질문하지 말고, 다음 단계는 화면이 알아서 넘긴다.',
   ].filter(Boolean).join('\n')
 }
 
@@ -200,6 +240,18 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
         .map((l) => q?.options.find((x) => x.label === l))
         .filter((o): o is NonNullable<typeof o> => !!o)
         .map((o) => ({ id: `opt:${cue.qIdx}:${o.label}`, text: `${o.label}. ${o.text}` }))
+    }
+    /* 발화 + 보기 — Part2 는 실제 시험에서 질문 발화 뒤에 보기가 이어진다.
+       두 재료가 다른 표(passage_sentences / question_options)에 있어서 여기서 이어 붙인다. */
+    case 'mix': {
+      const q = lesson.content.questions[cue.qIdx]
+      return [
+        ...script.filter((s) => cue.ids.includes(s.id)).map((s) => ({ id: s.id, text: s.en })),
+        ...cue.labels
+          .map((l) => q?.options.find((x) => x.label === l))
+          .filter((o): o is NonNullable<typeof o> => !!o)
+          .map((o) => ({ id: `opt:${cue.qIdx}:${o.label}`, text: `${o.label}. ${o.text}` })),
+      ]
     }
   }
 }
@@ -484,9 +536,27 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const [turnIdx, setTurnIdx] = useState(0)
   const turnIdxRef = useRef(0)              // clientTool은 최신 turnIdx를 ref로 읽는다(클로저 고정 방지)
   turnIdxRef.current = turnIdx
+  /* ⚠️ turns 도 ref 로 읽는다. lesson 은 화면이 뜬 뒤에도 **여러 번 갈린다**
+     (정적 폴백 → DB 아이템 조립 → LLM 학생문구 반영). 에이전트 clientTool 이 잡은 클로저는
+     세션 시작 시점 배열이라, 그걸 쓰면 "S1(필기)" 인데 폴백 레일의 다른 종류로 판정돼
+     응답 게이트가 그냥 열린다 — 실제로 그렇게 새고 있었다. */
+  const turnsRef = useRef(turns)
+  turnsRef.current = turns
   /* 음원을 끝까지 들려준 턴 번호. next_step이 "음원 있는 단계"를 다 재생하기 전에 넘어가지 못하게 막는다
      (에이전트가 여러 단계를 몰아 말하며 next_step을 연달아 부를 때 듣기 음원이 스킵되던 문제 방지). */
   const audioDoneRef = useRef<Set<number>>(new Set())
+  /* 학생이 응답한 턴 번호 — 말/타이핑(onMessage)과 화면 행동(reportAction) 둘 다 응답으로 센다.
+     "사진에 뭐가 보이는지 말해봐" 같은 턴을 응답 없이 넘어가지 않게 하는 근거. */
+  const respondedRef = useRef<Set<number>>(new Set())
+  /* 턴별로 "다시 물어본" 횟수. MAX_REASK 를 넘으면 더 붙잡지 않는다 —
+     못 하는 학생을 무한히 세워두는 게 더 나쁘다(정답·근거를 보여주고 진행). */
+  const reaskRef = useRef<Map<number, number>>(new Map())
+  /** 그 턴에서 마지막으로 "다시 물어라"를 돌려준 시각 — 재호출 폭주로 횟수가 날아가는 걸 막는다 */
+  const reaskAtRef = useRef<Map<number, number>>(new Map())
+  /** 화면 표시용 재질문 횟수 (ref 는 리렌더를 안 일으켜서 별도 state) */
+  const [reaskShown, setReaskShown] = useState(0)
+  /** 학생 답에 강사가 실제로 반응한 턴 — 답만 들어왔다고 바로 넘기면 수업이 아니라 통과의식이다 */
+  const agentReactedRef = useRef<Set<number>>(new Set())
 
   /* 강사 = 온보딩 선택(페이지가 내려줌). 레일은 이도윤 ver 한 벌이라 짚는 순서는 동일하고,
      목소리·얼굴·화법만 갈린다. 전용 에이전트가 없는 강사는 박혜원 에이전트로 폴백. */
@@ -523,25 +593,95 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      에이전트에 연결하지 않으면 기존 방식(브라우저 TTS + 단계 버튼 클릭)이 그대로 폴백으로 남는다. */
   const conversation = useConversation({
     micMuted: chatMode === 'text',
-    onMessage: (p: { source: string; message: string }) =>
-      setChatLog((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }]),
+    onMessage: (p: { source: string; message: string }) => {
+      /* 우리가 에이전트에 밀어넣은 지시([학생 행동]·[진행])는 user 메시지로 되돌아올 수 있다.
+         그걸 학생 응답으로 세면 응답 게이트가 그냥 열린다 → 되돌아온 것은 응답으로 세지 않고
+         화면 대화에도 안 띄운다. */
+      const injected = injectedRef.current.has(p.message)
+      if (injected) { injectedRef.current.delete(p.message); return }
+      const cur = turnIdxRef.current
+      if (p.source === 'user') {
+        /* 침묵이 "..." 로 전사돼 오는 걸 답으로 세면 안 된다 — 그게 게이트가 열리던 원인 */
+        if (isEmptyAnswer(p.message)) {
+          if (PACE_LOG) console.log('[pace] 빈 응답 무시', cur, JSON.stringify(p.message))
+          return
+        }
+        // 답이 들어왔다 = 응답 있음. 단, 강사가 그 내용에 반응하기 전에는 진행을 막는다(아래 게이트)
+        respondedRef.current.add(cur)
+        agentReactedRef.current.delete(cur)
+        if (PACE_LOG) console.log('[pace] 응답 인식', cur, p.message.slice(0, 20))
+      } else if (respondedRef.current.has(cur)) {
+        // 강사가 학생 답 뒤에 말을 했다 = 그 답에 반응했다 → 이제 다음 단계로 가도 된다
+        agentReactedRef.current.add(cur)
+      }
+      setChatLog((prev) => [...prev, { role: p.source === 'user' ? 'user' : 'ai', text: p.message }])
+    },
     clientTools: {
       next_step: async () => {
         const cur = turnIdxRef.current
         /* 게이트: 이 단계에 음원이 있는데 아직 다 안 들려줬으면 넘어가지 않는다 —
            음원은 앱이 "턴에 진입할 때" 재생하는데, 에이전트가 그 전에 next_step을 부르면
            듣기 음원이 스킵된다. 다 들려준 뒤(다음 호출)에야 전진하게 막는다. */
-        if (turns[cur]?.audio && !audioDoneRef.current.has(cur)) {
-          return '지금 이 단계의 음원을 아직 다 들려주지 않았다. 다음 단계로 넘어가지 말고, 음원이 끝나고 학생이 답할 때까지 짧게 기다려라.'
+        const live = turnsRef.current            // 낡은 클로저의 turns 를 쓰면 판정이 틀린다(위 주석)
+        const curTurn = live[cur]
+        if (PACE_LOG) console.log('[pace] next_step 요청', cur, curTurn?.stage,
+          curTurn?.interaction.kind, needsAnswer(curTurn ?? live[0]) ? '응답대기턴' : '들려주는턴',
+          respondedRef.current.has(cur) ? '응답있음' : '응답없음')
+        if (curTurn?.audio && !audioDoneRef.current.has(cur)) {
+          return needsAnswer(curTurn)
+            ? '지금 이 단계의 음원을 아직 다 들려주지 않았다. 다음 단계로 넘어가지 말고, 음원이 끝나고 학생이 답할 때까지 짧게 기다려라.'
+            // 들려주고 넘어가는 턴 — 여기서 "답을 기다려라"고 하면 답할 게 없는데 멈춰 있게 된다
+            : '지금 이 단계의 음원을 아직 다 들려주지 않았다. 음원이 끝날 때까지 조용히 기다렸다가 다음 단계로 넘어가라.'
         }
-        if (cur >= turns.length - 1) {
+
+        /* ── 응답 게이트 ──
+           "사진에 뭐가 보이는지 말해봐" 처럼 학생이 할 일이 있는 턴은, 응답이 없으면 넘기지 않는다.
+           대신 **최대 MAX_REASK 번까지만** 다시 묻게 하고, 그래도 없으면 정답·근거를 보여주며 진행한다.
+           (무한히 되묻는 것도, 대답 안 했는데 넘어가는 것도 둘 다 수업이 아니다) */
+        /* 답은 들어왔지만 강사가 아직 그 내용에 반응하지 않았다 → 반응이 먼저다.
+           (답이 오면 곧바로 다음 단계로 가버리면, 학생 말을 듣고도 무시하는 수업이 된다) */
+        if (curTurn && needsAnswer(curTurn) && respondedRef.current.has(cur)
+            && !agentReactedRef.current.has(cur)) {
+          if (PACE_LOG) console.log('[pace] 반응 먼저 — 진행 보류', cur)
+          return '학생이 방금 답했다. 다음 단계로 넘어가기 전에 **그 답 내용에 먼저 반응하라** — 맞으면 근거를 한 줄 확인하고, 틀리거나 어긋나면 정답을 말하지 말고 무엇이 어긋났는지 짚어라.'
+        }
+
+        const waiting = !!curTurn && needsAnswer(curTurn) && !respondedRef.current.has(cur)
+        let gaveUp = false
+        if (waiting) {
+          const used = reaskRef.current.get(cur) ?? 0
+          const since = Date.now() - (reaskAtRef.current.get(cur) ?? 0)
+          const REASK = [
+            '학생이 아직 답하지 않았다. 다음 단계로 넘어가지 마라. 같은 것을 더 쉽게, 한 문장으로 다시 물어라.',
+            '학생이 여전히 답하지 않았다. 다음 단계로 넘어가지 마라. 답의 방향을 알려주는 힌트를 하나 주고 마지막으로 한 번만 더 물어라.',
+          ]
+          if (used >= MAX_REASK && since >= GIVEUP_WAIT) {
+            gaveUp = true                       // 두 번 물었고 기다릴 만큼 기다렸다 → 답을 짚어주고 진행
+          } else if (since < (used >= MAX_REASK ? GIVEUP_WAIT : REASK_MIN_GAP)) {
+            /* 방금 거절했는데 또 부른 것 — 횟수를 소진시키지 않는다.
+               (이 재호출을 세면 재질문 2회가 1~2초에 날아가 "그냥 넘어간다"가 된다) */
+            return `아직 학생의 답을 기다리는 중이다. 다음 단계로 넘어가지 마라. ${REASK[Math.min(used, 1)]}`
+          } else {
+            reaskRef.current.set(cur, used + 1)
+            reaskAtRef.current.set(cur, Date.now())
+            setReaskShown(used + 1)
+            return REASK[Math.min(used, 1)]
+          }
+        }
+
+        if (cur >= live.length - 1) {
           stopVoice()
           setPhase('practice')
-          return '수업 단계가 끝났다. 학생에게 이제 실전 문제를 풀어보자고 짧게 말하고 멈춰라.'
+          return (gaveUp ? '학생이 끝내 답하지 않았다. 답과 근거를 한 문장으로 짚어 준 다음, ' : '')
+            + '수업 단계가 끝났다. 학생에게 이제 실전 문제를 풀어보자고 짧게 말하고 멈춰라.'
         }
         const nextIdx = cur + 1
         setTurnIdx(nextIdx)
-        return directiveOf(turns[nextIdx])
+        if (PACE_LOG) console.log('[pace] 에이전트 진행', cur, '→', nextIdx, gaveUp ? '(응답 없이 포기)' : '')
+        const next = directiveOf(live[nextIdx])
+        return gaveUp
+          ? '학생이 끝내 답하지 않았다. 이번 단계의 답과 근거를 한 문장으로 짚어 주고(혼내지 말고), 바로 아래 단계로 넘어가라.\n' + next
+          : next
       },
     },
   })
@@ -586,12 +726,23 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      에이전트에 보내야, 에이전트가 그걸 인식해 반응하고 next_step으로 스캐폴딩을 진행한다.
      연결 전이면 무시(그땐 수동 진행). key로 같은 행동의 중복 전송을 막는다(예: 마킹이 조금씩 완성될 때). */
   const reportedRef = useRef<Set<string>>(new Set())
+  /** 우리가 에이전트에 밀어넣은 메시지 원문 — onMessage 로 되돌아왔을 때 걸러낸다 */
+  const injectedRef = useRef<Set<string>>(new Set())
+  const sendToAgent = (text: string) => {
+    injectedRef.current.add(text)
+    try {
+      (conversation as unknown as { sendUserMessage?: (t: string) => void }).sendUserMessage?.(text)
+    } catch { /* noop */ }
+  }
   const reportAction = (key: string, message: string) => {
+    // 화면 행동도 응답이다 — 보기 선택·마킹·근거 연결을 하고도 "안 답했다"로 보면 안 된다
+    respondedRef.current.add(turnIdxRef.current)
+    if (PACE_LOG) console.log('[pace] 화면 행동 = 응답', turnIdxRef.current, key)
     if (!agentConnected || reportedRef.current.has(key)) return
     reportedRef.current.add(key)
-    /* 에이전트에만 보낸다 — 이 지시형 메시지는 화면 "내 답변"에 노출하지 않는다(chatLog에 넣지 않음).
-       학생 화면엔 실제 발화·타이핑한 답만 뜨고, 선택·마킹 같은 행동은 이미 화면에 반영돼 있다. */
-    try { conversation.sendUserMessage(message) } catch { /* noop */ }
+    /* 에이전트에만 보낸다 — 이 지시형 메시지는 화면 "내 답변"에 노출하지 않는다
+       (sendToAgent 가 원문을 기억해 두고, onMessage 로 되돌아오면 걸러낸다). */
+    sendToAgent(message)
   }
   /* 행동 → 에이전트 지시형 메시지. 결과(정/오답)와 근거를 함께 줘서, 오답이면 "좋아요"가 아니라
      실제로 교정하게 만든다. (정답은 짧게 칭찬, 오답은 정답 노출 없이 왜 틀렸는지 짚기) */
@@ -780,11 +931,30 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
   }, [turns, turnIdx, answeredQ])
 
+  /** 앱이 턴을 넘길 때 — 에이전트에도 다음 단계 지시를 밀어준다.
+   *  이걸 안 하면 진행 주체가 앱인 턴에서 에이전트가 지시를 못 받아 그냥 침묵한다
+   *  (지시는 원래 next_step 의 반환값으로만 갔다). */
+  const advanceByApp = (nextIdx: number) => {
+    /* 관문 — 앱 자동 전진은 "들려주는 턴"에서만 허용한다. 클로저가 낡아 종류를 잘못 봤더라도
+       여기서 라이브 값으로 한 번 더 막는다(응답 대기 턴이 조용히 넘어가던 사고 방지). */
+    const from = turnIdxRef.current
+    const live = turnsRef.current[from]
+    if (live && needsAnswer(live) && !respondedRef.current.has(from)) {
+      if (PACE_LOG) console.log('[pace] 자동 전진 차단 — 응답 대기 턴', from, live.stage)
+      return
+    }
+    setTurnIdx(nextIdx)
+    if (PACE_LOG) console.log('[pace] 화면이 진행(들려주는 턴)', from, '→', nextIdx)
+    if (!agentConnected) return
+    sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx])}`)
+  }
+
   /* 턴 진입: 발화 → 음원. 로컬 상호작용 상태 리셋 (도입 전에는 재생 안 함) */
   useEffect(() => {
     if (!started) return
     setChoicePicked(null); setSubjText(''); setSubjSent(false); setMarkDone(false); setShadowSaid(''); setMatchTapped(new Set())
     setPlayingId(null)
+    setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
     barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
     setBarPlaying(false)
     stopVoice()
@@ -817,12 +987,25 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           tick()
         })
       }
-      if (!alive || !turn.audio) return
-      await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
-      // 이 턴 음원을 끝까지 들려줬다 — next_step 게이트 해제 (이제 다음 단계로 넘어가도 됨)
-      if (alive) audioDoneRef.current.add(turnIdx)
-      // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
-      if (alive && turn.audio.kind === 'full') setFullDone(true)
+      if (!alive) return
+      if (turn.audio) {
+        await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
+        // 이 턴 음원을 끝까지 들려줬다 — next_step 게이트 해제 (이제 다음 단계로 넘어가도 됨)
+        if (alive) audioDoneRef.current.add(turnIdx)
+        // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
+        if (alive && turn.audio.kind === 'full') setFullDone(true)
+      }
+
+      /* ── 들려주고 넘어가는 턴은 앱이 전진시킨다 ──
+         "들어보자"처럼 학생이 할 일이 없는 턴을 에이전트의 next_step 에 맡기면, 발화·음원이 끝나고도
+         에이전트가 다시 말을 걸 때까지 멈춰 있어 답답하다. 발화 종료(위 400ms 정적)와 음원 종료를
+         이미 알고 있으므로 여기서 짧은 여유만 두고 넘긴다.
+         · 에이전트 없이 도는 폴백은 버튼으로 진행하므로 자동 전진하지 않는다(읽을 시간이 필요하다)
+         · 마지막 턴은 넘기지 않는다 — 실전 문제로 튀지 않고 [실전 문제 풀기] 버튼을 학생이 누르게 한다 */
+      if (alive && agentOnRef.current && !needsAnswer(turn) && turnIdx < turns.length - 1) {
+        await new Promise((res) => setTimeout(res, 700))
+        if (alive && turnIdxRef.current === turnIdx) advanceByApp(turnIdx + 1)
+      }
     })()
     return () => { alive = false; stopVoice() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -969,7 +1152,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           <p className="text-[13px] text-[#6B7280] mt-1">{lesson.partName} · {lesson.typeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { audioDoneRef.current = new Set(); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
+          <button onClick={() => { audioDoneRef.current = new Set(); respondedRef.current = new Set(); reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set(); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
             className="px-5 py-2.5 rounded-xl border border-[#C7D2FE] text-[#2563EB] text-sm font-bold hover:bg-[#EFF6FF]">다시 해보기</button>
           <button onClick={() => router.push('/lessons')} className={PRIMARY_BTN}>다른 유형 보러 가기</button>
         </div>
@@ -1060,7 +1243,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           mode={dockMode} setMode={setDockMode}
           name={teacherName} imgSrc={teacherImg}
           poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
-          step={{ idx: turnIdx + 1, total: turns.length, label: stageHeading(turn) }}
+          /* PACE_LOG 동안 단계 라벨 뒤에 진행 판정을 붙인다 — "왜 넘어갔지"를 콘솔 없이 보게.
+             이 꼬리표가 안 보이면 **화면이 옛 코드로 돌고 있다는 뜻**(새로고침 필요). */
+          step={{ idx: turnIdx + 1, total: turns.length,
+            label: stageHeading(turn) + (PACE_LOG
+              ? (needsAnswer(turn) ? ` · 응답대기 ${reaskShown}/${MAX_REASK}` : ' · 자동진행')
+              : '') }}
           chatMode={chatMode}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
           connected={agentConnected}

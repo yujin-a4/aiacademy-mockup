@@ -244,30 +244,57 @@ function sheetsClient() {
 async function syncFromSheet(c: Client) {
   const sheets = sheetsClient()
   const [stepsRes, mapRes] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `'${INPUT_TAB}'!A2:F300` }),
-    sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `'${INPUT_TAB}'!H2:J30` }),
+    sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `'${INPUT_TAB}'!A2:G300` }),
+    /* 매핑표는 I~K. H 는 두 표를 눈으로 갈라 보이게 두는 **빈 구분 열**이다
+       (scripts/patch-scaffold-input-tab.js 가 넣는다 — 위치를 바꾸면 여기도 같이 바꿔야 한다) */
+    sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `'${INPUT_TAB}'!I2:K30` }),
   ])
 
   /* 검증 — 틀린 행을 행 번호와 함께 전부 모아 돌려준다 (하나 고치고 또 실패하는 핑퐁 방지) */
   const errors: string[] = []
-  interface SheetStep { sc: string; order: number; step: string; action: string; audio: string; desc: string }
+  interface SheetStep {
+    sc: string; order: number; step: string; action: string; audio: string; desc: string
+    perQuestion: boolean
+  }
+  /** [문항별 반복] 열 — 비우면 1회, 아래 표현이면 문항마다 한 번씩 */
+  const PER_Q = /^(예|y|yes|o|ㅇ|✓|v|문항별|문항별 반복)$/i
   const rows: SheetStep[] = []
   for (let i = 0; i < (stepsRes.data.values ?? []).length; i++) {
     const r = (stepsRes.data.values ?? [])[i]
-    const [sc, order, step, action, audio, desc] = [0, 1, 2, 3, 4, 5].map((k) => String(r[k] ?? '').trim())
+    const [sc, order, step, action, audio, desc, perQ] =
+      [0, 1, 2, 3, 4, 5, 6].map((k) => String(r[k] ?? '').trim())
     if (!sc && !step) continue                       // 빈 줄
     const line = `${i + 2}행`
     if (!sc) { errors.push(`${line}: SC코드가 비었다`); continue }
     if (!STEP_SET.has(step)) errors.push(`${line}: 단계 "${step}" — S1~S7 또는 "학생 풀이"만 가능`)
     if (action && !(action in ACTION_TO_CODE)) errors.push(`${line}: 학생행동 "${action}" — 드롭다운의 8개만 화면이 그릴 수 있다`)
     if (!Number(order)) errors.push(`${line}: 순서가 숫자가 아니다`)
-    rows.push({ sc: sc.toUpperCase(), order: Number(order), step, action, audio, desc })
+    if (perQ && !PER_Q.test(perQ)) errors.push(`${line}: 문항별 반복 "${perQ}" — 비우거나 "예"만 가능`)
+    rows.push({
+      sc: sc.toUpperCase(), order: Number(order), step, action, audio, desc,
+      perQuestion: PER_Q.test(perQ),
+    })
   }
   const mapping = (mapRes.data.values ?? [])
     .map((r) => ({ sc: String(r[0] ?? '').trim().toUpperCase(), parts: String(r[1] ?? '').trim(), lecture: String(r[2] ?? '').trim() }))
     .filter((m) => /^SC[0-9]+$/.test(m.sc))   // 도움말 등 다른 텍스트가 매핑으로 읽히지 않게
   for (const m of Array.from(new Set(rows.map((r) => r.sc)))) {
-    if (!mapping.find((x) => x.sc === m)) errors.push(`매핑표: ${m} 의 파트가 없다 (H열에 추가)`)
+    if (!mapping.find((x) => x.sc === m)) errors.push(`매핑표: ${m} 의 파트가 없다 (I열에 추가)`)
+  }
+
+  /* 매핑표 검증 — 여기서 조용히 넘어가면 "고쳤는데 화면이 안 바뀐다"가 된다.
+     · 파트가 비었거나 숫자가 아니면 그 SC 는 어느 강의도 못 가져간다
+     · J열 강의코드가 실제로 없으면(오타·안내문) 그 줄은 아무 일도 안 한다 */
+  const { rows: lectureRows } = await c.query(`select lecture_code from public.lectures`)
+  const lectureCodes = new Set(lectureRows.map((l: { lecture_code: string }) => l.lecture_code))
+  for (const m of mapping) {
+    const parts = m.parts.split(',').map((p) => Number(p.trim()))
+    if (!m.parts || parts.some((p) => !p || p < 1 || p > 7)) {
+      errors.push(`매핑표 ${m.sc}: 파트 "${m.parts}" — 1~7 숫자로 (여러 파트면 "3,4")`)
+    }
+    if (m.lecture && !lectureCodes.has(m.lecture)) {
+      errors.push(`매핑표 ${m.sc}: 강의코드 "${m.lecture}" 가 DB에 없다 — 비우면 그 파트 전체에 적용된다`)
+    }
   }
   if (errors.length) return { ok: false, errors }
 
@@ -311,12 +338,16 @@ async function syncFromSheet(c: Client) {
            values ($1, $2, $3, $4, 'item') returning id`,
           [`${stepCode}-${intr}-sheet`, stepCode, intr, `${stepNames[r.step] ?? r.step} · ${r.action || 'AI 진행'}`])).rows
       }
+      /* 단계 이름 = "S5 정답 근거 연결" (+ 문항별이면 "(문항별)").
+         화면(fromSteps.expandPerQuestion)이 이 표시를 보고 문항 수만큼 펼친다 —
+         레일은 유형 단위여서 문항이 몇 개인지 여기서는 알 수 없다. */
+      const label = (r.step === '학생 풀이' ? '학생 풀이' : `${r.step} ${stepNames[r.step]}`)
+        + (r.perQuestion ? ' (문항별)' : '')
       await c.query(
         `insert into sandbox.type_rails (question_type_id, instructor_code, version, step_order,
            variant_id, audio_mode, step_label, note)
          values ($1, 'common', 1, $2, $3, $4, $5, $6)`,
-        [typeId, r.order, v[0].id, r.audio || null,
-          r.step === '학생 풀이' ? '학생 풀이' : `${r.step} ${stepNames[r.step]}`, r.desc || null])
+        [typeId, r.order, v[0].id, r.audio || null, label, r.desc || null])
       railCount++
     }
 
@@ -344,8 +375,17 @@ async function syncFromSheet(c: Client) {
          and not exists (select 1 from sandbox.type_rails t where t.question_type_id = qt.id)`,
       [Array.from(scIds.keys())])
 
+    /* 레일은 만들었지만 **도는 강의가 없는 SC** — 미리보기를 열어도 빈 화면이다.
+       지금 SC8·SC9(2·3지문)가 여기 걸린다. 이유를 알려주지 않으면 "왜 안 뜨지"를 헤맨다. */
+    const { rows: idleRows } = await c.query(`
+      select qt.type_code from sandbox.question_types qt
+       where qt.type_code = any($1::text[])
+         and not exists (select 1 from sandbox.lecture_items li where li.question_type_id = qt.id)
+       order by qt.type_code`, [Array.from(scIds.keys())])
+    const idle: string[] = idleRows.map((r: { type_code: string }) => r.type_code)
+
     await c.query('commit')
-    return { ok: true, sc: scIds.size, steps: railCount, remapped, removedTypes }
+    return { ok: true, sc: scIds.size, steps: railCount, remapped, removedTypes, idle }
   } catch (e) { await c.query('rollback'); throw e }
 }
 
