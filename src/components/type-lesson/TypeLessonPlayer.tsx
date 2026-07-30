@@ -28,16 +28,21 @@ import type { RailDiag } from '@/data/typeLearning/fromSteps'
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
 const RAIL_OWNER = 'lee_doyun'
 
-/** 상호작용 종류 → 학생이 이번 턴에 해야 할 일 (에이전트에게만 주는 지시) */
+/** 상호작용 종류 → **학생이 화면에서 할 구체적 행동** (에이전트에게만 주는 지시).
+ *
+ *  ⚠️ 여기가 흐리면 강사가 "…파악해야 해" 처럼 서술로 끝내고, 학생은 뭘 해야 할지 모른다.
+ *  그래서 **행동 + 도구 + 대상**을 명시한다 — 화면이 실제로 받을 수 있는 조작만 적을 것
+ *  (탭·펜 표시·보기 선택·말하기). 화면에 없는 조작을 쓰면 학생이 못 한다. */
 const INTERACTION_HINT: Record<Interaction['kind'], string> = {
   next: '',
-  choice: '제시된 보기 중에서 하나를 고르게 한다.',
-  pickAnswer: '문항의 정답을 직접 고르게 한다.',
-  solveAll: '남은 문항을 스스로 풀게 한다.',
-  subjective: '학생이 자기 말로 설명하게 한다.',
-  mark: '지문·보기에서 해당하는 단어를 직접 짚게 한다.',
-  shadow: '영어 문장을 따라 말하게 한다. 영어 문장은 음원이 들려주니 네가 읽지 마라.',
-  match: '지문에서 근거가 되는 문장을 직접 탭하게 한다.',
+  choice: '화면 아래 보기 버튼 중 하나를 **누르게** 한다. "골라서 눌러봐" 처럼 누르라고 분명히 말한다.',
+  pickAnswer: '문항의 보기(에이·비·씨·디) 중 정답을 **탭하게** 한다. "정답 보기를 눌러봐" 라고 분명히 말한다.',
+  solveAll: '화면의 모든 문항에 답을 **하나씩 골라 누르게** 한다. "세 문제 다 답을 눌러봐" 처럼 말한다.',
+  subjective: '학생이 **소리 내어 말하게** 한다. "말해봐" 로 끝내지 말고 무엇을 말할지 짚어준다.',
+  mark: '화면에 **펜으로 직접 표시하게** 한다 — 사진이면 해당 부분에 동그라미, 지문이면 그 단어에 밑줄(또는 단어를 탭). '
+    + '"어디에 무엇으로 표시하라" 를 한 문장으로 분명히 말한다. 표시하면 화면이 바로 읽어서 알려준다.',
+  shadow: '영어 문장을 **따라 말하게** 한다. 영어 문장은 음원이 들려주니 네가 읽지 마라.',
+  match: '지문에서 근거가 되는 문장을 **직접 탭하게** 한다. "근거 문장을 눌러봐" 라고 분명히 말한다.',
 }
 
 /** 학생이 할 일이 있는 턴인가 — 진행 규칙이 여기서 갈린다.
@@ -95,7 +100,11 @@ function directiveOf(turn: Turn): string {
       ? '질문은 화면 문구와 같은 뜻으로 물어라. 화면에 없는 선택지를 새로 만들지 마라.' : '',
     todo ? `[학생이 할 일] ${todo}` : '',
     needsAnswer(turn)
-      ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라.'
+      ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라. '
+        /* 실측: "사진 속 정보를 파악해야 해" 처럼 서술로 끝내서 학생이 뭘 할지 몰랐다.
+           마지막 문장은 반드시 **시키는 말**이어야 한다. */
+        + '⚠️ 마지막 문장은 반드시 [학생이 할 일]을 **시키는 말**로 끝내라 — 무엇을 어떻게 하라고 한 문장으로. '
+        + '"파악해야 해", "중요해" 처럼 설명으로 끝내지 마라.'
       // 들려주고 넘어가는 턴 — 대기를 지시하면 음원이 끝나고도 멈춰 있어 답답해진다
       : '위 내용만 네 말투로 짧게 전달하고 멈춰라. 학생에게 질문하지 말고, 다음 단계는 화면이 알아서 넘긴다.',
   ].filter(Boolean).join('\n')
@@ -533,10 +542,11 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
       <span className="text-[13px] shrink-0">{icon}</span>
       <span className={`text-[12px] font-bold truncate ${done ? 'text-[#15803D]' : 'text-[#C2410C]'}`}>{text}</span>
       {sub && <span className={`ml-auto shrink-0 text-[11px] font-semibold ${done ? 'text-[#16A34A]' : 'text-[#9A3412]'}`}>{sub}</span>}
-      {it.kind === 'mark' && onCheckMark && (
-        <button onClick={onCheckMark} disabled={markChecking}
-          className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-[#FDBA74] bg-white text-[#C2410C] hover:bg-[#FFF7ED] disabled:opacity-40">
-          {markChecking ? '확인 중…' : markVerdict ? '다시 확인' : '다 짚었어요'}
+      {/* 판정은 필기가 멈추면 자동으로 돈다 — 버튼은 결과가 나온 뒤 다시 보게 할 때만 남긴다 */}
+      {it.kind === 'mark' && onCheckMark && markVerdict && !markChecking && (
+        <button onClick={onCheckMark}
+          className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-[#FDBA74] bg-white text-[#C2410C] hover:bg-[#FFF7ED]">
+          다시 확인
         </button>
       )}
     </div>
@@ -954,6 +964,16 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
     } finally { setMarkChecking(false) }
   }
+
+  /* 필기가 멈추면 **버튼 없이** 알아서 판정한다 — 학생이 표시하고 나서 확인 버튼을 또 눌러야
+     하면 흐름이 끊긴다. 획을 그을 때마다 타이머를 미루고, 1.2초 조용하면 그때 본다.
+     (그리는 중에 보내면 반쯤 그린 동그라미를 판정한다) */
+  useEffect(() => {
+    if (turn.interaction.kind !== 'mark' || !draw.strokeCount || markChecking) return
+    const t = setTimeout(() => { void checkMark() }, 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draw.strokeCount, turnIdx])
 
   /* ── 전체 음원 바 (LC) ── */
   const audioItems = useMemo(() => fullAudioItems(lesson), [lesson])
