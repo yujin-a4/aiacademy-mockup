@@ -300,13 +300,19 @@ function readKind(raw: string | null): { kind: Kind | null; matched: string | nu
 
 /** 정/오답 판단을 시키는 2지선다 — 특정 보기 하나를 다루는 턴에서 쓴다 */
 function optionVerdictChoice(
-  content: TypeLessonContent, focusQ: number, label: string, prompt: string,
+  content: TypeLessonContent, focusQ: number, label: string, _prompt: string,
 ): Interaction | null {
   const opt = content.questions[focusQ]?.options.find((o) => o.label === label)
   if (!opt) return null
+  /* 문구는 **선택지와 짝**이라 LLM에 맡기지 않는다.
+     실측: 선택지는 "맞아요/아니에요" 인데 문구가 "사진의 동작을 올바르게 묘사한 보기를 골라봐" 로
+     나와 학생이 무엇을 고르는지 알 수 없었다. 자료 종류에 맞춰 결정론으로 만든다. */
+  const material = content.photo || content.questions[focusQ]?.photo ? '사진'
+    : (content.passages?.length ? '지문' : '내용')
   return {
     kind: 'choice',
-    prompt,
+    prompt: `방금 들은 보기 ${label}, ${material}과 맞아?`,
+    fixedPrompt: true,
     choices: opt.correct
       ? [{ text: '맞아요', correct: true }, { text: '아니에요' }]
       : [{ text: '맞아요' }, { text: '아니에요', correct: true }],
@@ -316,15 +322,22 @@ function optionVerdictChoice(
 
 /** 오답 고르기 — "맞지 않는 보기는?" 류. 정답이 아닌 보기를 정답으로 삼는다 */
 function wrongPickChoice(
-  content: TypeLessonContent, focusQ: number, prompt: string,
+  content: TypeLessonContent, focusQ: number, _prompt: string,
 ): Interaction | null {
   const opts = content.questions[focusQ]?.options ?? []
   const wrong = opts.find((o) => !o.correct && o.why) ?? opts.find((o) => !o.correct)
   const right = opts.find((o) => o.correct)
   if (!wrong || !right) return null
+  /* 문구도 **화면에 뜬 두 보기를 직접 지목**해 결정론으로 만든다.
+     실측: 화면에는 A·B 두 개가 떠 있는데 강사는 "C와 D 중에 골라봐" 라고 했다.
+     선택지는 문항 DB로 조립되고 문구만 LLM이 만들었기 때문 — 짝이 어긋날 수밖에 없다. */
+  const material = content.photo || content.questions[focusQ]?.photo ? '사진'
+    : (content.passages?.length ? '지문' : '내용')
+  const pair = [wrong.label, right.label].sort()
   return {
     kind: 'choice',
-    prompt,
+    prompt: `${pair[0]}와 ${pair[1]} 중에서 ${material}과 맞지 않는 보기를 골라봐.`,
+    fixedPrompt: true,
     choices: [
       { text: `${wrong.label}) ${wrong.text}`, correct: true },
       { text: `${right.label}) ${right.text}` },

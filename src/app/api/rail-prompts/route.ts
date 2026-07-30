@@ -36,7 +36,8 @@ const SYSTEM = `너는 TOEIC 수업 화면의 대사를 만드는 도구다.
 - 단계가 '표현 정리'·'정답 공개'류면 정답을 밝혀도 된다.
 
 ■ 형식
-- 한국어 존댓말. tutor 는 160자 이내, prompt 는 40자 이내.
+- 한국어. tutor 는 160자 이내, prompt 는 40자 이내.
+- **강사 말투는 [강사 말투]에 적힌 대로 쓴다.** (없으면 존댓말)
 - 학생 이름을 부르지 마라.
 - 출력은 JSON 하나: {"tutors":{"<턴번호>":"<강사 말>"},"prompts":{"<턴번호>":"<질문>"}}
   다른 말은 쓰지 마라.`
@@ -55,7 +56,8 @@ interface ReqTurn {
 
 export async function POST(req: NextRequest) {
   try {
-    const { turns, facts } = (await req.json()) as { turns: ReqTurn[]; facts: string }
+    const { turns, facts, tone } = (await req.json()) as
+      { turns: ReqTurn[]; facts: string; tone?: string }
     if (!Array.isArray(turns) || !turns.length) {
       return NextResponse.json({ prompts: {}, tutors: {} })
     }
@@ -85,7 +87,9 @@ export async function POST(req: NextRequest) {
       t.seed ? `  질문 말투 참고(내용은 쓰지 말 것): ${t.seed}` : '',
     ].filter(Boolean).join('\n')).join('\n')
 
-    const user = `[문항 사실]\n${facts}\n\n[문구를 만들 단계들]\n${turnLines}`
+    /* [강사 말투] — 첫 마디는 에이전트가 이 문장을 그대로 낭독하므로, 말투가 여기서 결정된다 */
+    const user = (tone ? `[강사 말투]\n${tone}\n\n` : '')
+      + `[문항 사실]\n${facts}\n\n[문구를 만들 단계들]\n${turnLines}`
 
     const res = await ai.models.generateContent({
       model: MODEL,
