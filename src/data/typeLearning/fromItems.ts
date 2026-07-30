@@ -62,6 +62,8 @@ function remapAudio(a: AudioCue | undefined, seq: number, qBase: number): AudioC
     case 'sentences': return { kind: 'sentences', ids: a.ids.map((id) => pfx(seq, id)) }
     case 'option':    return { ...a, qIdx: a.qIdx + qBase }
     case 'options':   return { ...a, qIdx: a.qIdx + qBase }
+    // 발화+보기 — 문항 번호와 문장 id 둘 다 아이템 기준으로 옮겨야 한다
+    case 'mix':       return { ...a, qIdx: a.qIdx + qBase, ids: a.ids.map((id) => pfx(seq, id)) }
     default:          return a
   }
 }

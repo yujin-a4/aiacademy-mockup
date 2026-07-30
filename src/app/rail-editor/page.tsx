@@ -168,7 +168,13 @@ export default function SandboxEditorPage() {
               setBusy(true)
               try {
                 const r = await post({ action: 'syncSheet' })
-                if (r.ok) { say(`시트 반영 — SC ${r.sc}벌 · 단계 ${r.steps} · 아이템 재연결 ${r.remapped}`); await load() }
+                if (r.ok) {
+                  /* 도는 강의가 없는 SC 는 미리보기가 빈 화면이다 — 성공 메시지에 같이 알린다 */
+                  const idle = (r.idle ?? []) as string[]
+                  say(`시트 반영 — SC ${r.sc}벌 · 단계 ${r.steps} · 아이템 재연결 ${r.remapped}`
+                    + (idle.length ? ` / ⚠ ${idle.join('·')} 는 붙는 강의가 없어 미리보기가 비어 있음` : ''))
+                  await load()
+                }
                 else say('시트 오류: ' + r.errors.slice(0, 3).join(' / ') + (r.errors.length > 3 ? ` 외 ${r.errors.length - 3}건` : ''))
               } catch (e) { say((e as Error).message) } finally { setBusy(false) }
             }} disabled={busy}

@@ -86,7 +86,19 @@ const ROWS = [
   ['SC9', 7, 'S7', '', '', '각 지문 상황에서 자주 쓰이는 핵심 표현을 정리하고, 여러 지문에서 정보가 반복·보완·변형되는 방식과 선택지의 패러프레이징 표현을 정리해준다.'],
 ];
 
-/* SC → 파트 매핑 (H:J). 강의코드가 적힌 SC 가 그 강의를 가져가고, 없으면 파트의 첫 SC 가 기본 */
+/* ── [문항별 반복] 열(G) 채우기 ──
+   한 아이템에 문항이 여러 개인 스캐폴딩의 S5·S6 은 문항마다 한 번씩 돈다.
+   문항 수는 적지 않는다 — 화면이 실제 문항 수를 센다(fromSteps.expandPerQuestion).
+   설명에 있던 "(문항별로 S6와 묶어 진행)" 는 이 열이 대신하므로 뗀다(진행 방식이지 강사 대사가 아니다). */
+const MULTI_Q = new Set(['SC3', 'SC4', 'SC6', 'SC7', 'SC8', 'SC9']);
+const PER_Q_STEPS = new Set(['S5', 'S6']);
+const FILLED = ROWS.map((r) => {
+  const desc = String(r[5] ?? '').replace(/\(문항별로\s*S6와?\s*묶어\s*진행\)\s*/g, '').trim();
+  const perQ = MULTI_Q.has(r[0]) && PER_Q_STEPS.has(r[2]) ? '예' : '';
+  return [r[0], r[1], r[2], r[3], r[4], desc, perQ];
+});
+
+/* SC → 파트 매핑 (I:K). 강의코드가 적힌 SC 가 그 강의를 가져가고, 없으면 파트의 첫 SC 가 기본 */
 const MAPPING = [
   ['SC1', '1', ''],
   ['SC2', '2', ''],
@@ -95,8 +107,9 @@ const MAPPING = [
   ['SC5', '5', ''],
   ['SC6', '6', ''],
   ['SC7', '7', ''],
-  ['SC8', '7', '(2지문 강의 코드가 생기면 적기)'],
-  ['SC9', '7', '(3지문 강의 코드가 생기면 적기)'],
+  // 강의코드는 비워둔다 — DB에 없는 코드(안내문 포함)를 적으면 동기화가 막힌다
+  ['SC8', '7', ''],
+  ['SC9', '7', ''],
 ];
 
 const HELP = [
@@ -104,10 +117,17 @@ const HELP = [
   ['· 한 줄 = 수업의 한 단계. SC코드가 같은 줄들이 순서대로 한 수업이 됩니다.'],
   ['· 단계: S1~S7 또는 "학생 풀이" (드롭다운)'],
   ['· 학생행동: 학생이 화면에서 하는 것 (드롭다운). 비우면 "AI 진행"(강사가 말만 하고 넘어감)'],
-  ['· 음원: 이 단계에서 틀 음원. 비우면 재생 없음. 예: "선택지 전체 재생", "정답 선택지 재생"'],
+  ['· 음원: 이 단계에서 틀 음원 (드롭다운). 비우면 재생 없음.'],
+  ['   쓸 수 있는 표현: 정답 선택지 재생 / 오답 선택지 재생 / 선택지 전체 재생 /'],
+  ['   질문과 선택지 전체 재생 / 질문 다시 재생 / 대화·담화 전체 재생 / 선택지 A 음원만 재생한다'],
+  ['   ("정답·오답"은 문항 DB의 정답 표시를 보고 화면이 알아서 그 보기를 찾습니다)'],
+  ['· 문항별 반복: "예"면 이 단계를 문항마다 한 번씩 돕니다 (Part3·4·6·7).'],
+  ['   연속으로 "예"인 단계들은 묶여서 Q1(S5→S6) → Q2(S5→S6) … 순으로 진행됩니다.'],
   ['· 설명: 이 단계에서 강사가 할 일. 이 문장이 AI 강사의 발화 재료가 됩니다.'],
   ['· 고친 뒤: 실험장(/rail-editor)에서 [시트에서 불러오기] → 미리보기로 확인'],
   ['· SC10, SC11… 새 스캐폴딩을 추가해도 됩니다. 오른쪽 매핑표에 파트만 적어주세요.'],
+  ['· 매핑표 강의코드(K열)는 DB에 있는 코드만 적을 수 있습니다 (없는 코드면 동기화가 막힙니다).'],
+  ['   비워두면 그 파트의 강의 전체에 적용됩니다. SC8·SC9는 2·3지문 강의가 생기면 그때 적어주세요.'],
 ];
 
 async function main() {
@@ -140,11 +160,12 @@ async function main() {
     requestBody: {
       valueInputOption: 'RAW',
       data: [
-        { range: `'${TAB}'!A1:F1`, values: [['SC코드', '순서', '단계', '학생행동', '음원', '설명']] },
-        { range: `'${TAB}'!A2:F${1 + ROWS.length}`, values: ROWS },
-        { range: `'${TAB}'!H1:J1`, values: [['SC코드', '파트', '강의코드(선택)']] },
-        { range: `'${TAB}'!H2:J${1 + MAPPING.length}`, values: MAPPING },
-        { range: `'${TAB}'!H13:H${12 + HELP.length}`, values: HELP },
+        { range: `'${TAB}'!A1:G1`, values: [['SC코드', '순서', '단계', '학생행동', '음원', '설명', '문항별 반복']] },
+        { range: `'${TAB}'!A2:G${1 + ROWS.length}`, values: FILLED },
+        // H = 두 표를 갈라 보이게 두는 빈 구분 열 → 매핑표는 I~K (api/sandbox 가 이 범위를 읽는다)
+        { range: `'${TAB}'!I1:K1`, values: [['SC코드', '파트', '강의코드(선택)']] },
+        { range: `'${TAB}'!I2:K${1 + MAPPING.length}`, values: MAPPING },
+        { range: `'${TAB}'!I13:I${12 + HELP.length}`, values: HELP },
       ],
     },
   });
@@ -165,6 +186,12 @@ async function main() {
       requests: [
         validation(2, ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', '학생 풀이']),
         validation(3, ['필기로 짚기', '보기 고르기', '정답 고르기', '전체 풀기', '말로 설명', '따라 말하기', '근거 연결', 'AI 진행']),
+        validation(4, [
+          '정답 선택지 재생', '오답 선택지 재생', '선택지 전체 재생',
+          '질문과 선택지 전체 재생', '질문 다시 재생', '대화/담화 전체 재생',
+          '전체 음원을 처음부터 끝까지 재생한다', '선택지 A 음원만 재생한다', '재생 없음',
+        ]),
+        validation(6, ['예', '']),
         { repeatCell: {
           range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
           cell: { userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.93, green: 0.95, blue: 1 } } },
@@ -172,6 +199,14 @@ async function main() {
         } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 5, endIndex: 6 }, properties: { pixelSize: 560 }, fields: 'pixelSize' } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 5 }, properties: { pixelSize: 110 }, fields: 'pixelSize' } },
+        { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 6, endIndex: 7 }, properties: { pixelSize: 100 }, fields: 'pixelSize' } },
+        // H = 빈 구분 열 (단계표 A~G / 매핑표 I~K 를 눈으로 가른다)
+        { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 7, endIndex: 8 }, properties: { pixelSize: 32 }, fields: 'pixelSize' } },
+        { repeatCell: {
+          range: { sheetId, startRowIndex: 0, endRowIndex: 300, startColumnIndex: 7, endColumnIndex: 8 },
+          cell: { userEnteredFormat: { backgroundColor: { red: 0.88, green: 0.89, blue: 0.91 } } },
+          fields: 'userEnteredFormat.backgroundColor',
+        } },
       ],
     },
   });
