@@ -322,15 +322,22 @@ function optionVerdictChoice(
 
 /** 오답 고르기 — "맞지 않는 보기는?" 류. 정답이 아닌 보기를 정답으로 삼는다 */
 function wrongPickChoice(
-  content: TypeLessonContent, focusQ: number, prompt: string,
+  content: TypeLessonContent, focusQ: number, _prompt: string,
 ): Interaction | null {
   const opts = content.questions[focusQ]?.options ?? []
   const wrong = opts.find((o) => !o.correct && o.why) ?? opts.find((o) => !o.correct)
   const right = opts.find((o) => o.correct)
   if (!wrong || !right) return null
+  /* 문구도 **화면에 뜬 두 보기를 직접 지목**해 결정론으로 만든다.
+     실측: 화면에는 A·B 두 개가 떠 있는데 강사는 "C와 D 중에 골라봐" 라고 했다.
+     선택지는 문항 DB로 조립되고 문구만 LLM이 만들었기 때문 — 짝이 어긋날 수밖에 없다. */
+  const material = content.photo || content.questions[focusQ]?.photo ? '사진'
+    : (content.passages?.length ? '지문' : '내용')
+  const pair = [wrong.label, right.label].sort()
   return {
     kind: 'choice',
-    prompt,
+    prompt: `${pair[0]}와 ${pair[1]} 중에서 ${material}과 맞지 않는 보기를 골라봐.`,
+    fixedPrompt: true,
     choices: [
       { text: `${wrong.label}) ${wrong.text}`, correct: true },
       { text: `${right.label}) ${right.text}` },

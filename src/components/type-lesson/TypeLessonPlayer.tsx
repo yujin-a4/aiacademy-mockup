@@ -101,7 +101,9 @@ function directiveOf(turn: Turn, gate: Gate = 4): string {
     ask ? `[학생에게 물을 질문 — 화면에 뜬 문구] ${ask}` : '',
     choices ? `[화면에 뜬 선택지] ${choices}` : '',
     ask || choices
-      ? '질문은 화면 문구와 같은 뜻으로 물어라. 화면에 없는 선택지를 새로 만들지 마라.' : '',
+      ? '질문은 화면 문구를 **그대로** 물어라. 화면에 뜬 선택지는 위에 적힌 것이 전부다 — '
+        + '거기 없는 보기(다른 알파벳)를 고르라고 하지 마라. 설명에서 다른 보기를 언급했더라도, '
+        + '고르라고 시킬 때는 화면에 있는 것만 말한다.' : '',
     todo ? `[학생이 할 일] ${todo}` : '',
     /* 정보 차단(stageGate)의 **보조** 규칙 — 못 주게 막는 게 1차, 말하지 말라는 게 2차 */
     `[이 단계 제한] ${GATE_RULE[gate]}`,
@@ -1291,11 +1293,16 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
   const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
-  const lastAgentUser = [...chatLog].reverse().find((m) => m.role === 'user')?.text
   const tutorLine = (agentConnected && lastAgentAi) || turn.tutor
 
+  /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
+     종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
+     에이전트가 붙어 있으면 **강사가 다시 말하는 순간 사라지게** 마지막 메시지 기준으로 본다. */
   const studentLine = (() => {
-    if (agentConnected) return lastAgentUser ?? null
+    if (agentConnected) {
+      const last = chatLog[chatLog.length - 1]
+      return last?.role === 'user' ? last.text : null
+    }
     const it = turn.interaction
     if (it.kind === 'choice' && choicePicked !== null) return it.choices[choicePicked]?.text ?? null
     if (it.kind === 'subjective' && subjSent && subjText.trim()) return subjText.trim()
@@ -1469,10 +1476,15 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           speech={
             <>
               <p className="text-[13.5px] leading-relaxed text-[#475569] font-medium">{tutorLine}</p>
+              {/* 작게, 한 줄로 — 답이 전달됐다는 것만 알리고 강사가 말하면 사라진다 */}
               {studentLine && (
-                <div className="mt-2 rounded-xl border border-[#C7D2FE] bg-[#F5F8FF] px-3 py-2">
-                  <span className="block text-[10px] font-black tracking-wide text-[#2563EB] mb-0.5">내 답변</span>
-                  <p className="text-[12.5px] text-[#1C1B33] leading-snug">{studentLine}</p>
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#6366F1]">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+                    strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="font-bold shrink-0">전달됨</span>
+                  <span className="truncate text-[#94A3B8]">{studentLine}</span>
                 </div>
               )}
             </>
