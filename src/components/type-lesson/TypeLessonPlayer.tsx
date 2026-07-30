@@ -61,6 +61,16 @@ function isEmptyAnswer(text: string): boolean {
   return /^[음어아으엄흠허]$/.test(t)   // 한 글자 감탄사 ("네"·"응"·"몰라요"는 답으로 센다)
 }
 
+/** 발화 규칙 — 대시보드 System prompt 로 넣는 게 정석이지만 그건 레포 밖이라, 세션마다
+ *  귓속말(Contextual Update)로 같이 준다. 대시보드에 반영되면 여기서 빼도 된다.
+ *  이름 호격 조사: TTS 가 "와옹아"를 [와옹가]로 읽는다 → 이름만 부르게 한다. */
+const SPEECH_RULES = [
+  '[발화 규칙]',
+  '- 학생 이름은 이름만 부른다. 뒤에 "아"·"야" 같은 호격 조사를 붙이지 마라.',
+  '  ("와옹아" 처럼 부르지 말고 "와옹" 으로 부른다. 음성 합성이 조사를 붙여 엉뚱하게 읽는다)',
+  '- 이름을 아예 부르지 않아도 된다. 부를 때만 이 규칙을 지킨다.',
+].join('\n')
+
 /** 진행 판단을 콘솔에 남긴다 — "왜 넘어갔지"를 눈으로 확인해야 페이싱을 맞출 수 있다.
  *  (프로토타입이라 개발 중엔 켜 둔다. 끄려면 false) */
 const PACE_LOG = true
@@ -480,9 +490,13 @@ function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void
 /* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
    콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
    실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
-function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
+function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
+  markDone, markChecking, markVerdict, onCheckMark }: {
   turn: Turn; lesson: TypeLesson
   answers: Record<number, string>; graded: Set<number>; matchTapped: Set<string>
+  markDone?: boolean; markChecking?: boolean
+  markVerdict?: { read: string | null; ok: boolean; hint: string } | null
+  onCheckMark?: () => void
 }) {
   const it = turn.interaction
   let icon = ''
@@ -490,7 +504,11 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
   let sub = ''
   let done = false
   if (it.kind === 'mark') {
-    icon = '🖍️'; text = it.prompt; sub = '지문에서 단어를 탭하면 형광펜'
+    icon = '🖍️'; text = it.prompt
+    sub = markChecking ? '표시한 것 확인 중…'
+      : markVerdict?.read ? `${markVerdict.ok ? '✓' : '✗'} ${markVerdict.read}`
+        : markDone ? '표시 완료' : '펜·형광펜으로 동그라미·밑줄, 또는 단어를 탭'
+    done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
     done = graded.has(it.qIdx)
     icon = '🎯'; text = it.prompt ?? '위 문항의 보기에서 정답을 선택하세요'
@@ -515,6 +533,12 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
       <span className="text-[13px] shrink-0">{icon}</span>
       <span className={`text-[12px] font-bold truncate ${done ? 'text-[#15803D]' : 'text-[#C2410C]'}`}>{text}</span>
       {sub && <span className={`ml-auto shrink-0 text-[11px] font-semibold ${done ? 'text-[#16A34A]' : 'text-[#9A3412]'}`}>{sub}</span>}
+      {it.kind === 'mark' && onCheckMark && (
+        <button onClick={onCheckMark} disabled={markChecking}
+          className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-[#FDBA74] bg-white text-[#C2410C] hover:bg-[#FFF7ED] disabled:opacity-40">
+          {markChecking ? '확인 중…' : markVerdict ? '다시 확인' : '다 짚었어요'}
+        </button>
+      )}
     </div>
   )
 }
@@ -766,7 +790,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     factsSentRef.current = key
     try {
       ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void })
-        .sendContextualUpdate?.(buildLessonFacts(lesson, curItemSeq))
+        .sendContextualUpdate?.(SPEECH_RULES + '\n\n' + buildLessonFacts(lesson, curItemSeq))
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentConnected, curItemSeq])
@@ -863,6 +887,74 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
 
+  /* ── 표시(동그라미·밑줄) 판정 ──
+     사진 위 표시는 좌표로 풀 수 없다(무엇이 어디 있는지 데이터가 없다). 그래서 **화면을 그대로
+     합성해서** 판정 라우트에 보낸다: 사진 <img> 를 그리고 그 위에 필기 캔버스의 해당 영역을 얹는다.
+     실패(키 없음·못 읽음)해도 진행을 막지 않는다 — 판정은 코칭을 위한 것이지 관문이 아니다. */
+  const [markVerdict, setMarkVerdict] = useState<{ read: string | null; ok: boolean; hint: string } | null>(null)
+  const [markChecking, setMarkChecking] = useState(false)
+
+  const composeMarkedImage = (): string | null => {
+    const canvas = draw.canvasRef.current
+    const img = contentRef.current?.querySelector('img') as HTMLImageElement | null
+    if (!img || !img.complete || !img.naturalWidth) return null
+    const r = img.getBoundingClientRect()
+    const out = document.createElement('canvas')
+    out.width = Math.round(r.width)
+    out.height = Math.round(r.height)
+    const ctx = out.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0, out.width, out.height)
+    if (canvas) {
+      // 필기 캔버스는 contentRef 영역 기준이라, 사진과 겹치는 부분만 잘라 얹는다
+      const cr = canvas.getBoundingClientRect()
+      const sx = canvas.width / cr.width
+      const sy = canvas.height / cr.height
+      ctx.drawImage(canvas,
+        (r.left - cr.left) * sx, (r.top - cr.top) * sy, r.width * sx, r.height * sy,
+        0, 0, out.width, out.height)
+    }
+    return out.toDataURL('image/png')
+  }
+
+  const checkMark = async () => {
+    const it = turn.interaction
+    if (it.kind !== 'mark' || markChecking) return
+    const image = composeMarkedImage()
+    if (!image) {
+      // 사진이 없는 화면(지문 파트)은 아직 좌표 판정을 안 붙였다 — 표시만 완료로 본다
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+      return
+    }
+    setMarkChecking(true)
+    try {
+      const res = await fetch('/api/mark-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: image,
+          task: it.prompt,
+          // 판정 기준 = 이 문항의 사실. 정답 근거가 곧 "짚어야 할 것"이다
+          targets: buildLessonFacts(lesson, turn.itemSeq),
+        }),
+      })
+      const v = await res.json()
+      const verdict = { read: (v?.read as string | null) ?? null, ok: !!v?.ok, hint: (v?.hint as string) ?? '' }
+      setMarkVerdict(verdict)
+      setMarkDone(true)
+      /* 강사에게 판정을 넘겨 반응하게 한다 — 잘못 짚었으면 정답을 말하지 않고 어디를 볼지만 짚는다 */
+      reportAction(`${turnIdx}:mark`,
+        verdict.read
+          ? actionMessage(`화면에 "${verdict.read}"를 표시했습니다`, verdict.ok,
+            verdict.ok ? undefined : verdict.hint || undefined)
+          : actionMessage('화면에 표시했지만 무엇을 표시했는지 읽지 못했습니다 — 무엇을 짚었는지 말로 물어보세요'))
+    } catch {
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+    } finally { setMarkChecking(false) }
+  }
+
   /* ── 전체 음원 바 (LC) ── */
   const audioItems = useMemo(() => fullAudioItems(lesson), [lesson])
   const hasFullCue = useMemo(() => turns.some((t) => t.audio?.kind === 'full'), [turns])
@@ -955,6 +1047,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     setChoicePicked(null); setSubjText(''); setSubjSent(false); setMarkDone(false); setShadowSaid(''); setMatchTapped(new Set())
     setPlayingId(null)
     setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
+    setMarkVerdict(null); setMarkChecking(false)
     barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
     setBarPlaying(false)
     stopVoice()
@@ -1216,7 +1309,10 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
               onPlay={barPlayFrom} onPause={barPause} onSeek={barPlayFrom} />
           )}
           {/* 지문/문항에서 직접 할 일 — 콘텐츠 바로 위 작은 안내 (설명 영역에서 뺀 지시) */}
-          <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped} />
+          <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped}
+            /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
+               판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
+            markDone={markDone} markChecking={markChecking} markVerdict={markVerdict} onCheckMark={checkMark} />
           {/* 파트1 수업(문항 1개)도 P6·P7과 같이 **높이를 주고 스크롤을 막는다** —
               사진과 보기가 한 화면에 있어야 하는 수업이라 스크롤이 생기면 안 된다.
               실전(문항 여러 개)은 사진이 장마다 달라 세로로 쌓이므로 스크롤을 유지한다. */}

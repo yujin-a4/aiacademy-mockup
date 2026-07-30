@@ -16,6 +16,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { DbLectureStep } from '@/data/db/lectureStepStore'
+import { DEFAULT_TONE, INST_TONE } from '@/data/instructorData'
 import type { Interaction, LessonItemRef, Turn, TypeLessonContent } from './types'
 
 /** LLM에 줄 "이번 문항 사실" — 여기 없는 건 지어내지 말라고 시킨다 */
@@ -57,7 +58,7 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
 const NEEDS_PROMPT = new Set<Interaction['kind']>(['choice', 'pickAnswer', 'solveAll', 'subjective', 'mark', 'match'])
 
 async function fetchPrompts(
-  turns: Turn[], steps: DbLectureStep[], facts: string,
+  turns: Turn[], steps: DbLectureStep[], facts: string, tone: string,
 ): Promise<{ prompts: Record<number, string>; tutors: Record<number, string> }> {
   /* 씨앗(말투 참고)은 **턴 자신에게서** 뽑는다.
      예전에는 steps[i] 로 짝지었는데, 쉐도잉처럼 건너뛴 턴이 있으면 길이가 달라져
@@ -94,7 +95,7 @@ async function fetchPrompts(
   const res = await fetch('/api/rail-prompts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ turns: payload, facts }),
+    body: JSON.stringify({ turns: payload, facts, tone }),
   })
   if (!res.ok) return { prompts: {}, tutors: {} }
   const json = await res.json()
@@ -120,10 +121,10 @@ async function fetchPrompts(
  */
 async function fetchPromptsByItem(
   turns: Turn[], steps: DbLectureStep[], content: TypeLessonContent, part: number,
-  items: LessonItemRef[] | undefined,
+  items: LessonItemRef[] | undefined, tone: string,
 ): Promise<{ prompts: Record<number, string>; tutors: Record<number, string> }> {
   if (!items?.length) {
-    return fetchPrompts(turns, steps, factsOf(content, part))
+    return fetchPrompts(turns, steps, factsOf(content, part), tone)
   }
   const groups = items.map((it) => ({
     item: it,
@@ -134,7 +135,7 @@ async function fetchPromptsByItem(
   if (loose.length) groups.push({ item: undefined as unknown as LessonItemRef, turns: loose })
 
   const results = await Promise.all(groups.map((g) =>
-    fetchPrompts(g.turns, steps, factsOf(content, part, g.item)).catch(() => ({ prompts: {}, tutors: {} })),
+    fetchPrompts(g.turns, steps, factsOf(content, part, g.item), tone).catch(() => ({ prompts: {}, tutors: {} })),
   ))
   const prompts: Record<number, string> = {}
   const tutors: Record<number, string> = {}
@@ -172,6 +173,8 @@ export interface RailPromptState {
 export function useRailPrompts(
   turns: Turn[], steps: DbLectureStep[], content: TypeLessonContent | null, part: number, enabled: boolean,
   items?: LessonItemRef[],
+  /** 강사 — 말투를 생성 쪽에 넘긴다. 첫 마디는 에이전트가 그대로 낭독하므로 여기서 강사 색이 결정된다 */
+  instructor?: string,
 ): RailPromptState {
   const [state, setState] = useState<RailPromptState>({ turns, generated: {}, status: 'idle' })
 
@@ -179,7 +182,8 @@ export function useRailPrompts(
     let alive = true
     if (!enabled || !turns.length || !content) { setState({ turns, generated: {}, status: 'off' }); return }
     setState({ turns, generated: {}, status: 'loading' })
-    fetchPromptsByItem(turns, steps, content, part, items)
+    fetchPromptsByItem(turns, steps, content, part, items,
+      (instructor && INST_TONE[instructor]) || DEFAULT_TONE)
       .then(({ prompts, tutors }) => {
         if (!alive) return
         const merged = turns.map((t) => {
@@ -198,7 +202,8 @@ export function useRailPrompts(
     return () => { alive = false }
     // turns는 매 렌더 새 배열이라 의존성에서 뺀다 — 레일이 바뀌면 아래 키가 바뀐다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, part, turns.length, steps.map((s) => s.partCode ?? s.stepCode).join('|')])
+    // 강사가 바뀌면 말투가 달라지므로 다시 만든다
+  }, [enabled, part, instructor, turns.length, steps.map((s) => s.partCode ?? s.stepCode).join('|')])
 
   return state
 }

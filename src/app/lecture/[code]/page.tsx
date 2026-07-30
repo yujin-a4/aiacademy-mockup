@@ -98,6 +98,7 @@ export default function LecturePage() {
   const promptState = useRailPrompts(
     builtLesson?.turns ?? [], steps, builtLesson?.content ?? null,
     builtLesson?.part ?? 0, !!rail, builtLesson?.items,
+    instructor,        // 말투 — 첫 마디는 낭독되므로 강사별로 달라져야 한다
   )
   const finalLesson = builtLesson && rail
     ? { ...builtLesson, turns: promptState.turns }
