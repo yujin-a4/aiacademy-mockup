@@ -17,10 +17,13 @@
 import { useEffect, useState } from 'react'
 import type { DbLectureStep } from '@/data/db/lectureStepStore'
 import { DEFAULT_TONE, INST_TONE } from '@/data/instructorData'
+import { gateLevels, GATE_RULE, type Gate } from './stageGate'
 import type { Interaction, LessonItemRef, Turn, TypeLessonContent } from './types'
 
 /** LLM에 줄 "이번 문항 사실" — 여기 없는 건 지어내지 말라고 시킨다 */
-export function factsOf(content: TypeLessonContent, part: number, item?: LessonItemRef): string {
+export function factsOf(
+  content: TypeLessonContent, part: number, item: LessonItemRef | undefined, gate: Gate,
+): string {
   const lines: string[] = [`파트: Part ${part}`]
   /* 아이템(레일 한 바퀴)이 주어지면 **그 바퀴의 문항·지문만** 준다.
      강의 전체를 주면 모델이 여러 문항 중 어느 것에 대한 턴인지 골라야 해서 엉뚱한 문항을 말한다. */
@@ -33,12 +36,18 @@ export function factsOf(content: TypeLessonContent, part: number, item?: LessonI
     const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
     if (body) lines.push(`지문(${p.label ?? p.kind}): ${body.slice(0, 600)}`)
   }
+  /* 게이트 — 생성되는 문구가 아직 안 배운 것을 흘리지 않게 (stageGate.ts).
+     화면 배너 문구도 여기서 나오므로, 단서 단계에서 보기를 주면 "보기 중에 골라봐"가 나온다. */
   qs.forEach((q, i) => {
     lines.push(`문항 ${i + 1}: ${q.q}`)
+    if (gate === 1) return
     q.options.forEach((o) => {
-      lines.push(`  ${o.label}) ${o.text}${o.correct ? ' [정답]' : ''}${o.why ? ` — ${o.why}` : ''}`)
+      const mark = gate >= 3 && o.correct ? ' [정답]' : ''
+      const why = (gate >= 4 || (gate === 3 && o.correct)) && o.why ? ` — ${o.why}` : ''
+      lines.push(`  ${o.label}) ${o.text}${mark}${why}`)
     })
   })
+  lines.push(`[이 단계에서 쓸 수 있는 범위] ${GATE_RULE[gate]}`)
   return lines.join('\n')
 }
 
@@ -123,19 +132,50 @@ async function fetchPromptsByItem(
   turns: Turn[], steps: DbLectureStep[], content: TypeLessonContent, part: number,
   items: LessonItemRef[] | undefined, tone: string,
 ): Promise<{ prompts: Record<number, string>; tutors: Record<number, string> }> {
+  /* 등급(stageGate)은 **레일 전체 순서**로 정해진다 — 아이템별로 자르기 전에 한 번 계산한다.
+     같은 아이템 안에서도 S1 턴과 S6 턴은 알아야 할 것이 다르므로, 아래에서 등급별로 또 나눈다. */
+  const gateByTurn = new Map<number, Gate>()
+  gateLevels(turns).forEach((g, i) => gateByTurn.set(turns[i].no, g))
+  const gateOf = (t: Turn): Gate => gateByTurn.get(t.no) ?? 1
+
   if (!items?.length) {
-    return fetchPrompts(turns, steps, factsOf(content, part), tone)
+    /* 아이템 정보가 없으면 등급으로만 나눈다 */
+    const byGate = new Map<Gate, Turn[]>()
+    for (const t of turns) {
+      const g = gateOf(t)
+      byGate.set(g, [...(byGate.get(g) ?? []), t])
+    }
+    const entries: [Gate, Turn[]][] = []
+    byGate.forEach((ts, g) => entries.push([g, ts]))
+    const rs = await Promise.all(entries.map(([g, ts]) =>
+      fetchPrompts(ts, steps, factsOf(content, part, undefined, g), tone)
+        .catch(() => ({ prompts: {}, tutors: {} }))))
+    const prompts: Record<number, string> = {}
+    const tutors: Record<number, string> = {}
+    for (const r of rs) { Object.assign(prompts, r.prompts); Object.assign(tutors, r.tutors) }
+    return { prompts, tutors }
   }
-  const groups = items.map((it) => ({
-    item: it,
-    turns: turns.filter((t) => t.itemSeq === it.seq),
-  })).filter((g) => g.turns.length)
+
+  const groups: { item: LessonItemRef | undefined; gate: Gate; turns: Turn[] }[] = []
+  const push = (item: LessonItemRef | undefined, ts: Turn[]) => {
+    const byGate = new Map<Gate, Turn[]>()
+    for (const t of ts) {
+      const g = gateOf(t)
+      byGate.set(g, [...(byGate.get(g) ?? []), t])
+    }
+    byGate.forEach((gts, gate) => groups.push({ item, gate, turns: gts }))
+  }
+  for (const it of items) {
+    const ts = turns.filter((t) => t.itemSeq === it.seq)
+    if (ts.length) push(it, ts)
+  }
   // 아이템에 안 붙은 턴(구방식)은 한 덩어리로
   const loose = turns.filter((t) => t.itemSeq == null)
-  if (loose.length) groups.push({ item: undefined as unknown as LessonItemRef, turns: loose })
+  if (loose.length) push(undefined, loose)
 
   const results = await Promise.all(groups.map((g) =>
-    fetchPrompts(g.turns, steps, factsOf(content, part, g.item), tone).catch(() => ({ prompts: {}, tutors: {} })),
+    fetchPrompts(g.turns, steps, factsOf(content, part, g.item, g.gate), tone)
+      .catch(() => ({ prompts: {}, tutors: {} })),
   ))
   const prompts: Record<number, string> = {}
   const tutors: Record<number, string> = {}

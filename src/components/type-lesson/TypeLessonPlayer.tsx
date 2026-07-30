@@ -19,6 +19,7 @@ import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { TutorComposer, type DockMode } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
+import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import RailInspector from '@/components/type-lesson/RailInspector'
 import { useLessonLog } from '@/data/db/learningEventStore'
@@ -81,7 +82,7 @@ const SPEECH_RULES = [
 const PACE_LOG = true
 
 /** 턴 하나를 에이전트 지시(directive)로 — 강사는 이걸 자기 말투로 바꿔 말한다(낭독 금지). */
-function directiveOf(turn: Turn): string {
+function directiveOf(turn: Turn, gate: Gate = 4): string {
   const todo = INTERACTION_HINT[turn.interaction.kind]
   const it = turn.interaction
   /* ⚠️ 화면에 뜬 질문·선택지를 반드시 같이 준다.
@@ -99,6 +100,8 @@ function directiveOf(turn: Turn): string {
     ask || choices
       ? '질문은 화면 문구와 같은 뜻으로 물어라. 화면에 없는 선택지를 새로 만들지 마라.' : '',
     todo ? `[학생이 할 일] ${todo}` : '',
+    /* 정보 차단(stageGate)의 **보조** 규칙 — 못 주게 막는 게 1차, 말하지 말라는 게 2차 */
+    `[이 단계 제한] ${GATE_RULE[gate]}`,
     needsAnswer(turn)
       ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라. '
         /* 실측: "사진 속 정보를 파악해야 해" 처럼 서술로 끝내서 학생이 뭘 할지 몰랐다.
@@ -135,7 +138,7 @@ function poseForTurn(turn: Turn, speaking: boolean): InstPose {
  *   강의 하나가 아이템 여러 개(사진 3장·문장 5개)로 돌기 때문에(STEP 4), 전체를 한 번에 주면
  *   에이전트가 지금 화면에 없는 문항 이야기를 한다. 아이템이 넘어갈 때마다 다시 주입한다.
  */
-function buildLessonFacts(lesson: TypeLesson, itemSeq?: number): string {
+function buildLessonFacts(lesson: TypeLesson, itemSeq: number | undefined, gate: Gate): string {
   const c = lesson.content
   const ref = itemSeq != null ? lesson.items?.find((i) => i.seq === itemSeq) : undefined
   const questions = ref ? c.questions.slice(ref.qFrom, ref.qTo) : c.questions
@@ -157,11 +160,20 @@ function buildLessonFacts(lesson: TypeLesson, itemSeq?: number): string {
     const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
     if (body) lines.push(`지문(${p.label ?? p.kind}): ${body}`)
   }
+  /* ── 게이트 ──
+     보기·정답·오답 이유는 **그 단계에서 필요할 때만** 준다. 처음부터 다 주면 첫 턴부터
+     "에이 비 씨 디 중에 골라봐"가 나온다(실측). 모르면 말할 수 없다 — stageGate.ts */
   questions.forEach((q, i) => {
     lines.push(`문항 ${i + 1}: ${q.q}`)
-    q.options.forEach((o) =>
-      lines.push(`  ${o.label}) ${o.text}${o.correct ? ' ← 정답' : ''}${o.why ? `  (${o.why})` : ''}`))
+    if (gate === 1) return                       // 단서 단계 — 보기 자체를 주지 않는다
+    q.options.forEach((o) => {
+      const mark = gate >= 3 && o.correct ? ' ← 정답' : ''
+      // 오답 이유는 오답 제거 단계(4)부터. 정답 근거는 정답 공개(3)와 함께.
+      const why = (gate >= 4 || (gate === 3 && o.correct)) && o.why ? `  (${o.why})` : ''
+      lines.push(`  ${o.label}) ${o.text}${mark}${why}`)
+    })
   })
+  lines.push(`[지금 단계에서 말해도 되는 범위] ${GATE_RULE[gate]}`)
   lines.push('규칙: 학생이 오답을 고르면 정답을 바로 말하지 말고 위 근거로 왜 틀렸는지 짚고 다시 생각하게 하라. 학생이 물으면 위 사실 범위에서 답하라. 사실에 없는 건 모른다고 하라.')
   return lines.join('\n')
 }
@@ -576,6 +588,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      응답 게이트가 그냥 열린다 — 실제로 그렇게 새고 있었다. */
   const turnsRef = useRef(turns)
   turnsRef.current = turns
+  const gatesRef = useRef<Gate[]>([])
   /* 음원을 끝까지 들려준 턴 번호. next_step이 "음원 있는 단계"를 다 재생하기 전에 넘어가지 못하게 막는다
      (에이전트가 여러 단계를 몰아 말하며 next_step을 연달아 부를 때 듣기 음원이 스킵되던 문제 방지). */
   const audioDoneRef = useRef<Set<number>>(new Set())
@@ -712,7 +725,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
         const nextIdx = cur + 1
         setTurnIdx(nextIdx)
         if (PACE_LOG) console.log('[pace] 에이전트 진행', cur, '→', nextIdx, gaveUp ? '(응답 없이 포기)' : '')
-        const next = directiveOf(live[nextIdx])
+        const next = directiveOf(live[nextIdx], gatesRef.current[nextIdx] ?? 1)
         return gaveUp
           ? '학생이 끝내 답하지 않았다. 이번 단계의 답과 근거를 한 문장으로 짚어 주고(혼내지 말고), 바로 아래 단계로 넘어가라.\n' + next
           : next
@@ -792,18 +805,27 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      아이템 순회 전에는 주입이 1회뿐이었는데, 강의 하나가 사진 3장·문장 5개로 도는 지금은
      그러면 에이전트가 2번째 바퀴에서도 1번째 사진 이야기를 한다. */
   const curItemSeq = turn.itemSeq
+  /* 공개 등급 — 단계가 오르면 그때 더 준다(stageGate). 컨텍스트는 누적돼 되돌릴 수 없으므로
+     **처음부터 다 주지 않는 것**이 통제의 핵심이다. */
+  const gates = useMemo(() => gateLevels(turns), [turns])
+  const gate: Gate = gates[turnIdx] ?? 1
+  gatesRef.current = gates          // clientTool 은 세션 시작 시점 클로저라 ref 로 읽어야 한다
   const factsSentRef = useRef<string | null>(null)
   useEffect(() => {
     if (!agentConnected) { factsSentRef.current = null; return }
-    const key = String(curItemSeq ?? 'all')
+    // 아이템이 바뀌거나 **등급이 오르면** 다시 보낸다
+    const key = `${curItemSeq ?? 'all'}:${gate}`
     if (factsSentRef.current === key) return
+    const raised = factsSentRef.current?.startsWith(`${curItemSeq ?? 'all'}:`)  // 등급만 오른 경우
     factsSentRef.current = key
     try {
       ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void })
-        .sendContextualUpdate?.(SPEECH_RULES + '\n\n' + buildLessonFacts(lesson, curItemSeq))
+        .sendContextualUpdate?.((raised ? '[공개 범위가 넓어졌다]\n' : SPEECH_RULES + '\n\n')
+          + buildLessonFacts(lesson, curItemSeq, gate))
+      if (PACE_LOG) console.log('[gate] 사실 전송', GATE_NAME[gate], `item=${curItemSeq ?? 'all'}`)
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentConnected, curItemSeq])
+  }, [agentConnected, curItemSeq, gate])
 
   /* ── 학습 로그 (STEP 6) ──
      이게 없으면 FGI를 돌려도 "어느 변종을 몇 번째 바퀴에 받았을 때 맞췄나"가 안 남아
@@ -945,8 +967,9 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
         body: JSON.stringify({
           imageBase64: image,
           task: it.prompt,
-          // 판정 기준 = 이 문항의 사실. 정답 근거가 곧 "짚어야 할 것"이다
-          targets: buildLessonFacts(lesson, turn.itemSeq),
+          /* 판정 기준 = 이 문항의 사실. 표시 판정은 **정답을 알아야** 맞게 짚었는지 볼 수 있으므로
+             화면 게이트와 달리 항상 전체(4)를 준다. 이 값은 학생에게 노출되지 않는다(서버 판정용). */
+          targets: buildLessonFacts(lesson, turn.itemSeq, 4),
         }),
       })
       const v = await res.json()
@@ -1058,7 +1081,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     setTurnIdx(nextIdx)
     if (PACE_LOG) console.log('[pace] 화면이 진행(들려주는 턴)', from, '→', nextIdx)
     if (!agentConnected) return
-    sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx])}`)
+    sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx], gatesRef.current[nextIdx] ?? 1)}`)
   }
 
   /* 턴 진입: 발화 → 음원. 로컬 상호작용 상태 리셋 (도입 전에는 재생 안 함) */
