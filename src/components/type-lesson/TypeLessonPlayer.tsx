@@ -75,6 +75,9 @@ const SPEECH_RULES = [
   '- 학생 이름은 이름만 부른다. 뒤에 "아"·"야" 같은 호격 조사를 붙이지 마라.',
   '  ("와옹아" 처럼 부르지 말고 "와옹" 으로 부른다. 음성 합성이 조사를 붙여 엉뚱하게 읽는다)',
   '- 이름을 아예 부르지 않아도 된다. 부를 때만 이 규칙을 지킨다.',
+  /* TTS 가 연음을 놓쳐 "맞아"를 [마야]로 읽는다(실측). 발음 사전(scripts/el-pronunciation.js)이
+     에이전트에 붙기 전까지의 회피책 — 같은 뜻의 다른 말을 쓰게 한다. */
+  '- 맞장구는 "맞아" 대신 "그렇지", "정확해", "좋아" 를 써라. ("맞아"는 음성 합성이 잘못 읽는다)',
 ].join('\n')
 
 /** 진행 판단을 콘솔에 남긴다 — "왜 넘어갔지"를 눈으로 확인해야 페이싱을 맞출 수 있다.
@@ -596,6 +599,11 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const turnsRef = useRef(turns)
   turnsRef.current = turns
   const gatesRef = useRef<Gate[]>([])
+  /** 이 턴에 들어온 시각 — 진행 속도 제한에 쓴다.
+   *  (기존 turnEnteredAtRef 는 학습 로그가 켜졌을 때만 갱신돼서 미리보기에서는 못 쓴다) */
+  const enteredAtRef = useRef<number>(Date.now())
+  /** 마지막으로 턴을 넘긴 시각 — 에이전트가 next_step 을 연달아 불러 여러 단계를 몰아 넘기는 것을 막는다 */
+  const advancedAtRef = useRef<number>(0)
   /* 음원을 끝까지 들려준 턴 번호. next_step이 "음원 있는 단계"를 다 재생하기 전에 넘어가지 못하게 막는다
      (에이전트가 여러 단계를 몰아 말하며 next_step을 연달아 부를 때 듣기 음원이 스킵되던 문제 방지). */
   const audioDoneRef = useRef<Set<number>>(new Set())
@@ -703,6 +711,22 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           return '학생이 방금 답했다. 다음 단계로 넘어가기 전에 **그 답 내용에 먼저 반응하라** — 맞으면 근거를 한 줄 확인하고, 틀리거나 어긋나면 정답을 말하지 말고 무엇이 어긋났는지 짚어라.'
         }
 
+        /* ── 진행 속도 가드 ──
+           실측: 학생 풀이 다음 단계들이 통째로 건너뛰어지고 갑자기 다음 문제로 갔다.
+           에이전트가 next_step 을 연달아 부르면 한 번에 여러 턴이 넘어가기 때문이다.
+           ① 방금 넘긴 직후의 재호출은 무시한다(1.2초). */
+        if (Date.now() - advancedAtRef.current < 1200) {
+          if (PACE_LOG) console.log('[pace] 연속 호출 차단', cur)
+          return '방금 다음 단계로 넘어왔다. 지금 단계를 먼저 진행하라. next_step 을 연달아 부르지 마라.'
+        }
+        /* ② "들려주고 넘어가는 턴"은 **화면이 넘긴다.** 에이전트가 먼저 부르면 발화·음원이
+           끝나기도 전에 넘어간다. 다만 화면 쪽이 어떤 이유로 멈추면 수업이 서므로,
+           5초가 지나면 에이전트 호출도 허용해 폴백으로 둔다. */
+        if (curTurn && !needsAnswer(curTurn) && Date.now() - enteredAtRef.current < 5000) {
+          if (PACE_LOG) console.log('[pace] 화면 소유 턴 — 에이전트 진행 보류', cur)
+          return '이 단계는 화면이 자동으로 넘긴다. next_step 을 부르지 말고, 할 말만 하고 멈춰라.'
+        }
+
         const waiting = !!curTurn && needsAnswer(curTurn) && !respondedRef.current.has(cur)
         let gaveUp = false
         if (waiting) {
@@ -743,6 +767,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
         }
         const nextIdx = cur + 1
         setTurnIdx(nextIdx)
+        advancedAtRef.current = Date.now()
         if (PACE_LOG) console.log('[pace] 에이전트 진행', cur, '→', nextIdx, gaveUp ? '(응답 없이 포기)' : '')
         const next = directiveOf(live[nextIdx], gatesRef.current[nextIdx] ?? 1)
         return gaveUp
@@ -1098,6 +1123,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       return
     }
     setTurnIdx(nextIdx)
+    advancedAtRef.current = Date.now()
     if (PACE_LOG) console.log('[pace] 화면이 진행(들려주는 턴)', from, '→', nextIdx)
     if (!agentConnected) return
     sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx], gatesRef.current[nextIdx] ?? 1)}`)
@@ -1111,6 +1137,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
     setMarkVerdict(null); setMarkChecking(false)
     setWrongPicks(new Set())
+    enteredAtRef.current = Date.now()
     barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
     setBarPlaying(false)
     stopVoice()
