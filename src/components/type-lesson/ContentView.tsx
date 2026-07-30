@@ -32,6 +32,9 @@ export interface ContentState {
   answerMode: 'none' | 'single' | 'all'
   answers: Record<number, string>
   graded: Set<number>
+  /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전이라도 "이건 아니다"를 남겨둔다.
+   *  (오답이면 다시 고를 수 있어야 하는데, 표시가 없으면 같은 걸 또 누른다) */
+  wrongPicks?: Set<string>
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
   /** 근거 연결(match) 진행 중일 때만 존재 — 지문의 문장/메타/표 행을 직접 탭하는 상호작용 상태.
@@ -172,14 +175,18 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const isCorrect = o.label === correctLabel
           const playing = st.playingId === `opt:${qIdx}:${o.label}`
           const showResult = graded
+          // 채점 전이라도 이미 틀린 보기는 표시해 둔다 (정답은 공개하지 않는다)
+          const wrongTried = !showResult && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
           const rowCls = showResult
             ? isCorrect ? 'border-[#86EFAC] bg-[#F0FDF4]'
               : chosen ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E5E7EB] bg-white opacity-70'
-            : chosen ? 'border-[#2563EB] bg-[#EFF6FF]'
-              : playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
+            : wrongTried ? 'border-[#FCA5A5] bg-[#FEF2F2] opacity-70'
+              : chosen ? 'border-[#2563EB] bg-[#EFF6FF]'
+                : playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
           const circleCls = showResult
             ? isCorrect ? 'border-[#22C55E] text-[#16A34A]' : chosen ? 'border-[#EF4444] text-[#EF4444]' : 'border-[#D1D5DB] text-[#9CA3AF]'
-            : chosen ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#D1D5DB] text-[#6B7280]'
+            : wrongTried ? 'border-[#EF4444] text-[#EF4444]'
+              : chosen ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#D1D5DB] text-[#6B7280]'
           /* 보기가 음성인 유형(P1·P2)의 보기별 컨트롤.
              쉐도잉·스크립트는 강사가 정답을 공개했거나 그 보기를 코칭한 뒤에만 열린다. */
           const optAudio = !!lesson.content.optionAudio

@@ -631,6 +631,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState<Set<number>>(new Set())
   const [answeredQ, setAnsweredQ] = useState<Set<number>>(new Set()) // pickAnswer로 텍스트 공개된 문항
+  /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전에도 "이건 아니다"를 화면에 남긴다 */
+  const [wrongPicks, setWrongPicks] = useState<Set<string>>(new Set())
   const [showKo, setShowKo] = useState(false)
   const [started, setStarted] = useState(false)            // 도입(LessonIntro) → 수업 진입 여부
   /* 강사 창 크기 — 사이드바(기본) ⇄ 모달창 ⇄ 작은 창. 강사 말·단계 내용·상호작용·대화가 한 흐름으로 이 창 안에 있다 */
@@ -722,6 +724,15 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
             setReaskShown(used + 1)
             return REASK[Math.min(used, 1)]
           }
+        }
+
+        /* 끝내 못 맞히고 넘어가는 경우 — 화면도 답을 공개해야 한다.
+           오답은 채점하지 않으므로(재시도 가능하게), 여기서 공개하지 않으면 학생은 답을 못 본 채
+           다음 단계로 간다. */
+        if (gaveUp && curTurn?.interaction.kind === 'pickAnswer') {
+          const qi = curTurn.interaction.qIdx
+          setGraded((p) => new Set(p).add(qi))
+          setAnsweredQ((p) => new Set(p).add(qi))
         }
 
         if (cur >= live.length - 1) {
@@ -1099,6 +1110,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     setPlayingId(null)
     setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
     setMarkVerdict(null); setMarkChecking(false)
+    setWrongPicks(new Set())
     barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
     setBarPlaying(false)
     stopVoice()
@@ -1180,12 +1192,20 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const onSelect = (qIdx: number, label: string) => {
     const it = turn.interaction
     if (it.kind === 'pickAnswer') {
-      setAnswers((p) => ({ ...p, [qIdx]: label }))
-      setGraded((p) => new Set(p).add(qIdx))
-      setAnsweredQ((p) => new Set(p).add(qIdx))
       const opt = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)
-      reportAction(`${turnIdx}:pick`, actionMessage(`${label}번 보기를 정답으로 선택했습니다`, opt?.correct, opt?.correct ? undefined : opt?.why))
-      logResponse(label, opt?.correct ?? null)
+      const ok = !!opt?.correct
+      setAnswers((p) => ({ ...p, [qIdx]: label }))
+      setAnsweredQ((p) => new Set(p).add(qIdx))
+      /* ⚠️ 오답이면 **채점하지 않는다.**
+         채점(graded)은 두 가지를 동시에 한다 — 보기를 잠그고, 정답을 초록으로 공개한다.
+         그래서 첫 클릭에 채점하면 강사가 "다시 골라봐" 해도 학생은 누를 수 없고,
+         이미 정답이 화면에 드러나 있다(실측). 맞혔을 때만 채점하고, 틀린 보기는 따로 표시한다. */
+      if (ok) setGraded((p) => new Set(p).add(qIdx))
+      else setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+      // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
+      reportAction(`${turnIdx}:pick:${label}`,
+        actionMessage(`${label}번 보기를 골랐습니다`, ok, ok ? undefined : opt?.why))
+      logResponse(label, ok)
     } else if (it.kind === 'solveAll') {
       setAnswers((p) => ({ ...p, [qIdx]: label }))
     }
@@ -1229,7 +1249,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
        실측: "정답 보기를 눌러봐" 라고 시키는데 클릭할 수 없었다. 상호작용이 가진 qIdx로 채운다. */
     focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
-    answers, graded, onSelect, showKo,
+    answers, graded, wrongPicks, onSelect, showKo,
     matchState,
   }
 
@@ -1308,7 +1328,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           <p className="text-[13px] text-[#6B7280] mt-1">{lesson.partName} · {lesson.typeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { audioDoneRef.current = new Set(); respondedRef.current = new Set(); reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set(); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
+          <button onClick={() => { audioDoneRef.current = new Set(); respondedRef.current = new Set(); reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set(); setWrongPicks(new Set()); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
             className="px-5 py-2.5 rounded-xl border border-[#C7D2FE] text-[#2563EB] text-sm font-bold hover:bg-[#EFF6FF]">다시 해보기</button>
           <button onClick={() => router.push('/lessons')} className={PRIMARY_BTN}>다른 유형 보러 가기</button>
         </div>
