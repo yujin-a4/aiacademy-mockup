@@ -82,6 +82,9 @@ export type AudioCue =
   | { kind: 'option'; qIdx: number; label: string }
   | { kind: 'options'; qIdx: number; labels: string[] }
   | { kind: 'full' }                          // audioScript 전체 (중간 정지 없음)
+  /** 발화 + 보기 이어서 — Part2 "질문과 선택지 전체 재생"처럼 실제 시험 순서.
+   *  ids 는 재생할 스크립트 문장(아이템이 여러 개 합쳐지면 문장도 섞이므로 전체가 아니라 지목한다) */
+  | { kind: 'mix'; qIdx: number; ids: string[]; labels: string[] }
 
 /** 스크립트/보기 텍스트 점진 공개 — 누적 적용 */
 export interface RevealState {

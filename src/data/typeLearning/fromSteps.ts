@@ -83,12 +83,55 @@ function readFocusQ(step: DbLectureStep, questionCount: number): number | undefi
   return idx >= 0 && idx < questionCount ? idx : undefined
 }
 
+/* ── 문항별 반복 ──
+   Part3·4·7 은 한 아이템(대화·지문)에 문항이 3개씩 붙는다. 콘텐츠팀은 "S5·S6 는 문항마다
+   한 번씩 돈다"고 쓰고 싶은데, 레일은 **유형 단위**라 문항이 몇 개인지 모른다.
+   그래서 시트에는 표시만 하고(【문항별 반복】열 → 단계 이름 뒤 "(문항별)"), 실제 문항 수는
+   여기서 센다. 단계 이름에 Qn 을 붙여 펼치면 기존 focusQ 배선(readFocusQ)이 그대로 받는다.
+   ⚠️ 이게 없으면 다문항 파트가 **1번 문항만 다루고 수업이 끝난다.** */
+const PER_QUESTION = /\(\s*문항별\s*\)/
+
+function expandPerQuestion(steps: DbLectureStep[], qCount: number): DbLectureStep[] {
+  const strip = (s: DbLectureStep) => ({
+    ...s, stepCode: s.stepCode.replace(PER_QUESTION, '').replace(/\s+/g, ' ').trim(),
+  })
+  // 문항이 하나면 펼칠 게 없다 — 표시만 떼고 그대로 둔다 (Part1·2·5 가 이 경로)
+  if (qCount <= 1) return steps.map((s) => (PER_QUESTION.test(s.stepCode) ? strip(s) : s))
+
+  /* **연속된** 문항별 단계는 한 묶음으로 반복한다 — 콘텐츠팀이 쓴 "문항별로 S6와 묶어 진행".
+     Q1(S5→S6) → Q2(S5→S6) → Q3(S5→S6) 이 되어야 학생이 한 문항을 끝내고 다음으로 간다.
+     단계별로 펼치면 S5 세 번 → S6 세 번이 되어 문항을 오가게 된다. */
+  const out: DbLectureStep[] = []
+  for (let i = 0; i < steps.length; i++) {
+    if (!PER_QUESTION.test(steps[i].stepCode)) { out.push(steps[i]); continue }
+    const block: DbLectureStep[] = []
+    while (i < steps.length && PER_QUESTION.test(steps[i].stepCode)) block.push(strip(steps[i++]))
+    i--
+    for (let qi = 0; qi < qCount; qi++) {
+      for (const s of block) out.push({ ...s, stepCode: `Q${qi + 1} ${s.stepCode}` })
+    }
+  }
+  return out
+}
+
 /* ── 이 턴이 다루는 보기 (A~D) ──
    "선택지 A 청취" / "선택지 A 음원만 재생한다" / "A 스크립트만 표시" 어디에 있든 잡는다 */
 function readOptionLabel(step: DbLectureStep): string | null {
   const src = `${step.stepCode} ${step.audioMode ?? ''} ${step.scriptMode ?? ''}`
   const m = src.match(/선택지\s*([A-D])(?!\s*[~∼-])/) ?? src.match(/\b([A-D])\s*스크립트/)
   return m ? m[1] : null
+}
+
+/** 보기를 A~D 로 적지 않고 "정답 선택지"로 지목한 턴 — 정답 표시에서 그 보기를 찾아준다.
+ *  (SC1·SC2 의 S5 가 이렇게 쓰여 있다. 없으면 "정답 고르기"로 떨어져 이미 들려준 답을
+ *   다시 고르라고 시키는 턴이 된다) */
+function readCorrectLabel(
+  step: DbLectureStep, content: TypeLessonContent, focusQ: number,
+): string | null {
+  const src = `${step.stepCode} ${step.audioMode ?? ''} ${step.scriptMode ?? ''}`
+  if (!/정답\s*(선택지|보기)/.test(src)) return null
+  const correct = (content.questions[focusQ]?.options ?? []).filter((o) => o.correct)
+  return correct.length === 1 ? correct[0].label : null
 }
 
 /* ── 음원 (audio_mode → AudioCue) ── */
@@ -119,14 +162,69 @@ function readAudio(
   const one = raw.match(/선택지\s*([A-D])/)
   if (one) return { cue: { kind: 'option', qIdx: focusQ, label: one[1] }, note: `보기 ${one[1]} 재생` }
 
-  if (/전체 음원|처음부터 끝까지|전체를? 재생/.test(raw)) {
+  /* ── 정답/오답으로 보기를 지목하는 표현 ──
+     콘텐츠팀은 "정답 선택지 재생"처럼 **어느 보기인지 모른 채** 쓴다 (문항마다 다르니까).
+     보기 A~D 를 직접 적는 것보다 이게 자연스럽고, 정답 표시는 문항 DB에 있으므로 여기서 푼다.
+     ⚠️ 문항을 안 보고 쓴 지시라, 문항이 바뀌어도 시트를 고칠 필요가 없다는 게 이 표현의 값이다. */
+  const opts = content.questions[focusQ]?.options ?? []
+  const labelsOf = (pick: (o: typeof opts[number]) => boolean) =>
+    opts.filter(pick).map((o) => o.label)
+
+  if (/정답\s*선택지|정답\s*보기/.test(raw)) {
+    const labels = labelsOf((o) => !!o.correct)
+    if (labels.length === 1) {
+      return { cue: { kind: 'option', qIdx: focusQ, label: labels[0] }, note: `정답 보기(${labels[0]}) 재생` }
+    }
+    if (labels.length > 1) {
+      return { cue: { kind: 'options', qIdx: focusQ, labels }, note: `정답 보기(${labels.join('·')}) 재생` }
+    }
+    warn('"정답 선택지 재생"인데 이 문항에 정답 표시가 없어요 — 음원 없이 진행합니다. (문항 DB의 정답 표시를 확인해 주세요)')
+    return { note: '정답 보기 → 정답 표시 없음' }
+  }
+
+  if (/오답\s*선택지|오답\s*보기/.test(raw)) {
+    const labels = labelsOf((o) => !o.correct)
+    if (labels.length) {
+      return { cue: { kind: 'options', qIdx: focusQ, labels }, note: `오답 보기(${labels.join('·')}) 이어서 재생` }
+    }
+    warn('"오답 선택지 재생"인데 오답으로 볼 보기가 없어요 — 음원 없이 진행합니다.')
+    return { note: '오답 보기 → 대상 없음' }
+  }
+
+  /* "질문과 선택지 전체 재생" (Part2) — 실제 시험대로 발화 뒤에 보기가 이어져야 한다.
+     발화는 스크립트, 보기는 문항에 있어서 한쪽만 재생하면 문제를 풀 수 없다 → 둘을 이어 붙인다. */
+  if (/(질문|발화)/.test(raw) && /(선택지|보기)\s*전체/.test(raw)) {
+    const labels = opts.map((o) => o.label)
+    const ids = (content.audioScript ?? []).map((s) => s.id)
+    if (ids.length && labels.length) {
+      return {
+        cue: { kind: 'mix', qIdx: focusQ, ids, labels },
+        note: `발화 + 보기 전체(${labels.join('·')}) 이어서 재생`,
+      }
+    }
+    warn('"질문과 선택지 전체 재생"인데 발화 스크립트나 보기가 없어요 — 있는 쪽만으로는 문제를 풀 수 없어 음원 없이 진행합니다.')
+    return { note: '발화+보기 → 재료 부족' }
+  }
+
+  /* "선택지 전체 재생" = 보기만.
+     (이 분기가 없으면 아래 "전체 재생"에 걸려 보기만 틀려던 의도가 통째로 사라진다) */
+  if (/(선택지|보기)\s*전체/.test(raw) && !/질문|발화|대화|담화/.test(raw)) {
+    const labels = opts.map((o) => o.label)
+    if (labels.length) {
+      return { cue: { kind: 'options', qIdx: focusQ, labels }, note: `보기 전체(${labels.join('·')}) 이어서 재생` }
+    }
+    warn('"선택지 전체 재생"인데 이 문항에 보기가 없어요 — 음원 없이 진행합니다.')
+    return { note: '보기 전체 → 보기 없음' }
+  }
+
+  if (/전체 음원|처음부터 끝까지|전체를? 재생|전체 재생/.test(raw)) {
     return { cue: { kind: 'full' }, note: '전체 음원 재생' }
   }
 
   /* "질문 음원"·"발화 음원" (Part2) — 지문이 정규화되기 전(0014 이전)에는 재생할 방법이 없었다.
      지금은 스크립트가 문장 단위라 **한 문장짜리 스크립트면 그게 곧 질문 발화**다. 그것만 재생한다.
      여러 문장이면 어느 게 질문인지 데이터에 없으므로 예전처럼 경고만 남긴다(추측하지 않는다). */
-  if (/질문 음원|발화 음원/.test(raw)) {
+  if (/질문 음원|발화 음원|질문 다시|발화 다시/.test(raw)) {
     const script = content.audioScript ?? []
     if (script.length === 1) {
       return { cue: { kind: 'sentences', ids: [script[0].id] }, note: '질문/발화 음원 재생' }
@@ -135,7 +233,7 @@ function readAudio(
     return { note: '질문/발화 음원 → 대상 불명' }
   }
 
-  warn(`음원 지시를 못 알아들었어요: "${raw.slice(0, 40)}…" — 쓸 수 있는 표현: "재생 없음", "선택지 A 음원만 재생한다", "선택지 A~C를 이어서 재생한다", "전체 음원을 처음부터 끝까지 재생한다"`)
+  warn(`음원 지시를 못 알아들었어요: "${raw.slice(0, 40)}…" — 쓸 수 있는 표현: "재생 없음", "정답 선택지 재생", "오답 선택지 재생", "선택지 전체 재생", "질문과 선택지 전체 재생", "질문 다시 재생", "선택지 A 음원만 재생한다", "선택지 A~C를 이어서 재생한다", "전체 음원을 처음부터 끝까지 재생한다"`)
   return { note: '해석 실패' }
 }
 
@@ -249,7 +347,10 @@ function shadowChunks(content: TypeLessonContent, focusQ: number, label: string 
 /** 생성 전·실패 시 자리를 지키는 중립 안내. 문항 내용을 **아무것도 주장하지 않는다.**
  *  밋밋한 건 괜찮다. 틀린 말을 하는 것보다 낫다. */
 function neutralLine(stepCode: string): string {
-  const label = String(stepCode || '').replace(/^S\d+(\+S\d+)*\s*/, '').replace(/^Q\d+[-\s·]*/, '').trim()
+  const label = String(stepCode || '')
+    .replace(/^Q\d+[-\s·]*/, '')            // 문항별로 펼친 턴 — 'Q2 S5 …' 의 Q2 먼저 떼고
+    .replace(/^S\d+(\+S\d+)*\s*/, '')
+    .replace(/^Q\d+[-\s·]*/, '').trim()
   return label ? `${label} 단계예요. 화면을 같이 보면서 짚어볼게요.` : '화면을 같이 보면서 짚어볼게요.'
 }
 
@@ -320,13 +421,17 @@ function buildTurn(
     case 'choice': {
       const p = prompt ?? '어떻게 볼까요?'
       const isWrongPick = /오답|맞지 않는|아닌 것|제거|소거/.test(`${step.stepCode} ${p}`)
-      const built = optLabel
-        ? optionVerdictChoice(content, focusQ, optLabel, p)
+      /* 보기를 A~D 로 안 적고 "정답 선택지"로 지목한 턴도 그 보기 하나를 다루는 턴이다.
+         단, 오답을 다루는 턴이면 wrongPickChoice 가 더 맞으므로 건드리지 않는다. */
+      const verdictLabel = optLabel ?? (isWrongPick ? null : readCorrectLabel(step, content, focusQ))
+      const built = verdictLabel
+        ? optionVerdictChoice(content, focusQ, verdictLabel, p)
         : (isWrongPick ? wrongPickChoice(content, focusQ, p) : null)
       if (built) {
         interaction = built
-        interactionNote = optLabel
-          ? `선택 응답 → 보기 ${optLabel} 맞다/아니다 2지선다`
+        interactionNote = verdictLabel
+          ? `선택 응답 → 보기 ${verdictLabel} 맞다/아니다 2지선다`
+            + (optLabel ? '' : ' (음원 지시의 "정답 선택지"로 대상을 찾음)')
           : '선택 응답 → 오답 고르기 2지선다'
       } else if (qCount > 0) {
         interaction = { kind: 'pickAnswer', qIdx: focusQ, prompt: p }
@@ -441,7 +546,10 @@ export function buildTurnsFromSteps(
      턴 상세가 있는 건 강사별 레일(이도윤 9열/7열)뿐이다. */
   if (!steps.some((s) => clean(s.interaction))) return { turns: [], diags: [] }
 
-  const built = steps.map((s, i) => buildTurn(s, content, i === steps.length - 1, hasPractice))
+  // "(문항별)" 표시가 있는 단계를 실제 문항 수만큼 펼친다 (Q1·Q2·Q3 …)
+  const expanded = expandPerQuestion(steps, content.questions.length)
+
+  const built = expanded.map((s, i) => buildTurn(s, content, i === expanded.length - 1, hasPractice))
   // 버려진 턴(쉐도잉)이 있어도 diag 는 전부 남긴다 — 검토 패널에서 "왜 빠졌는지"가 보여야 한다
   return {
     turns: built.map((b) => b.turn).filter((t): t is Turn => !!t).map((t, i) => ({ ...t, no: i + 1 })),
