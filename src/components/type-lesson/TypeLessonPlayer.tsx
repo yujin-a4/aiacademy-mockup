@@ -1476,15 +1476,11 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           speech={
             <>
               <p className="text-[13.5px] leading-relaxed text-[#475569] font-medium">{tutorLine}</p>
-              {/* 작게, 한 줄로 — 답이 전달됐다는 것만 알리고 강사가 말하면 사라진다 */}
+              {/* 모양은 종전 그대로. 다만 **강사가 다시 말하면 사라진다**(studentLine 계산 참고) */}
               {studentLine && (
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#6366F1]">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-                    strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="font-bold shrink-0">전달됨</span>
-                  <span className="truncate text-[#94A3B8]">{studentLine}</span>
+                <div className="mt-2 rounded-xl border border-[#C7D2FE] bg-[#F5F8FF] px-3 py-2">
+                  <span className="block text-[10px] font-black tracking-wide text-[#2563EB] mb-0.5">내 답변</span>
+                  <p className="text-[12.5px] text-[#1C1B33] leading-snug">{studentLine}</p>
                 </div>
               )}
             </>
