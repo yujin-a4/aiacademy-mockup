@@ -102,6 +102,13 @@ function directiveOf(turn: Turn, gate: Gate = 4): string {
     todo ? `[학생이 할 일] ${todo}` : '',
     /* 정보 차단(stageGate)의 **보조** 규칙 — 못 주게 막는 게 1차, 말하지 말라는 게 2차 */
     `[이 단계 제한] ${GATE_RULE[gate]}`,
+    /* ⚠️ 음원은 **네가 말한 뒤** 화면이 튼다. 이 사실을 안 주면 재생 전에 "지금 들은 보기 중에"
+       라고 과거형으로 말한다(실측). 재생이 끝나면 시스템이 [진행] 신호로 알려준다. */
+    turn.audio
+      ? '[음원] 이 단계는 네 말이 끝난 뒤 화면이 음원을 재생한다. 아직 학생은 듣지 않았다. '
+        + '"들었지?" 처럼 이미 들은 것처럼 말하지 마라. 지금은 무엇을 들을지만 한 문장으로 짧게 안내하고 멈춰라. '
+        + '음원이 끝나면 시스템이 알려준다 — 그때 학생이 할 일을 시켜라.'
+      : '',
     needsAnswer(turn)
       ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라. '
         /* 실측: "사진 속 정보를 파악해야 해" 처럼 서술로 끝내서 학생이 뭘 할지 몰랐다.
@@ -676,7 +683,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           respondedRef.current.has(cur) ? '응답있음' : '응답없음')
         if (curTurn?.audio && !audioDoneRef.current.has(cur)) {
           return needsAnswer(curTurn)
-            ? '지금 이 단계의 음원을 아직 다 들려주지 않았다. 다음 단계로 넘어가지 말고, 음원이 끝나고 학생이 답할 때까지 짧게 기다려라.'
+            ? '지금 화면이 음원을 재생하는 중이다. **아무 말도 하지 말고** 조용히 기다려라. '
+              + '재생이 끝나면 시스템이 [진행] 신호로 알려준다. 이 문장을 소리 내어 옮기지 마라.'
             // 들려주고 넘어가는 턴 — 여기서 "답을 기다려라"고 하면 답할 게 없는데 멈춰 있게 된다
             : '지금 이 단계의 음원을 아직 다 들려주지 않았다. 음원이 끝날 때까지 조용히 기다렸다가 다음 단계로 넘어가라.'
         }
@@ -1127,7 +1135,15 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       if (turn.audio) {
         await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
         // 이 턴 음원을 끝까지 들려줬다 — next_step 게이트 해제 (이제 다음 단계로 넘어가도 됨)
-        if (alive) audioDoneRef.current.add(turnIdx)
+        if (alive) {
+          audioDoneRef.current.add(turnIdx)
+          /* 에이전트는 화면이 음원을 다 틀었는지 모른다 → 알려줘야 그때 시킬 수 있다.
+             이게 없으면 재생 전에 "지금 들은 보기 중에 골라"라고 하고,
+             재생이 끝난 뒤에 "아직 재생 중이니 기다려"라고 한다(실측). */
+          if (agentOnRef.current && needsAnswer(turn)) {
+            sendToAgent('[진행] 음원 재생이 끝났다. 이제 학생에게 이번 단계에서 할 일을 한 문장으로 시켜라.')
+          }
+        }
         // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
         if (alive && turn.audio.kind === 'full') setFullDone(true)
       }
@@ -1207,7 +1223,11 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       ? { from: lesson.items.find((it) => it.seq === turn.itemSeq)!.qFrom,
           to:   lesson.items.find((it) => it.seq === turn.itemSeq)!.qTo }
       : undefined,
-    focusQ: turn.focusQ,
+    /* 정답 고르기 턴은 **그 문항이 선택 가능해야** 한다.
+       focusQ 는 문항이 여러 개일 때만 실리는데(fromSteps), Part1 처럼 아이템당 문항이 1개면
+       undefined 가 되어 ContentView 의 `focusQ === qIdx` 가 거짓 → 보기를 아예 못 누른다.
+       실측: "정답 보기를 눌러봐" 라고 시키는데 클릭할 수 없었다. 상호작용이 가진 qIdx로 채운다. */
+    focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
     answers, graded, onSelect, showKo,
     matchState,

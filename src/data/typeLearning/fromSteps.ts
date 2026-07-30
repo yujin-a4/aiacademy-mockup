@@ -300,13 +300,19 @@ function readKind(raw: string | null): { kind: Kind | null; matched: string | nu
 
 /** 정/오답 판단을 시키는 2지선다 — 특정 보기 하나를 다루는 턴에서 쓴다 */
 function optionVerdictChoice(
-  content: TypeLessonContent, focusQ: number, label: string, prompt: string,
+  content: TypeLessonContent, focusQ: number, label: string, _prompt: string,
 ): Interaction | null {
   const opt = content.questions[focusQ]?.options.find((o) => o.label === label)
   if (!opt) return null
+  /* 문구는 **선택지와 짝**이라 LLM에 맡기지 않는다.
+     실측: 선택지는 "맞아요/아니에요" 인데 문구가 "사진의 동작을 올바르게 묘사한 보기를 골라봐" 로
+     나와 학생이 무엇을 고르는지 알 수 없었다. 자료 종류에 맞춰 결정론으로 만든다. */
+  const material = content.photo || content.questions[focusQ]?.photo ? '사진'
+    : (content.passages?.length ? '지문' : '내용')
   return {
     kind: 'choice',
-    prompt,
+    prompt: `방금 들은 보기 ${label}, ${material}과 맞아?`,
+    fixedPrompt: true,
     choices: opt.correct
       ? [{ text: '맞아요', correct: true }, { text: '아니에요' }]
       : [{ text: '맞아요' }, { text: '아니에요', correct: true }],

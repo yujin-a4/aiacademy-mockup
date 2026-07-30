@@ -189,7 +189,8 @@ async function fetchPromptsByItem(
 /** 상호작용에 문구 갈아끼우기 — 종류마다 문구가 들어가는 자리가 달라서 하나씩 처리 */
 function withPrompt(it: Interaction, prompt: string): Interaction {
   switch (it.kind) {
-    case 'choice':     return { ...it, prompt }
+    // 선택지와 짝인 문구(맞아요/아니에요 판정형)는 건드리지 않는다 — 어긋나면 학생이 뭘 고르는지 모른다
+    case 'choice':     return it.fixedPrompt ? it : { ...it, prompt }
     case 'pickAnswer': return { ...it, prompt }
     case 'solveAll':   return { ...it, prompt }
     case 'subjective': return { ...it, prompt }
