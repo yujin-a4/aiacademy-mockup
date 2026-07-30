@@ -1,6 +1,22 @@
 // 강사 로스터: 박혜원 · 윤다은 · 이도윤 · 서지안 · 오정자 (온보딩 InstructorSelect id와 동일).
 // ※ 윤다은/이도윤/서지안의 메시지·약점코멘트 문구는 이전 페르소나(장연지/이인호/정은순)에서
 //   이관된 placeholder다 — 각 강사의 실제 페르소나 톤으로 재작성 필요 (후속).
+/** 강사별 말투 사양 — **발화를 만드는 쪽**(api/rail-prompts)에 넘긴다.
+ *
+ *  왜 필요한가: 수업 첫 마디(`instructor_greeting`)만은 에이전트가 **그대로 낭독**한다
+ *  (지시문을 주면 메타 지시까지 읽어버려서 대시보드 프롬프트가 낭독으로 고정돼 있다).
+ *  그래서 생성 프롬프트에 말투가 없으면 첫 마디가 강사 색 없는 표준 존댓말로 나온다 —
+ *  박혜원은 반말·단호가 페르소나인데 "…해 볼까요?" 로 시작하던 원인.
+ *  ※ 대시보드 System prompt(docs/agent-system-prompt.md)의 화법과 어긋나지 않게 유지할 것. */
+export const INST_TONE: Record<string, string> = {
+  park_hyewon: '반말. 직설적이고 단호하다. 칭찬보다 사실이 먼저. "자 봐봐", "그렇지" 같은 짧은 추임새를 쓴다. 존댓말을 쓰지 않는다.',
+  yun_daeun: '존댓말. 부드럽고 다정하게, 학생을 안심시키며 말한다. 재촉하지 않는다.',
+  lee_doyun: '존댓말. 분석적이고 담백하다. 군더더기 없이 근거와 절차를 짚는다.',
+  seo_jian: '존댓말. 밝고 기운을 북돋운다. 어렵지 않다고 짚어주며 이끈다.',
+  oh_jungja: '존댓말. 느리고 편안하게, 쉬운 말로 천천히 설명한다.',
+}
+export const DEFAULT_TONE = INST_TONE.park_hyewon
+
 export const INST_NAME: Record<string, string> = {
   park_hyewon: '박혜원',
   yun_daeun: '윤다은',

@@ -106,7 +106,9 @@ export interface MatchEvidence {
 
 export type Interaction =
   | { kind: 'next'; label?: string }                                   // AI 진행
-  | { kind: 'choice'; prompt: string; choices: { text: string; correct?: boolean }[]; feedback?: string } // 선택 응답(퀵버튼)
+  /** 선택 응답(퀵버튼). `fixedPrompt` 면 문구가 선택지와 짝이라 **LLM이 갈아끼우면 안 된다**
+   *  (예: 맞아요/아니에요 2지선다에 "보기를 골라봐" 가 붙던 실측 오류) */
+  | { kind: 'choice'; prompt: string; choices: { text: string; correct?: boolean }[]; feedback?: string; fixedPrompt?: boolean }
   | { kind: 'pickAnswer'; qIdx: number; prompt?: string }              // 필수 응답 — 보기에서 정답 선택
   | { kind: 'solveAll'; prompt?: string }                              // 전체 문항 풀기(실전 턴)
   | { kind: 'subjective'; prompt: string; hint?: string }              // 주관식 — 텍스트/음성

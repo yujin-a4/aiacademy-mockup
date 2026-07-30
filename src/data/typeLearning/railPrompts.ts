@@ -16,11 +16,25 @@
  */
 import { useEffect, useState } from 'react'
 import type { DbLectureStep } from '@/data/db/lectureStepStore'
+import { DEFAULT_TONE, INST_TONE } from '@/data/instructorData'
+import { gateLevels, GATE_RULE, type Gate } from './stageGate'
 import type { Interaction, LessonItemRef, Turn, TypeLessonContent } from './types'
 
 /** LLM에 줄 "이번 문항 사실" — 여기 없는 건 지어내지 말라고 시킨다 */
-export function factsOf(content: TypeLessonContent, part: number, item?: LessonItemRef): string {
-  const lines: string[] = [`파트: Part ${part}`]
+export function factsOf(
+  content: TypeLessonContent, part: number, item: LessonItemRef | undefined, gate: Gate,
+): string {
+  const material = (item ? content.questions.slice(item.qFrom, item.qTo) : content.questions)
+    .some((q) => q.photo) || content.photo ? '사진'
+    : content.passages?.length ? '지문'
+      : content.audioScript?.length ? '음원(스크립트)' : '문장'
+  const lines: string[] = [
+    `파트: Part ${part}`,
+    /* ⚠️ 자료 종류를 안 주면 사진 문항에도 "핵심 단어를 골라봐" 같은 문구가 나온다(실측).
+       사진에는 짚을 단어가 없다. */
+    `자료 종류: ${material} — 학생에게 시킬 때 이 자료에 없는 것을 시키지 마라`
+    + (material === '사진' ? ' (사진에는 단어가 없다. "단어를 고르라"고 하지 마라)' : ''),
+  ]
   /* 아이템(레일 한 바퀴)이 주어지면 **그 바퀴의 문항·지문만** 준다.
      강의 전체를 주면 모델이 여러 문항 중 어느 것에 대한 턴인지 골라야 해서 엉뚱한 문항을 말한다. */
   const qs = item ? content.questions.slice(item.qFrom, item.qTo) : content.questions
@@ -32,12 +46,18 @@ export function factsOf(content: TypeLessonContent, part: number, item?: LessonI
     const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
     if (body) lines.push(`지문(${p.label ?? p.kind}): ${body.slice(0, 600)}`)
   }
+  /* 게이트 — 생성되는 문구가 아직 안 배운 것을 흘리지 않게 (stageGate.ts).
+     화면 배너 문구도 여기서 나오므로, 단서 단계에서 보기를 주면 "보기 중에 골라봐"가 나온다. */
   qs.forEach((q, i) => {
     lines.push(`문항 ${i + 1}: ${q.q}`)
+    if (gate === 1) return
     q.options.forEach((o) => {
-      lines.push(`  ${o.label}) ${o.text}${o.correct ? ' [정답]' : ''}${o.why ? ` — ${o.why}` : ''}`)
+      const mark = gate >= 3 && o.correct ? ' [정답]' : ''
+      const why = (gate >= 4 || (gate === 3 && o.correct)) && o.why ? ` — ${o.why}` : ''
+      lines.push(`  ${o.label}) ${o.text}${mark}${why}`)
     })
   })
+  lines.push(`[이 단계에서 쓸 수 있는 범위] ${GATE_RULE[gate]}`)
   return lines.join('\n')
 }
 
@@ -48,7 +68,7 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
   pickAnswer: '문항 보기에서 정답 고르기',
   solveAll: '모든 문항 풀기',
   subjective: '자기 말로 설명하기',
-  mark: '지문·문장에서 단어 짚기',
+  mark: '화면에 직접 표시하기 — 사진이면 그 부분에 동그라미, 지문이면 그 단어에 밑줄·탭',
   shadow: '따라 말하기',
   match: '지문에서 근거 연결하기',
 }
@@ -57,7 +77,7 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
 const NEEDS_PROMPT = new Set<Interaction['kind']>(['choice', 'pickAnswer', 'solveAll', 'subjective', 'mark', 'match'])
 
 async function fetchPrompts(
-  turns: Turn[], steps: DbLectureStep[], facts: string,
+  turns: Turn[], steps: DbLectureStep[], facts: string, tone: string,
 ): Promise<{ prompts: Record<number, string>; tutors: Record<number, string> }> {
   /* 씨앗(말투 참고)은 **턴 자신에게서** 뽑는다.
      예전에는 steps[i] 로 짝지었는데, 쉐도잉처럼 건너뛴 턴이 있으면 길이가 달라져
@@ -94,7 +114,7 @@ async function fetchPrompts(
   const res = await fetch('/api/rail-prompts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ turns: payload, facts }),
+    body: JSON.stringify({ turns: payload, facts, tone }),
   })
   if (!res.ok) return { prompts: {}, tutors: {} }
   const json = await res.json()
@@ -120,21 +140,52 @@ async function fetchPrompts(
  */
 async function fetchPromptsByItem(
   turns: Turn[], steps: DbLectureStep[], content: TypeLessonContent, part: number,
-  items: LessonItemRef[] | undefined,
+  items: LessonItemRef[] | undefined, tone: string,
 ): Promise<{ prompts: Record<number, string>; tutors: Record<number, string> }> {
+  /* 등급(stageGate)은 **레일 전체 순서**로 정해진다 — 아이템별로 자르기 전에 한 번 계산한다.
+     같은 아이템 안에서도 S1 턴과 S6 턴은 알아야 할 것이 다르므로, 아래에서 등급별로 또 나눈다. */
+  const gateByTurn = new Map<number, Gate>()
+  gateLevels(turns).forEach((g, i) => gateByTurn.set(turns[i].no, g))
+  const gateOf = (t: Turn): Gate => gateByTurn.get(t.no) ?? 1
+
   if (!items?.length) {
-    return fetchPrompts(turns, steps, factsOf(content, part))
+    /* 아이템 정보가 없으면 등급으로만 나눈다 */
+    const byGate = new Map<Gate, Turn[]>()
+    for (const t of turns) {
+      const g = gateOf(t)
+      byGate.set(g, [...(byGate.get(g) ?? []), t])
+    }
+    const entries: [Gate, Turn[]][] = []
+    byGate.forEach((ts, g) => entries.push([g, ts]))
+    const rs = await Promise.all(entries.map(([g, ts]) =>
+      fetchPrompts(ts, steps, factsOf(content, part, undefined, g), tone)
+        .catch(() => ({ prompts: {}, tutors: {} }))))
+    const prompts: Record<number, string> = {}
+    const tutors: Record<number, string> = {}
+    for (const r of rs) { Object.assign(prompts, r.prompts); Object.assign(tutors, r.tutors) }
+    return { prompts, tutors }
   }
-  const groups = items.map((it) => ({
-    item: it,
-    turns: turns.filter((t) => t.itemSeq === it.seq),
-  })).filter((g) => g.turns.length)
+
+  const groups: { item: LessonItemRef | undefined; gate: Gate; turns: Turn[] }[] = []
+  const push = (item: LessonItemRef | undefined, ts: Turn[]) => {
+    const byGate = new Map<Gate, Turn[]>()
+    for (const t of ts) {
+      const g = gateOf(t)
+      byGate.set(g, [...(byGate.get(g) ?? []), t])
+    }
+    byGate.forEach((gts, gate) => groups.push({ item, gate, turns: gts }))
+  }
+  for (const it of items) {
+    const ts = turns.filter((t) => t.itemSeq === it.seq)
+    if (ts.length) push(it, ts)
+  }
   // 아이템에 안 붙은 턴(구방식)은 한 덩어리로
   const loose = turns.filter((t) => t.itemSeq == null)
-  if (loose.length) groups.push({ item: undefined as unknown as LessonItemRef, turns: loose })
+  if (loose.length) push(undefined, loose)
 
   const results = await Promise.all(groups.map((g) =>
-    fetchPrompts(g.turns, steps, factsOf(content, part, g.item)).catch(() => ({ prompts: {}, tutors: {} })),
+    fetchPrompts(g.turns, steps, factsOf(content, part, g.item, g.gate), tone)
+      .catch(() => ({ prompts: {}, tutors: {} })),
   ))
   const prompts: Record<number, string> = {}
   const tutors: Record<number, string> = {}
@@ -148,7 +199,8 @@ async function fetchPromptsByItem(
 /** 상호작용에 문구 갈아끼우기 — 종류마다 문구가 들어가는 자리가 달라서 하나씩 처리 */
 function withPrompt(it: Interaction, prompt: string): Interaction {
   switch (it.kind) {
-    case 'choice':     return { ...it, prompt }
+    // 선택지와 짝인 문구(맞아요/아니에요 판정형)는 건드리지 않는다 — 어긋나면 학생이 뭘 고르는지 모른다
+    case 'choice':     return it.fixedPrompt ? it : { ...it, prompt }
     case 'pickAnswer': return { ...it, prompt }
     case 'solveAll':   return { ...it, prompt }
     case 'subjective': return { ...it, prompt }
@@ -172,6 +224,8 @@ export interface RailPromptState {
 export function useRailPrompts(
   turns: Turn[], steps: DbLectureStep[], content: TypeLessonContent | null, part: number, enabled: boolean,
   items?: LessonItemRef[],
+  /** 강사 — 말투를 생성 쪽에 넘긴다. 첫 마디는 에이전트가 그대로 낭독하므로 여기서 강사 색이 결정된다 */
+  instructor?: string,
 ): RailPromptState {
   const [state, setState] = useState<RailPromptState>({ turns, generated: {}, status: 'idle' })
 
@@ -179,7 +233,8 @@ export function useRailPrompts(
     let alive = true
     if (!enabled || !turns.length || !content) { setState({ turns, generated: {}, status: 'off' }); return }
     setState({ turns, generated: {}, status: 'loading' })
-    fetchPromptsByItem(turns, steps, content, part, items)
+    fetchPromptsByItem(turns, steps, content, part, items,
+      (instructor && INST_TONE[instructor]) || DEFAULT_TONE)
       .then(({ prompts, tutors }) => {
         if (!alive) return
         const merged = turns.map((t) => {
@@ -198,7 +253,8 @@ export function useRailPrompts(
     return () => { alive = false }
     // turns는 매 렌더 새 배열이라 의존성에서 뺀다 — 레일이 바뀌면 아래 키가 바뀐다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, part, turns.length, steps.map((s) => s.partCode ?? s.stepCode).join('|')])
+    // 강사가 바뀌면 말투가 달라지므로 다시 만든다
+  }, [enabled, part, instructor, turns.length, steps.map((s) => s.partCode ?? s.stepCode).join('|')])
 
   return state
 }

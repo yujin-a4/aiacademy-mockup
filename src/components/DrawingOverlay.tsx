@@ -13,6 +13,9 @@ interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: numb
 
 export function useDrawingTool() {
   const [drawMode, setDrawMode] = useState(false)
+  /** 획을 하나 그을 때마다 오르는 수 — 화면이 "필기가 멈췄다"를 알아야 자동 판정을 걸 수 있다.
+   *  (ref 로 두면 리렌더가 안 돼서 감지 못 한다) */
+  const [strokeCount, setStrokeCount] = useState(0)
   const [tool, setTool] = useState<Tool>('pen')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const strokesRef = useRef<Stroke[]>([])
@@ -89,13 +92,18 @@ export function useDrawingTool() {
   }, [tool, redraw])
 
   const endDraw = useCallback(() => {
-    if (currentRef.current) { strokesRef.current.push(currentRef.current); currentRef.current = null }
+    if (currentRef.current) {
+      strokesRef.current.push(currentRef.current)
+      currentRef.current = null
+      setStrokeCount((n) => n + 1)
+    }
     isDrawing.current = false
   }, [])
 
   const clearCanvas = useCallback(() => {
     strokesRef.current = []
     currentRef.current = null
+    setStrokeCount(0)
     redraw()
   }, [redraw])
 
@@ -108,6 +116,7 @@ export function useDrawingTool() {
     drawMode, setDrawMode, toggleDraw,
     tool, setTool,
     canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw,
+    strokeCount,
   }
 }
 

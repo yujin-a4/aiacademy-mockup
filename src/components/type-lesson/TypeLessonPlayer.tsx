@@ -19,6 +19,7 @@ import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { TutorComposer, type DockMode } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
+import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import RailInspector from '@/components/type-lesson/RailInspector'
 import { useLessonLog } from '@/data/db/learningEventStore'
@@ -28,16 +29,21 @@ import type { RailDiag } from '@/data/typeLearning/fromSteps'
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
 const RAIL_OWNER = 'lee_doyun'
 
-/** 상호작용 종류 → 학생이 이번 턴에 해야 할 일 (에이전트에게만 주는 지시) */
+/** 상호작용 종류 → **학생이 화면에서 할 구체적 행동** (에이전트에게만 주는 지시).
+ *
+ *  ⚠️ 여기가 흐리면 강사가 "…파악해야 해" 처럼 서술로 끝내고, 학생은 뭘 해야 할지 모른다.
+ *  그래서 **행동 + 도구 + 대상**을 명시한다 — 화면이 실제로 받을 수 있는 조작만 적을 것
+ *  (탭·펜 표시·보기 선택·말하기). 화면에 없는 조작을 쓰면 학생이 못 한다. */
 const INTERACTION_HINT: Record<Interaction['kind'], string> = {
   next: '',
-  choice: '제시된 보기 중에서 하나를 고르게 한다.',
-  pickAnswer: '문항의 정답을 직접 고르게 한다.',
-  solveAll: '남은 문항을 스스로 풀게 한다.',
-  subjective: '학생이 자기 말로 설명하게 한다.',
-  mark: '지문·보기에서 해당하는 단어를 직접 짚게 한다.',
-  shadow: '영어 문장을 따라 말하게 한다. 영어 문장은 음원이 들려주니 네가 읽지 마라.',
-  match: '지문에서 근거가 되는 문장을 직접 탭하게 한다.',
+  choice: '화면 아래 보기 버튼 중 하나를 **누르게** 한다. "골라서 눌러봐" 처럼 누르라고 분명히 말한다.',
+  pickAnswer: '문항의 보기(에이·비·씨·디) 중 정답을 **탭하게** 한다. "정답 보기를 눌러봐" 라고 분명히 말한다.',
+  solveAll: '화면의 모든 문항에 답을 **하나씩 골라 누르게** 한다. "세 문제 다 답을 눌러봐" 처럼 말한다.',
+  subjective: '학생이 **소리 내어 말하게** 한다. "말해봐" 로 끝내지 말고 무엇을 말할지 짚어준다.',
+  mark: '화면에 **펜으로 직접 표시하게** 한다 — 사진이면 해당 부분에 동그라미, 지문이면 그 단어에 밑줄(또는 단어를 탭). '
+    + '"어디에 무엇으로 표시하라" 를 한 문장으로 분명히 말한다. 표시하면 화면이 바로 읽어서 알려준다.',
+  shadow: '영어 문장을 **따라 말하게** 한다. 영어 문장은 음원이 들려주니 네가 읽지 마라.',
+  match: '지문에서 근거가 되는 문장을 **직접 탭하게** 한다. "근거 문장을 눌러봐" 라고 분명히 말한다.',
 }
 
 /** 학생이 할 일이 있는 턴인가 — 진행 규칙이 여기서 갈린다.
@@ -61,12 +67,25 @@ function isEmptyAnswer(text: string): boolean {
   return /^[음어아으엄흠허]$/.test(t)   // 한 글자 감탄사 ("네"·"응"·"몰라요"는 답으로 센다)
 }
 
+/** 발화 규칙 — 대시보드 System prompt 로 넣는 게 정석이지만 그건 레포 밖이라, 세션마다
+ *  귓속말(Contextual Update)로 같이 준다. 대시보드에 반영되면 여기서 빼도 된다.
+ *  이름 호격 조사: TTS 가 "와옹아"를 [와옹가]로 읽는다 → 이름만 부르게 한다. */
+const SPEECH_RULES = [
+  '[발화 규칙]',
+  '- 학생 이름은 이름만 부른다. 뒤에 "아"·"야" 같은 호격 조사를 붙이지 마라.',
+  '  ("와옹아" 처럼 부르지 말고 "와옹" 으로 부른다. 음성 합성이 조사를 붙여 엉뚱하게 읽는다)',
+  '- 이름을 아예 부르지 않아도 된다. 부를 때만 이 규칙을 지킨다.',
+  /* TTS 가 연음을 놓쳐 "맞아"를 [마야]로 읽는다(실측). 발음 사전(scripts/el-pronunciation.js)이
+     에이전트에 붙기 전까지의 회피책 — 같은 뜻의 다른 말을 쓰게 한다. */
+  '- 맞장구는 "맞아" 대신 "그렇지", "정확해", "좋아" 를 써라. ("맞아"는 음성 합성이 잘못 읽는다)',
+].join('\n')
+
 /** 진행 판단을 콘솔에 남긴다 — "왜 넘어갔지"를 눈으로 확인해야 페이싱을 맞출 수 있다.
  *  (프로토타입이라 개발 중엔 켜 둔다. 끄려면 false) */
 const PACE_LOG = true
 
 /** 턴 하나를 에이전트 지시(directive)로 — 강사는 이걸 자기 말투로 바꿔 말한다(낭독 금지). */
-function directiveOf(turn: Turn): string {
+function directiveOf(turn: Turn, gate: Gate = 4): string {
   const todo = INTERACTION_HINT[turn.interaction.kind]
   const it = turn.interaction
   /* ⚠️ 화면에 뜬 질문·선택지를 반드시 같이 준다.
@@ -82,10 +101,25 @@ function directiveOf(turn: Turn): string {
     ask ? `[학생에게 물을 질문 — 화면에 뜬 문구] ${ask}` : '',
     choices ? `[화면에 뜬 선택지] ${choices}` : '',
     ask || choices
-      ? '질문은 화면 문구와 같은 뜻으로 물어라. 화면에 없는 선택지를 새로 만들지 마라.' : '',
+      ? '질문은 화면 문구를 **그대로** 물어라. 화면에 뜬 선택지는 위에 적힌 것이 전부다 — '
+        + '거기 없는 보기(다른 알파벳)를 고르라고 하지 마라. 설명에서 다른 보기를 언급했더라도, '
+        + '고르라고 시킬 때는 화면에 있는 것만 말한다.' : '',
     todo ? `[학생이 할 일] ${todo}` : '',
+    /* 정보 차단(stageGate)의 **보조** 규칙 — 못 주게 막는 게 1차, 말하지 말라는 게 2차 */
+    `[이 단계 제한] ${GATE_RULE[gate]}`,
+    /* ⚠️ 음원은 **네가 말한 뒤** 화면이 튼다. 이 사실을 안 주면 재생 전에 "지금 들은 보기 중에"
+       라고 과거형으로 말한다(실측). 재생이 끝나면 시스템이 [진행] 신호로 알려준다. */
+    turn.audio
+      ? '[음원] 이 단계는 네 말이 끝난 뒤 화면이 음원을 재생한다. 아직 학생은 듣지 않았다. '
+        + '"들었지?" 처럼 이미 들은 것처럼 말하지 마라. 지금은 무엇을 들을지만 한 문장으로 짧게 안내하고 멈춰라. '
+        + '음원이 끝나면 시스템이 알려준다 — 그때 학생이 할 일을 시켜라.'
+      : '',
     needsAnswer(turn)
-      ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라.'
+      ? '위 내용만 네 말투로 짧게 전달하고 학생의 반응을 기다려라. 다음 단계로 혼자 넘어가지 마라. '
+        /* 실측: "사진 속 정보를 파악해야 해" 처럼 서술로 끝내서 학생이 뭘 할지 몰랐다.
+           마지막 문장은 반드시 **시키는 말**이어야 한다. */
+        + '⚠️ 마지막 문장은 반드시 [학생이 할 일]을 **시키는 말**로 끝내라 — 무엇을 어떻게 하라고 한 문장으로. '
+        + '"파악해야 해", "중요해" 처럼 설명으로 끝내지 마라.'
       // 들려주고 넘어가는 턴 — 대기를 지시하면 음원이 끝나고도 멈춰 있어 답답해진다
       : '위 내용만 네 말투로 짧게 전달하고 멈춰라. 학생에게 질문하지 말고, 다음 단계는 화면이 알아서 넘긴다.',
   ].filter(Boolean).join('\n')
@@ -116,7 +150,7 @@ function poseForTurn(turn: Turn, speaking: boolean): InstPose {
  *   강의 하나가 아이템 여러 개(사진 3장·문장 5개)로 돌기 때문에(STEP 4), 전체를 한 번에 주면
  *   에이전트가 지금 화면에 없는 문항 이야기를 한다. 아이템이 넘어갈 때마다 다시 주입한다.
  */
-function buildLessonFacts(lesson: TypeLesson, itemSeq?: number): string {
+function buildLessonFacts(lesson: TypeLesson, itemSeq: number | undefined, gate: Gate): string {
   const c = lesson.content
   const ref = itemSeq != null ? lesson.items?.find((i) => i.seq === itemSeq) : undefined
   const questions = ref ? c.questions.slice(ref.qFrom, ref.qTo) : c.questions
@@ -138,11 +172,20 @@ function buildLessonFacts(lesson: TypeLesson, itemSeq?: number): string {
     const body = p.sentences?.map((s) => s.en).join(' ') ?? ''
     if (body) lines.push(`지문(${p.label ?? p.kind}): ${body}`)
   }
+  /* ── 게이트 ──
+     보기·정답·오답 이유는 **그 단계에서 필요할 때만** 준다. 처음부터 다 주면 첫 턴부터
+     "에이 비 씨 디 중에 골라봐"가 나온다(실측). 모르면 말할 수 없다 — stageGate.ts */
   questions.forEach((q, i) => {
     lines.push(`문항 ${i + 1}: ${q.q}`)
-    q.options.forEach((o) =>
-      lines.push(`  ${o.label}) ${o.text}${o.correct ? ' ← 정답' : ''}${o.why ? `  (${o.why})` : ''}`))
+    if (gate === 1) return                       // 단서 단계 — 보기 자체를 주지 않는다
+    q.options.forEach((o) => {
+      const mark = gate >= 3 && o.correct ? ' ← 정답' : ''
+      // 오답 이유는 오답 제거 단계(4)부터. 정답 근거는 정답 공개(3)와 함께.
+      const why = (gate >= 4 || (gate === 3 && o.correct)) && o.why ? `  (${o.why})` : ''
+      lines.push(`  ${o.label}) ${o.text}${mark}${why}`)
+    })
   })
+  lines.push(`[지금 단계에서 말해도 되는 범위] ${GATE_RULE[gate]}`)
   lines.push('규칙: 학생이 오답을 고르면 정답을 바로 말하지 말고 위 근거로 왜 틀렸는지 짚고 다시 생각하게 하라. 학생이 물으면 위 사실 범위에서 답하라. 사실에 없는 건 모른다고 하라.')
   return lines.join('\n')
 }
@@ -480,9 +523,13 @@ function PlaybackBar({ label, onReplay }: { label: string; onReplay?: () => void
 /* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
    콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
    실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
-function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
+function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
+  markDone, markChecking, markVerdict, onCheckMark }: {
   turn: Turn; lesson: TypeLesson
   answers: Record<number, string>; graded: Set<number>; matchTapped: Set<string>
+  markDone?: boolean; markChecking?: boolean
+  markVerdict?: { read: string | null; ok: boolean; hint: string } | null
+  onCheckMark?: () => void
 }) {
   const it = turn.interaction
   let icon = ''
@@ -490,7 +537,14 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
   let sub = ''
   let done = false
   if (it.kind === 'mark') {
-    icon = '🖍️'; text = it.prompt; sub = '지문에서 단어를 탭하면 형광펜'
+    // 자료에 맞는 안내만 — 사진에는 탭할 단어가 없다
+    const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
+    icon = '🖍️'; text = it.prompt
+    sub = markChecking ? '표시한 것 확인 중…'
+      : markVerdict?.read ? `${markVerdict.ok ? '✓' : '✗'} ${markVerdict.read}`
+        : markDone ? '표시 완료'
+          : onPhoto ? '펜으로 사진에 동그라미 치기' : '단어를 탭하거나 펜으로 밑줄'
+    done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
     done = graded.has(it.qIdx)
     icon = '🎯'; text = it.prompt ?? '위 문항의 보기에서 정답을 선택하세요'
@@ -515,6 +569,13 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped }: {
       <span className="text-[13px] shrink-0">{icon}</span>
       <span className={`text-[12px] font-bold truncate ${done ? 'text-[#15803D]' : 'text-[#C2410C]'}`}>{text}</span>
       {sub && <span className={`ml-auto shrink-0 text-[11px] font-semibold ${done ? 'text-[#16A34A]' : 'text-[#9A3412]'}`}>{sub}</span>}
+      {/* 판정은 필기가 멈추면 자동으로 돈다 — 버튼은 결과가 나온 뒤 다시 보게 할 때만 남긴다 */}
+      {it.kind === 'mark' && onCheckMark && markVerdict && !markChecking && (
+        <button onClick={onCheckMark}
+          className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-[#FDBA74] bg-white text-[#C2410C] hover:bg-[#FFF7ED]">
+          다시 확인
+        </button>
+      )}
     </div>
   )
 }
@@ -542,6 +603,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      응답 게이트가 그냥 열린다 — 실제로 그렇게 새고 있었다. */
   const turnsRef = useRef(turns)
   turnsRef.current = turns
+  const gatesRef = useRef<Gate[]>([])
+  /** 이 턴에 들어온 시각 — 진행 속도 제한에 쓴다.
+   *  (기존 turnEnteredAtRef 는 학습 로그가 켜졌을 때만 갱신돼서 미리보기에서는 못 쓴다) */
+  const enteredAtRef = useRef<number>(Date.now())
+  /** 마지막으로 턴을 넘긴 시각 — 에이전트가 next_step 을 연달아 불러 여러 단계를 몰아 넘기는 것을 막는다 */
+  const advancedAtRef = useRef<number>(0)
   /* 음원을 끝까지 들려준 턴 번호. next_step이 "음원 있는 단계"를 다 재생하기 전에 넘어가지 못하게 막는다
      (에이전트가 여러 단계를 몰아 말하며 next_step을 연달아 부를 때 듣기 음원이 스킵되던 문제 방지). */
   const audioDoneRef = useRef<Set<number>>(new Set())
@@ -577,6 +644,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState<Set<number>>(new Set())
   const [answeredQ, setAnsweredQ] = useState<Set<number>>(new Set()) // pickAnswer로 텍스트 공개된 문항
+  /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전에도 "이건 아니다"를 화면에 남긴다 */
+  const [wrongPicks, setWrongPicks] = useState<Set<string>>(new Set())
   const [showKo, setShowKo] = useState(false)
   const [started, setStarted] = useState(false)            // 도입(LessonIntro) → 수업 진입 여부
   /* 강사 창 크기 — 사이드바(기본) ⇄ 모달창 ⇄ 작은 창. 강사 말·단계 내용·상호작용·대화가 한 흐름으로 이 창 안에 있다 */
@@ -629,7 +698,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           respondedRef.current.has(cur) ? '응답있음' : '응답없음')
         if (curTurn?.audio && !audioDoneRef.current.has(cur)) {
           return needsAnswer(curTurn)
-            ? '지금 이 단계의 음원을 아직 다 들려주지 않았다. 다음 단계로 넘어가지 말고, 음원이 끝나고 학생이 답할 때까지 짧게 기다려라.'
+            ? '지금 화면이 음원을 재생하는 중이다. **아무 말도 하지 말고** 조용히 기다려라. '
+              + '재생이 끝나면 시스템이 [진행] 신호로 알려준다. 이 문장을 소리 내어 옮기지 마라.'
             // 들려주고 넘어가는 턴 — 여기서 "답을 기다려라"고 하면 답할 게 없는데 멈춰 있게 된다
             : '지금 이 단계의 음원을 아직 다 들려주지 않았다. 음원이 끝날 때까지 조용히 기다렸다가 다음 단계로 넘어가라.'
         }
@@ -644,6 +714,22 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
             && !agentReactedRef.current.has(cur)) {
           if (PACE_LOG) console.log('[pace] 반응 먼저 — 진행 보류', cur)
           return '학생이 방금 답했다. 다음 단계로 넘어가기 전에 **그 답 내용에 먼저 반응하라** — 맞으면 근거를 한 줄 확인하고, 틀리거나 어긋나면 정답을 말하지 말고 무엇이 어긋났는지 짚어라.'
+        }
+
+        /* ── 진행 속도 가드 ──
+           실측: 학생 풀이 다음 단계들이 통째로 건너뛰어지고 갑자기 다음 문제로 갔다.
+           에이전트가 next_step 을 연달아 부르면 한 번에 여러 턴이 넘어가기 때문이다.
+           ① 방금 넘긴 직후의 재호출은 무시한다(1.2초). */
+        if (Date.now() - advancedAtRef.current < 1200) {
+          if (PACE_LOG) console.log('[pace] 연속 호출 차단', cur)
+          return '방금 다음 단계로 넘어왔다. 지금 단계를 먼저 진행하라. next_step 을 연달아 부르지 마라.'
+        }
+        /* ② "들려주고 넘어가는 턴"은 **화면이 넘긴다.** 에이전트가 먼저 부르면 발화·음원이
+           끝나기도 전에 넘어간다. 다만 화면 쪽이 어떤 이유로 멈추면 수업이 서므로,
+           5초가 지나면 에이전트 호출도 허용해 폴백으로 둔다. */
+        if (curTurn && !needsAnswer(curTurn) && Date.now() - enteredAtRef.current < 5000) {
+          if (PACE_LOG) console.log('[pace] 화면 소유 턴 — 에이전트 진행 보류', cur)
+          return '이 단계는 화면이 자동으로 넘긴다. next_step 을 부르지 말고, 할 말만 하고 멈춰라.'
         }
 
         const waiting = !!curTurn && needsAnswer(curTurn) && !respondedRef.current.has(cur)
@@ -669,6 +755,15 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           }
         }
 
+        /* 끝내 못 맞히고 넘어가는 경우 — 화면도 답을 공개해야 한다.
+           오답은 채점하지 않으므로(재시도 가능하게), 여기서 공개하지 않으면 학생은 답을 못 본 채
+           다음 단계로 간다. */
+        if (gaveUp && curTurn?.interaction.kind === 'pickAnswer') {
+          const qi = curTurn.interaction.qIdx
+          setGraded((p) => new Set(p).add(qi))
+          setAnsweredQ((p) => new Set(p).add(qi))
+        }
+
         if (cur >= live.length - 1) {
           stopVoice()
           setPhase('practice')
@@ -677,8 +772,9 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
         }
         const nextIdx = cur + 1
         setTurnIdx(nextIdx)
+        advancedAtRef.current = Date.now()
         if (PACE_LOG) console.log('[pace] 에이전트 진행', cur, '→', nextIdx, gaveUp ? '(응답 없이 포기)' : '')
-        const next = directiveOf(live[nextIdx])
+        const next = directiveOf(live[nextIdx], gatesRef.current[nextIdx] ?? 1)
         return gaveUp
           ? '학생이 끝내 답하지 않았다. 이번 단계의 답과 근거를 한 문장으로 짚어 주고(혼내지 말고), 바로 아래 단계로 넘어가라.\n' + next
           : next
@@ -758,18 +854,27 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
      아이템 순회 전에는 주입이 1회뿐이었는데, 강의 하나가 사진 3장·문장 5개로 도는 지금은
      그러면 에이전트가 2번째 바퀴에서도 1번째 사진 이야기를 한다. */
   const curItemSeq = turn.itemSeq
+  /* 공개 등급 — 단계가 오르면 그때 더 준다(stageGate). 컨텍스트는 누적돼 되돌릴 수 없으므로
+     **처음부터 다 주지 않는 것**이 통제의 핵심이다. */
+  const gates = useMemo(() => gateLevels(turns), [turns])
+  const gate: Gate = gates[turnIdx] ?? 1
+  gatesRef.current = gates          // clientTool 은 세션 시작 시점 클로저라 ref 로 읽어야 한다
   const factsSentRef = useRef<string | null>(null)
   useEffect(() => {
     if (!agentConnected) { factsSentRef.current = null; return }
-    const key = String(curItemSeq ?? 'all')
+    // 아이템이 바뀌거나 **등급이 오르면** 다시 보낸다
+    const key = `${curItemSeq ?? 'all'}:${gate}`
     if (factsSentRef.current === key) return
+    const raised = factsSentRef.current?.startsWith(`${curItemSeq ?? 'all'}:`)  // 등급만 오른 경우
     factsSentRef.current = key
     try {
       ;(conversation as unknown as { sendContextualUpdate?: (t: string) => void })
-        .sendContextualUpdate?.(buildLessonFacts(lesson, curItemSeq))
+        .sendContextualUpdate?.((raised ? '[공개 범위가 넓어졌다]\n' : SPEECH_RULES + '\n\n')
+          + buildLessonFacts(lesson, curItemSeq, gate))
+      if (PACE_LOG) console.log('[gate] 사실 전송', GATE_NAME[gate], `item=${curItemSeq ?? 'all'}`)
     } catch { /* noop */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentConnected, curItemSeq])
+  }, [agentConnected, curItemSeq, gate])
 
   /* ── 학습 로그 (STEP 6) ──
      이게 없으면 FGI를 돌려도 "어느 변종을 몇 번째 바퀴에 받았을 때 맞췄나"가 안 남아
@@ -863,6 +968,85 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
 
+  /* ── 표시(동그라미·밑줄) 판정 ──
+     사진 위 표시는 좌표로 풀 수 없다(무엇이 어디 있는지 데이터가 없다). 그래서 **화면을 그대로
+     합성해서** 판정 라우트에 보낸다: 사진 <img> 를 그리고 그 위에 필기 캔버스의 해당 영역을 얹는다.
+     실패(키 없음·못 읽음)해도 진행을 막지 않는다 — 판정은 코칭을 위한 것이지 관문이 아니다. */
+  const [markVerdict, setMarkVerdict] = useState<{ read: string | null; ok: boolean; hint: string } | null>(null)
+  const [markChecking, setMarkChecking] = useState(false)
+
+  const composeMarkedImage = (): string | null => {
+    const canvas = draw.canvasRef.current
+    const img = contentRef.current?.querySelector('img') as HTMLImageElement | null
+    if (!img || !img.complete || !img.naturalWidth) return null
+    const r = img.getBoundingClientRect()
+    const out = document.createElement('canvas')
+    out.width = Math.round(r.width)
+    out.height = Math.round(r.height)
+    const ctx = out.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0, out.width, out.height)
+    if (canvas) {
+      // 필기 캔버스는 contentRef 영역 기준이라, 사진과 겹치는 부분만 잘라 얹는다
+      const cr = canvas.getBoundingClientRect()
+      const sx = canvas.width / cr.width
+      const sy = canvas.height / cr.height
+      ctx.drawImage(canvas,
+        (r.left - cr.left) * sx, (r.top - cr.top) * sy, r.width * sx, r.height * sy,
+        0, 0, out.width, out.height)
+    }
+    return out.toDataURL('image/png')
+  }
+
+  const checkMark = async () => {
+    const it = turn.interaction
+    if (it.kind !== 'mark' || markChecking) return
+    const image = composeMarkedImage()
+    if (!image) {
+      // 사진이 없는 화면(지문 파트)은 아직 좌표 판정을 안 붙였다 — 표시만 완료로 본다
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+      return
+    }
+    setMarkChecking(true)
+    try {
+      const res = await fetch('/api/mark-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: image,
+          task: it.prompt,
+          /* 판정 기준 = 이 문항의 사실. 표시 판정은 **정답을 알아야** 맞게 짚었는지 볼 수 있으므로
+             화면 게이트와 달리 항상 전체(4)를 준다. 이 값은 학생에게 노출되지 않는다(서버 판정용). */
+          targets: buildLessonFacts(lesson, turn.itemSeq, 4),
+        }),
+      })
+      const v = await res.json()
+      const verdict = { read: (v?.read as string | null) ?? null, ok: !!v?.ok, hint: (v?.hint as string) ?? '' }
+      setMarkVerdict(verdict)
+      setMarkDone(true)
+      /* 강사에게 판정을 넘겨 반응하게 한다 — 잘못 짚었으면 정답을 말하지 않고 어디를 볼지만 짚는다 */
+      reportAction(`${turnIdx}:mark`,
+        verdict.read
+          ? actionMessage(`화면에 "${verdict.read}"를 표시했습니다`, verdict.ok,
+            verdict.ok ? undefined : verdict.hint || undefined)
+          : actionMessage('화면에 표시했지만 무엇을 표시했는지 읽지 못했습니다 — 무엇을 짚었는지 말로 물어보세요'))
+    } catch {
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+    } finally { setMarkChecking(false) }
+  }
+
+  /* 필기가 멈추면 **버튼 없이** 알아서 판정한다 — 학생이 표시하고 나서 확인 버튼을 또 눌러야
+     하면 흐름이 끊긴다. 획을 그을 때마다 타이머를 미루고, 1.2초 조용하면 그때 본다.
+     (그리는 중에 보내면 반쯤 그린 동그라미를 판정한다) */
+  useEffect(() => {
+    if (turn.interaction.kind !== 'mark' || !draw.strokeCount || markChecking) return
+    const t = setTimeout(() => { void checkMark() }, 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draw.strokeCount, turnIdx])
+
   /* ── 전체 음원 바 (LC) ── */
   const audioItems = useMemo(() => fullAudioItems(lesson), [lesson])
   const hasFullCue = useMemo(() => turns.some((t) => t.audio?.kind === 'full'), [turns])
@@ -944,9 +1128,10 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       return
     }
     setTurnIdx(nextIdx)
+    advancedAtRef.current = Date.now()
     if (PACE_LOG) console.log('[pace] 화면이 진행(들려주는 턴)', from, '→', nextIdx)
     if (!agentConnected) return
-    sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx])}`)
+    sendToAgent(`[진행] 다음 단계로 넘어갔다.\n${directiveOf(turnsRef.current[nextIdx], gatesRef.current[nextIdx] ?? 1)}`)
   }
 
   /* 턴 진입: 발화 → 음원. 로컬 상호작용 상태 리셋 (도입 전에는 재생 안 함) */
@@ -955,6 +1140,9 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     setChoicePicked(null); setSubjText(''); setSubjSent(false); setMarkDone(false); setShadowSaid(''); setMatchTapped(new Set())
     setPlayingId(null)
     setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
+    setMarkVerdict(null); setMarkChecking(false)
+    setWrongPicks(new Set())
+    enteredAtRef.current = Date.now()
     barTokenRef.current += 1   // 학생이 바로 돌리던 재생은 턴이 바뀌면 끝난다
     setBarPlaying(false)
     stopVoice()
@@ -991,7 +1179,15 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       if (turn.audio) {
         await speakEnglishSeq(cueItems(lesson, turn.audio), (id) => { if (alive) setPlayingId(id) })
         // 이 턴 음원을 끝까지 들려줬다 — next_step 게이트 해제 (이제 다음 단계로 넘어가도 됨)
-        if (alive) audioDoneRef.current.add(turnIdx)
+        if (alive) {
+          audioDoneRef.current.add(turnIdx)
+          /* 에이전트는 화면이 음원을 다 틀었는지 모른다 → 알려줘야 그때 시킬 수 있다.
+             이게 없으면 재생 전에 "지금 들은 보기 중에 골라"라고 하고,
+             재생이 끝난 뒤에 "아직 재생 중이니 기다려"라고 한다(실측). */
+          if (agentOnRef.current && needsAnswer(turn)) {
+            sendToAgent('[진행] 음원 재생이 끝났다. 이제 학생에게 이번 단계에서 할 일을 한 문장으로 시켜라.')
+          }
+        }
         // 전체 듣기(1차 청취)를 끝까지 들었으면 그때부터 음원 바 조작을 연다
         if (alive && turn.audio.kind === 'full') setFullDone(true)
       }
@@ -1028,12 +1224,20 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const onSelect = (qIdx: number, label: string) => {
     const it = turn.interaction
     if (it.kind === 'pickAnswer') {
-      setAnswers((p) => ({ ...p, [qIdx]: label }))
-      setGraded((p) => new Set(p).add(qIdx))
-      setAnsweredQ((p) => new Set(p).add(qIdx))
       const opt = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)
-      reportAction(`${turnIdx}:pick`, actionMessage(`${label}번 보기를 정답으로 선택했습니다`, opt?.correct, opt?.correct ? undefined : opt?.why))
-      logResponse(label, opt?.correct ?? null)
+      const ok = !!opt?.correct
+      setAnswers((p) => ({ ...p, [qIdx]: label }))
+      setAnsweredQ((p) => new Set(p).add(qIdx))
+      /* ⚠️ 오답이면 **채점하지 않는다.**
+         채점(graded)은 두 가지를 동시에 한다 — 보기를 잠그고, 정답을 초록으로 공개한다.
+         그래서 첫 클릭에 채점하면 강사가 "다시 골라봐" 해도 학생은 누를 수 없고,
+         이미 정답이 화면에 드러나 있다(실측). 맞혔을 때만 채점하고, 틀린 보기는 따로 표시한다. */
+      if (ok) setGraded((p) => new Set(p).add(qIdx))
+      else setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+      // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
+      reportAction(`${turnIdx}:pick:${label}`,
+        actionMessage(`${label}번 보기를 골랐습니다`, ok, ok ? undefined : opt?.why))
+      logResponse(label, ok)
     } else if (it.kind === 'solveAll') {
       setAnswers((p) => ({ ...p, [qIdx]: label }))
     }
@@ -1071,9 +1275,13 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       ? { from: lesson.items.find((it) => it.seq === turn.itemSeq)!.qFrom,
           to:   lesson.items.find((it) => it.seq === turn.itemSeq)!.qTo }
       : undefined,
-    focusQ: turn.focusQ,
+    /* 정답 고르기 턴은 **그 문항이 선택 가능해야** 한다.
+       focusQ 는 문항이 여러 개일 때만 실리는데(fromSteps), Part1 처럼 아이템당 문항이 1개면
+       undefined 가 되어 ContentView 의 `focusQ === qIdx` 가 거짓 → 보기를 아예 못 누른다.
+       실측: "정답 보기를 눌러봐" 라고 시키는데 클릭할 수 없었다. 상호작용이 가진 qIdx로 채운다. */
+    focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
-    answers, graded, onSelect, showKo,
+    answers, graded, wrongPicks, onSelect, showKo,
     matchState,
   }
 
@@ -1085,11 +1293,16 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
   const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
-  const lastAgentUser = [...chatLog].reverse().find((m) => m.role === 'user')?.text
   const tutorLine = (agentConnected && lastAgentAi) || turn.tutor
 
+  /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
+     종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
+     에이전트가 붙어 있으면 **강사가 다시 말하는 순간 사라지게** 마지막 메시지 기준으로 본다. */
   const studentLine = (() => {
-    if (agentConnected) return lastAgentUser ?? null
+    if (agentConnected) {
+      const last = chatLog[chatLog.length - 1]
+      return last?.role === 'user' ? last.text : null
+    }
     const it = turn.interaction
     if (it.kind === 'choice' && choicePicked !== null) return it.choices[choicePicked]?.text ?? null
     if (it.kind === 'subjective' && subjSent && subjText.trim()) return subjText.trim()
@@ -1152,7 +1365,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           <p className="text-[13px] text-[#6B7280] mt-1">{lesson.partName} · {lesson.typeLabel}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { audioDoneRef.current = new Set(); respondedRef.current = new Set(); reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set(); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
+          <button onClick={() => { audioDoneRef.current = new Set(); respondedRef.current = new Set(); reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set(); setWrongPicks(new Set()); setPhase('lesson'); setTurnIdx(0); setAnswers({}); setGraded(new Set()); setAnsweredQ(new Set()); setMarks(new Set()); setTutorMarks(new Set()); setPracticeScore(null) }}
             className="px-5 py-2.5 rounded-xl border border-[#C7D2FE] text-[#2563EB] text-sm font-bold hover:bg-[#EFF6FF]">다시 해보기</button>
           <button onClick={() => router.push('/lessons')} className={PRIMARY_BTN}>다른 유형 보러 가기</button>
         </div>
@@ -1216,7 +1429,10 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
               onPlay={barPlayFrom} onPause={barPause} onSeek={barPlayFrom} />
           )}
           {/* 지문/문항에서 직접 할 일 — 콘텐츠 바로 위 작은 안내 (설명 영역에서 뺀 지시) */}
-          <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped} />
+          <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped}
+            /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
+               판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
+            markDone={markDone} markChecking={markChecking} markVerdict={markVerdict} onCheckMark={checkMark} />
           {/* 파트1 수업(문항 1개)도 P6·P7과 같이 **높이를 주고 스크롤을 막는다** —
               사진과 보기가 한 화면에 있어야 하는 수업이라 스크롤이 생기면 안 된다.
               실전(문항 여러 개)은 사진이 장마다 달라 세로로 쌓이므로 스크롤을 유지한다. */}
@@ -1260,6 +1476,7 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
           speech={
             <>
               <p className="text-[13.5px] leading-relaxed text-[#475569] font-medium">{tutorLine}</p>
+              {/* 모양은 종전 그대로. 다만 **강사가 다시 말하면 사라진다**(studentLine 계산 참고) */}
               {studentLine && (
                 <div className="mt-2 rounded-xl border border-[#C7D2FE] bg-[#F5F8FF] px-3 py-2">
                   <span className="block text-[10px] font-black tracking-wide text-[#2563EB] mb-0.5">내 답변</span>
