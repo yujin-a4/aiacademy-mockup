@@ -535,10 +535,13 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   let sub = ''
   let done = false
   if (it.kind === 'mark') {
+    // 자료에 맞는 안내만 — 사진에는 탭할 단어가 없다
+    const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
     icon = '🖍️'; text = it.prompt
     sub = markChecking ? '표시한 것 확인 중…'
       : markVerdict?.read ? `${markVerdict.ok ? '✓' : '✗'} ${markVerdict.read}`
-        : markDone ? '표시 완료' : '펜·형광펜으로 동그라미·밑줄, 또는 단어를 탭'
+        : markDone ? '표시 완료'
+          : onPhoto ? '펜으로 사진에 동그라미 치기' : '단어를 탭하거나 펜으로 밑줄'
     done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
     done = graded.has(it.qIdx)

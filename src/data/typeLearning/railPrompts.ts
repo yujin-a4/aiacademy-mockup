@@ -24,7 +24,17 @@ import type { Interaction, LessonItemRef, Turn, TypeLessonContent } from './type
 export function factsOf(
   content: TypeLessonContent, part: number, item: LessonItemRef | undefined, gate: Gate,
 ): string {
-  const lines: string[] = [`파트: Part ${part}`]
+  const material = (item ? content.questions.slice(item.qFrom, item.qTo) : content.questions)
+    .some((q) => q.photo) || content.photo ? '사진'
+    : content.passages?.length ? '지문'
+      : content.audioScript?.length ? '음원(스크립트)' : '문장'
+  const lines: string[] = [
+    `파트: Part ${part}`,
+    /* ⚠️ 자료 종류를 안 주면 사진 문항에도 "핵심 단어를 골라봐" 같은 문구가 나온다(실측).
+       사진에는 짚을 단어가 없다. */
+    `자료 종류: ${material} — 학생에게 시킬 때 이 자료에 없는 것을 시키지 마라`
+    + (material === '사진' ? ' (사진에는 단어가 없다. "단어를 고르라"고 하지 마라)' : ''),
+  ]
   /* 아이템(레일 한 바퀴)이 주어지면 **그 바퀴의 문항·지문만** 준다.
      강의 전체를 주면 모델이 여러 문항 중 어느 것에 대한 턴인지 골라야 해서 엉뚱한 문항을 말한다. */
   const qs = item ? content.questions.slice(item.qFrom, item.qTo) : content.questions
@@ -58,7 +68,7 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
   pickAnswer: '문항 보기에서 정답 고르기',
   solveAll: '모든 문항 풀기',
   subjective: '자기 말로 설명하기',
-  mark: '지문·문장에서 단어 짚기',
+  mark: '화면에 직접 표시하기 — 사진이면 그 부분에 동그라미, 지문이면 그 단어에 밑줄·탭',
   shadow: '따라 말하기',
   match: '지문에서 근거 연결하기',
 }
