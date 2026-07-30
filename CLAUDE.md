@@ -44,6 +44,7 @@ bad data/types. **Run it after any non-trivial data or type change** before cons
 | Lesson/quiz **content** (scripts, branches, choices) | `src/data/*Scenario.ts`, `src/data/tutorContent.ts`, `vocaData.ts`, `rcData.ts` |
 | The **engine** that plays scenarios | `src/components/lesson/LessonRouter.tsx`, `src/components/part7/*Screen.tsx` |
 | Live AI voice tutor design | **`docs/tutor-engine.md`** (read first), `src/app/api/tutor/route.ts` |
+| **강사가 화면과 어긋난 말을 함** (LLM 통제·단계 게이트·페이싱) | **`docs/tutor-control-plan.md`** (진행 중 — 이어가기 지점 §5), `src/data/typeLearning/stageGate.ts` |
 | Audio/video playback | `src/lib/tts.ts` (global singleton) |
 | STT answer → branch matching | `src/lib/matchBranch.ts` |
 | Server API stubs (keys off client) | `src/app/api/{tutor,tts,gemini,vision,advice}/route.ts` |
