@@ -224,21 +224,27 @@ const ACTION_TO_CODE: Record<string, string> = {
 }
 const STEP_SET = new Set(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', '학생 풀이'])
 
+/* 인증은 **서비스 계정**을 쓴다 (누가 눌러도 되는 버튼이라 개인 계정 토큰이면 안 된다).
+   개인 OAuth 리프레시 토큰을 쓰던 시절엔 동의화면이 '테스트' 상태라 7일마다 죽어서,
+   어제 되던 버튼이 오늘 invalid_grant 로 실패했다. 서비스 계정은 만료가 없다.
+   시트(1EwFDx…)는 아래 계정에 이미 공유돼 있어야 한다:
+     vertex-tutor-test@aiacademy-496323.iam.gserviceaccount.com
+   배포 = env GOOGLE_SHEETS_SA_KEY (키 JSON 통째로) · 로컬 = gcp-vertex-key.json */
+const SHEETS_SCOPE = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
 function sheetsClient() {
-  // 배포에서는 env, 로컬에서는 scripts/token_sheets_rw.json (gitignore 됨)
-  let cid = process.env.GOOGLE_SHEETS_CLIENT_ID
-  let secret = process.env.GOOGLE_SHEETS_CLIENT_SECRET
-  let refresh = process.env.GOOGLE_SHEETS_REFRESH_TOKEN
-  if (!refresh) {
-    try {
-      const t = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts', 'token_sheets_rw.json'), 'utf8'))
-      cid = t.client_id; secret = t.client_secret; refresh = t.refresh_token
-    } catch { /* 아래에서 에러 */ }
+  const raw = process.env.GOOGLE_SHEETS_SA_KEY
+  if (raw) {
+    return google.sheets({
+      version: 'v4',
+      auth: new google.auth.GoogleAuth({ credentials: JSON.parse(raw), scopes: SHEETS_SCOPE }),
+    })
   }
-  if (!refresh) throw new Error('구글 시트 인증 정보 없음 (env 또는 scripts/token_sheets_rw.json)')
-  const auth = new google.auth.OAuth2(cid, secret)
-  auth.setCredentials({ refresh_token: refresh })
-  return google.sheets({ version: 'v4', auth })
+  const keyFile = path.join(process.cwd(), 'gcp-vertex-key.json')
+  if (fs.existsSync(keyFile)) {
+    return google.sheets({ version: 'v4', auth: new google.auth.GoogleAuth({ keyFile, scopes: SHEETS_SCOPE }) })
+  }
+  throw new Error('구글 시트 인증 정보 없음 (env GOOGLE_SHEETS_SA_KEY 또는 gcp-vertex-key.json)')
 }
 
 async function syncFromSheet(c: Client) {
