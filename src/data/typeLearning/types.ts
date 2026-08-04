@@ -113,8 +113,9 @@ export type Interaction =
   | { kind: 'solveAll'; prompt?: string }                              // 전체 문항 풀기(실전 턴)
   | { kind: 'subjective'; prompt: string; hint?: string }              // 주관식 — 텍스트/음성
   | { kind: 'mark'; prompt: string; targetWords?: string[] }           // 필수 수행 — 단어 탭 하이라이트(+필기)
-  | { kind: 'shadow'; chunks: string[]; audioIds?: string[] }          // 쉐도잉
   | { kind: 'match'; prompt: string; evidence: MatchEvidence[] }       // 근거 연결(이중·삼중) — 지문에서 직접 탭
+  /* 쉐도잉(따라 말하기)은 제품에서 제외됐다(2026-08-04) — 기능·버튼·데이터 전부 삭제.
+     시트 레일에는 쉐도잉 단계가 남아 있어 fromSteps 가 그 턴을 버린다. */
 
 export interface Turn {
   no: number
@@ -125,7 +126,7 @@ export interface Turn {
   /** 이 턴이 쓰는 변종(step_variants.id). 학습 로그가 "무엇을 시켰나"를 이걸로 남긴다.
    *  코드 생성 레일이거나 변종이 안 붙은 LC 레일이면 없다 */
   variantId?: number | null
-  /** 레일에서 몇 번째 단계였나. 쉐도잉처럼 건너뛴 턴이 있어 `no`(화면 순번)와 다를 수 있다 */
+  /** 레일에서 몇 번째 단계였나. 버려진 턴(쉐도잉 등)이 있어 `no`(화면 순번)와 다를 수 있다 */
   stepOrder?: number
   /** 이 턴의 레일 출처 — type_rails / lecture_steps */
   railSource?: string | null
