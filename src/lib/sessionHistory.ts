@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'ybm_session_history'
 
-export type PartKey = 'part5' | 'part6' | 'part7' | 'speaking'
+/* 파트 1~4는 유형학습(커리큘럼 강의) 화면이 쓴다 — 예전엔 RC 3파트만 있었다 */
+export type PartKey = 'part1' | 'part2' | 'part3' | 'part4' | 'part5' | 'part6' | 'part7' | 'speaking'
 
 export interface SessionRecord {
   date: string  // ISO

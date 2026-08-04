@@ -57,14 +57,14 @@ export default function StepBadge({ badge, badgeIndex, totalBadges, onNext }: Pr
         />
       ))}
 
-      {/* 배지 카운터 */}
+      {/* 몇 번째 피드백인지 — MVP에서는 '배지'가 아니라 완료 화면 피드백이다(수집·보관 개념 없음) */}
       {totalBadges > 1 && (
         <p className="text-slate-400 text-xs animate-fade-in-up">
-          배지 {badgeIndex} / {totalBadges}
+          {badgeIndex} / {totalBadges}
         </p>
       )}
 
-      {/* 배지 아이콘 */}
+      {/* 아이콘 */}
       <div
         className="w-28 h-28 rounded-full bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center animate-pop-badge shadow-md shadow-indigo-100"
         style={{ animationDelay: '0.1s' }}
@@ -72,9 +72,8 @@ export default function StepBadge({ badge, badgeIndex, totalBadges, onNext }: Pr
         <span className="text-6xl leading-none">{badge.icon}</span>
       </div>
 
-      {/* 배지 텍스트 */}
+      {/* 성취 문구 */}
       <div className="text-center animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
-        <p className="text-indigo-400 text-xs font-semibold mb-1 tracking-wider uppercase">배지 획득</p>
         <h2 className="text-2xl font-black text-slate-900 mb-2">{badge.label}</h2>
         <p className="text-slate-500 text-sm">{badge.description}</p>
       </div>

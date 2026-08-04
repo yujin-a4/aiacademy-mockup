@@ -200,7 +200,7 @@ function buildPart1(local: TypeLesson, rows: UiDbQuestion[], q: UiDbQuestion): T
 }
 
 /* ═══════════ Part 2·3·4 · LC 듣기 ═══════════
-   FGI에서 LC도 시연한다(2026-07-28 기획 결정, D7). 쉐도잉은 범위 밖이다(D10 → fromSteps.SKIP_SHADOW).
+   FGI에서 LC도 시연한다(2026-07-28 기획 결정, D7). 쉐도잉은 제품에서 빠졌다(fromSteps 가 그 턴을 버린다).
 
    LC는 RC와 콘텐츠 모양이 다르다. 지문을 눈으로 읽는 게 아니라 **음원 스크립트**를 듣는다.
      · 화면은 `content.audioScript`(문장 단위 = 구간 재생 단위)를 본다. `passages`가 아니다

@@ -1,7 +1,6 @@
 'use client'
 
-/* ── 마이크 버튼 (Web Speech STT — 주관식 ko / 쉐도잉 en) ──
-   플레이어(하단 독)와 본문(선택지·문장별 쉐도잉) 양쪽에서 쓰므로 별도 파일로 둔다. */
+/* ── 마이크 버튼 (Web Speech STT — 주관식 ko / 정리 단계 en) ── */
 
 import { useEffect, useRef, useState } from 'react'
 

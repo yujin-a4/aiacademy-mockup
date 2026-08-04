@@ -69,7 +69,6 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
   solveAll: '모든 문항 풀기',
   subjective: '자기 말로 설명하기',
   mark: '화면에 직접 표시하기 — 사진이면 그 부분에 동그라미, 지문이면 그 단어에 밑줄·탭',
-  shadow: '따라 말하기',
   match: '지문에서 근거 연결하기',
 }
 
