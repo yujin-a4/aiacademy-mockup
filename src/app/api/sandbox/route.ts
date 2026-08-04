@@ -216,10 +216,11 @@ export async function GET(req: NextRequest) {
 const SPREADSHEET_ID = '1EwFDxXrGJHt5qTa7vUWs4hYUN6mMoBe7wtV6tkmkIl8'
 const INPUT_TAB = '스캐폴딩 입력'
 
-/** 학생행동(한국어 라벨) → interactions.code. 화면이 그릴 수 있는 8종만 존재한다 */
+/** 학생행동(한국어 라벨) → interactions.code. 화면이 그릴 수 있는 것만 존재한다.
+ *  '따라 말하기'(쉐도잉)는 제품에서 빠져서 목록에 없다 — 시트에 그렇게 적으면 미매칭으로 걸린다. */
 const ACTION_TO_CODE: Record<string, string> = {
   '필기로 짚기': 'mark', '보기 고르기': 'choice', '정답 고르기': 'pick_answer',
-  '전체 풀기': 'solve_all', '말로 설명': 'subjective', '따라 말하기': 'shadow',
+  '전체 풀기': 'solve_all', '말로 설명': 'subjective',
   '근거 연결': 'match', 'AI 진행': 'next', '': 'next',
 }
 const STEP_SET = new Set(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', '학생 풀이'])

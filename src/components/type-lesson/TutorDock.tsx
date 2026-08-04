@@ -33,8 +33,42 @@ const MinimizeIcon = () => (   // 작은 창으로 최소화
   </svg>
 )
 
-/** 배치 전환 컨트롤 — 우측 패널(안1) / 하단 도크(안3) / 최소화 */
-function LayoutSwitch({ mode, setMode }: { mode: DockMode; setMode: (m: DockMode) => void }) {
+/* ── 대화 모드 토글 (음성 ⇄ 텍스트) ──
+   강사 창 헤더에 산다. 예전엔 입력창(Composer) 위에 있었는데, 그 자리는 모드가 바뀌면
+   통째로 갈아치워지는 영역이라 토글이 같이 흔들렸다 — 고정된 헤더로 올렸다. */
+export function ChatModeSwitch({ chatMode, setChatMode, compact }: {
+  chatMode: 'text' | 'voice'; setChatMode: (m: 'text' | 'voice') => void; compact?: boolean
+}) {
+  const item = (m: 'voice' | 'text', label: string, icon: ReactNode) => (
+    <button onClick={() => setChatMode(m)} aria-label={`${label} 모드`} title={`${label} 모드`}
+      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-colors ${
+        chatMode === m ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#64748B] hover:text-[#334155]'
+      }`}>
+      {icon}
+      {/* 좁은 칸(하단 도크 중앙 칼럼)에선 아이콘만 — 글자까지 넣으면 단계명을 밀어낸다 */}
+      <span className={compact ? 'hidden xl:inline' : ''}>{label}</span>
+    </button>
+  )
+  return (
+    <div className="shrink-0 inline-flex items-center bg-[#F1F5F9] rounded-full p-0.5">
+      {item('voice', '음성', (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
+        </svg>
+      ))}
+      {item('text', '텍스트', (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+          <rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+        </svg>
+      ))}
+    </div>
+  )
+}
+
+/** 배치 전환 컨트롤 — 우측 패널(안1) / 하단 도크(안3) / 최소화.
+ *  강사 창 헤더가 아니라 **화면 상단 도구줄**(해석·필기 옆)에 놓는다 — 화면 전체 배치 설정이지
+ *  강사 창의 내용이 아니고, 최소화 상태에선 헤더 자체가 없어서 창 안에 두면 접근이 끊긴다. */
+export function LayoutSwitch({ mode, setMode }: { mode: DockMode; setMode: (m: DockMode) => void }) {
   const item = (m: DockMode, label: string, icon: ReactNode) => (
     <button key={m} onClick={() => setMode(m)} aria-label={label} title={label}
       className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
@@ -50,21 +84,44 @@ function LayoutSwitch({ mode, setMode }: { mode: DockMode; setMode: (m: DockMode
   )
 }
 
-/** 헤더 — 단계 표시(STEP x/y · 단계명)·자동전환 + 배치 전환 버튼 (우측 패널/하단 도크 공통).
+/* 단계 표시 'STEP n/총 · 단계명'. 누르면 위쪽 스캐폴딩 레일 바가 열린다 —
+   레일은 평소 숨겨두고(학생에게 필요한 건 지금 단계 하나뿐), 필요할 때 여기서 펼친다. */
+function StepLabel({ step, onToggleRail, railOpen }: {
+  step: { idx: number; total: number; label: string }
+  onToggleRail?: () => void; railOpen?: boolean
+}) {
+  const inner = (
+    <>
+      <span className="shrink-0 text-[12px] font-black text-[#2563EB]">STEP {step.idx}/{step.total}</span>
+      {step.label && <span className="text-[12.5px] font-bold text-[#475569] truncate">· {step.label}</span>}
+      {onToggleRail && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          className={`shrink-0 w-3 h-3 text-[#94A3B8] transition-transform ${railOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+      )}
+    </>
+  )
+  if (!onToggleRail) return <div className="flex items-center gap-1.5 min-w-0">{inner}</div>
+  return (
+    <button onClick={onToggleRail} aria-expanded={!!railOpen} title="스캐폴딩 단계 전체 보기"
+      className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 -mx-1.5 py-0.5 hover:bg-[#EFF6FF] transition-colors">
+      {inner}
+    </button>
+  )
+}
+
+/** 헤더 — 단계 표시(STEP x/y · 단계명) + 대화 모드 토글 (우측 패널/하단 도크 공통).
  *  step이 주어지면 시안처럼 단계 표시형(사진이 아래 크게 서므로 얼굴/이름은 생략),
  *  없으면 기존 강사 얼굴·이름 표시형으로 폴백한다. */
-function DockHeader({ mode, setMode, name, imgSrc, connected, isSpeaking, step }: {
-  mode: DockMode; setMode: (m: DockMode) => void
+function DockHeader({ name, imgSrc, connected, isSpeaking, step, chatMode, setChatMode, onToggleRail, railOpen }: {
   name: string; imgSrc: string; connected: boolean; isSpeaking: boolean
   step?: { idx: number; total: number; label: string }
+  chatMode: 'text' | 'voice'; setChatMode: (m: 'text' | 'voice') => void
+  onToggleRail?: () => void; railOpen?: boolean
 }) {
   return (
     <div className="flex items-center justify-between gap-2 px-3 md:px-4 py-2.5 border-b border-gray-100 shrink-0 select-none">
       {step ? (
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="shrink-0 text-[12px] font-black text-[#2563EB]">STEP {step.idx}/{step.total}</span>
-          {step.label && <span className="text-[12.5px] font-bold text-[#475569] truncate">· {step.label}</span>}
-        </div>
+        <StepLabel step={step} onToggleRail={onToggleRail} railOpen={railOpen} />
       ) : (
         <div className="flex items-center gap-2 min-w-0">
           <span className={`relative shrink-0 block w-8 h-8 rounded-full overflow-hidden border-2 transition-all ${
@@ -77,14 +134,10 @@ function DockHeader({ mode, setMode, name, imgSrc, connected, isSpeaking, step }
           <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
         </div>
       )}
-      <div className="flex items-center gap-1 shrink-0">
-        {step && (
-          <span className="hidden sm:flex items-center gap-1 text-[10px] font-semibold text-[#94A3B8] mr-1 whitespace-nowrap">
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
-            자동 전환
-          </span>
-        )}
-        <LayoutSwitch mode={mode} setMode={setMode} />
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* 연결 점만 남긴다 — '자동 전환' 글자는 모드 토글에 자리를 내줬다(상태는 점으로 충분) */}
+        {step && <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} title={connected ? '연결됨 · 자동 전환' : '연결 안 됨'} />}
+        <ChatModeSwitch chatMode={chatMode} setChatMode={setChatMode} />
       </div>
     </div>
   )
@@ -136,11 +189,12 @@ function MicWave({ active, speaking, getFreq }: {
 
 /** 대화 하단 입력 — 강사 에이전트(일레븐랩스) 연결/텍스트/음성. 대화 흐름 아래에 붙는다. */
 export function TutorComposer({
-  connected, connecting, isSpeaking, chatMode, setChatMode,
+  connected, connecting, isSpeaking, chatMode,
   inputText, setInputText, onSend, onStartAgent, onEndSession, getFreq, topFlush,
 }: {
   connected: boolean; connecting: boolean; isSpeaking: boolean
-  chatMode: 'text' | 'voice'; setChatMode: (m: 'text' | 'voice') => void
+  /** 음성/텍스트 전환 버튼은 여기 없다 — 강사 창 헤더(ChatModeSwitch)로 올라갔다 */
+  chatMode: 'text' | 'voice'
   inputText: string; setInputText: (s: string) => void
   onSend: () => void; onStartAgent: () => void; onEndSession: () => void
   /** 마이크 입력 스펙트럼 — 파형용 (에이전트 연결 시에만 값이 나온다) */
@@ -150,30 +204,12 @@ export function TutorComposer({
 }) {
   return (
     <div className={`shrink-0 px-3 md:px-4 pt-2.5 pb-3 space-y-2.5 ${topFlush ? '' : 'border-t border-gray-100'}`}>
-      {/* 캡션(좌) + 작은 모드 토글(우) — 음성 ⇄ 텍스트 (탭 아닌 콤팩트 세그먼트) */}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-bold text-[#2563EB] truncate min-w-0">
-          {chatMode === 'voice'
-            ? (!connected ? '마이크를 켜고 답해보세요' : isSpeaking ? '강사가 말하는 중…' : '말로 답변해보세요')
-            : '텍스트로 답변해보세요'}
-        </p>
-        <div className="shrink-0 inline-flex items-center bg-[#F1F5F9] rounded-full p-0.5">
-          <button onClick={() => setChatMode('voice')} aria-label="음성 모드"
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-colors ${chatMode === 'voice' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#64748B] hover:text-[#334155]'}`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
-            </svg>
-            음성
-          </button>
-          <button onClick={() => setChatMode('text')} aria-label="텍스트 모드"
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-colors ${chatMode === 'text' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#64748B] hover:text-[#334155]'}`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-              <rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
-            </svg>
-            텍스트
-          </button>
-        </div>
-      </div>
+      {/* 캡션 — 지금 뭘 하면 되는지 한 줄 (모드 토글은 헤더로 올라갔다) */}
+      <p className="text-[12px] font-bold text-[#2563EB] truncate">
+        {chatMode === 'voice'
+          ? (!connected ? '마이크를 켜고 답해보세요' : isSpeaking ? '강사가 말하는 중…' : '말로 답변해보세요')
+          : '텍스트로 답변해보세요'}
+      </p>
 
       {chatMode === 'voice' ? (
         <>
@@ -316,8 +352,13 @@ export interface TutorDockProps {
   poseSrc?: string | null
   /** 헤더에 표시할 스캐폴딩 단계 (STEP idx/total · label). 시안 헤더와 동일. */
   step?: { idx: number; total: number; label: string }
+  /** STEP 글자를 누르면 위쪽 스캐폴딩 레일 바를 열고 닫는다 (레일은 기본 숨김) */
+  onToggleRail?: () => void
+  railOpen?: boolean
   /** 학생 입력 모드 — 음성 모드면 강사 대본을 숨기고 원형 아바타+파동만 보여준다 */
   chatMode: 'voice' | 'text'
+  /** 헤더의 음성/텍스트 토글용 */
+  setChatMode: (m: 'voice' | 'text') => void
   /** 강사(에이전트) 출력 음량 스펙트럼 — 음성 모드 파동 링용 */
   getTutorFreq?: () => Uint8Array | undefined
   connected: boolean
@@ -338,7 +379,8 @@ export interface TutorDockProps {
 }
 
 export default function TutorDock({
-  mode, setMode, name, imgSrc, poseSrc, step, chatMode, getTutorFreq, connected, isSpeaking, lastLine,
+  mode, setMode, name, imgSrc, poseSrc, step, onToggleRail, railOpen,
+  chatMode, setChatMode, getTutorFreq, connected, isSpeaking, lastLine,
   speech, body, playback, composer, bodyRef,
 }: TutorDockProps) {
   const voiceMode = chatMode === 'voice'
@@ -417,11 +459,10 @@ export default function TutorDock({
           {/* 중앙: 단계 → (텍스트 모드는 강사 대본) → 설명/선택지 */}
           <div className="flex-1 min-w-0 flex flex-col border-r border-gray-100">
             <div className="flex items-center justify-between gap-2 px-3 md:px-4 pt-2.5 pb-1.5 border-b border-gray-100 shrink-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="shrink-0 text-[12px] font-black text-[#2563EB]">STEP {step?.idx}/{step?.total}</span>
-                {step?.label && <span className="text-[12px] font-bold text-[#475569] truncate">· {step.label}</span>}
-              </div>
-              <LayoutSwitch mode={mode} setMode={setMode} />
+              {step
+                ? <StepLabel step={step} onToggleRail={onToggleRail} railOpen={railOpen} />
+                : <span className="min-w-0" />}
+              <ChatModeSwitch chatMode={chatMode} setChatMode={setChatMode} compact />
             </div>
             <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 py-2.5 space-y-2.5">
               {/* 강사 대본 (텍스트 모드만) */}
@@ -443,7 +484,8 @@ export default function TutorDock({
   /* ── 우측 패널(안1·기본) — 화면 오른쪽 기둥. 폭은 부모의 리사이즈 핸들이 남긴 공간을 채운다 ── */
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <DockHeader mode={mode} setMode={setMode} name={name} imgSrc={imgSrc} step={step} connected={connected} isSpeaking={isSpeaking} />
+      <DockHeader name={name} imgSrc={imgSrc} step={step} connected={connected} isSpeaking={isSpeaking}
+        chatMode={chatMode} setChatMode={setChatMode} onToggleRail={onToggleRail} railOpen={railOpen} />
       {verticalBody}
     </div>
   )

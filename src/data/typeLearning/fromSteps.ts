@@ -27,12 +27,10 @@ import type {
   AudioCue, Interaction, RevealState, Turn, TypeLessonContent,
 } from './types'
 
-/* ── FGI 범위 ──
-   2026-07-28 기획 결정: **FGI에서 LC(Part 2·3·4)는 시연하되, 쉐도잉은 하지 않는다.**
-   시트 레일에는 쉐도잉 턴이 남아 있으므로(lecture_steps 48행, 대부분 Part2) 화면에서 건너뛴다.
-   레일 데이터를 지우지 않는 이유: 정본은 시트고, 결정이 뒤집히면 이 상수만 되돌리면 된다.
-   계획서 §10 D10("쉐도잉을 어느 단계로 볼까")도 이 결정으로 해소됐다 — 안 쓰니 정할 필요가 없다. */
-export const SKIP_SHADOW = true
+/* ── 쉐도잉 제외 ──
+   2026-07-28 FGI 범위에서 빠졌고, 2026-08-04 제품에서 아예 삭제됐다(기능·버튼·타입 전부).
+   시트 레일에는 쉐도잉 단계가 남아 있으므로(lecture_steps 48행, 대부분 Part2) 여기서 버린다.
+   레일 데이터를 지우지 않는 이유: 정본은 시트고, 여기서 거르는 편이 되돌리기 쉽다. */
 
 /* ── 검토 결과 ── */
 
@@ -277,15 +275,17 @@ function readReveal(
 
 /* ── 상호작용 (interaction → Interaction) ── */
 
-/** 시트 표현 → 화면 상호작용 8종. '또는'으로 여러 개면 앞엣것을 쓴다. */
+/** 시트 표현 → 화면 상호작용. '또는'으로 여러 개면 앞엣것을 쓴다.
+ *  'drop' = 화면에 없는 단계라 턴째로 버린다(쉐도잉). */
 type Kind = Interaction['kind']
+type ReadKind = Kind | 'drop'
 
-function readKind(raw: string | null): { kind: Kind | null; matched: string | null } {
+function readKind(raw: string | null): { kind: ReadKind | null; matched: string | null } {
   if (!raw) return { kind: null, matched: null }
   const primary = raw.split(/\s*또는\s*/)[0]
-  const table: [RegExp, Kind, string][] = [
+  const table: [RegExp, ReadKind, string][] = [
     [/매칭|근거 연결/, 'match', '매칭'],
-    [/쉐도잉/, 'shadow', '쉐도잉'],
+    [/쉐도잉/, 'drop', '쉐도잉'],
     [/필기\s*인식/, 'mark', '필기 인식'],
     [/주관식/, 'subjective', '주관식'],
     [/선택\s*응답|선택지 표시/, 'choice', '선택 응답'],
@@ -346,17 +346,6 @@ function wrongPickChoice(
   }
 }
 
-/** 쉐도잉 재료 — 이 턴이 다루는 보기, 없으면 정답 문장 */
-function shadowChunks(content: TypeLessonContent, focusQ: number, label: string | null): string[] {
-  const opts = content.questions[focusQ]?.options ?? []
-  const src = (label ? opts.find((o) => o.label === label) : undefined) ?? opts.find((o) => o.correct)
-  const text = src?.text ?? content.passages?.[0]?.sentences?.[0]?.en
-  if (!text) return []
-  // 의미 단위로 대충 끊기 — 쉼표/전치사 앞
-  return text.split(/,\s*|\s+(?=(?:in|on|at|to|for|with|by|from|that|which)\b)/i)
-    .map((c) => c.trim()).filter(Boolean)
-}
-
 /** 생성 전·실패 시 자리를 지키는 중립 안내. 문항 내용을 **아무것도 주장하지 않는다.**
  *  밋밋한 건 괜찮다. 틀린 말을 하는 것보다 낫다. */
 function neutralLine(stepCode: string): string {
@@ -394,7 +383,7 @@ function buildTurn(
 
   /* 버릴 턴은 먼저 걸러낸다 — 음원·스크립트를 해석하면 **버릴 턴에 대한 경고**가 쌓인다.
      (Part3 쉐도잉 턴의 "Qn 근거 구간을 다시 재생한다"가 그랬다. 안 쓸 턴인데 검토 패널만 시끄러워진다) */
-  if (kind === 'shadow' && SKIP_SHADOW) {
+  if (kind === 'drop') {
     return {
       turn: null,
       diag: {
@@ -405,7 +394,7 @@ function buildTurn(
           studentPrompt: step.studentPrompt, section: step.section, dbFields: step.dbFields,
           fixedRule: step.fixedRule,
         },
-        read: [{ label: '상호작용', value: '쉐도잉 → FGI 범위 밖이라 이 턴은 건너뜁니다' }],
+        read: [{ label: '상호작용', value: '쉐도잉 → 제품에서 제외된 단계라 이 턴은 건너뜁니다' }],
         warnings: [],
       },
     }
@@ -415,7 +404,7 @@ function buildTurn(
   const { reveal, note: revealNote } = readReveal(step, content, focusQ, warn)
 
   if (!kind && rawInteraction) {
-    warn(`상호작용을 못 알아들었어요: "${rawInteraction}" — 쓸 수 있는 표현: AI 진행 / 선택 응답 / 필수 응답 / 주관식 응답 / 필수 수행 (필기 인식·쉐도잉·매칭)`)
+    warn(`상호작용을 못 알아들었어요: "${rawInteraction}" — 쓸 수 있는 표현: AI 진행 / 선택 응답 / 필수 응답 / 주관식 응답 / 필수 수행 (필기 인식·매칭)`)
   }
 
   const nextLabel = isLast ? (hasPractice ? '실전 문제 풀기' : '수업 마치기') : undefined
@@ -481,19 +470,6 @@ function buildTurn(
       interaction = { kind: 'mark', prompt: prompt ?? '핵심 단서를 표시해 보세요' }
       interactionNote = `${matched} → 지문에서 단어 탭(형광펜)`
       break
-
-    case 'shadow': {
-      // SKIP_SHADOW 인 경우는 위에서 이미 걸러졌다 — 여기는 쉐도잉을 다시 켰을 때의 경로
-      const chunks = shadowChunks(content, focusQ, optLabel)
-      if (chunks.length) {
-        interaction = { kind: 'shadow', chunks }
-        interactionNote = `쉐도잉 → ${chunks.length}개 구간`
-      } else {
-        warn('"쉐도잉"인데 따라 읽을 문장을 문항에서 찾지 못했어요 — 다음 버튼으로 넘깁니다.')
-        interactionNote = '쉐도잉 → 재료 없음, 다음 버튼'
-      }
-      break
-    }
 
     case 'match':
       // 어느 지문의 어느 문장을 연결해야 하는지가 레일에 없다 → 표시(mark)로 낮춘다
