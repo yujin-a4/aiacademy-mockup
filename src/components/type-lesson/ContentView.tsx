@@ -19,6 +19,13 @@ export interface ContentState {
   onTapWord: (word: string) => void
   /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
   onPlaySentence?: (id: string, text: string) => void
+  /** 학생이 음원을 직접 트는 화면인가 (실전). 수업은 **강사가 틀어준다** —
+   *  수업에서는 '음원 듣기' 버튼을 두지 않고, 지금 나가는 자리(보기·문항 옆)만 파랗게 켜서 알린다. */
+  selfAudio?: boolean
+  /** 이 음원을 더 들을 수 있는 횟수 (실전은 2회 제한). undefined면 무제한 */
+  playsLeft?: (id: string) => number
+  /** 실제 시험지처럼 **보기 없이 (A)(B)(C)(D) 마킹만** 하는 답안지 모드 (LC 실전, 채점 전) */
+  answerSheet?: boolean
   /** 지금 도는 아이템의 문항 범위 [from, to). 아이템 순회 수업(STEP 4)에서만 온다.
    *  강의 하나가 사진 3장·문장 5개로 돌면 문항이 전부 세로로 쌓여 한눈에 안 들어온다 —
    *  지금 바퀴의 문항만 보여주고, 나머지는 단계가 넘어가면 나온다.
@@ -126,6 +133,8 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const selectable = !graded && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
   const revealed = st.revealedOptions[qIdx]
   const correctLabel = q.options.find((o) => o.correct)?.label
+  /* 지금 나가는 음원이 "전체 지문/스크립트"인가 — 보기(opt:)·문항 묶음(qaudio:)은 그 자리에서 켜지므로 뺀다 */
+  const scriptPlaying = !!st.playingId && !st.playingId.startsWith('opt:') && !st.playingId.startsWith('qaudio:')
   // 파트1·2는 실제 시험에서 문제 지문이 없음(사진/음성) → 문제 헤더 숨기고 보기만
   const hideQ = lesson.part === 1 || lesson.part === 2
 
@@ -146,11 +155,38 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed pt-0.5">
             <TapText text={q.q} st={st} />
           </p>
+          {/* 전체 지문 음원이 나가는 중 — 재생 바를 없앤 대신 "지금 소리가 난다"를 여기서 알린다.
+              스크립트가 잠긴 P3·P4는 이 표시가 유일한 재생 신호다. */}
+          {scriptPlaying && (
+            <span className="ml-auto shrink-0 flex items-center gap-1 rounded-full bg-[#EFF6FF] px-2 py-1 text-[10px] font-black text-[#2563EB]">
+              <SpeakerIcon pulse /> 재생 중
+            </span>
+          )}
         </div>
       )}
+      {/* ── 답안지 모드 (LC 실전, 채점 전) ──
+          실제 시험지에는 보기 내용이 인쇄되지 않는다 — (A)(B)(C)(D) 마킹 칸만 있다.
+          채점하면 아래 일반 보기 목록으로 바뀌고 스크립트도 열린다(근거 확인). */}
+      {st.answerSheet && !graded ? (
+        <div className="flex items-center justify-center gap-3 md:gap-5 py-1">
+          {q.options.map((o) => {
+            const chosen = st.answers[qIdx] === o.label
+            return (
+              <button key={o.label} disabled={!selectable} onClick={() => st.onSelect(qIdx, o.label)}
+                aria-label={`보기 ${o.label} 선택`} aria-pressed={chosen}
+                className={`w-11 h-11 md:w-12 md:h-12 rounded-full border-2 text-[14px] md:text-[15px] font-black
+                            flex items-center justify-center transition-all ${
+                  chosen ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm'
+                    : 'border-[#CBD5E1] bg-white text-[#475569] hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
+                } ${selectable ? 'cursor-pointer active:scale-95' : 'cursor-default opacity-70'}`}>
+                {o.label}
+              </button>
+            )
+          })}
+        </div>
+      ) : (
       <div className="space-y-2">
         {q.options.map((o) => {
-          const hidden = !!lesson.content.optionAudio && revealed !== 'all' && !(revealed instanceof Set && revealed.has(o.label))
           const chosen = st.answers[qIdx] === o.label
           const isCorrect = o.label === correctLabel
           const playing = st.playingId === `opt:${qIdx}:${o.label}`
@@ -170,10 +206,14 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
             : wrongTried ? 'border-[#EF4444] text-[#EF4444]'
               : chosen ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#D1D5DB] text-[#6B7280]'
           /* 보기가 음성인 유형(P1·P2)의 보기별 컨트롤.
-             스크립트 보기는 강사가 정답을 공개했거나 그 보기를 코칭한 뒤에만 열린다. */
+             강사가 음원을 들려주고 나면 '스크립트 보기' **버튼이 열린다**(coached).
+             ⚠️ 버튼만 열리고 글자는 안 열린다 — 듣기 수업인데 스크립트가 저절로 펼쳐지면
+             학생이 소리 대신 글자를 읽어버린다. 열어볼지는 학생이 버튼으로 정한다. */
           const optAudio = !!lesson.content.optionAudio
           const coached = graded || revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
-          const scriptShown = scriptOverride[o.label] ?? !hidden
+          /* 실전은 채점하고 나면 스크립트가 열린 채로 시작한다(근거 확인 단계라 감출 이유가 없다).
+             수업은 그 반대 — 버튼만 열리고 내용은 학생이 눌러야 열린다. */
+          const scriptShown = scriptOverride[o.label] ?? (optAudio ? (!!st.selfAudio && graded) : true)
           const textHidden = !scriptShown
           const playOpt = () => st.onPlaySentence?.(`opt:${qIdx}:${o.label}`, `${o.label}. ${o.text}`)
           return (
@@ -225,6 +265,7 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           )
         })}
       </div>
+      )}
       {(lesson.part === 3 || lesson.part === 4) && <ScriptAccordion lesson={lesson} st={st} />}
     </div>
   )
@@ -361,36 +402,154 @@ function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState 
   )
 }
 
-/* ── 시각자료(표) — LC 표/자료형 ── */
+/* ── 시각자료(표) — LC 표/자료형(Part 3·4의 "Look at the graphic") ──
+   실물 시험지도 지문과 같은 조판이다: 검은 실선 박스 + 가운데 세리프 볼드 제목 + 검은 실선 표.
+   RC 지문과 같은 ExamTable 을 쓴다 — 한 시험지 안에서 표만 다른 톤이면 그게 더 튄다. */
 function VisualPanel({ lesson }: { lesson: TypeLesson }) {
   const v = lesson.content.visual
   if (!v) return null
   return (
-    <div className="rounded-2xl border border-[#FDE68A] bg-[#FFFDF5] overflow-hidden">
-      <div className="px-4 py-2 border-b border-[#FDE68A] flex items-center gap-2">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="3" x2="9" y2="21" />
-        </svg>
-        <p className="text-[12px] font-bold text-[#B45309]">{v.title}</p>
-      </div>
-      <TableView table={v.table} accent="#B45309" />
+    <div className="mx-auto max-w-[560px] border-[1.5px] border-[#111] bg-white px-3 py-3 md:px-4 md:py-4">
+      {v.title && (
+        <p className="text-center font-exam-serif font-bold text-[15px] md:text-[17px] text-[#111] mb-2 tracking-wide">
+          {v.title}
+        </p>
+      )}
+      <ExamTable table={v.table} />
     </div>
   )
 }
 
-/** docId+st가 있으면(근거 연결 진행 중) 행을 탭해 근거로 선택할 수 있다 — VisualPanel(LC 시각자료)은 둘 다 안 넘겨서 그대로 정적. */
-function TableView({ table, accent = '#475569', docId, st }: { table: { headers: string[]; rows: string[][] }; accent?: string; docId?: string; st?: ContentState }) {
+/* 지문 탭에 붙는 이름 (시험지 스킨은 아래 ExamDoc/ExamEmail/ExamPhone/ExamWeb 가 그린다) */
+const KIND_LABEL: Record<PassageDoc['kind'], string> = {
+  text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사', chat: '문자 대화', table: '표', form: '양식',
+  // LC 스크립트 (Part 2·3·4) — 화면은 아직 미지원이지만 라벨은 타입상 있어야 한다
+  utterance: '질문 발화', dialogue: '대화 스크립트', talk: '담화 스크립트',
+}
+
+/* ══ 시험지 스킨 ══════════════════════════════════════════════════════════
+   실제 시험지(YBM 실전토익 본권)의 지문 조판을 그대로 옮긴다. **글자는 살아 있어야 한다** —
+   단어 탭 형광펜, 근거 문장 탭, 강사의 문장 지목, 빈칸 포커스가 전부 텍스트 노드에 걸려 있어서
+   지문을 캡처 이미지로 넣으면 수업(스캐폴딩)이 통째로 죽는다. 그래서 사진이 아니라 CSS로 재현한다.
+
+   조판 규칙(실물 기준)
+     · 정보·공지·기사·광고 = 흰 종이 박스 + 검은 테두리, 본문 세리프, 제목은 가운데 세리프 볼드
+     · 이메일   = 회색 판 + 타이틀바 + 회색 라벨칸/흰 값칸 + 본문 흰 박스 + 가짜 스크롤바
+     · 문자     = 폰 프레임 + 회색 화면 + 흰 각진 말풍선, 산세리프, 화자별 좌/우 정렬
+     · 웹페이지 = 브라우저 크롬(주소창·점 3개·스크롤 레일), 산세리프
+     · Part 6 장문 = 산세리프 + 넓은 줄간 (빈칸을 채우는 지문이라 줄 사이가 떠 있다)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** 지문 문장 하나 — 인라인으로 흐른다(실제 지문은 문단이지 줄 목록이 아니다).
+ *  재생 중 표시·근거 선택은 문장 단위라 span 하나씩은 유지한다. */
+function SentenceSpan({ s, st, focusBlank, docId }: { s: SentenceItem; st: ContentState; focusBlank?: number; docId?: string }) {
+  const playing = st.playingId === s.id
+  const match = st.matchState
+  const matched = !!docId && !!match?.matchedTargets.has(`${docId}:${s.id}`)
+  return (
+    <span
+      onClick={match && docId ? () => match.onTap(docId, s.id) : undefined}
+      className={`[box-decoration-break:clone] rounded-[2px] transition-colors ${playing ? 'bg-[#EFF6FF]' : ''} ${
+        match && docId ? 'cursor-pointer' : ''
+      } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC]' : ''}`}>
+      {matched && <span className="mr-0.5 text-[#16A34A] font-black">✓</span>}
+      <SentenceText text={s.en} st={st} focusBlank={focusBlank} />{' '}
+    </span>
+  )
+}
+
+/** 지문 본문 — 문장들을 한 문단으로 흘린다. 해석(showKo)은 문단 아래 회색 덩어리로. */
+function ExamBody({ doc, st, focusBlank, sans }: {
+  doc: PassageDoc; st: ContentState; focusBlank?: number; sans?: boolean
+}) {
+  const ss = doc.sentences ?? []
+  if (!ss.length) return null
+  return (
+    <>
+      <p className={`text-[#111] ${sans
+        ? 'font-exam-sans text-[13px] md:text-[14.5px] leading-[2.3]'
+        : 'font-exam-serif text-[14px] md:text-[16px] leading-[1.75]'}`}>
+        {ss.map((s) => <SentenceSpan key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />)}
+      </p>
+      {st.showKo && ss.some((s) => s.ko) && (
+        <p className="mt-2 pt-2 border-t border-dashed border-[#D4D4D4] text-[11.5px] leading-relaxed text-[#7A7A7A]">
+          {ss.map((s) => s.ko).filter(Boolean).join(' ')}
+        </p>
+      )}
+    </>
+  )
+}
+
+/** 이메일·웹 본문 오른쪽 가짜 스크롤바 — 실물의 그 회색 레일 */
+function ScrollRail() {
+  const box = 'w-[13px] h-[13px] border border-[#111] bg-[#D9D9D9] flex items-center justify-center text-[7px] text-[#333] leading-none'
+  return (
+    <div className="shrink-0 w-[15px] border-l border-[#111] bg-[#EDEDED] flex flex-col justify-between items-center py-[1px]">
+      <span className={box}>▲</span>
+      <span className={box}>▼</span>
+    </div>
+  )
+}
+
+/** 머리글 한 줄(To/From/…) — 근거 연결(match)에서 탭 대상이 되기도 한다 */
+function MetaRow({ doc, m, st }: { doc: PassageDoc; m: { k: string; v: string }; st: ContentState }) {
+  const targetId = `meta:${m.k}`
+  const matched = st.matchState?.matchedTargets.has(`${doc.id}:${targetId}`)
+  return (
+    <div className="flex items-stretch gap-[5px]">
+      <div className="w-[92px] md:w-[112px] shrink-0 bg-[#C6C6C6] border border-[#111] px-2 py-[3px]
+                      font-exam-sans font-black text-[11px] md:text-[12px] text-[#111]">
+        {m.k}{m.k.endsWith(':') ? '' : ':'}
+      </div>
+      <div
+        onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
+        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam-serif text-[13px] md:text-[14.5px] text-[#111] truncate ${
+          st.matchState ? 'cursor-pointer' : ''
+        } ${matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : 'bg-white'}`}>
+        {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{m.v}
+      </div>
+    </div>
+  )
+}
+
+/** 머리글을 본문 위에 평문으로 (웹·공지 등 — 라벨 박스를 쓰지 않는 포맷) */
+function MetaLines({ doc, st, sans }: { doc: PassageDoc; st: ContentState; sans?: boolean }) {
+  if (!doc.meta?.length) return null
+  return (
+    <div className="mb-2.5 space-y-0.5">
+      {doc.meta.map((m) => {
+        const targetId = `meta:${m.k}`
+        const matched = st.matchState?.matchedTargets.has(`${doc.id}:${targetId}`)
+        return (
+          <p key={m.k}
+            onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
+            className={`${sans ? 'font-exam-sans text-[12.5px] md:text-[13.5px]' : 'font-exam-serif text-[13px] md:text-[14.5px]'} text-[#111] ${
+              st.matchState ? 'cursor-pointer' : ''
+            } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] rounded-[2px]' : ''}`}>
+            {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
+            <span className="font-bold">{m.k}{m.k.endsWith(':') ? '' : ':'} </span>{m.v}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
+/* 시험지 표 — 검은 실선 */
+function ExamTable({ table, docId, st }: { table: { headers: string[]; rows: string[][] }; docId?: string; st?: ContentState }) {
   const active = !!(docId && st?.matchState)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[12px] md:text-[13px]">
-        <thead>
-          <tr className="border-b border-[#E5E7EB]">
-            {table.headers.map((h) => (
-              <th key={h} className="px-3.5 py-2 text-left font-bold whitespace-nowrap" style={{ color: accent }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
+      <table className="w-full border-collapse font-exam-serif text-[13px] md:text-[14.5px] text-[#111]">
+        {table.headers.some(Boolean) && (
+          <thead>
+            <tr>
+              {table.headers.map((h) => (
+                <th key={h} className="border border-[#111] bg-[#EDEDED] px-2.5 py-1.5 text-left font-bold whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+        )}
         <tbody>
           {table.rows.map((r, i) => {
             const targetId = `row:${i}`
@@ -398,11 +557,9 @@ function TableView({ table, accent = '#475569', docId, st }: { table: { headers:
             return (
               <tr key={i}
                 onClick={active ? () => st!.matchState!.onTap(docId!, targetId) : undefined}
-                className={`transition-colors ${i % 2 ? 'bg-black/[0.02]' : ''} ${active ? 'cursor-pointer' : ''} ${
-                  matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : active ? 'hover:bg-[#EFF6FF]' : ''
-                }`}>
+                className={`${active ? 'cursor-pointer' : ''} ${matched ? 'bg-[#F0FDF4]' : active ? 'hover:bg-[#EFF6FF]' : ''}`}>
                 {r.map((c, j) => (
-                  <td key={j} className="px-3.5 py-2 text-[#334155] whitespace-nowrap">
+                  <td key={j} className="border border-[#111] px-2.5 py-1.5 align-top">
                     {j === 0 && matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{c}
                   </td>
                 ))}
@@ -415,72 +572,128 @@ function TableView({ table, accent = '#475569', docId, st }: { table: { headers:
   )
 }
 
-/* ── RC 지문 (점진 공개 · 이메일/공지/채팅/표/양식) ── */
-const KIND_LABEL: Record<PassageDoc['kind'], string> = {
-  text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사', chat: '문자 대화', table: '표', form: '양식',
-  // LC 스크립트 (Part 2·3·4) — 화면은 아직 미지원이지만 라벨은 타입상 있어야 한다
-  utterance: '질문 발화', dialogue: '대화 스크립트', talk: '담화 스크립트',
+/* 이메일 — 회색 판 위에 얹힌 메일 클라이언트 */
+function ExamEmail({ doc, st }: { doc: PassageDoc; st: ContentState }) {
+  return (
+    <div className="border-[1.5px] border-[#111] bg-[#D6D6D6] p-2 md:p-2.5">
+      {/* 타이틀 바 — 가운데 제목, 양옆 가로선 장식 */}
+      <div className="flex items-center gap-2 pb-2">
+        <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
+        <span className="font-exam-sans font-bold text-[12px] md:text-[13.5px] text-[#111] whitespace-nowrap">
+          {doc.title ?? '*E-Mail*'}
+        </span>
+        <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
+      </div>
+      <div className="space-y-[4px]">
+        {doc.meta?.map((m) => <MetaRow key={m.k} doc={doc} m={m} st={st} />)}
+      </div>
+      <div className="mt-2 flex bg-white border border-[#111] min-h-[120px]">
+        <div className="flex-1 min-w-0 px-3 py-2.5 md:px-4 md:py-3.5">
+          <ExamBody doc={doc} st={st} />
+        </div>
+        <ScrollRail />
+      </div>
+    </div>
+  )
+}
+
+/* 웹페이지 — 브라우저 크롬(주소창 + 점 3개 + 스크롤 레일) */
+function ExamWeb({ doc, st, url }: { doc: PassageDoc; st: ContentState; url: string }) {
+  const rest = { ...doc, meta: doc.meta?.filter((m) => !/url|http|주소/i.test(m.k) && !/^https?:\/\//i.test(m.v)) }
+  return (
+    <div className="border-[1.5px] border-[#111] bg-[#D6D6D6]">
+      <div className="flex items-center gap-2 px-2 py-2">
+        <span className="shrink-0 font-exam-sans text-[11px] text-[#111] tracking-tighter">◀▶</span>
+        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam-sans text-[12px] md:text-[13px] text-[#111] truncate">
+          {url}
+        </span>
+        <span className="shrink-0 flex items-center gap-[3px] pl-1">
+          {[0, 1, 2].map((i) => <span key={i} className="w-[5px] h-[5px] rounded-full bg-[#111]" />)}
+        </span>
+      </div>
+      <div className="flex bg-white border-t border-[#111]">
+        <div className="flex-1 min-w-0 px-3 py-3 md:px-4">
+          <MetaLines doc={rest} st={st} sans />
+          {doc.table && <ExamTable table={doc.table} docId={doc.id} st={st} />}
+          <ExamBody doc={doc} st={st} sans />
+        </div>
+        <ScrollRail />
+      </div>
+    </div>
+  )
+}
+
+/* 문자 대화 — 폰 프레임 + 회색 화면 + 흰 각진 말풍선 */
+function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
+  const first = doc.chat?.[0]?.speaker
+  return (
+    <div className="mx-auto max-w-[520px] rounded-[26px] border-[3px] border-[#111] bg-white p-3">
+      {/* 상단 장식 — 실물의 봉투/말풍선 탭과 점 두 개 */}
+      <div className="flex items-center gap-2 px-1 pb-2">
+        <span className="w-9 h-6 border-[1.5px] border-[#111] rounded-t-[4px] flex items-center justify-center text-[10px] leading-none">✉</span>
+        <span className="w-9 h-6 border-[1.5px] border-b-0 border-[#111] rounded-t-[10px] bg-[#D6D6D6]" />
+        <span className="flex-1" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#111]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#111]" />
+      </div>
+      <div className="rounded-[10px] bg-[#C9C9C9] p-2.5 md:p-3 space-y-2">
+        {doc.chat?.map((c) => {
+          const right = !!first && c.speaker !== first
+          const matched = st.matchState?.matchedTargets.has(`${doc.id}:${c.id}`)
+          return (
+            <div key={c.id} className={`flex ${right ? 'justify-end' : 'justify-start'}`}>
+              <div
+                onClick={st.matchState ? () => st.matchState!.onTap(doc.id, c.id) : undefined}
+                className={`max-w-[84%] bg-white border border-[#111] rounded-[3px] px-2.5 py-1.5 ${
+                  st.matchState ? 'cursor-pointer' : ''
+                } ${matched ? 'ring-2 ring-[#86EFAC]' : ''}`}>
+                <p className="font-exam-sans text-[12px] md:text-[13px] font-bold text-[#111] mb-0.5">
+                  {matched && <span className="mr-1 text-[#16A34A]">✓</span>}
+                  {c.speaker}
+                  {c.time && <span className="ml-1.5">[{c.time}]</span>}
+                </p>
+                <p className="font-exam-sans text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
+                  <TapText text={c.text} st={st} />
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* 정보·공지·기사·광고·양식 — 흰 종이 박스. Part 6 장문은 산세리프 + 넓은 줄간 */
+function ExamDoc({ doc, st, focusBlank, sans }: {
+  doc: PassageDoc; st: ContentState; focusBlank?: number; sans?: boolean
+}) {
+  return (
+    <div className="border-[1.5px] border-[#111] bg-white px-4 py-4 md:px-6 md:py-5">
+      {doc.title && (
+        <p className={`text-center font-bold text-[#111] mb-2.5 ${
+          sans ? 'font-exam-sans text-[14px] md:text-[15px]' : 'font-exam-serif text-[16px] md:text-[19px]'}`}>
+          {doc.title}
+        </p>
+      )}
+      <MetaLines doc={doc} st={st} sans={sans} />
+      {doc.table && <ExamTable table={doc.table} docId={doc.id} st={st} />}
+      {doc.table && !!doc.sentences?.length && <div className="h-2.5" />}
+      <ExamBody doc={doc} st={st} focusBlank={focusBlank} sans={sans} />
+    </div>
+  )
 }
 
 function PassageView({ doc, lesson, st, focusBlank }: { doc: PassageDoc; lesson: TypeLesson; st: ContentState; focusBlank?: number }) {
-  return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden">
-      <div className="px-4 py-2.5 bg-[#F8FAFF] border-b border-[#EEF2F7] flex items-center gap-2">
-        <span className="text-[10px] font-black tracking-wide text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] px-2 py-0.5 rounded-md">
-          {doc.label ?? KIND_LABEL[doc.kind]}
-        </span>
-        {doc.title && <p className="text-[13px] font-bold text-[#1C1B33] truncate">{doc.title}</p>}
-      </div>
+  /* Part 6 장문은 빈칸을 채우는 지문이라 실물도 산세리프에 줄 사이가 떠 있다 */
+  const sans = lesson.part === 6 || focusBlank !== undefined
+  /* 웹페이지는 별도 kind가 없다 — 머리글에 주소가 있으면 브라우저 크롬으로 본다 */
+  const urlMeta = doc.meta?.find((m) => /url|http|주소/i.test(m.k) || /^https?:\/\//i.test(m.v))
 
-      {doc.meta && (
-        <div className="px-4 py-2.5 bg-[#FCFCFD] border-b border-[#F3F4F6] space-y-0.5">
-          {doc.meta.map((m) => {
-            const targetId = `meta:${m.k}`
-            const matched = st.matchState?.matchedTargets.has(`${doc.id}:${targetId}`)
-            return (
-              <p key={m.k}
-                onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-                className={`text-[11px] text-[#64748B] rounded px-1 -mx-1 transition-colors ${st.matchState ? 'cursor-pointer' : ''} ${
-                  matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] text-[#15803D] font-semibold' : st.matchState ? 'hover:bg-[#F1F5F9]' : ''
-                }`}>
-                {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
-                <span className="font-bold text-[#94A3B8] inline-block w-14">{m.k}</span>{m.v}
-              </p>
-            )
-          })}
-        </div>
-      )}
-
-      {doc.table && <TableView table={doc.table} docId={doc.id} st={st} />}
-
-      {doc.chat && (
-        <div className="p-4 space-y-3">
-          {doc.chat.map((c) => {
-            const first = doc.chat![0].speaker
-            const mine = c.speaker !== first
-            return (
-              <div key={c.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                <p className="text-[10px] text-[#94A3B8] mb-1 px-1">{c.speaker}{c.time ? ` · ${c.time}` : ''}</p>
-                <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
-                  mine ? 'bg-[#2563EB] text-white rounded-tr-sm' : 'bg-[#F3F4F6] text-[#1C1B33] rounded-tl-sm'
-                }`}>
-                  <TapText text={c.text} st={st} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {doc.sentences && (
-        <div className="p-4 space-y-2">
-          {doc.sentences.map((s) => (
-            <SentenceRow key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  if (doc.chat?.length) return <ExamPhone doc={doc} st={st} />
+  if (doc.kind === 'email') return <ExamEmail doc={doc} st={st} />
+  if (urlMeta) return <ExamWeb doc={doc} st={st} url={urlMeta.v} />
+  return <ExamDoc doc={doc} st={st} focusBlank={focusBlank} sans={sans} />
 }
 
 /* ── 지문 영역(P6·P7) — 지문이 여러 개(이중·삼중)면 탭으로 전환, 하나면 바로 표시.
@@ -516,7 +729,7 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
                 active === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
               }`}>
               {pending && <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />}
-              {d.label ?? `지문 ${i + 1}`}
+              {d.label ?? KIND_LABEL[d.kind] ?? `지문 ${i + 1}`}
             </button>
           )
         })}
@@ -524,27 +737,6 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
       <div className="flex-1 min-h-0 overflow-y-auto">
         <PassageView doc={docs[active]} lesson={lesson} st={st} focusBlank={focusBlank} />
       </div>
-    </div>
-  )
-}
-
-function SentenceRow({ s, st, focusBlank, docId }: { s: SentenceItem; st: ContentState; focusBlank?: number; docId?: string }) {
-  const playing = st.playingId === s.id
-  const match = st.matchState
-  const matched = docId && match?.matchedTargets.has(`${docId}:${s.id}`)
-  return (
-    <div
-      onClick={match && docId ? () => match.onTap(docId, s.id) : undefined}
-      className={`rounded-lg px-2 py-1 -mx-2 transition-colors ${playing ? 'bg-[#EFF6FF]' : ''} ${match && docId ? 'cursor-pointer' : ''} ${
-        matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC]' : match && docId ? 'hover:bg-[#F8FAFC]' : ''
-      }`}>
-      <p className="text-[13px] md:text-[14px] text-[#334155] leading-[1.9]">
-        {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
-        <SentenceText text={s.en} st={st} focusBlank={focusBlank} />
-      </p>
-      {st.showKo && s.ko && (
-        <p className="text-[11px] text-[#94A3B8] leading-relaxed mt-0.5">{s.ko}</p>
-      )}
     </div>
   )
 }
@@ -637,6 +829,38 @@ function SplitPane({ left, right, initial = 0.55 }: { left: ReactNode; right: Re
   )
 }
 
+/* ── 위/아래 2분할 + 드래그 리사이즈 (지문 위 · 문항 아래) ──
+   SplitPane 의 세로판. 지문을 길게 보고 싶으면 손잡이를 내리고, 보기를 훑을 땐 올린다.
+   RC 수업은 강사 창이 오른쪽 기둥을 먹어 콘텐츠가 좁고 높은 칸이 되므로, 이 비율이 특히 중요하다. */
+function StackPane({ top, bottom, initial = 0.6 }: { top: ReactNode; bottom: ReactNode; initial?: number }) {
+  const [frac, setFrac] = useState(initial)
+  const [dragging, setDragging] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const onDown = (e: ReactPointerEvent) => {
+    setDragging(true)
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+  const onMove = (e: ReactPointerEvent) => {
+    if (!dragging || !wrapRef.current) return
+    const r = wrapRef.current.getBoundingClientRect()
+    setFrac(Math.min(0.8, Math.max(0.2, (e.clientY - r.top) / r.height)))
+  }
+  const onUp = () => setDragging(false)
+
+  return (
+    <div ref={wrapRef} className={`h-full min-h-0 flex flex-col ${dragging ? 'select-none' : ''}`}>
+      <div className="min-h-0 flex flex-col" style={{ height: `${frac * 100}%` }}>{top}</div>
+      <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        role="separator" aria-orientation="horizontal" aria-label="지문·문항 영역 크기 조절"
+        className={`h-3 shrink-0 flex items-center justify-center cursor-row-resize touch-none
+                   rounded-full my-1 transition-colors group ${dragging ? 'bg-[#EFF6FF]' : 'hover:bg-[#EFF6FF]'}`}>
+        <div className={`w-10 h-[3px] rounded-full transition-colors ${dragging ? 'bg-[#2563EB]' : 'bg-[#D9DEE7] group-hover:bg-[#93C5FD]'}`} />
+      </div>
+      <div className="flex-1 min-h-0 flex flex-col border-t border-gray-100 pt-2">{bottom}</div>
+    </div>
+  )
+}
+
 /* ── 메인: 파트별 레이아웃 ──
    readingSideBySide=true면 읽기 파트(P6·P7)를 지문(좌)/문항(우) 가로 2열로 — 사이 핸들로 폭 조절.
    강사 패널이 하단 도크로 내려가 위쪽 콘텐츠가 넓고 낮은 가로 공간이 될 때, 그리고 강사 없이
@@ -669,17 +893,31 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
               <div className="flex items-center gap-2">
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
                 <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>
-                {q.audio && st.onPlaySentence && (
-                  <button
-                    onClick={() => st.onPlaySentence?.(`qaudio:${i}`, q.options.map((o) => `${o.label}. ${o.text}`).join(' '))}
-                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
-                      st.playingId === `qaudio:${i}`
-                        ? 'border-[#2563EB] bg-[#2563EB] text-white'
-                        : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
-                    }`}>
-                    <SpeakerIcon pulse={st.playingId === `qaudio:${i}`} />
-                    {st.playingId === `qaudio:${i}` ? '재생 중…' : '음원 듣기'}
-                  </button>
+                {/* 음원 듣기 버튼은 **실전에서만**. 수업에서는 강사가 틀어주고,
+                    나가는 동안에는 아래 보기가 파랗게 켜져 재생 중임을 알린다. */}
+                {q.audio && st.selfAudio && st.onPlaySentence && (() => {
+                  /* 실전 음원은 시험처럼 횟수가 정해져 있다(2회). 남은 횟수를 버튼에 적고, 다 쓰면 잠근다 */
+                  const left = st.playsLeft ? st.playsLeft(`qaudio:${i}`) : Infinity
+                  const playing = st.playingId === `qaudio:${i}`
+                  const out = left <= 0
+                  return (
+                    <button disabled={out}
+                      onClick={() => st.onPlaySentence?.(`qaudio:${i}`, q.options.map((o) => `${o.label}. ${o.text}`).join(' '))}
+                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
+                        out ? 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
+                          : playing ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                            : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+                      }`}>
+                      <SpeakerIcon pulse={playing} />
+                      {out ? '재생 완료' : playing ? '재생 중…' : `음원 듣기${Number.isFinite(left) ? ` (${left}회 남음)` : ''}`}
+                    </button>
+                  )
+                })()}
+                {/* 수업 — 버튼 없이 "지금 여기서 소리가 난다"만 */}
+                {!st.selfAudio && st.playingId === `qaudio:${i}` && (
+                  <span className="shrink-0 flex items-center gap-1 rounded-full bg-[#EFF6FF] px-2 py-1 text-[10px] font-black text-[#2563EB]">
+                    <SpeakerIcon pulse /> 재생 중
+                  </span>
                 )}
               </div>
               {(q.photo ?? content.photo) && (
@@ -777,15 +1015,14 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
       />
     )
   }
+  /* 세로 스택 — 손잡이를 끌어 지문/문항 비율을 바꾼다.
+     문항 칸: 탭이 있으면 탭 줄은 고정하고 카드만 스크롤(QuestionTabs가 자체 스크롤을 가짐) */
   return (
-    <div className="h-full flex flex-col gap-3 min-h-0">
-      <div className="flex-[3] min-h-0 flex flex-col">
-        <PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />
-      </div>
-      {/* 문항 칸 — 탭이 있으면 탭 줄은 고정하고 카드만 스크롤(QuestionTabs가 자체 스크롤을 가짐) */}
-      <div className={`flex-[2] min-h-0 border-t border-gray-100 pt-3 ${multiQ ? 'flex flex-col' : 'overflow-y-auto'}`}>
-        {multiQ ? <QuestionTabs lesson={lesson} st={st} pane /> : questionsBlock}
-      </div>
-    </div>
+    <StackPane
+      top={<PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />}
+      bottom={multiQ
+        ? <QuestionTabs lesson={lesson} st={st} pane />
+        : <div className="flex-1 min-h-0 overflow-y-auto">{questionsBlock}</div>}
+    />
   )
 }

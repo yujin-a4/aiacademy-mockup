@@ -46,6 +46,11 @@ const config: Config = {
         sans:    ['Pretendard', 'Noto Sans KR', 'Inter', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
         display: ['Barlow Condensed', 'sans-serif'],
+        /* 시험지 조판 — 실제 토익 시험지(YBM 실전토익 본권)의 본문 서체.
+           지문 본문은 세리프(Times 계열), 문자·웹·Part6 장문은 산세리프(Helvetica/Arial).
+           둘 다 iPad·윈도우 기본 탑재라 웹폰트 없이 실물과 거의 같게 나온다. */
+        'exam-serif': ['"Times New Roman"', 'Times', 'Georgia', 'serif'],
+        'exam-sans':  ['Arial', 'Helvetica', '"Liberation Sans"', 'sans-serif'],
       },
       borderRadius: {
         'sharp':   '6px',
