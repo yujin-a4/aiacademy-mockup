@@ -33,6 +33,9 @@ import type { RailDiag } from '@/data/typeLearning/fromSteps'
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
 const RAIL_OWNER = 'lee_doyun'
 
+/** 리뷰 단계에서 한 문항을 다시 틀릴 수 있는 횟수. 이만큼 틀리면 정답을 열고 넘어간다 */
+const REVIEW_MAX_TRIES = 2
+
 /** 상호작용 종류 → **학생이 화면에서 할 구체적 행동** (에이전트에게만 주는 지시).
  *
  *  ⚠️ 여기가 흐리면 강사가 "…파악해야 해" 처럼 서술로 끝내고, 학생은 뭘 해야 할지 모른다.
@@ -552,7 +555,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   )
 }
 
-export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail, lectureCode, draftId, preparing }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, rail, lectureCode, draftId, preparing }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과 — 넘기면 좌하단에 검토 패널이 뜬다 (콘텐츠팀 확인용) */
@@ -565,6 +568,54 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   draftId?: string | null
 }) {
   const router = useRouter()
+
+  /* ── 단계 ──
+     'review' = 실전에서 틀린 문항만 강사와 다시 푸는 단계 (실전 → **리뷰** → 정리).
+     자율학습/오답노트 화면(my-learning/wrong)은 MVP 범위 밖이라 쓰지 않는다. */
+  const [phase, setPhase] = useState<'lesson' | 'practice' | 'review' | 'wrap' | 'done'>('lesson')
+  const [practiceScore, setPracticeScore] = useState<PracticeResult | null>(null)
+  const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
+
+  /* 실전 세트(없으면 수업 문항 그대로) — 리뷰는 이 문항들을 다시 푼다 */
+  const practiceContent = lessonProp.practice ?? lessonProp.content
+
+  /* 틀린 문항 하나당 턴 하나. 강사 발화는 여기서 만들지 않는다 —
+     `tutor` 에 **사실만** 담아 directiveOf 로 에이전트에 넘기면, 에이전트(LLM)가 자기 말투로 만들어
+     말한다. 백엔드=머리 / 에이전트=입 (docs/tutor-engine.md).
+     ⚠️ 정답 보기의 근거는 넣지 않는다. 넣으면 에이전트가 답을 흘린다 — 다시 풀릴 수가 없다. */
+  const reviewTurns = useMemo<Turn[]>(() => {
+    const results = practiceScore?.results ?? []
+    const picked = practiceScore?.answers ?? {}
+    const qs = practiceContent.questions
+    const wrongIdx = results.map((ok, i) => (ok ? -1 : i)).filter((i) => i >= 0)
+    return wrongIdx.map((qIdx, n) => {
+      const q = qs[qIdx]
+      const myLabel = picked[qIdx]
+      const my = q?.options.find((o) => o.label === myLabel)
+      const facts = [
+        `학생이 실전에서 ${qIdx + 1}번 문항을 틀렸다.`,
+        q?.q ? `문항: "${q.q}"` : '',
+        my ? `학생이 고른 보기: ${my.label}) ${my.text}` : '',
+        my?.why ? `그 보기가 답이 될 수 없는 이유: ${my.why}` : '',
+        '이 이유를 네 말로 풀어 짧게 짚어주고, 다시 골라보라고 해라.',
+        '정답이 무엇인지는 절대 말하지 마라 — 학생이 스스로 다시 고르는 단계다.',
+      ].filter(Boolean)
+      return {
+        no: n,
+        stage: `틀린 문제 다시 풀기 ${n + 1}/${wrongIdx.length}`,
+        tutor: facts.join(' '),
+        focusQ: qIdx,
+        interaction: { kind: 'pickAnswer', qIdx, prompt: '다시 골라보세요' },
+      } as Turn
+    })
+  }, [practiceScore, practiceContent])
+
+  /* 리뷰 단계에서는 **수업 렌더 경로를 그대로 재사용**한다 — 강사 창·에이전트·진행 게이트가
+     이미 거기 붙어 있다. 콘텐츠와 턴만 갈아끼우면 되므로 lesson 자체를 바꿔치기한다. */
+  const lesson = phase === 'review'
+    ? { ...lessonProp, content: practiceContent, turns: reviewTurns }
+    : lessonProp
+
   const turns = lesson.turns
   const [turnIdx, setTurnIdx] = useState(0)
   const turnIdxRef = useRef(0)              // clientTool은 최신 turnIdx를 ref로 읽는다(클로저 고정 방지)
@@ -605,11 +656,10 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
   const profile = useOnboardingStore()
   /* 'wrap' = 세션 전체 정리(4단계 프레임의 마지막 단계, 실전 이후) — 수업 중 S7 "표현 정리" 턴과는
      별개 화면이다. 그건 수업 워크스루의 마지막 코칭 포인트일 뿐, 세션 전체 정리가 아니다. */
-  const [phase, setPhase] = useState<'lesson' | 'practice' | 'wrap' | 'done'>('lesson')
   /* 스캐폴딩 레일 바 — 기본 숨김. 강사 창 헤더의 'STEP n/총'을 누르면 열린다 */
   const [railOpen, setRailOpen] = useState(false)
-  const [practiceScore, setPracticeScore] = useState<{ correct: number; total: number; results: boolean[] } | null>(null)
-  const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
+  /** 리뷰 단계에서 문항별로 다시 틀린 횟수. 두 번 틀리면 정답을 열어주고 넘어간다 */
+  const reviewTriesRef = useRef<Map<number, number>>(new Map())
   /** 수업 시작 시각 — 완료 화면의 '풀이 시간' */
   const startedAtRef = useRef(Date.now())
 
@@ -794,7 +844,11 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
         /* 첫 마디는 프롬프트상 "그대로 말한다" — 지시문(directiveOf)을 넣으면 메타 지시까지 읽어버린다.
            그래서 여기에는 0번 턴의 강사 발화 원문(=자연스러운 말)만 넣는다.
            1번 턴부터는 next_step 반환값으로 지시를 주고, 에이전트가 자기 말투로 바꿔 말한다. */
-        instructor_greeting: turns[0].tutor,
+        /* 리뷰 단계의 0번 턴 tutor 는 **사실 나열**이라 그대로 읽으면 안 된다(첫 마디는 낭독된다).
+           그래서 리뷰는 여는 말을 따로 준다. 문항별 짚기는 1번 지시부터 나간다. */
+        instructor_greeting: phase === 'review'
+          ? '자, 방금 푼 것 중에 틀린 것만 같이 다시 볼게요. 하나씩 짚어봅시다.'
+          : turns[0].tutor,
       }),
     }).catch(() => {})
   }
@@ -906,9 +960,12 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [turnIdx, chatLog.length, dockMode])
 
-  // 실전·정리로 넘어가면 강사 세션 종료 — 문제 풀이 중 강사가 계속 말하지 않게.
+  /* 실전·정리로 넘어가면 강사 세션 종료 — 문제 풀이 중 강사가 계속 말하지 않게.
+     **리뷰는 예외다** — 틀린 문제를 강사와 같이 푸는 단계라 다시 연결한다.
+     실전에서 한 번 끊겼으므로 여기서 새로 연다(연결에 몇 초 걸린다). */
   useEffect(() => {
     if (phase === 'practice' || phase === 'wrap' || phase === 'done') endAgent()
+    if (phase === 'review' && conversation.status === 'disconnected') startAgent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
 
@@ -1216,7 +1273,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
 
   const goNext = () => {
     if (turnIdx < turns.length - 1) setTurnIdx(turnIdx + 1)
-    else { stopVoice(); setPhase('practice') }   // 수업(스캐폴딩) 끝 → 실전 문제
+    // 수업(스캐폴딩) 끝 → 실전 문제 / 리뷰(틀린 문제 다시 풀기) 끝 → 정리
+    else { stopVoice(); setPhase(phase === 'review' ? 'wrap' : 'practice') }
   }
 
   const replayCue = () => {
@@ -1238,7 +1296,16 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
          그래서 첫 클릭에 채점하면 강사가 "다시 골라봐" 해도 학생은 누를 수 없고,
          이미 정답이 화면에 드러나 있다(실측). 맞혔을 때만 채점하고, 틀린 보기는 따로 표시한다. */
       if (ok) setGraded((p) => new Set(p).add(qIdx))
-      else setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+      else {
+        setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+        /* 리뷰는 무한정 붙잡지 않는다 — 한 번 더 기회를 주고, 그래도 틀리면 정답을 열고 넘어간다.
+           못 하는 학생을 계속 세워두는 게 더 나쁘다(MAX_REASK 와 같은 판단). */
+        if (phase === 'review') {
+          const tries = (reviewTriesRef.current.get(qIdx) ?? 0) + 1
+          reviewTriesRef.current.set(qIdx, tries)
+          if (tries >= REVIEW_MAX_TRIES) setGraded((p) => new Set(p).add(qIdx))
+        }
+      }
       // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
       reportAction(`${turnIdx}:pick:${label}`,
         actionMessage(`${label}번 보기를 골랐습니다`, ok, ok ? undefined : opt?.why))
@@ -1274,10 +1341,14 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     onPlaySentence: playSentence,
     // 지금 도는 아이템의 문항만 보여준다 — 강의 하나가 여러 바퀴를 돌면(사진 3장·문장 5개)
     // 문항이 세로로 다 쌓여서 한눈에 안 들어온다. 나머지는 단계가 넘어가면 나온다.
-    visibleQ: lesson.items?.find((it) => it.seq === turn.itemSeq)
-      ? { from: lesson.items.find((it) => it.seq === turn.itemSeq)!.qFrom,
-          to:   lesson.items.find((it) => it.seq === turn.itemSeq)!.qTo }
-      : undefined,
+    /* 리뷰는 턴 하나가 곧 문항 하나다 — 틀린 문항이 여러 개여도 세로로 쌓지 않고
+       한 화면에 하나만 두고 턴으로 넘긴다(실전 페이저와 같은 방식). */
+    visibleQ: phase === 'review'
+      ? (turn.focusQ !== undefined ? { from: turn.focusQ, to: turn.focusQ + 1 } : undefined)
+      : lesson.items?.find((it) => it.seq === turn.itemSeq)
+        ? { from: lesson.items.find((it) => it.seq === turn.itemSeq)!.qFrom,
+            to:   lesson.items.find((it) => it.seq === turn.itemSeq)!.qTo }
+        : undefined,
     /* 정답 고르기 턴은 **그 문항이 선택 가능해야** 한다.
        focusQ 는 문항이 여러 개일 때만 실리는데(fromSteps), Part1 처럼 아이템당 문항이 1개면
        undefined 가 되어 ContentView 의 `focusQ === qIdx` 가 거짓 → 보기를 아예 못 누른다.
@@ -1288,7 +1359,8 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
     matchState,
   }
 
-  const macroActive = MACRO_IDX[macroOf(turn)]
+  /* 리뷰(틀린 문제 다시 풀기)는 실전의 뒷부분이다 — 턴 stage 로는 판정이 안 되므로 여기서 고정한다 */
+  const macroActive = phase === 'review' ? MACRO_IDX['실전'] : MACRO_IDX[macroOf(turn)]
   /* 강사가 지금 말하는 중인가 — 에이전트 연결 시 실제 발화, 아니면 음원/TTS 재생 여부.
      포즈(입 벌린 설명 ↔ 차분) 선택과 도크 하이라이트에 함께 쓴다. */
   const tutorSpeaking = agentConnected ? conversation.isSpeaking : playingId !== null
@@ -1339,7 +1411,30 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
       <PracticeStage
         lesson={lesson}
         onExit={() => { stopVoice(); router.push('/lessons') }}
-        onDone={(score) => { setPracticeScore(score); setPhase('wrap') }}
+        onDone={(score) => {
+          setPracticeScore(score)
+          /* 틀린 게 있으면 강사와 다시 푸는 단계로. 다 맞혔으면 붙잡을 이유가 없어 바로 정리로 간다.
+             리뷰는 수업 렌더 경로를 다시 타므로 진행 상태를 처음으로 돌려놓는다. */
+          if (score.correct < score.total) {
+            setTurnIdx(0)
+            /* 실전에서 고른 오답을 그대로 들고 간다 — 강사가 "이걸 골랐죠"라고 짚는데
+               화면이 비어 있으면 무슨 말인지 알 수 없다. 채점은 하지 않는다(정답을 열면 안 되고
+               다시 고를 수 있어야 한다). 대신 그 보기는 '이미 틀린 보기'로 빨갛게 남는다. */
+            const wrongOnly: Record<number, string> = {}
+            const tried = new Set<string>()
+            score.results.forEach((ok, i) => {
+              const label = score.answers[i]
+              if (!ok && label) { wrongOnly[i] = label; tried.add(`${i}:${label}`) }
+            })
+            setAnswers(wrongOnly); setGraded(new Set()); setAnsweredQ(new Set()); setWrongPicks(tried)
+            audioDoneRef.current = new Set(); respondedRef.current = new Set()
+            reaskRef.current = new Map(); reaskAtRef.current = new Map(); agentReactedRef.current = new Set()
+            reviewTriesRef.current = new Map()
+            setPhase('review')
+          } else {
+            setPhase('wrap')
+          }
+        }}
       />
     )
   }
@@ -1542,7 +1637,14 @@ export default function TypeLessonPlayer({ lesson, instructor = RAIL_OWNER, rail
               />
               {/* 스캐폴딩 마지막 턴에서만 — 다음 단계(실전 문제)로 이동 */}
               {turnIdx === turns.length - 1 && (
-                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
+                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>{phase === 'review' ? '정리로 →' : '실전 문제 풀기 →'}</button>
+              )}
+              {/* 리뷰에서 이 문항이 끝났으면(맞혔거나 정답을 열었으면) 다음 틀린 문항으로.
+                  수업에서는 에이전트가 next_step 으로 넘기지만, 리뷰까지 그것만 믿으면
+                  에이전트가 조용할 때 학생이 갇힌다 — 여기서는 학생이 직접 넘길 수 있어야 한다. */}
+              {phase === 'review' && turnIdx < turns.length - 1
+                && turn.interaction.kind === 'pickAnswer' && graded.has(turn.interaction.qIdx) && (
+                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>다음 문제 →</button>
               )}
             </>
           }
@@ -1586,13 +1688,22 @@ function PagerBtn({ onClick, disabled, children }: { onClick: () => void; disabl
   )
 }
 
+/** 실전 결과 — 리뷰 단계가 "무엇을 어떻게 틀렸나"를 알아야 해서 답까지 넘긴다 */
+export interface PracticeResult {
+  correct: number
+  total: number
+  /** 문항별 정오답 (완료 화면의 점) */
+  results: boolean[]
+  /** 문항별로 학생이 고른 보기 라벨 — 리뷰에서 "왜 이걸 골랐는지" 짚는 근거 */
+  answers: Record<number, string>
+}
+
 /* ── 실전 문제 단계 — 스캐폴딩 없이 한 문항씩 넘겨 풀고 채점 ──
    export 는 화면 갤러리(/dev/screens)가 이 단계만 따로 띄우기 위한 것. 수업을 처음부터
    돌리지 않고 파트별 실전 화면을 바로 볼 수 있어야 검토가 된다. */
 export function PracticeStage({ lesson, onExit, onDone }: {
   lesson: TypeLesson; onExit: () => void
-  /** results = 문항별 정오답. 완료 화면이 점을 하나씩 찍는 데 쓴다 */
-  onDone: (score: { correct: number; total: number; results: boolean[] }) => void
+  onDone: (score: PracticeResult) => void
 }) {
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState(false)
@@ -1769,7 +1880,9 @@ export function PracticeStage({ lesson, onExit, onDone }: {
 
           <div className="flex-1 min-w-0 flex justify-end">
             {graded
-              ? <button onClick={() => onDone({ correct, total, results })} className={PRIMARY_BTN}>정리로 →</button>
+              ? <button onClick={() => onDone({ correct, total, results, answers })} className={PRIMARY_BTN}>
+                  {correct === total ? '정리로 →' : '틀린 문제 다시 풀기 →'}
+                </button>
               : <button onClick={() => setGraded(true)} disabled={answered < total} className={PRIMARY_BTN}>채점하기</button>}
           </div>
         </div>
