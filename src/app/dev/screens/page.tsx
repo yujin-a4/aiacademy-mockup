@@ -24,6 +24,7 @@ import StepBadge from '@/components/session/steps/StepBadge'
 import StepAction from '@/components/session/steps/StepAction'
 import { computeBadges } from '@/lib/sessionBadges'
 import { PracticeStage } from '@/components/type-lesson/TypeLessonPlayer'
+import ContentView, { type ContentState } from '@/components/type-lesson/ContentView'
 import { getTypeLesson } from '@/data/typeLearning'
 
 const noop = () => {}
@@ -191,6 +192,30 @@ const SCREENS: Screen[] = [
     id: 'practice-p4', group: '실전 화면', label: 'Part 4 — 짧은 담화',
     note: '표/시각자료가 있으면 음원 듣는 동안 상시 노출.',
     render: () => practice('t05'),
+  },
+  {
+    id: 'review-wrong-pick', group: '실전 화면', label: '틀린 문제 다시 풀기 — 내가 고른 오답',
+    note: '리뷰 단계에서 실전 때 고른 오답이 그대로 빨갛게 남는다. 채점 전이라 정답은 아직 안 열린다.',
+    render: () => {
+      const lesson = getTypeLesson('t07')
+      if (!lesson) return null
+      const q = lesson.content.questions[0]
+      const myWrong = q.options.find((o) => !o.correct)!
+      const st: ContentState = {
+        revealedScript: 'all', revealedOptions: { 0: 'all' },
+        playingId: null, marks: new Set(), tutorMarks: new Set(), onTapWord: noop,
+        answerMode: 'single', focusQ: 0,
+        answers: { 0: myWrong.label },
+        graded: new Set(),                               // 채점 전 — 정답을 아직 안 연다
+        wrongPicks: new Set([`0:${myWrong.label}`]),     // 실전에서 고른 오답
+        onSelect: noop, showKo: false,
+      }
+      return (
+        <div className="flex-1 min-h-0 overflow-y-auto p-10 bg-[#F5F8FE]">
+          <div className="max-w-[560px] mx-auto"><ContentView lesson={lesson} st={st} /></div>
+        </div>
+      )
+    },
   },
   {
     id: 'practice-p5', group: '실전 화면', label: 'Part 5 — 단문 빈칸',

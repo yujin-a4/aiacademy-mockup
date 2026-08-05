@@ -160,7 +160,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const rowCls = showResult
             ? isCorrect ? 'border-[#86EFAC] bg-[#F0FDF4]'
               : chosen ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E5E7EB] bg-white opacity-70'
-            : wrongTried ? 'border-[#FCA5A5] bg-[#FEF2F2] opacity-70'
+            /* 흐리게 두지 않는다 — "내가 고른 오답"은 지금 보라고 남겨둔 것이다.
+               (예전엔 opacity-70 이라 빨강이 죽어서 그냥 지나간 줄처럼 보였다) */
+            : wrongTried ? 'border-[#EF4444] bg-[#FEF2F2]'
               : chosen ? 'border-[#2563EB] bg-[#EFF6FF]'
                 : playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
           const circleCls = showResult
@@ -201,6 +203,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                   {playing && !textHidden && <SpeakerIcon pulse />}
                   {showResult && isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#16A34A]">정답</span>}
                   {showResult && chosen && !isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답</span>}
+                  {/* 채점 전(리뷰·수업 중 재시도)에도 내가 고른 오답임을 말해준다.
+                      정답은 여전히 공개하지 않는다 — "이건 아니다"만 남긴다. */}
+                  {wrongTried && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답 · 오답</span>}
                 </button>
 
                 {optAudio && (
