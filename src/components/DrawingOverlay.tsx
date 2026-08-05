@@ -199,6 +199,49 @@ export function DrawPalette({ className, ...p }: PaletteProps & { className?: st
   )
 }
 
+/* ── 연필 FAB — 동그란 버튼 하나가 도구 바를 품고 있다 ──
+   상단 도구줄의 '필기' 버튼을 대신한다. 누르면 옆으로 도구 바가 쭉 늘어나고, 다시 누르면 접힌다.
+   필기는 지문 위에서 하는 일이라 도구도 지문 가까이(화면 좌하단)에 둔다. */
+export function PenFab({ drawMode, toggleDraw, attention, className, ...p }: PaletteProps & {
+  drawMode: boolean; toggleDraw: () => void
+  /** 지금 단계가 "필기해 보세요"인가 — 버튼 주변을 뛰게 해 여기를 누르라고 알린다 */
+  attention?: boolean; className?: string
+}) {
+  const nudge = !!attention && !drawMode
+  return (
+    <div className={`fixed bottom-5 left-4 z-50 flex items-center gap-2 ${className ?? ''}`}>
+      <div className="relative shrink-0">
+        {/* 퍼지는 링 — 필기를 시켜놓고 도구가 어디 있는지 모르면 수업이 멈춘다 */}
+        {nudge && <span className="absolute inset-0 rounded-full bg-[#F97316]/40 animate-ping pointer-events-none" />}
+        <button onClick={toggleDraw} title="필기" aria-label="필기 도구"
+          className={`relative w-12 h-12 rounded-full flex items-center justify-center border shadow-lg transition-colors ${
+            drawMode ? 'bg-[#F97316] border-[#F97316] text-white'
+              : nudge ? 'bg-[#FFF7ED] border-[#F97316] text-[#F97316] ring-4 ring-[#F97316]/20'
+                : 'bg-white border-[#E5E7EB] text-[#F97316] hover:bg-[#FFF7ED]'
+          }`}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </svg>
+        </button>
+      </div>
+      {/* 도구 바가 접혀 있을 때만 뜨는 안내 — 펼치면 도구 바가 이 자리를 쓴다 */}
+      {nudge && (
+        <span className="shrink-0 rounded-full bg-[#F97316] px-3 py-1.5 text-[11px] font-bold text-white shadow-lg whitespace-nowrap">
+          여기를 눌러 필기하세요
+        </span>
+      )}
+      {/* 늘어나는 도구 바 — 접힘은 max-width 로만 준다(언마운트하면 늘어나는 맛이 없다) */}
+      <div className={`flex items-center gap-1 rounded-full bg-white overflow-hidden whitespace-nowrap
+                       [&>*]:shrink-0 transition-[max-width,opacity,padding] duration-200 ${
+        drawMode ? 'max-w-[68vw] opacity-100 px-2 py-1.5 border border-[#E5E7EB] shadow-lg'
+          : 'max-w-0 opacity-0 px-0 py-1.5 border-0'
+      }`}>
+        <PaletteButtons {...p} />
+      </div>
+    </div>
+  )
+}
+
 export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlayProps & { bounds?: React.RefObject<HTMLElement>; hidePalette?: boolean }) {
   const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw } = props
   const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
