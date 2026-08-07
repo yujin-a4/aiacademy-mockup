@@ -45,6 +45,10 @@ export interface UiDbPassage {
   /** 문장으로 안 쪼개지는 것: { table: { headers, rows } } 등 */
   body: Record<string, unknown> | null
   sentences: UiDbSentence[]
+  /** 이중·삼중 지문 묶음 키 (0027). 단일 지문은 null */
+  setCode: string | null
+  /** 세트 안 순서 (지문 1·2·3) */
+  setSeq: number
 }
 
 export interface UiDbQuestion {
@@ -54,27 +58,33 @@ export interface UiDbQuestion {
   options: UiDbOption[]
   /** 지문 안에서 몇 번째 문항인가 (0014). 교재 원문 번호(147 같은 값)와 다르다 */
   displayOrder: number
-  /** 이 문항이 붙은 지문. 지문 개념이 없는 Part1·5는 null */
+  /** 이 문항이 붙은 지문. 지문 개념이 없는 Part1·5는 null.
+   *  이중·삼중이면 **세트의 첫 지문**이다 — 세트 전체는 `passages` 를 봐라 */
   passage: UiDbPassage | null
+  /** 이 문항이 보는 지문 전체 (0027). 단일 지문이면 [passage], 없으면 [] */
+  passages: UiDbPassage[]
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /* 세 군데서 같은 select/매핑을 하던 것을 한 곳으로. 컬럼이 늘 때 한 군데만 고치면 된다 */
+const P_SELECT =
+  'passage_code, kind, title, meta, body, set_code, set_seq, ' +
+  'passage_sentences(seq, en, ko, speaker, blank_no, audio_url)'
 const Q_SELECT =
   'question_code, part, content, display_order, ' +
   'question_options(option_label, option_text, is_correct, option_explanation, correct_evidence, audio_url, display_order), ' +
-  'passages(passage_code, kind, title, meta, body, passage_sentences(seq, en, ko, speaker, blank_no, audio_url))'
+  `passages(${P_SELECT})`
 
-function mapPassage(row: any): UiDbPassage | null {
-  const p = Array.isArray(row?.passages) ? row.passages[0] : row?.passages
-  if (!p) return null
+function mapPassageRow(p: any): UiDbPassage {
   return {
     code: p.passage_code ?? null,
     kind: p.kind,
     title: p.title ?? null,
     meta: (p.meta as { k: string; v: string }[] | null) ?? null,
     body: (p.body as Record<string, unknown> | null) ?? null,
+    setCode: p.set_code ?? null,
+    setSeq: p.set_seq ?? 1,
     sentences: ((p.passage_sentences as any[]) ?? [])
       .map((s) => ({
         seq: s.seq, en: s.en, ko: s.ko ?? null, speaker: s.speaker ?? null,
@@ -84,13 +94,51 @@ function mapPassage(row: any): UiDbPassage | null {
   }
 }
 
+function mapPassage(row: any): UiDbPassage | null {
+  const p = Array.isArray(row?.passages) ? row.passages[0] : row?.passages
+  return p ? mapPassageRow(p) : null
+}
+
+/**
+ * 이중·삼중 지문 세트를 붙인다 (0027).
+ *
+ * 문항은 세트의 **첫 지문**만 가리킨다(`questions.passage_id`). 나머지 지문은 같은 `set_code`
+ * 로 묶여 있을 뿐이라 문항 조회에 딸려 오지 않는다 — 그래서 여기서 한 번 더 읽는다.
+ * 세트가 없는 강의(대부분)는 쿼리 자체를 안 한다.
+ */
+async function attachPassageSets(rows: UiDbQuestion[]): Promise<UiDbQuestion[]> {
+  const supabase = getSupabase()
+  const codes = Array.from(new Set(
+    rows.map((r) => r.passage?.setCode).filter((c): c is string => !!c),
+  ))
+  if (!supabase || codes.length === 0) return rows
+
+  const { data, error } = await supabase.from('passages').select(P_SELECT).in('set_code', codes)
+  if (error || !data) return rows                       // 실패해도 첫 지문으로는 돈다
+
+  const bySet = new Map<string, UiDbPassage[]>()
+  for (const p of data as any[]) {
+    const doc = mapPassageRow(p)
+    if (!doc.setCode) continue
+    bySet.set(doc.setCode, [...(bySet.get(doc.setCode) ?? []), doc])
+  }
+  bySet.forEach((list) => list.sort((a, b) => a.setSeq - b.setSeq))
+
+  return rows.map((r) => {
+    const set = r.passage?.setCode ? bySet.get(r.passage.setCode) : undefined
+    return set && set.length > 1 ? { ...r, passages: set } : r
+  })
+}
+
 function mapQuestion(row: any): UiDbQuestion {
+  const passage = mapPassage(row)
   return {
     code: row.question_code,
     part: row.part,
     content: (row.content as Record<string, string>) ?? {},
     displayOrder: row.display_order ?? 0,
-    passage: mapPassage(row),
+    passage,
+    passages: passage ? [passage] : [],      // 세트면 attachPassageSets 가 나머지를 채운다
     options: ((row.question_options as any[]) ?? [])
       // display_order 우선(0014). 없던 시절 데이터/폴백을 위해 label 순으로 떨어진다
       .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)
@@ -125,7 +173,7 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
 
   const ordered = codes.map((c) => byCode.get(c))
   if (ordered.some((q) => !q || q.options.length === 0)) return null
-  return ordered as UiDbQuestion[]
+  return attachPassageSets(ordered as UiDbQuestion[])
 }
 
 /** 범용 훅: DB 로드 성공 시 adapt 결과, 실패 시 fallback */
@@ -180,7 +228,7 @@ export async function fetchQuestionsBySamePassage(anchorCode: string): Promise<U
     .filter((q) => q.options.length > 0)
     .sort((a, b) => a.code.localeCompare(b.code))
 
-  return rows.length ? rows : null
+  return rows.length ? attachPassageSets(rows) : null
 }
 
 /** 범용 훅: anchorCode 기준으로 같은 지문의 문항 전체를 로드. 실패 시 fallback */
@@ -435,8 +483,8 @@ export async function fetchLectureQuestions(lectureCode: string): Promise<UiDbQu
     .select(`${Q_SELECT}, lectures!inner(lecture_code)`)
     .eq('lectures.lecture_code', lectureCode)
   if (error || !data) return []
-  return (data as any[])
+  return attachPassageSets((data as any[])
     .map(mapQuestion)
     .filter((q) => q.options.length > 0)
-    .sort((a, b) => a.code.localeCompare(b.code))
+    .sort((a, b) => a.code.localeCompare(b.code)))
 }

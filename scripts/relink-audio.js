@@ -51,18 +51,41 @@ async function main() {
       console.log(`  P${part}: 파일 자체가 없는 보기 ${n}개  → gen_option_audio.js 로 새로 합성해야 함`);
     }
 
-    if (!found.length) { console.log('\n복구할 것 없음'); return; }
-    if (!GO) {
-      console.log('\n예시:');
-      for (const f of found.slice(0, 4)) console.log(`  ${f.code}_${f.label} → ${f.rel}`);
-      console.log('\n(dry run) 반영하려면 --go');
-      return;
+    if (!GO && found.length) {
+      console.log('  예시:');
+      for (const f of found.slice(0, 4)) console.log(`    ${f.code}_${f.label} → ${f.rel}`);
     }
 
-    for (const f of found) {
-      await c.query('update question_options set audio_url = $2 where id = $1', [f.id, f.rel]);
+    if (GO) {
+      for (const f of found) {
+        await c.query('update question_options set audio_url = $2 where id = $1', [f.id, f.rel]);
+      }
+      console.log(`\n${found.length}개 링크 복구 완료`);
     }
-    console.log(`\n${found.length}개 링크 복구 완료`);
+
+    /* ── LC 지문 문장(0014 passage_sentences)도 같은 사정이다 ──
+       파일명은 gen_lc_audio.js 규칙: public/lc/<passage_code>_<seq>.mp3.
+       지문 코드는 재적재해도 그대로라(LC-P3-01-PSG1) 문항을 다시 넣으면 링크만 끊기고 파일은 남는다.
+       이걸 안 이으면 gen_lc_audio 가 **있는 문장을 다시 합성한다** — 돈을 두 번 낸다. */
+    const { rows: sents } = await c.query(`
+      select s.id, s.seq, s.audio_url, p.passage_code
+        from passage_sentences s join passages p on p.id = s.passage_id
+       where p.kind in ('utterance','dialogue','talk')
+       order by p.passage_code, s.seq`);
+    const sFound = sents.filter((r) => {
+      const rel = `/lc/${r.passage_code}_${r.seq}.mp3`;
+      return fs.existsSync(path.join(PUBLIC, rel.replace(/^\//, ''))) && r.audio_url !== rel;
+    });
+    console.log(`\nLC 지문 문장 ${sents.length}개 · 현재 링크됨 ${sents.filter((r) => r.audio_url).length}개`);
+    console.log(`  파일이 있는데 링크가 끊긴 것: ${sFound.length}개  → 복구 대상`);
+    if (GO && sFound.length) {
+      for (const r of sFound) {
+        await c.query('update passage_sentences set audio_url = $2 where id = $1',
+          [r.id, `/lc/${r.passage_code}_${r.seq}.mp3`]);
+      }
+      console.log(`  ${sFound.length}개 링크 복구 완료`);
+    }
+    if (!GO) console.log('\n(dry run) 반영하려면 --go');
   } finally {
     await c.end();
   }

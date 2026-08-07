@@ -1004,7 +1004,8 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
   }
 
   /* P6·P7 — 지문(들) + 문항, 각각 독립 스크롤. 지문이 여럿이면 탭으로 전환.
-     하단 도크(readingSideBySide): 지문(좌) | 문항(우) 가로 2열. 우측 패널: 지문(위)/문항(아래) 세로 스택. */
+     강사 창 최소화(readingSideBySide): 콘텐츠가 화면 전폭을 쓰므로 지문(좌) | 문항(우) 가로 2열.
+     우측 패널일 때는 폭이 좁으니 지문(위)/문항(아래) 세로 스택. */
   if (readingSideBySide) {
     return (
       <SplitPane

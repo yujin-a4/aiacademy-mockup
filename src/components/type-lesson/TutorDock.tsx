@@ -217,6 +217,8 @@ function Bubble({ role, text }: ChatMsg) {
 export interface TutorDockProps {
   mode: DockMode
   setMode: (m: DockMode) => void
+  /** 우측 패널로 펼 수 있는 폭인가. 좁은 화면에서는 최소화만 가능하다(펴면 둘 다 못 읽는다) */
+  canSidebar?: boolean
   name: string
   imgSrc: string
   /** 단계별 강사 포즈 컷아웃(배경 투명). 아바타 원 안에 쓰인다. 없으면 imgSrc. */
@@ -251,7 +253,7 @@ export interface TutorDockProps {
 }
 
 export default function TutorDock({
-  mode, setMode, name, imgSrc, poseSrc,
+  mode, setMode, canSidebar = true, name, imgSrc, poseSrc,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking,
   lastLine, messages, actions, hint, actionKey,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
@@ -283,7 +285,8 @@ export default function TutorDock({
         getTutorFreq={getTutorFreq} lastLine={lastLine}
         chatMode={chatMode} setChatMode={setChatMode}
         inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
-        actions={actions} hint={hint} onRestore={() => setMode('sidebar')} />
+        actions={actions} hint={hint}
+        onRestore={canSidebar ? () => setMode('sidebar') : undefined} />
     )
   }
 
@@ -365,7 +368,8 @@ function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFr
   chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
   inputText: string; setInputText: (s: string) => void; onSend: () => void; onStartAgent: () => void
   actions?: ReactNode; hint?: ReactNode
-  onRestore: () => void
+  /** 없으면 = 펼 수 없는 폭. 탭해도 안 열리고 '강사 창 열기'도 숨긴다 */
+  onRestore?: () => void
 }) {
   /* 위치 — 기본은 우하단. 한 번 끌면 그 좌표로 고정된다(창 밖으로는 못 나가게 잡아둔다) */
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -394,7 +398,7 @@ function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFr
   const onPointerUp = () => {
     const d = dragRef.current
     dragRef.current = null
-    if (d && !d.moved) onRestore()      // 끌지 않고 탭 = 원래 패널로 복원
+    if (d && !d.moved) onRestore?.()    // 끌지 않고 탭 = 원래 패널로 복원 (좁은 화면에서는 못 편다)
   }
 
   const style: React.CSSProperties = pos
@@ -437,9 +441,11 @@ function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFr
           )}
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-t border-gray-100 bg-[#FAFBFF]">
             <ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} compact />
-            <button onClick={onRestore} className="text-[10.5px] font-bold text-[#94A3B8] hover:text-[#475569] px-1.5">
-              강사 창 열기
-            </button>
+            {onRestore && (
+              <button onClick={onRestore} className="text-[10.5px] font-bold text-[#94A3B8] hover:text-[#475569] px-1.5">
+                강사 창 열기
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -447,7 +453,7 @@ function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFr
       <button
         onPointerDown={onPointerDown} onPointerMove={onPointerMove}
         onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-        aria-label="강사 창 — 끌어서 이동, 탭하면 열기"
+        aria-label={onRestore ? '강사 창 — 끌어서 이동, 탭하면 열기' : '강사 창 — 끌어서 이동'}
         className={`relative shrink-0 touch-none cursor-grab active:cursor-grabbing rounded-full transition-all ${
           isSpeaking ? 'shadow-[0_0_18px_rgba(37,99,235,0.55)]' : 'shadow-lg'
         }`}>

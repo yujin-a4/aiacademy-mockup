@@ -1070,7 +1070,7 @@
     },
     {
      "no": 42,
-     "question": "What does the woman imply when she says, “that",
+     "question": "What does the woman imply when she says, “that was the president’s decision”?",
      "options": [
       {
        "label": "A",
@@ -1156,7 +1156,7 @@
    "questions": [
     {
      "no": 46,
-     "question": "Why don’t you take the truck over to pick",
+     "question": "Why don’t you take the truck over to pick up fertilizer from the local farm supply store?",
      "options": [
       {
        "label": "A",
@@ -1276,7 +1276,7 @@
    "questions": [
     {
      "no": 47,
-     "question": "Where does the conversation most likely take",
+     "question": "Where does the conversation most likely take place?",
      "options": [
       {
        "label": "A",
@@ -1330,7 +1330,7 @@
     },
     {
      "no": 49,
-     "question": "Why does the woman say, “I’ve never been to this",
+     "question": "Why does the woman say, “I’ve never been to this area before”?",
      "options": [
       {
        "label": "A",
@@ -1465,7 +1465,7 @@
     },
     {
      "no": 52,
-     "question": "What does the man say he will do with the prize",
+     "question": "What does the man say he will do with the prize money?",
      "options": [
       {
        "label": "A",
@@ -1558,7 +1558,7 @@
     },
     {
      "no": 54,
-     "question": "According to the woman, what is the main",
+     "question": "According to the woman, what is the main problem?",
      "options": [
       {
        "label": "A",
@@ -1688,7 +1688,7 @@
     },
     {
      "no": 57,
-     "question": "What does the man mention about Browder",
+     "question": "What does the man mention about Browder Holdings?",
      "options": [
       {
        "label": "A",
@@ -1715,7 +1715,7 @@
     },
     {
      "no": 58,
-     "question": "What does the man say his company puts effort",
+     "question": "What does the man say his company puts effort into?",
      "options": [
       {
        "label": "A",
@@ -1776,7 +1776,7 @@
    "questions": [
     {
      "no": 59,
-     "question": "Which industry do the speakers most likely work",
+     "question": "Which industry do the speakers most likely work in?",
      "options": [
       {
        "label": "A",
@@ -1898,7 +1898,7 @@
    "questions": [
     {
      "no": 63,
-     "question": "Look at the graphic. Which role was played by a",
+     "question": "Look at the graphic. Which role was played by a different performer this evening?",
      "options": [
       {
        "label": "A",
@@ -1975,14 +1975,33 @@
     },
     {
      "speaker": "W",
-     "en": "I’ll check the invoice… Wait, this isn’t right.",
+     "en": "I’ll check the invoice… Wait, this isn’t right. I’m sure I ordered more sticky notes than this.",
+     "for_q": [
+      66
+     ]
+    },
+    {
+     "speaker": "M",
+     "en": "Can I take a look at the invoice? Ah, there’s a note here at the bottom. It says the manufacturer is behind on production, so this is all that Gillespie had in stock. They’ll send the rest to us by the end of the month.",
      "for_q": []
+    },
+    {
+     "speaker": "W",
+     "en": "OK. That should be fine.",
+     "for_q": []
+    },
+    {
+     "speaker": "M",
+     "en": "Good. So, should we take these boxes of binders to Ms. Chen’s office?",
+     "for_q": [
+      67
+     ]
     }
    ],
    "questions": [
     {
      "no": 65,
-     "question": "Where does the conversation most likely take",
+     "question": "Where does the conversation most likely take place?",
      "options": [
       {
        "label": "A",
@@ -2009,7 +2028,7 @@
     },
     {
      "no": 66,
-     "question": "Look at the graphic. Which quantity does the",
+     "question": "Look at the graphic. Which quantity does the woman say is incorrect?",
      "options": [
       {
        "label": "A",
@@ -2069,14 +2088,30 @@
    "script": [
     {
      "speaker": "M",
-     "en": "Hi, Ivy. It’s Craig. Are you at the gate already?",
-     "for_q": []
+     "en": "Hi, Ivy. It’s Craig. Are you at the gate already? I’m still waiting to get through the security screening. I’ve never seen lines this long at this terminal before.",
+     "for_q": [
+      68
+     ]
+    },
+    {
+     "speaker": "W",
+     "en": "Yeah, I was surprised by that too. I just arrived at our gate. But— the departure board now says our flight is delayed by forty minutes. So you have time.",
+     "for_q": [
+      69
+     ]
+    },
+    {
+     "speaker": "M",
+     "en": "I’m glad to hear that. That does mean that we’ll land too late to catch the last shuttle bus, though. Could you look into other options for getting to the convention center?",
+     "for_q": [
+      70
+     ]
     }
    ],
    "questions": [
     {
      "no": 69,
-     "question": "Look at the graphic. Where are the speakers",
+     "question": "Look at the graphic. Where are the speakers flying to?",
      "options": [
       {
        "label": "A",
@@ -2346,7 +2381,7 @@
     },
     {
      "no": 78,
-     "question": "What does the speaker emphasize about the",
+     "question": "What does the speaker emphasize about the products?",
      "options": [
       {
        "label": "A",
@@ -2373,7 +2408,7 @@
     },
     {
      "no": 79,
-     "question": "Why does the speaker say, “but he’ll be out in the",
+     "question": "Why does the speaker say, “but he’ll be out in the field when they arrive”?",
      "options": [
       {
        "label": "A",
@@ -2417,7 +2452,7 @@
    "questions": [
     {
      "no": 80,
-     "question": "What type of business does the speaker work",
+     "question": "What type of business does the speaker work for?",
      "options": [
       {
        "label": "A",
@@ -2504,17 +2539,18 @@
    "script": [
     {
      "speaker": "W",
-     "en": "Thank you all for coming to this meeting. As you know, the volume of books that we publish has grown rapidly over the past year. We’ve always outsourced our design tasks to freelancers, but I believe there’s now enough work that it makes more sense financially to have a book designer on staff. So, we’re now seeking to hire someone for a full-time position. I posted a listing online this morning, and notified our freelancers about it.",
+     "en": "Thank you all for coming to this meeting. As you know, the volume of books that we publish has grown rapidly over the past year. We’ve always outsourced our design tasks to freelancers, but I believe there’s now enough work that it makes more sense financially to have a book designer on staff. So, we’re now seeking to hire someone for a full-time position. I posted a listing online this morning, and notified our freelancers about it. I’m going to e-mail the job ad to you all as well. Please send it around to anyone you think might be interested.",
      "for_q": [
       83,
-      84
+      84,
+      85
      ]
     }
    ],
    "questions": [
     {
      "no": 85,
-     "question": "I’m going to e-mail the job ad to you all as well.",
+     "question": "I’m going to e-mail the job ad to you all as well. Please send it around to anyone you think might be interested. 오늘 회의에 참석해 주셔서 감사드립니다. 아시다시피, 우리가 출판하",
      "options": [
       {
        "label": "A",
@@ -2541,7 +2577,7 @@
     },
     {
      "no": 83,
-     "question": "What industry does the speaker most likely work",
+     "question": "What industry does the speaker most likely work in?",
      "options": [
       {
        "label": "A",
@@ -2666,7 +2702,7 @@
     },
     {
      "no": 88,
-     "question": "According to the speaker, what is the listeners’",
+     "question": "According to the speaker, what is the listeners’ main goal?",
      "options": [
       {
        "label": "A",
@@ -2835,7 +2871,7 @@
     },
     {
      "no": 93,
-     "question": "What does the speaker imply when he says, “Now,",
+     "question": "What does the speaker imply when he says, “Now, there’s a single file on our shared network”?",
      "options": [
       {
        "label": "A",
@@ -2906,7 +2942,7 @@
    "questions": [
     {
      "no": 95,
-     "question": "What type of business do the listeners most likely",
+     "question": "What type of business do the listeners most likely work for?",
      "options": [
       {
        "label": "A",
@@ -2933,7 +2969,7 @@
     },
     {
      "no": 96,
-     "question": "Look at the graphic. Which parking space will be",
+     "question": "Look at the graphic. Which parking space will be reserved for the listeners?",
      "options": [
       {
        "label": "A",
@@ -2960,7 +2996,7 @@
     },
     {
      "no": 97,
-     "question": "What should the listeners do after a job is",
+     "question": "What should the listeners do after a job is completed?",
      "options": [
       {
        "label": "A",

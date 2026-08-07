@@ -13,11 +13,17 @@
        문구를 고치면 갤러리도 같이 바뀌어야지, 따로 놀면 검토용으로 못 쓴다.
      · 실전 화면은 PracticeStage 를 로컬 샘플 강의로 띄운다.
 
-   /dev/screens        → 목록
-   /dev/screens?s=<id> → 그 화면만 전체 화면으로 (스크린샷용) */
+   수업 화면(강의별)은 여기서 다시 그리지 않는다 — **실제 라우트를 같은 기기 프레임에 끼워** 보여준다.
+   문항·레일이 DB에서 오므로 갤러리가 흉내 내면 금세 진짜와 달라진다. 목록도 DB에서 읽어
+   42강을 그대로 세우고, 문항이 없는 강의는 없다고 적는다(= 콘텐츠 진행 상황이 곧 목록이다).
+
+   /dev/screens                  → 목록
+   /dev/screens?s=<id>           → 그 화면만 전체 화면으로 (스크린샷용)
+   /dev/screens?s=lecture:<코드>  → 그 강의 수업 화면(실제 /lecture/<코드>)을 기기 프레임 안에 */
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
+import { useCurriculumLectures } from '@/data/db/questionStore'
 import StepOpening from '@/components/session/steps/StepOpening'
 import StepAccuracy from '@/components/session/steps/StepAccuracy'
 import StepBadge from '@/components/session/steps/StepBadge'
@@ -72,7 +78,7 @@ function feedback(
 
 interface Screen {
   id: string
-  group: '완료 화면' | '실전 화면'
+  group: '완료 화면' | '실전 화면' | '수업 화면'
   label: string
   note: string
   render: () => React.ReactNode
@@ -239,11 +245,67 @@ const SCREENS: Screen[] = [
   },
 ]
 
+/* ── 수업 화면(강의별) — 실제 라우트를 그대로 끼운다 ──
+   마이크는 허용해 둔다. 강사 대화는 도입에서 "수업 시작하기"를 눌러야 시작하므로,
+   목록에서 열었다고 세션이 붙지는 않는다(= 그냥 열어보는 것만으로는 비용이 안 든다). */
+function LectureFrame({ code }: { code: string }) {
+  return (
+    <iframe src={`/lecture/${code}`} title={`${code} 수업 화면`} allow="microphone"
+      className="w-full h-full border-0" />
+  )
+}
+
+/** 파트별 강의 목록 — 문항이 없는 강의는 링크 대신 '문항 없음'으로 둔다 */
+function LectureList() {
+  const lectures = useCurriculumLectures()
+  if (!lectures.length) {
+    return <p className="text-[12px] text-[#9CA3AF]">강의 목록을 못 읽었어요 — Supabase 환경변수를 확인하세요.</p>
+  }
+  const parts = Array.from(new Set(lectures.map((l) => l.part))).sort((a, b) => a - b)
+  const ready = lectures.filter((l) => l.questionCount > 0).length
+  return (
+    <>
+      <p className="text-[11.5px] text-[#6B7280] mb-2">
+        커리큘럼 {lectures.length}강 중 <b className="text-[#2563EB]">문항 있는 {ready}강</b>이 열립니다.
+        누르면 실제 수업 화면이 같은 기기 프레임 안에서 뜹니다.
+      </p>
+      {parts.map((p) => (
+        <div key={p} className="mb-3">
+          <p className="text-[11px] font-black text-[#94A3B8] mb-1.5">Part {p}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {lectures.filter((l) => l.part === p).map((l) => (
+              l.questionCount > 0 ? (
+                <a key={l.code} href={`/dev/screens?s=lecture:${l.code}`}
+                  className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3 py-2 hover:border-[#93C5FD] transition-colors">
+                  <span className="shrink-0 text-[10px] font-mono font-bold text-[#2563EB]">{l.code}</span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-[#1C1B33]">{l.title}</span>
+                  <span className="shrink-0 text-[10px] text-[#9CA3AF]">문항 {l.questionCount}</span>
+                </a>
+              ) : (
+                <div key={l.code}
+                  className="flex items-center gap-2 bg-[#F8FAFC] border border-dashed border-[#E5E7EB] rounded-xl px-3 py-2">
+                  <span className="shrink-0 text-[10px] font-mono font-bold text-[#CBD5E1]">{l.code}</span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-[#C4C9D4]">{l.title}</span>
+                  <span className="shrink-0 text-[10px] text-[#C4C9D4]">문항 없음</span>
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
 function Gallery() {
   const search = useSearchParams()
   const router = useRouter()
   const id = search.get('s')
-  const current = SCREENS.find((s) => s.id === id)
+  const lectureCode = id?.startsWith('lecture:') ? id.slice('lecture:'.length) : null
+  const current: Screen | undefined = lectureCode
+    ? { id: id!, group: '수업 화면', label: `${lectureCode} 수업 화면`, note: '실제 /lecture 라우트',
+      render: () => <LectureFrame code={lectureCode} /> }
+    : SCREENS.find((s) => s.id === id)
 
   /* 단일 화면 — 전체 화면으로. 스크린샷에 군더더기가 안 들어가야 하므로 라벨을 얇게 띄운다.
      ?frame=phone — 폰 폭(420px)으로 좁혀서 그린다. 완료 화면은 모바일 기준으로 만든 레이아웃이라
@@ -263,6 +325,13 @@ function Gallery() {
             ← 목록
           </button>
           {!raw && <span className="text-[10px] font-semibold text-slate-400 bg-white/80 rounded-lg px-2 py-1">{DEVICE.label}</span>}
+          {/* 프레임 안은 좁아서 실제로 수업을 끝까지 돌려보긴 불편하다 — 진짜 창으로 나가는 문을 둔다 */}
+          {lectureCode && (
+            <a href={`/lecture/${lectureCode}`} target="_blank" rel="noreferrer"
+              className="text-[10px] font-bold text-slate-500 bg-white/90 backdrop-blur border border-slate-200 rounded-lg px-2 py-1 hover:text-slate-800">
+              새 탭에서 열기 ↗
+            </a>
+          )}
         </div>
       </>
     )
@@ -274,9 +343,16 @@ function Gallery() {
       <div className="max-w-[760px] mx-auto">
         <h1 className="text-[20px] font-black text-[#1C1B33]">화면 갤러리</h1>
         <p className="text-[13px] text-[#6B7280] mt-1">
-          완료 화면·실전 화면에서 나올 수 있는 상태. 검토·캡처용 개발 페이지입니다.
+          강의별 수업 화면 + 완료·실전 화면에서 나올 수 있는 상태. 검토·캡처용 개발 페이지입니다.
         </p>
         <p className="text-[12px] font-bold text-[#2563EB] mt-1.5">기기 기준 · {DEVICE.label}</p>
+
+        {/* 수업 화면은 강의(=문항 유형)마다 달라서 대표 몇 개로는 검토가 안 된다 — 42강을 다 세운다 */}
+        <div className="mt-7">
+          <p className="text-[12px] font-black text-[#2563EB] mb-2">수업 화면 · 강의별</p>
+          <LectureList />
+        </div>
+
         {groups.map((g) => (
           <div key={g} className="mt-7">
             <p className="text-[12px] font-black text-[#2563EB] mb-2">{g}</p>

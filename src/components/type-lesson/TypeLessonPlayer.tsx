@@ -301,9 +301,9 @@ function stageHeading(turn: Turn): string {
   return cleanStageLabel(turn.stage) ?? (sNum ? S_HEADING[sNum] : undefined) ?? KIND_HEADING[turn.interaction.kind]
 }
 
-/* ── 4단계(도입·수업·실전·정리) 매핑 ──
-   시트 스캐폴딩 레일(턴)을 4개 매크로 단계로 접는다. 레일 순서가 유형마다 달라
-   (예: Part3은 실전 풀이 후 문항별 수업 복습) 현재 턴 기준으로 어느 단계인지만 표시한다. */
+/* ── 턴의 성격 대략 분류 ──
+   **상단 4단계 표시는 이걸 쓰지 않는다**(화면 phase 를 따른다 — macroActive 주석 참고).
+   지금 쓰는 곳은 도입의 '오늘 배울 내용' 목록뿐이다: 수업 성격의 턴만 골라 소제목을 뽑는다. */
 type Macro = '수업' | '실전' | '정리'
 function macroOf(t: Turn): Macro {
   const s = t.stage
@@ -426,7 +426,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   )
 }
 
-export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, draftId, preparing }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, draftId, preparing, initialStage }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과. 지금은 화면에 쓰지 않는다 —
@@ -438,13 +438,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   lectureCode?: string
   /** 레일 편집기 드래프트로 열렸는가 — 배너를 띄운다. 정본과 헷갈리면 안 된다 */
   draftId?: string | null
+  /** 'practice' 면 도입·수업을 건너뛰고 실전 세트부터 연다 (유형 그리드에서 오는 링크) */
+  initialStage?: 'practice'
 }) {
   const router = useRouter()
 
   /* ── 단계 ──
      'review' = 실전에서 틀린 문항만 강사와 다시 푸는 단계 (실전 → **리뷰** → 정리).
      자율학습/오답노트 화면(my-learning/wrong)은 MVP 범위 밖이라 쓰지 않는다. */
-  const [phase, setPhase] = useState<'lesson' | 'practice' | 'review' | 'wrap' | 'done'>('lesson')
+  const [phase, setPhase] = useState<'lesson' | 'practice' | 'review' | 'wrap' | 'done'>(
+    initialStage === 'practice' ? 'practice' : 'lesson')
   const [practiceScore, setPracticeScore] = useState<PracticeResult | null>(null)
   const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
 
@@ -564,9 +567,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [answeredQ, setAnsweredQ] = useState<Set<number>>(new Set()) // pickAnswer로 텍스트 공개된 문항
   /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전에도 "이건 아니다"를 화면에 남긴다 */
   const [wrongPicks, setWrongPicks] = useState<Set<string>>(new Set())
-  const [started, setStarted] = useState(false)            // 도입(LessonIntro) → 수업 진입 여부
+  /* 도입(LessonIntro) → 수업 진입 여부. 실전으로 바로 들어온 경우엔 도입을 지나온 것으로 본다
+     (도입 화면이 실전 위에 다시 뜨면 "시작하기"가 수업으로 되돌린다) */
+  const [started, setStarted] = useState(initialStage === 'practice')
   /* 강사 창 배치 — 우측 패널(기본) ⇄ 최소화(작은 창). 강사 말·선택지·행동 지시·입력이 전부 이 창 안에 있다 */
   const [dockMode, setDockMode] = useState<DockMode>('sidebar')
+  const dockModeRef = useRef(dockMode)
+  dockModeRef.current = dockMode
   const feedRef = useRef<HTMLDivElement>(null)   // 대화 흐름 — 새 발화·새 단계가 오면 아래로 따라간다
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('voice')
   /* 에이전트 콜백은 세션 시작 시점 클로저를 잡는다 — 지금 모드는 ref 로 읽어야 최신이다 */
@@ -747,7 +754,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      그 클릭이 사용자 제스처라 세션 시작/마이크 권한이 허용된다. 이미 연결 중/연결됨이면 건드리지 않고,
      started는 세션 동안 한 번만 true로 바뀌므로 "다시 해보기"로 재시작해도 중복 연결되지 않는다.
      (학생이 직접 '대화 종료'를 누른 경우엔 이 효과가 다시 안 돌아 자동 재연결도 없다) */
-  const autoStartedRef = useRef(false)
+  /* 실전으로 바로 들어온 경우엔 자동 연결하지 않는다 — 실전은 학생 혼자 푸는 단계고(아래 phase 효과가
+     연결을 끊는다), 무엇보다 **사용자 제스처 없이 페이지 로드만으로 세션이 붙으면** 안 된다 */
+  const autoStartedRef = useRef(initialStage === 'practice')
   useEffect(() => {
     if (!started || autoStartedRef.current) return
     if (conversation.status !== 'disconnected') return
@@ -871,6 +880,30 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     }
     return pts.length ? pts : [lesson.desc]
   }, [turns, lesson.desc])
+
+  /* ── 강사 창은 세로 화면에서도 **옆에 그대로 선다** ──
+     예전엔 lg(1024) 밑에서 위/아래로 쌓았다. 태블릿 세로(820)에서 지문이 화면의 42%로 눌리고
+     강사 창이 아래에 잘려 붙어서, 학생이 지문과 강사를 번갈아 볼 수가 없었다.
+     그래서 배치는 하나뿐이다 — **옆에 서거나(sidebar), 너무 좁으면 접히거나(mini)**.
+     경계는 폭 700px: 강사 창 최소 320 + 지문 최소 380. 그 밑은 옆에 세워도 둘 다 못 읽는다. */
+  const SIDEBAR_MIN_W = 700
+  const [narrow, setNarrow] = useState(false)
+  const autoMiniRef = useRef(false)      // 좁아서 자동으로 접은 것인가 (넓어지면 되돌린다)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${SIDEBAR_MIN_W - 1}px)`)
+    const apply = () => {
+      setNarrow(mq.matches)
+      if (mq.matches) {
+        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDockMode('mini') }
+      } else if (autoMiniRef.current) {
+        autoMiniRef.current = false
+        setDockMode('sidebar')            // 학생이 직접 접은 건 되돌리지 않는다
+      }
+    }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   /* 좌(지문/문제) · 우(설명) 분할 리사이즈 — 강사 영역은 기본으로 최대한 좁게(허용 범위의 최솟값) */
   const [leftFrac, setLeftFrac] = useState(0.72)
@@ -1208,8 +1241,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     matchState,
   }
 
-  /* 리뷰(틀린 문제 다시 풀기)는 실전의 뒷부분이다 — 턴 stage 로는 판정이 안 되므로 여기서 고정한다 */
-  const macroActive = phase === 'review' ? MACRO_IDX['실전'] : MACRO_IDX[macroOf(turn)]
+  /* ── 상단 4단계는 **지금 어느 화면인가**를 따른다 (턴의 상호작용이 아니라) ──
+     예전엔 `macroOf(turn)` 으로 현재 턴을 접었는데, 수업 레일 한복판의 '정답 고르기' 턴이
+     전부 실전으로 잡혔다. 특히 시트 상호작용이 '선택 응답'인데 **어느 보기인지 안 적혀 있으면**
+     fromSteps 가 정답 고르기(pickAnswer)로 낮춘다 — RC-P6-01·02 는 그게 **첫 턴**이라
+     수업 시작하자마자 상단이 실전으로 켜졌다(실측). LC-P2·P3·P4 는 중간에 켜졌다.
+     단계가 수업 → 실전 → 수업 으로 되돌아가면 학생은 자기가 어디 있는지 읽을 수가 없다.
+     4단계는 화면 그 자체다: 도입(LessonIntro) · 수업 · 실전(+오답 리뷰) · 정리(wrap). */
+  const macroActive = phase === 'practice' || phase === 'review' ? MACRO_IDX['실전']
+    : phase === 'wrap' || phase === 'done' ? MACRO_IDX['정리']
+    : MACRO_IDX['수업']
   /* 강사가 지금 말하는 중인가 — 에이전트 연결 시 실제 발화, 아니면 음원/TTS 재생 여부.
      포즈(입 벌린 설명 ↔ 차분) 선택과 도크 하이라이트에 함께 쓴다. */
   const tutorSpeaking = agentConnected ? conversation.isSpeaking : playingId !== null
@@ -1385,11 +1426,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
       {/* ── 본문: 좌 콘텐츠 · 우 강사 창.
            최소화(mini)는 fixed라 자리를 차지하지 않아 콘텐츠가 전체 폭을 쓴다 */}
-      <div ref={splitRef} className="flex-1 flex min-h-0 bg-white flex-col lg:flex-row">
-        {/* 좌(또는 위): 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄) */}
-        <div className={`min-h-0 flex flex-col border-b lg:border-b-0 border-gray-100 ${
-          dockMode === 'sidebar' ? 'h-[42%] lg:h-full lg:w-[var(--lf)]' : 'flex-1 h-full w-full'
-        }`} style={{ ['--lf' as string]: `${leftFrac * 100}%` }}>
+      <div ref={splitRef} className="flex-1 flex min-h-0 bg-white flex-row">
+        {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄).
+            폭은 비율이되 **강사 창 몫 320px 은 남긴다** — 세로 화면에서 72% 를 그대로 쓰면
+            강사 창이 200px대로 눌려 선택지 버튼이 두 줄로 깨진다. */}
+        <div
+          className={`min-h-0 flex flex-col border-gray-100 ${
+            dockMode === 'sidebar' ? 'h-full shrink-0 border-r' : 'flex-1 h-full w-full'
+          }`}
+          style={dockMode === 'sidebar'
+            /* 320 = 강사 창 최소 폭, 16 = 그 사이 리사이즈 손잡이 */
+            ? { width: `min(${(leftFrac * 100).toFixed(1)}%, calc(100% - 336px))` }
+            : undefined}>
           {/* 행동 지시(필기해 보세요·탭해 보세요…)는 여기 두지 않는다 — 강사 창의 선택지 영역으로 옮겼다.
               지시와 선택지가 한 자리에 모여야 학생이 어디를 봐야 할지 헷갈리지 않는다. */}
           {/* 파트1 수업(문항 1개)도 P6·P7과 같이 **높이를 주고 스크롤을 막는다** —
@@ -1404,10 +1452,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           </div>
         </div>
 
-        {/* 세로 리사이즈 핸들 (데스크탑) — 사이드바일 때만 */}
+        {/* 세로 리사이즈 핸들 — 사이드바일 때만. 사이드바 자체가 폭 700 이상에서만 서므로 항상 보인다 */}
         {dockMode === 'sidebar' && (
           <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd}
-            className="hidden lg:flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
+            className="flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
             <div className="h-12 w-1 rounded-full bg-gray-300" />
           </div>
         )}
@@ -1416,6 +1464,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             작은 창은 fixed라 여기 자리를 차지하지 않는다. 내용은 슬롯으로 넘기고 배치는 도크가 정한다. */}
         <TutorDock
           mode={dockMode} setMode={setDockMode}
+          /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
+          canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
           poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
           chatMode={chatMode} setChatMode={setChatMode}
