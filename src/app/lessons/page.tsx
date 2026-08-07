@@ -803,26 +803,46 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
    지금은 제거했다. **대표 강의를 골라 정본(/lecture)으로 보낸다** — 캐치잇이 보는 화면이
    실제 학습 화면과 같아야 소통이 된다.
    문항이 아직 없는 유형은 '문항 준비 중'으로 잠긴다(그 자체가 진행 현황이 된다). */
+/* 대표 강의는 **그 강의의 수업 세트**가 유형과 같은 것으로 고른다.
+   카드를 누르면 수업으로 들어가므로, 실전 세트만 그 유형인 강의를 걸면 화면이 딴 걸 보여준다. */
 const TYPE_LECTURE: Record<string, string> = {
   t01: 'LC-P1-01',   // 사진 묘사
   t02: 'LC-P2-01',   // 질의응답
   t03: 'LC-P3-01',   // 대화
   t04: 'LC-P3-05',   // 대화 + 시각자료(표)
-  t05: 'LC-P4-01',   // 담화
+  t05: 'LC-P4-02',   // 담화 일반형 — 전화 메시지 (P4-01 수업은 시각자료형이라 t06 이 쓴다)
   t07: 'RC-P5-08',   // 단문 빈칸
   t08: 'RC-P6-01',   // 장문 빈칸
-  t09: 'RC-P7-03',   // 1지문 독해
-  // t06·t10~t15 는 아직 해당 문항이 없다 → '문항 준비 중'
+  t09: 'RC-P7-01',   // 1지문 일반형 — 이메일 지문(유형 설명과 같다. 예전엔 광고 강의를 걸었었다)
+  t10: 'RC-P7-06',   // 1지문 표/자료형 — 예약 확인서(양식)
+  t11: 'RC-P7-05',   // 1지문 대화형 — 문자 대화
+  t06: 'LC-P4-01',   // 담화 표/자료형 — 안내 담화 + 워크숍 일정표
+  t12: 'RC-P7-07',   // 2지문 일반형 — 공지 + 이메일
+  t15: 'RC-P7-08',   // 3지문 표/자료형 — 이메일 + 버스 시간표 + 공지
 }
+
+/* 강의 하나가 수업/실전에 **서로 다른 지문 변종**을 담는 경우가 있다.
+   이중·삼중은 커리큘럼에 강의가 하나씩뿐이라(RC-P7-07·08) 일반형과 표형이 한 강의 안에 산다.
+   그 변종을 보여주려면 실전 세트로 바로 들어가야 한다 → `?stage=practice`. */
+const TYPE_PRACTICE: Record<string, string> = {
+  t13: 'RC-P7-07',   // 2지문 표/자료형 — 실전 세트가 이메일 + 일정표
+  t14: 'RC-P7-08',   // 3지문 일반형   — 실전 세트가 기사 + 이메일 + 평면도
+}
+
+/* 아직 대표 강의가 없는 유형 — **왜 없는지**를 카드에 적는다.
+   이 그리드는 캐치잇에게 "화면이 유형마다 어떻게 다른가"를 보여주는 자리이고,
+   빈 칸이 곧 콘텐츠 진행 현황이라 이유까지 보여야 다음에 뭘 넣을지가 읽힌다. */
+const TYPE_PENDING: Record<string, string> = {}
 
 function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
   const router = useRouter()
   const lc = t.area === 'LC'
   const playable = !!lecture && lecture.questionCount > 0
+  const viaPractice = !!TYPE_PRACTICE[t.id]
   return (
     <button
       disabled={!playable}
-      onClick={() => playable && router.push(`/lecture/${lecture!.code}`)}
+      onClick={() => playable && router.push(`/lecture/${lecture!.code}${viaPractice ? '?stage=practice' : ''}`)}
       className={`group text-left bg-white rounded-2xl border p-4 transition-all ${
         playable
           ? 'border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99]'
@@ -843,7 +863,9 @@ function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
       <p className={`text-[14px] font-bold mb-1 transition-colors ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{t.title}</p>
       <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.desc}</p>
       <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${playable ? 'text-[#2563EB]' : 'text-[#C4C9D4]'}`}>
-        {playable ? `${lecture!.code} 로 보기` : '문항 준비 중'}
+        {playable
+          ? `${lecture!.code} ${viaPractice ? '실전 세트로 보기' : '로 보기'}`
+          : `문항 준비 중${TYPE_PENDING[t.id] ? ` · ${TYPE_PENDING[t.id]}` : ''}`}
         {playable && (
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
         )}
@@ -950,7 +972,7 @@ function TypeGrid() {
   }, [])
 
   const ready = TYPE_LESSONS.filter((t) => {
-    const l = byCode.get(TYPE_LECTURE[t.id] ?? '')
+    const l = byCode.get(TYPE_LECTURE[t.id] ?? TYPE_PRACTICE[t.id] ?? '')
     return l && l.questionCount > 0
   }).length
 
@@ -979,7 +1001,7 @@ function TypeGrid() {
             </div>
             <div className="flex flex-col gap-2.5">
               {lessons.map((t) => (
-                <TypeCard key={t.id} t={t} lecture={byCode.get(TYPE_LECTURE[t.id] ?? '')} />
+                <TypeCard key={t.id} t={t} lecture={byCode.get(TYPE_LECTURE[t.id] ?? TYPE_PRACTICE[t.id] ?? '')} />
               ))}
             </div>
           </div>
