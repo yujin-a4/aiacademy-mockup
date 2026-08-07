@@ -486,6 +486,12 @@ function buildTurn(
     { label: '다루는 문항', value: qCount > 1 ? `Q${focusQ + 1}` : '문항 1개' },
   )
 
+  /* 이중·삼중 지문 — 이 턴이 다루는 문항의 근거 지문으로 탭을 옮긴다.
+     레일(시트)에는 지문 번호가 없다. 대신 문항이 자기 근거 지문을 알고 있다(fromDb).
+     이게 없으면 강사가 "지문 2를 보세요"라고 말해도 화면은 지문 1에 머문다. */
+  const docId = (content.passages?.length ?? 0) > 1 ? content.questions[focusQ]?.passageId : undefined
+  const reveal2 = docId ? { ...(reveal ?? {}), passageIds: [docId] } : reveal
+
   const turn: Turn = {
     no: step.order,
     // 학습 로그가 "무엇을 시켰나"를 남기려면 여기서 실어 보내야 한다 (STEP 6).
@@ -496,7 +502,7 @@ function buildTurn(
     stage: step.stepCode,
     tutor,
     ...(cue ? { audio: cue } : {}),
-    ...(reveal ? { reveal } : {}),
+    ...(reveal2 ? { reveal: reveal2 } : {}),
     interaction,
     ...(qCount > 1 ? { focusQ } : {}),
   }

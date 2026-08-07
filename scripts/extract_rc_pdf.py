@@ -66,9 +66,15 @@ KIND_MAP = [
 ]
 
 EMAIL_META = re.compile(r"^(To|From|Subject|Date|Sent|Attachment|Re|Cc|Bcc)\s*:\s*(.*)$", re.I)
+# 'Topic:' 처럼 값이 없는 라벨 줄 (라벨 칸과 값 칸이 나뉜 조판)
+LABEL_ONLY = re.compile(r"^[A-Z][A-Za-z ./&'-]{1,20}:\s*$")
+INLINE_LABEL = re.compile(r"^([A-Z][A-Za-z ./&'-]{1,20}):\s+(\S.*)$")
 URLISH = re.compile(r"(https?://|www\.)\S+")
-# 문장 끝으로 보면 안 되는 약어 — 여기서 자르면 'Mr.' 뒤가 새 문장이 된다
-ABBR = r"(?<!Mr)(?<!Ms)(?<!Mrs)(?<!Dr)(?<!Inc)(?<!Ltd)(?<!Jr)(?<!Sr)(?<!St)(?<!vs)(?<!No)(?<!Ave)"
+# 문장 끝으로 보면 안 되는 약어 — 여기서 자르면 'Mr.' 뒤가 새 문장이 된다.
+# ⚠️ 마침표까지 넣어야 한다. 이 lookbehind 는 마침표 **뒤** 위치에서 평가되므로
+#    (?<!Mr) 로 쓰면 직전 두 글자가 'r.' 이라 걸리지 않는다 — 실측으로 'Mr.' / 'Ortega' 가 갈렸다.
+ABBR = (r"(?<!Mr\.)(?<!Ms\.)(?<!Mrs\.)(?<!Dr\.)(?<!Inc\.)(?<!Ltd\.)(?<!Jr\.)(?<!Sr\.)"
+        r"(?<!St\.)(?<!vs\.)(?<!No\.)(?<!Ave\.)(?<!a\.m\.)(?<!p\.m\.)")
 SENT_SPLIT = re.compile(ABBR + r"(?<=[.!?])[\"')\]]*\s+(?=[A-Z(\"'])")
 
 _WS = set(" \t") | {chr(0xA0)} | {chr(c) for c in range(0x2000, 0x200B)}
@@ -202,6 +208,37 @@ def to_sentences(text):
     return sents
 
 
+# 줄이 여기서 끝났다면 값이 다음 줄로 이어진 것이다 (기능어로 끝난 줄 = 접힌 줄)
+DANGLING = re.compile(r"\b(in|of|and|or|the|an?|to|for|with|on|at|by|from|as|is|are)$", re.I)
+
+
+def with_wrapped(v, lines, i, in_head, limit=3):
+    """라벨 값이 두세 줄로 접힌 경우를 이어 붙인다 → (값, 마지막으로 먹은 줄 인덱스)
+
+    값 칸은 라벨 칸보다 폭이 좁아서 잘 접힌다(실측: 'Speaker:' 값이 세 줄).
+    이어 붙이지 않으면 나머지 줄이 본문 첫 문장에 섞여 '…Restaurants This Webinar is …' 가 된다.
+    좌표로 값 칸을 알면 정확하지만, 여기선 텍스트만 있으므로 접힌 줄의 흔적으로 판단한다.
+    """
+    if not in_head:
+        return v, i
+    for _ in range(limit):
+        if i + 1 >= len(lines):
+            break
+        nxt = lines[i + 1].strip()
+        if not nxt or EMAIL_META.match(nxt) or LABEL_ONLY.match(nxt):
+            break
+        wrapped = (
+            not nxt[:1].isupper()                      # 소문자·숫자로 시작 = 앞 줄에서 이어짐
+            or bool(DANGLING.search(v.rstrip(" ,")))   # 기능어로 끝남 = 뒤로 이어짐
+            or v.count("(") > v.count(")")             # 괄호가 안 닫혔다
+        )
+        if not wrapped or v.rstrip().endswith((".", "!", "?")):
+            break
+        v = f"{v} {nxt}".strip()
+        i += 1
+    return v, i
+
+
 def parse_passage(text, kind):
     """지문 한 덩어리 → {kind, title, meta, sentences, chat}"""
     lines = [l for l in text.splitlines() if l.strip()]
@@ -210,6 +247,19 @@ def parse_passage(text, kind):
 
     # 문자 대화 — 'Yi-Seul Kwak [1:16 P.M.] 본문' 또는 이름/시각이 한 줄, 본문이 다음 줄
     chat_re = re.compile(r"^(.{2,28}?)\s*\[(\d{1,2}:\d{2}\s*[AP]\.?M\.?)\]\s*(.*)$", re.I)
+    # 이름과 시각이 **다른 칸**인 조판(온라인 채팅)은 이름 줄 / '[10:00 a.m.]' 줄로 갈라져 온다.
+    # 합쳐 주지 않으면 첫 줄이 화자 줄로 안 잡혀 대화가 통째로 흰 종이 지문이 된다(실측 172-175).
+    time_only = re.compile(r"^\[(\d{1,2}:\d{2}\s*[AP]\.?M\.?)\]", re.I)
+    joined, k = [], 0
+    while k < len(lines):
+        if k + 1 < len(lines) and len(lines[k].strip()) <= 28 and time_only.match(lines[k + 1].strip()):
+            joined.append(f"{lines[k].strip()} {lines[k + 1].strip()}")
+            k += 2
+        else:
+            joined.append(lines[k])
+            k += 1
+    lines = joined
+
     i = 0
     while i < len(lines):
         m = chat_re.match(lines[i])
@@ -224,19 +274,59 @@ def parse_passage(text, kind):
     if chat:
         return {"kind": "chat", "title": None, "meta": [], "sentences": [], "chat": chat}
 
-    for idx, l in enumerate(lines):
+    i = 0
+    while i < len(lines):
+        l = lines[i]
+        # 머리 블록인가 — 아직 문장(마침표로 끝나는 줄)이 하나도 안 나왔으면 머리다.
+        # 제목 아래 부제("UPCOMING WEBINAR")가 먼저 오는 조판이 흔해서 '본문 전'만으로는 부족했다.
+        in_head = not any(b.rstrip().endswith((".", "!", "?")) for b in body)
         m = EMAIL_META.match(l)
         if m:
-            meta.append({"k": m.group(1).strip().title(), "v": m.group(2).strip()})
+            v = m.group(2).strip()
+            # 값이 다음 줄로 넘어간 조판. 다음 줄이 또 라벨이면 아래 '라벨만 모아둔 상자' 경우라 손대지 않는다
+            if (not v and in_head and i + 1 < len(lines)
+                    and not EMAIL_META.match(lines[i + 1]) and not LABEL_ONLY.match(lines[i + 1])):
+                v = lines[i + 1].strip()
+                i += 1
+            # 값 칸이 라벨 칸보다 **위**에 놓인 조판 — 읽기 순서상 값이 라벨보다 먼저 온다.
+            # (실측: 'All Staff' 다음 줄이 'To:' 였다. 안 되돌리면 본문 첫 문장이 'All Staff Hello everyone…')
+            elif not v and in_head and body and len(body[-1]) <= 60 and not body[-1].rstrip().endswith("."):
+                v = body.pop().strip()
+            v, i = with_wrapped(v, lines, i, in_head)
+            meta.append({"k": m.group(1).strip().title(), "v": v})
+            i += 1
             continue
-        if URLISH.match(l) and not body:
+        # 라벨 칸 — 'Topic:' / 'Speaker:' 처럼 **줄 하나가 통째로 라벨**이고 값은 다음 줄이다.
+        # 실물 공지·양식은 이렇게 두 칸으로 조판돼 있다. 본문에 섞으면 라벨 줄이 문장이 돼 버린다.
+        # 본문이 시작되기 전(머리 블록)에만 본다 — 뒤에서 하면 'Note: …' 같은 문장까지 떼어낸다.
+        if in_head and LABEL_ONLY.match(l) and i + 1 < len(lines) and not LABEL_ONLY.match(lines[i + 1]):
+            v, i = with_wrapped(lines[i + 1].strip(), lines, i + 1, in_head)
+            meta.append({"k": l.rstrip(": ").strip(), "v": v})
+            i += 1
+            continue
+        if URLISH.match(l) and in_head:
             meta.append({"k": "URL", "v": l.strip()})
+            i += 1
+            continue
+        # 라벨과 값이 한 줄인 머리 항목 — 'No: 013394' / 'Customer Service Line: 1-800-…'
+        # 값이 길면 라벨이 아니라 문장이다('Approved by: … I agree that …') → 본문에 둔다
+        mi = INLINE_LABEL.match(l) if in_head else None
+        if mi and len(mi.group(2)) <= 40 and not mi.group(2).endswith("."):
+            meta.append({"k": mi.group(1).strip(), "v": mi.group(2).strip()})
+            i += 1
             continue
         # 제목 — 맨 앞의 짧은 줄(마침표 없음). 시험지에서 가운데 굵게 찍히는 그 줄이다
         if title is None and not body and not meta and len(l) <= 60 and not l.endswith("."):
             title = l.strip()
+            i += 1
+            continue
+        # 제목 아래 부제(대문자 한 줄). 본문에 두면 첫 문장에 들러붙는다 — 'UPCOMING WEBINAR This Webinar is …'
+        if title and not body and not meta and l.isupper() and len(l) <= 60:
+            title = f"{title} — {l.strip()}"
+            i += 1
             continue
         body.append(l)
+        i += 1
 
     # 이메일 머리글은 라벨 칸과 값 칸이 **다른 상자**라, 텍스트로는 'To:' 만 오고 값은 뒤로 밀린다.
     # (실측: meta 가 전부 빈 값이고 본문이 'All Staff / Sherry Cohen / CEO visit …' 로 시작했다)
@@ -373,14 +463,30 @@ def hae_pages(hae, test_no):
     return list(range(lo, hi))
 
 
+ANSWER_KEY = re.compile(r"^(\d{3})\s+\(([A-D])\)$", re.M)
+
+
+def answer_key(text):
+    """해설 첫 쪽의 정답표 — '131 (B)' 가 한 줄씩. 이게 정답의 1차 근거다.
+
+    ⚠️ 해설 문장에서 캐내는 방식만 쓰면 회차마다 3~6개가 빈다(실측).
+       줄바꿈이 '정\\n답' 을 갈라놓거나, '(D) preferences(선호(도))가 정답이다' 처럼
+       보기 표시 뒤에 괄호가 또 나와서 정규식이 끊긴다. 정답표는 그런 사고가 없다.
+    """
+    return {int(m.group(1)): m.group(2) for m in ANSWER_KEY.finditer(text)}
+
+
 def parse_hae(hae, nums, test_no):
-    """해설에서 문항별 {정답, 유형, 해설}. 정답은 '(A)가 정답이다' 문장에서만 확실하다."""
+    """해설에서 문항별 {정답, 유형, 해설}. 정답은 정답표, 없으면 '(A)가 정답이다' 문장."""
     info = {}
     pages = hae_pages(hae, test_no) or list(range(hae.page_count))
     text = "\n".join(hae[i].get_text() for i in pages)
     text = "\n".join(clean(l) for l in text.splitlines())
-    # '156  Not / True' 처럼 번호 + 유형 라벨이 한 줄
-    heads = list(re.finditer(r"\n(\d{3})\s{1,4}([^\n]{0,24})\n", text))
+    key = answer_key(text)
+    # '156  Not / True' 처럼 번호 + 유형 라벨이 한 줄.
+    # 정답표 줄('146 (B)')도 같은 모양이라 여기 걸린다 — 유형으로 오해하지 않게 걸러낸다.
+    heads = [m for m in re.finditer(r"\n(\d{3})\s{1,4}([^\n]{0,24})\n", text)
+             if not re.fullmatch(r"\([A-D]\)", clean(m.group(2)))]
     for idx, m in enumerate(heads):
         no = int(m.group(1))
         if no not in nums:
@@ -388,11 +494,19 @@ def parse_hae(hae, nums, test_no):
         body = text[m.end(): heads[idx + 1].start() if idx + 1 < len(heads) else len(text)]
         ma = ANSWER2.search(body) or ANSWER.search(body)
         mh = re.search(r"해설\s*(.+?)(?:\n어휘|\nParaphrasing|$)", body, re.S)
+        # 정답표와 해설이 어긋나면 파서가 남의 문항을 보고 있다는 뜻이다 — 조용히 넘기지 않는다
+        if no in key and ma and ma.group(1) != key[no]:
+            print(f"  ⚠ {no}: 정답표 ({key[no]}) ≠ 해설 ({ma.group(1)}) — 정답표를 따른다")
         info[no] = {
             "qtype": clean(m.group(2)) or None,
-            "answer": ma.group(1) if ma else None,
+            "answer": key.get(no) or (ma.group(1) if ma else None),
+            "answer_src": "key" if no in key else ("해설" if ma else None),
             "explain": clean(mh.group(1))[:600] if mh else None,
         }
+    # 해설 머리('156  Not / True')를 못 찾은 문항 — 유형·해설은 없어도 정답은 정답표에서 온다
+    for no in nums:
+        if no not in info and no in key:
+            info[no] = {"qtype": None, "answer": key[no], "answer_src": "key", "explain": None}
     return info
 
 

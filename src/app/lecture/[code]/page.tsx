@@ -136,6 +136,10 @@ export default function LecturePage() {
 
   // 대사 생성이 끝나기 전에 들어가면 강사가 시트의 옛 예시 문구를 말한다 — 시작을 막는다
   return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail}
+    /* ?stage=practice — 도입·수업을 건너뛰고 실전 세트부터. 유형 그리드에서 온다:
+       한 강의가 수업/실전에 서로 다른 지문 변종을 담는 경우(이중 일반형 ↔ 표형)가 있어,
+       그 변종을 보여주려면 실전으로 바로 들어가야 한다. */
+    initialStage={search.get('stage') === 'practice' ? 'practice' : undefined}
     /* 드래프트 미리보기는 학습 로그를 남기지 않는다(D-C) — 실험 데이터가 실사용 로그에 섞이면
        FGI 분석이 오염된다. lectureCode 가 로그의 스위치라(TypeLessonPlayer:624) 안 넘기면 꺼진다. */
     lectureCode={draftId ? undefined : code}

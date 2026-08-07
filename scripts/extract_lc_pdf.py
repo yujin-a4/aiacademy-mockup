@@ -173,10 +173,37 @@ def script_ends(line):
         return True
     if re.match(r"^\([A-D]\)", line):            # 보기
         return True
-    if re.match(r"^\d{2}\s+[A-Z]", line):        # '77 What kind of equipment …'
+    # '77 What kind of equipment …' = 문항 시작.
+    # ⚠️ 숫자로 시작하는 줄을 다 끊으면 안 된다 — 해설은 **근거 문장 앞에도 문항 번호를 박는다**
+    #    ('89 It’s great to see everyone …'). 그렇게 끊었더니 스크립트가 통째로 0자인 세트가
+    #    회차마다 한둘씩 나왔다(실측 6세트). 문항은 의문사로 시작하므로 그걸로 가른다.
+    if re.match(r"^\d{2}\s+(What|Where|Why|Who|When|How|Which|Whose|According|Look|Select)\b", line):
         return True
     hangul = sum(1 for ch in line if "가" <= ch <= "힣")
     return hangul >= 4 and hangul / max(len(line), 1) > 0.3   # 한국어 번역 줄
+
+
+def full_question(head, after):
+    """문항 질문이 두 줄로 접힌 경우를 이어 붙인다.
+
+    ⚠️ 이걸 안 하면 화면에 **잘린 질문**이 뜬다 — 실측으로 DB 에
+    'What does the speaker emphasize about the' 처럼 반 토막이 들어가 있었다.
+    질문은 물음표로 끝나므로, 물음표가 나올 때까지만 다음 줄을 붙인다(보기·해설을 만나면 멈춘다).
+    """
+    q = clean(head)
+    if q.endswith("?"):
+        return q
+    for raw in after.splitlines()[:3]:
+        l = clean(raw)
+        if not l or re.match(r"^\([A-D]\)", l) or re.match(r"^(어휘|해설|번역|Paraphrasing)", l):
+            break
+        l = re.sub(r"TEST\s*\d+\s*\d*", "", l).strip()      # 쪽 머리('TEST 1 29')가 줄 안에 낀다
+        if not l:
+            continue
+        q = clean(q + " " + l)
+        if q.endswith("?"):
+            break
+    return q
 
 
 def parse_part34(text, lo, hi):
@@ -191,6 +218,10 @@ def parse_part34(text, lo, hi):
     for idx, m in enumerate(heads):
         a, b = int(m.group(1)), int(m.group(2))
         if not lo <= a <= hi:
+            continue
+        # '95-9' 처럼 끝 번호가 깨져 들어오는 쪽이 있다(TEST 3 실측). 그대로 두면 아래에서
+        # 문항 번호 목록이 빈 정규식이 되어 빈 문자열을 int() 하다 죽는다 — 세트째 건너뛴다.
+        if b < a:
             continue
         start = m.end()
         end = heads[idx + 1].start() if idx + 1 < len(heads) else len(text)
@@ -233,7 +264,7 @@ def parse_part34(text, lo, hi):
             for o in opts:
                 o["is_correct"] = bool(ma and o["label"] == ma.group(1))
             if len(opts) == 4 and ma:
-                qs.append({"no": int(qm.group(1)), "question": clean(qm.group(2)),
+                qs.append({"no": int(qm.group(1)), "question": full_question(qm.group(2), after),
                            "options": opts, "explain": expl})
         if script and qs:
             sets.append({"range": "%d-%d" % (a, b), "label": clean(m.group(3)) or None,

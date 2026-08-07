@@ -14,9 +14,10 @@
  * 한계: DB에 문장별 한국어 해석(ko)이 없다. 직독직해 탭은 비고, 그래서 P7 레일은
  * '문장 탭해서 해석 열기' 대신 **근거 문장 표시(mark)** 로 구성한다. (해석 컬럼이 생기면 되돌리면 됨)
  */
-import type { UiDbQuestion, UiDbOption } from '@/data/db/questionStore'
+import type { UiDbQuestion, UiDbOption, UiDbPassage } from '@/data/db/questionStore'
 import type {
   TypeLesson, TypeLessonContent, Turn, PassageDoc, QuestionItem, SentenceItem, RecapSentence,
+  ChatMessage, TableData,
 } from './types'
 
 /* ── 공통 유틸 ── */
@@ -34,16 +35,35 @@ const PASSAGE_KINDS = new Set<PassageDoc['kind']>([
  * 문자열로 표현이 안 되는 건 담을 방법이 없었다. 이제 그 구조가 DB에 있다.
  */
 function passageDocOf(q: UiDbQuestion | undefined, id = 'p1'): PassageDoc | null {
-  const p = q?.passage
+  return docOf(q?.passage, id)
+}
+
+/** 이중·삼중 지문(0027) — 세트 전체를 p1·p2·p3 으로. 단일 지문이면 길이 1, 지문이 없으면 [] */
+function passageDocsOf(q: UiDbQuestion | undefined): PassageDoc[] {
+  const set = q?.passages ?? []
+  if (set.length <= 1) {
+    const one = passageDocOf(q)
+    return one ? [one] : []
+  }
+  return set
+    .map((p, i) => docOf(p, `p${i + 1}`))
+    .filter((d): d is PassageDoc => !!d)
+}
+
+function docOf(p: UiDbPassage | null | undefined, id: string): PassageDoc | null {
   if (!p || p.sentences.length === 0) return null
   const kind = (PASSAGE_KINDS.has(p.kind as PassageDoc['kind']) ? p.kind : 'article') as PassageDoc['kind']
-  const table = (p.body as { table?: { headers: string[]; rows: string[][] } } | null)?.table
+  const body = p.body as { table?: TableData; chat?: ChatMessage[] } | null
+  const table = body?.table
+  // 문자 대화는 말풍선(화자·시각)이 있어야 폰 조판이 나온다. 문장 목록만으로는 흰 종이가 된다
+  const chat = body?.chat
   return {
     id,
     kind,
     ...(p.title ? { title: p.title } : {}),
     ...(p.meta?.length ? { meta: p.meta } : {}),
     ...(table ? { table } : {}),
+    ...(chat?.length ? { chat } : {}),
     sentences: p.sentences.map((s) => ({
       id: `s${s.seq}`,
       en: s.en,
@@ -668,28 +688,102 @@ function part7Recap(group: UiDbQuestion[], fallback: TypeLesson['recap']): TypeL
   return { sentences: items, closing: '근거 문장 안의 표현이 선택지에서는 다른 말로 바뀝니다. 오늘 문장들을 통째로 기억해 두면, 바뀐 표현도 바로 알아볼 수 있어요.' }
 }
 
+/** 이중·삼중일 때만 — 이 문항의 근거가 어느 지문인지 문항에 실어 준다(레일이 탭을 연다) */
+function withDoc(item: QuestionItem, q: UiDbQuestion, docs: PassageDoc[]): QuestionItem {
+  if (docs.length <= 1) return item
+  const d = Number(q.content.evidence_passage ?? 0)
+  return d > 0 && docs[d - 1] ? { ...item, passageId: docs[d - 1].id } : item
+}
+
+/* 이중·삼중 지문 — 탭 이름에 쓴다 (ContentView 의 KIND_LABEL 과 같은 말) */
+const KIND_KO: Partial<Record<PassageDoc['kind'], string>> = {
+  text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사',
+  chat: '문자', table: '표', form: '양식',
+}
+
+/**
+ * 이중·삼중 지문 레일 — 지문마다 한 바퀴 돌고, 연계 문항은 지문을 오가게 한다.
+ * (question_types 의 P7-DOUBLE/TRIPLE 설명과 같은 뼈대)
+ *
+ * 어느 지문에 근거가 있는지는 `content.evidence_passage`(적재기가 넣는다)로 안다.
+ * 없으면 지문을 지정하지 않는다 — 지문은 어차피 잠겨 있지 않아 학생이 직접 오갈 수 있다.
+ */
+function part7SetTurns(group: UiDbQuestion[], docs: PassageDoc[]): Turn[] {
+  const turns: Turn[] = [{
+    no: 1, stage: 'S1 질문 먼저 읽기',
+    tutor: `지문이 ${docs.length}개예요. 다 읽고 시작하면 시간이 무너집니다. 질문부터 훑어서 `
+      + `"어느 지문에서 무엇을 찾을지"만 정하고 들어갈게요.`,
+    interaction: { kind: 'next', label: '지문 1 보기' },
+  }]
+
+  docs.forEach((d, i) => {
+    turns.push({
+      no: turns.length + 1, stage: `S2+S3 지문 ${i + 1} 파악`,
+      tutor: `지문 ${i + 1}은 ${KIND_KO[d.kind] ?? '지문'}이에요. `
+        + (i === 0
+          ? '누가 누구에게 무엇을 알리는 글인지, 첫 두세 문장만 보고 넘어갑니다.'
+          : `앞 지문과 무엇이 이어지는지를 보세요. 이름·날짜·장소처럼 **양쪽에 같이 나오는 말**이 연계 문항의 열쇠입니다.`),
+      reveal: { passageIds: [d.id] },
+      interaction: { kind: 'next', label: i + 1 < docs.length ? `지문 ${i + 2} 보기` : '문항 풀기' },
+    })
+  })
+
+  group.forEach((q, i) => {
+    const n = qNo(q) || i + 1
+    const ev = cleanEn(q.content.evidence_sentence ?? '')
+    const dIdx = Number(q.content.evidence_passage ?? 0)
+    const doc = dIdx > 0 ? docs[dIdx - 1] : undefined
+    const linked = q.content.linked === '1'
+    turns.push({
+      no: turns.length + 1, stage: `Q${n} · ${linked ? '연계' : '근거 확인'}`, focusQ: i,
+      ...(doc ? { reveal: { passageIds: [doc.id] } } : {}),
+      tutor: linked
+        ? `Q${n}은 연계 문항이에요. 한 지문만 봐서는 안 풀립니다. `
+          + (doc && ev
+            ? `지문 ${dIdx}의 "${ev}" 로 대상을 먼저 특정하고, 다른 지문에서 그 대상에 붙은 정보를 확인하세요.`
+            : '한 지문에서 대상을 특정하고, 다른 지문에서 그 대상에 붙은 정보를 확인하세요.')
+        : `Q${n} 갑니다. ${doc ? `근거는 지문 ${dIdx}에 있어요. ` : ''}`
+          + (ev ? `이 문장이에요 — "${ev}" 선택지에서 어떻게 바뀌어 나왔는지 보고 고르세요.` : '근거 문장을 찾아 선택지와 연결해 보세요.'),
+      interaction: { kind: 'pickAnswer', qIdx: i, prompt: '근거와 연결되는 답을 고르세요' },
+    })
+  })
+
+  turns.push({
+    no: turns.length + 1, stage: 'S7 표현 정리',
+    tutor: '이중·삼중 지문은 읽는 양이 아니라 **연결**이 시험입니다. 두 지문에 같이 나오는 이름·날짜·장소를 '
+      + '먼저 이어 두면, 연계 문항은 그 자리에서 답이 보여요.',
+    interaction: { kind: 'next', label: '수업 마치기' },
+  })
+  return turns
+}
+
 function buildPart7(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
   const text = group[0]?.content.passage_text
-  const fromDb = passageDocOf(group[0])
-  if (!fromDb && (!text || group.length === 0)) return local
-  const doc: PassageDoc = fromDb ?? {
+  const fromDb = passageDocsOf(group[0])
+  if (!fromDb.length && (!text || group.length === 0)) return local
+  const docs: PassageDoc[] = fromDb.length ? fromDb : [{
     id: 'p1',
     kind: passageKind(group[0].content.passage_type, text!),
     sentences: text!.split(/\n+/).map((l) => l.trim()).filter(Boolean)
       .map((en, i) => ({ id: `e${i + 1}`, en })),
-  }
-  // 지문 종류 라벨은 시트 원문 표기를 그대로 보여준다 ('광고·홍보문')
-  if (group[0].content.passage_type) doc.label = group[0].content.passage_type
+  }]
+  const type = group[0].content.passage_type
+  // 지문 종류 라벨은 시트 원문 표기를 그대로 보여준다 ('광고·홍보문').
+  // 세트는 그 라벨이 세트 성격('이중 지문')이라 지문마다 붙이면 탭이 전부 같은 이름이 된다
+  if (docs.length === 1) { if (type) docs[0].label = type }
+  else docs.forEach((d, i) => { d.label = `지문 ${i + 1} · ${KIND_KO[d.kind] ?? '지문'}` })
 
   return {
     ...local,
-    title: `독해 — ${group[0].content.passage_type ?? '1지문'} 지문`,
-    desc: `${group[0].content.passage_structure ?? group[0].content.passage_type ?? '지문'} 1개 + 문항 ${group.length}개 — 질문 먼저, 근거 문장으로`,
+    title: `독해 — ${type ?? '1지문'}${docs.length > 1 ? '' : ' 지문'}`,
+    desc: docs.length > 1
+      ? `지문 ${docs.length}개 + 문항 ${group.length}개 — 지문을 오가며 근거를 잇는다`
+      : `${group[0].content.passage_structure ?? type ?? '지문'} 1개 + 문항 ${group.length}개 — 질문 먼저, 근거 문장으로`,
     content: {
-      passages: [doc],
-      questions: group.map((q) => toQuestion(q)),
+      passages: docs,
+      questions: group.map((q) => withDoc(toQuestion(q), q, docs)),
     },
-    turns: part7Turns(group, doc.kind),
+    turns: docs.length > 1 ? part7SetTurns(group, docs) : part7Turns(group, docs[0].kind),
     recap: part7Recap(group, local.recap),
   }
 }
@@ -713,6 +807,29 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
         photo: group[0].content.image_url,
         questions: group.map((q) => ({ ...toQuestion(q, ''), photo: q.content.image_url })),
       }
+    /* LC(2·3·4) — 듣기는 지문이 아니라 **음원 스크립트**다. 표(시각자료)도 여기서 실린다.
+       이게 없던 동안 LC 실전은 DB 세트가 아니라 **로컬 형판의 옛 샘플**을 풀고 있었다
+       (실측: Part4 표/자료형 강의를 열었는데 표 없는 다른 담화가 나왔다). */
+    case 2: {
+      /* P2 는 문항마다 **자기 질문 발화**가 따로다(지문 1개 = 문장 1개).
+         화면은 audioScript[i] 를 i번 문항의 발화로 본다 — id 가 겹치면 남의 음원이 재생된다. */
+      const script = group
+        .map((q, i) => { const s = lcScript(q)[0]; return s ? { ...s, id: `q${i + 1}` } : null })
+        .filter((s): s is SentenceItem => !!s)
+      if (script.length !== group.length) return undefined
+      return { audioScript: script, optionAudio: true, questions: group.map((q) => toQuestion(q)) }
+    }
+    case 3:
+    case 4: {
+      const script = lcScript(group[0])       // 대화·담화는 세트 하나가 지문 하나를 공유한다
+      if (!script.length) return undefined
+      const visual = lcVisual(group[0])
+      return {
+        audioScript: script,
+        ...(visual ? { visual } : {}),
+        questions: group.map((q) => toQuestion(q)),
+      }
+    }
     case 5:
       return {
         passages: [{
@@ -737,15 +854,18 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
     case 7: {
       const text = group[0].content.passage_text
       if (!text) return undefined
-      const doc: PassageDoc = passageDocOf(group[0]) ?? {
+      const fromDb = passageDocsOf(group[0])
+      const docs: PassageDoc[] = fromDb.length ? fromDb : [{
         id: 'p1', kind: passageKind(group[0].content.passage_type, text),
         sentences: text.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((en, i) => ({ id: `e${i + 1}`, en })),
-      }
-      if (group[0].content.passage_type) doc.label = group[0].content.passage_type
+      }]
+      const type = group[0].content.passage_type
+      if (docs.length === 1) { if (type) docs[0].label = type }
+      else docs.forEach((d, i) => { d.label = `지문 ${i + 1} · ${KIND_KO[d.kind] ?? '지문'}` })
       const same = group.filter((q) => q.content.passage_text === text)
       return {
-        passages: [doc],
-        questions: same.map((q) => toQuestion(q)),
+        passages: docs,
+        questions: same.map((q) => withDoc(toQuestion(q), q, docs)),
       }
     }
     default:
