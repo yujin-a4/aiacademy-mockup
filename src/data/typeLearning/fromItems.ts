@@ -147,9 +147,14 @@ export function buildLessonFromItems(
     }
     if (built.content.visual && !content.visual) content.visual = built.content.visual
 
-    // P1은 사진이 아이템(문항)마다 다르다 → 강의 단위 photo 대신 문항에 붙인다
+    // P1은 사진이 아이템(문항)마다 다르다 → 강의 단위 photo 대신 문항에 붙인다.
+    // 이중·삼중의 근거 지문 id 도 여기서 같은 접두어를 받아야 한다(안 그러면 없는 지문을 가리킨다)
     const photo = built.content.photo
-    const qs: QuestionItem[] = built.content.questions.map((q) => (photo && !q.photo ? { ...q, photo } : q))
+    const qs: QuestionItem[] = built.content.questions.map((q) => ({
+      ...q,
+      ...(photo && !q.photo ? { photo } : {}),
+      ...(q.passageId ? { passageId: pfx(item.itemSeq, q.passageId) } : {}),
+    }))
     content.questions.push(...qs)
     if (built.content.optionAudio) content.optionAudio = true
     if (items.length === 1 && photo) content.photo = photo

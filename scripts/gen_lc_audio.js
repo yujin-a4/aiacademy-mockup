@@ -102,6 +102,15 @@ async function main() {
     let n = 0;
     for (const t of todo) {
       const rel = `/lc/${t.passage_code}_${t.seq}.mp3`;
+      /* 파일이 이미 있으면 **다시 합성하지 않는다** — 링크만 잇는다.
+         지문 코드는 재적재해도 그대로라(LC-P3-01-PSG1) 문항을 다시 넣으면 링크만 끊긴다.
+         그때 여기서 또 합성하면 같은 소리에 돈을 두 번 낸다(실측으로 겪은 그 사고). */
+      if (fs.existsSync(path.join(PUBLIC, rel.replace(/^\//, '')))) {
+        await c.query('update passage_sentences set audio_url = $2 where id = $1', [t.id, rel]);
+        console.log(`  = ${rel} (파일 재사용)`);
+        n += 1;
+        continue;
+      }
       try {
         const buf = await tts(t.en, t.voice);
         fs.writeFileSync(path.join(PUBLIC, rel.replace(/^\//, '')), buf);
