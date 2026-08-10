@@ -28,6 +28,12 @@ const { Client } = require('pg');
 const GO = process.argv.includes('--go');
 const TESTS = [1, 2, 3, 5, 6];        // 쓰는 회차만 읽는다
 
+/* --lecture LC-P3-05 → 그 강의만 손댄다.
+   전체 재적재는 멀쩡한 강의의 문항 id 까지 새로 만들어 음원 연결을 끊는다(relink-audio 필요).
+   한 강의만 고칠 때 그 대가를 치를 이유가 없다. 겹침 검사는 **계획 전체**로 그대로 돈다. */
+const onlyArg = process.argv.indexOf('--lecture');
+const ONLY = onlyArg > -1 ? process.argv[onlyArg + 1] : null;
+
 /* ── 시각자료(그래픽 연계) ──
    교재의 표는 PDF 안에서 선으로 그린 그림이라 파서가 못 뽑는다. 본권 쪽에서 눈으로 옮겨 적는다.
    화면은 `passages.body.table` 을 그대로 그린다(fromDb 의 lcVisual). */
@@ -76,7 +82,10 @@ const PLAN = [
   { lecture: 'LC-P3-04', part: 3,                                   // 일정·회의 대화
     lesson: { test: 1, range: '53-55' },      // 인턴십 프로그램 논의
     practice: { test: 1, range: '32-34' } },  // 약속 상대를 못 찾는 상황
-  // LC-P3-05(주문·배송 대화 + 시각자료)는 이미 들어 있다 — 건드리지 않는다
+  /* LC-P3-05 는 수업(주문·배송 대화 + 가격표 시각자료)이 **손으로 만든 세트**라 파서로 다시 못
+     만든다. 그래서 지우지 않고(append) 없던 실전만 덧붙인다 — 세탁기 배송 안내 전화. */
+  { lecture: 'LC-P3-05', part: 3, append: true,                     // 주문·배송 대화
+    practice: { test: 3, range: '38-40' } },                        // 배송 시간 안내 + 설치 요청
 
   /* Part 4 — 담화 1 + 문항 3 */
   /* 시각자료가 붙는 담화는 이 강의의 **수업**에 둔다 — 유형 그리드 t06(담화 표/자료형)이
@@ -143,6 +152,7 @@ function unitsOf(byTest, part, sel) {
     if (chars < 40) throw new Error(`TEST ${s.test} ${s.range} 스크립트가 비었다(${chars}자) — 파서가 못 잡았다`);
     return [{ ...set, test: s.test, visual: s.visual }];
   };
+  if (!sel) return [];                    // append 계획은 한쪽(수업 또는 실전)만 채운다
   return sel.plus ? [...take(sel), ...take(sel.plus)] : take(sel);
 }
 
@@ -200,32 +210,54 @@ async function main() {
 
     let qTotal = 0, oTotal = 0, sTotal = 0;
     for (const j of jobs) {
+      if (ONLY && j.lecture !== ONLY) continue;
       const lectureId = lectures.get(j.lecture);
       if (!lectureId) { console.error(`SKIP ${j.lecture}: lectures 에 없음`); continue; }
 
       await c.query('begin');
       try {
         /* 기존 것 정리 — ⚠️ 순서 주의. questions.passage_id 가 passages 를 참조하므로
-           지울 지문 목록을 먼저 뽑고, 문항 → 아이템 → 지문 순으로 지운다. */
-        const { rows: oldPsg } = await c.query(
-          `select distinct p.id from passages p
-             join questions q on q.passage_id = p.id where q.lecture_id = $1`, [lectureId]);
-        // 학습 로그가 문항을 참조한다 — 재적재 때 걸린다(실측). 그 강의 로그는 문항과 함께 지운다
-        await c.query(
-          `delete from learner_answer_log where question_id in (select id from questions where lecture_id = $1)`,
-          [lectureId]);
-        await c.query('delete from questions where lecture_id = $1', [lectureId]);
-        // 아이템도 지문을 참조한다. 어차피 build-lecture-items.js 가 다시 만든다
-        await c.query('delete from lecture_items where lecture_id = $1', [lectureId]);
-        /* 실험장(0025 sandbox)이 **정본 지문을 참조**한다 — 남아 있으면 지문을 못 지운다.
-           실험장은 `select sandbox.reset()` 으로 정본에서 다시 만드는 버리는 사본이다. */
-        await c.query('delete from sandbox.lecture_items where lecture_id = $1', [lectureId]);
-        if (oldPsg.length) await c.query('delete from passages where id = any($1)', [oldPsg.map((r) => r.id)]);
+           지울 지문 목록을 먼저 뽑고, 문항 → 아이템 → 지문 순으로 지운다.
+           append 계획은 지우지 않는다 — 손으로 만든 시각자료 세트처럼 파서로 다시 못 만드는
+           기존 문항이 있는 강의에, 없는 쪽(수업 또는 실전)만 덧붙이기 위한 것이다. */
+        if (!j.append) {
+          const { rows: oldPsg } = await c.query(
+            `select distinct p.id from passages p
+               join questions q on q.passage_id = p.id where q.lecture_id = $1`, [lectureId]);
+          // 학습 로그가 문항을 참조한다 — 재적재 때 걸린다(실측). 그 강의 로그는 문항과 함께 지운다
+          await c.query(
+            `delete from learner_answer_log where question_id in (select id from questions where lecture_id = $1)`,
+            [lectureId]);
+          await c.query('delete from questions where lecture_id = $1', [lectureId]);
+          // 아이템도 지문을 참조한다. 어차피 build-lecture-items.js 가 다시 만든다
+          await c.query('delete from lecture_items where lecture_id = $1', [lectureId]);
+          /* 실험장(0025 sandbox)이 **정본 지문을 참조**한다 — 남아 있으면 지문을 못 지운다.
+             실험장은 `select sandbox.reset()` 으로 정본에서 다시 만드는 버리는 사본이다. */
+          await c.query('delete from sandbox.lecture_items where lecture_id = $1', [lectureId]);
+          if (oldPsg.length) await c.query('delete from passages where id = any($1)', [oldPsg.map((r) => r.id)]);
+        }
 
+        /* append 면 지문·문항 번호를 이미 쓰인 다음부터 — 재실행해도 같은 코드가 다시 나오면 안 된다 */
         let psgNo = 0;
+        const usedQ = { lesson: 0, practice: 0 };
+        if (j.append) {
+          const { rows } = await c.query(
+            `select question_code from questions where lecture_id = $1`, [lectureId]);
+          for (const r of rows) {
+            const m = /-([QP])(\d{3})$/.exec(r.question_code);
+            if (m) usedQ[m[1] === 'Q' ? 'lesson' : 'practice'] = Math.max(usedQ[m[1] === 'Q' ? 'lesson' : 'practice'], Number(m[2]));
+          }
+          const { rows: ps } = await c.query(
+            `select passage_code from passages where passage_code like $1`, [`${j.lecture}-PSG%`]);
+          for (const r of ps) {
+            const m = /-PSG(\d+)$/.exec(r.passage_code);
+            if (m) psgNo = Math.max(psgNo, Number(m[1]));
+          }
+        }
+
         for (const phase of ['lesson', 'practice']) {
           const prefix = phase === 'lesson' ? 'Q' : 'P';
-          let qNo = 0;
+          let qNo = usedQ[phase];
 
           for (const u of j.units[phase]) {
             psgNo += 1;

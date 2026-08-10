@@ -67,9 +67,16 @@ def clean(s):
     return "".join(out).strip()
 
 
-def find_pdfs():
-    files = sorted(glob.glob(os.path.join("YBM*pdf*", "*.pdf")))
+def find_pdfs(vol=1):
+    """해당 권의 LC 본권·해설 PDF.
+
+    ⚠️ 예전엔 'YBM*pdf*/*.pdf' 를 통째로 글롭했는데, 2권 폴더가 생기면서 두 권이 같이 잡혔다.
+       그대로 두면 1권 해설과 2권 본권이 섞인다 — 권을 반드시 지정해서 집는다.
+    """
+    files = sorted(glob.glob(os.path.join("YBM 실전토익 %d*pdf*" % vol, "*.pdf")))
     lc = [f for f in files if "LC" in os.path.basename(f)]
+    if len(lc) != 2:
+        raise SystemExit("%d권 LC PDF 를 2개로 못 집었다: %s" % (vol, lc))
     docs = [fitz.open(f) for f in lc]
     docs.sort(key=lambda d: d.page_count)
     return {"bon": docs[0], "hae": docs[-1]}
@@ -274,12 +281,13 @@ def parse_part34(text, lo, hi):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--vol", type=int, default=1, choices=(1, 2))
     ap.add_argument("--test", type=int, default=1)
     ap.add_argument("--part", type=int)
     ap.add_argument("--out")
     args = ap.parse_args()
 
-    hae = find_pdfs()["hae"]
+    hae = find_pdfs(args.vol)["hae"]
     pages = part_pages(hae, args.test)
     if not pages:
         print("TEST %d 를 찾지 못했습니다" % args.test)
@@ -288,7 +296,7 @@ def main():
     print("TEST %d 해설 — %s" % (args.test,
           " · ".join("P%d p%d~p%d" % (p, a + 1, b) for p, (a, b) in sorted(pages.items()))))
 
-    result = {"test": args.test}
+    result = {"vol": args.vol, "test": args.test}
     if args.part in (None, 2) and 2 in pages:
         p2 = parse_part2(text_of(2))
         result["part2"] = p2
