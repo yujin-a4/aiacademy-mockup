@@ -202,14 +202,17 @@ export function DrawPalette({ className, ...p }: PaletteProps & { className?: st
 /* ── 연필 FAB — 동그란 버튼 하나가 도구 바를 품고 있다 ──
    상단 도구줄의 '필기' 버튼을 대신한다. 누르면 옆으로 도구 바가 쭉 늘어나고, 다시 누르면 접힌다.
    필기는 지문 위에서 하는 일이라 도구도 지문 가까이(화면 좌하단)에 둔다. */
-export function PenFab({ drawMode, toggleDraw, attention, className, ...p }: PaletteProps & {
+export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass = 'bottom-5', ...p }: PaletteProps & {
   drawMode: boolean; toggleDraw: () => void
   /** 지금 단계가 "필기해 보세요"인가 — 버튼 주변을 뛰게 해 여기를 누르라고 알린다 */
   attention?: boolean; className?: string
+  /** 아래쪽 띄우는 높이. 화면 하단에 바가 있으면 그만큼 올린다(실전은 제출/채점 바가 깔린다).
+   *  className 으로 bottom-* 를 덧씌우면 Tailwind 규칙상 어느 쪽이 이길지 정해지지 않아 프롭으로 받는다. */
+  bottomClass?: string
 }) {
   const nudge = !!attention && !drawMode
   return (
-    <div className={`fixed bottom-5 left-4 z-50 flex items-center gap-2 ${className ?? ''}`}>
+    <div className={`fixed ${bottomClass} left-4 z-50 flex items-center gap-2 ${className ?? ''}`}>
       <div className="relative shrink-0">
         {/* 퍼지는 링 — 필기를 시켜놓고 도구가 어디 있는지 모르면 수업이 멈춘다 */}
         {nudge && <span className="absolute inset-0 rounded-full bg-[#F97316]/40 animate-ping pointer-events-none" />}

@@ -821,13 +821,43 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
     }
     case 3:
     case 4: {
-      const script = lcScript(group[0])       // 대화·담화는 세트 하나가 지문 하나를 공유한다
-      if (!script.length) return undefined
-      const visual = lcVisual(group[0])
+      /* 대화·담화는 **지문 하나 = 세트 하나 = 문항 셋**이다. 실전에는 그런 세트가 여럿 올 수 있어
+         지문(passage.code)으로 묶는다. 예전엔 group[0] 의 지문만 스크립트로 잡아서, 세트가 둘 이상이면
+         뒤 세트의 문항이 **첫 담화에 통째로 붙었다**(9문항이 1번 대화에 딸린 꼴). */
+      const byPsg = new Map<string, UiDbQuestion[]>()
+      for (const q of group) {
+        const key = q.passage?.code ?? q.code
+        if (!byPsg.has(key)) byPsg.set(key, [])
+        byPsg.get(key)!.push(q)
+      }
+      const groups = Array.from(byPsg.values())
+      const flat = groups.flat()
+      const sets: NonNullable<TypeLessonContent['sets']> = []
+      let cursor = 0
+      for (const g of groups) {
+        const script = lcScript(g[0])
+        if (!script.length) return undefined
+        const visual = lcVisual(g[0])
+        /* 문장 id 는 지문 안에서만 유일하다(s1·s2…) — 세트를 이어 붙이면 겹쳐서 남의 음원이 재생된다 */
+        /* 내레이터 안내는 그 세트 **첫 문항**에 저장돼 있다(gen_narration_audio.js 와 같은 규칙) */
+        const introText = g[0].content.set_intro_text
+        sets.push({
+          script: script.map((s) => ({ ...s, id: `g${sets.length + 1}${s.id}` })),
+          ...(visual ? { visual } : {}),
+          ...(introText ? { intro: { text: introText, audio: g[0].content.set_intro_url } } : {}),
+          from: cursor, to: cursor + g.length,
+        })
+        cursor += g.length
+      }
       return {
-        audioScript: script,
-        ...(visual ? { visual } : {}),
-        questions: group.map((q) => toQuestion(q)),
+        audioScript: sets.flatMap((s) => s.script),
+        ...(sets.length > 1 ? { sets } : {}),
+        ...(sets[0].visual ? { visual: sets[0].visual } : {}),
+        /* 문항 낭독 음원 — 없으면 화면이 브라우저 TTS 로 떨어진다 */
+        questions: flat.map((q) => {
+          const item = toQuestion(q)
+          return q.content.qread_url ? { ...item, readAudio: q.content.qread_url } : item
+        }),
       }
     }
     case 5:

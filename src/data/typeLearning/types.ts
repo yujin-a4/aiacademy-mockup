@@ -27,6 +27,9 @@ export interface QuestionItem {
   photo?: string
   /** 문항 통음원 (DB `content.audio_url`) — 실제 시험처럼 보기 4개를 한 번에 듣는 용도 */
   audio?: string
+  /** 내레이터가 이 문항을 읽어주는 음원 (DB `content.qread_url`, "Number 32. Why is …").
+   *  P3·P4 실전에서 담화가 끝난 뒤 문항마다 재생된다. 없으면 브라우저 TTS 로 떨어진다. */
+  readAudio?: string
   /** 이중·삼중 지문에서 이 문항의 근거가 있는 지문 id. 레일이 그 지문 탭을 여는 데 쓴다 */
   passageId?: string
 }
@@ -71,6 +74,18 @@ export interface TypeLessonContent {
   optionAudio?: boolean
   /** LC 표/자료형(T4·T6) 시각자료 — 음원 듣는 동안 화면에 상시 노출 */
   visual?: { title: string; table: TableData }
+  /** LC P3·P4 실전 — 세트 경계. 음원 하나에 문항 셋이고, 실전은 그런 세트를 여러 개 푼다.
+   *  `questions` 는 세트를 이어 붙인 **평평한 배열**이다 — 답·채점·오답 리뷰가 전부 그 인덱스를 쓰므로
+   *  세트를 도입해도 그 경로는 건드리지 않는다. 여기서는 세트마다 자기 스크립트와 문항 범위만 갖는다.
+   *  세트가 하나뿐이면 굳이 채우지 않는다(없으면 audioScript 를 그대로 쓰는 옛 경로). */
+  sets?: {
+    script: SentenceItem[]
+    visual?: { title: string; table: TableData }
+    from: number; to: number
+    /** 지문 **앞**에 나오는 내레이터 안내 — "Questions 1 through 3 refer to the following conversation."
+     *  실제 시험은 담화 전에 이 문장이 반드시 나온다(DB `content.set_intro_url` / `set_intro_text`). */
+    intro?: { text: string; audio?: string }
+  }[]
   /** RC 지문(들) — P5는 문장 1개, P6는 장문 1개, P7은 1~3개 */
   passages?: PassageDoc[]
   questions: QuestionItem[]

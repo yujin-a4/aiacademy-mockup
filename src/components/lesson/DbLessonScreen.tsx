@@ -345,7 +345,17 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
   // (단계 진행은 이제 에이전트의 next_step 클라이언트 tool이 담당한다 — 지시가 발화 전에 도착하도록.
   //  옛 방식: 학생 발화를 클라이언트가 엔진에 보내고 지시를 사후 주입 → 지시가 한 박자 늦어 단계가 샜음.)
 
-  useEffect(() => () => { try { conversation.endSession() } catch { /* noop */ } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  /* 화면을 벗어나면 강사 세션을 무조건 끊는다 — 안 끊으면 다른 화면에서도 마이크가 열려 있고
+     강사가 계속 말한다. 정리 effect 가 렌더 0번의 conversation 을 물고 있으면 세션을 다시 연 뒤에는
+     헛돌아서 최신 것을 ref 로 부르고, 탭 닫기·새로고침은 언마운트가 안 도는 경우가 있어 pagehide 로
+     한 번 더 건다. (TypeLessonPlayer 와 같은 처리) */
+  const convRef = useRef(conversation)
+  convRef.current = conversation
+  useEffect(() => {
+    const bye = () => { try { convRef.current.endSession() } catch { /* noop */ } }
+    window.addEventListener('pagehide', bye)
+    return () => { window.removeEventListener('pagehide', bye); bye() }
+  }, [])
 
   // 실전/정리로 넘어가면 강사(라이브 에이전트) 세션 종료 — 듣기 음원·정리 TTS 위로 겹치지 않게.
   useEffect(() => {

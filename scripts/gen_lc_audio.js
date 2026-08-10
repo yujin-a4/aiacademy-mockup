@@ -30,15 +30,58 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 const OUT_DIR = path.join(PUBLIC, 'lc');
 
 const GO = process.argv.includes('--go');
+const REDO = process.argv.includes('--redo');   // 보이스 배분을 바꿨을 때만 — 기존 음원을 버리고 다시 만든다
 
-/** 화자 → 보이스. 없으면 null 이고, 그 문장은 건너뛴다 */
-const VOICE_OF = {
-  M: process.env.ELEVENLABS_VOICE_M || null,
-  // 여성은 원래 쓰던 보이스(통합 음원·P1 보기와 같은 화자) — 따로 지정하면 그게 우선한다
-  W: process.env.ELEVENLABS_VOICE_W || process.env.ELEVENLABS_AUDIO_VOICE_ID || null,
+/* ── 억양 6종 ──
+   실제 토익은 미국·영국·호주(·캐나다) 발음을 섞어 낸다. 한 목소리로만 뽑으면 듣기 시연이
+   "성우 한 명이 다 읽는 교재 CD" 가 되어 실전 감각이 안 잡힌다. */
+const VOICES = {
+  US: { W: process.env.ELEVENLABS_VOICE_W || process.env.ELEVENLABS_AUDIO_VOICE_ID || null,
+        M: process.env.ELEVENLABS_VOICE_M || null },
+  UK: { W: process.env.ELEVENLABS_VOICE_UK_W || null, M: process.env.ELEVENLABS_VOICE_UK_M || null },
+  AU: { W: process.env.ELEVENLABS_VOICE_AU_W || null, M: process.env.ELEVENLABS_VOICE_AU_M || null },
+  /* 캐나다는 **남성만** 있다 — 교재가 캐나다 여성을 한 번도 안 쓴다(W-Cn 0문장).
+     그래서 화자 태그가 없는 지문을 뽑을 때 도는 후보(ACCENTS)에는 넣지 않는다. 넣으면 여성 차례에 빈다. */
+  CA: { W: null, M: process.env.ELEVENLABS_VOICE_CA_M || null },
 };
-/** 화자 표기가 없는 지문(P2 질문 발화 · P4 담화) — 한 사람이 말한다 */
-const DEFAULT_VOICE = process.env.ELEVENLABS_VOICE_M || null;
+const ACCENTS = ['US', 'UK', 'AU'];
+
+/** 문항을 읽어주는 내레이터 — 시험 내내 **한 사람**이다(미국 남성). 지문 화자와 섞지 않는다 */
+const NARRATOR = process.env.ELEVENLABS_VOICE_M || null;
+
+/* 지문 코드 → 안정적인 번호. 같은 지문은 언제 다시 돌려도 같은 목소리가 나온다
+   (지문 코드가 재적재해도 그대로라, 순번이 아니라 코드에서 뽑아야 안 흔들린다). */
+function seedOf(code) {
+  let h = 0;
+  for (const ch of String(code)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/* 교재 화자 태그 → 보이스 억양. 교재가 쓰는 네 억양을 그대로 받는다(미국·영국·호주·캐나다). */
+const TAG_ACCENT = { Am: 'US', Br: 'UK', Au: 'AU', Cn: 'CA' };
+
+/** 이 문장의 보이스.
+ *  화자 태그(W-Am·M-Cn…)가 있으면 **교재를 그대로 따른다** — 3인 대화의 남자 둘도 여기서 갈린다.
+ *  태그가 없는 지문(P2 질문 발화·P4 담화)만 지문 코드로 6명 중 하나를 고른다. */
+function voiceFor(passageCode, speaker) {
+  const seed = seedOf(passageCode);
+  const m = /^([WM])-([A-Za-z]{2})$/.exec(String(speaker ?? ''));
+  if (m) {
+    const g = m[1];
+    const acc = TAG_ACCENT[m[2]] ?? 'US';
+    return { id: VOICES[acc][g], label: `${acc}-${g}` };
+  }
+  if (speaker === 'W' || speaker === 'M') {
+    // 태그를 못 살린 옛 데이터 — 두 화자가 다른 억양이 되도록 한 칸 어긋나게 고른다
+    const acc = speaker === 'W' ? ACCENTS[seed % 3] : ACCENTS[(seed + 1) % 3];
+    return { id: VOICES[acc][speaker], label: `${acc}-${speaker}` };
+  }
+  /* 화자 표기가 없는 지문(P2 질문 발화 · P4 담화) — 한 사람이 말한다.
+     DB 에 성별이 없으므로 지문 코드로 6명 중 하나를 고른다. 담화 30개에 고르게 퍼진다. */
+  const acc = ACCENTS[seed % 3];
+  const g = (seed >> 2) % 2 === 0 ? 'W' : 'M';
+  return { id: VOICES[acc][g], label: `${acc}-${g}` };
+}
 
 async function tts(text, voice) {
   const res = await fetch(`${API}/${voice}`, {
@@ -67,27 +110,44 @@ async function main() {
        where p.kind in ('utterance','dialogue','talk')
        order by p.passage_code, s.seq`);
 
+    /* --redo : 이미 만든 것을 **버리고 다시** 만든다. 보이스 배분을 바꿨을 때만 쓴다.
+       (평소에는 파일이 있으면 재사용해서 같은 소리에 두 번 돈을 내지 않는다) */
+    if (REDO) {
+      const ids = rows.filter((r) => r.audio_url).map((r) => r.id);
+      console.log(`--redo : 기존 음원 ${ids.length}개를 지우고 다시 만든다`);
+      if (GO && ids.length) {
+        for (const r of rows) {
+          if (!r.audio_url) continue;
+          const f = path.join(PUBLIC, r.audio_url.replace(/^\//, ''));
+          if (fs.existsSync(f)) fs.unlinkSync(f);
+          r.audio_url = null;
+        }
+        await c.query('update passage_sentences set audio_url = null where id = any($1)', [ids]);
+      } else if (!GO) {
+        for (const r of rows) r.audio_url = null;
+      }
+    }
+
     const todo = [];
     const skipped = new Map();      // 화자 → 개수 (보이스 미설정)
     let already = 0;
 
     for (const r of rows) {
       if (r.audio_url) { already += 1; continue; }
-      const voice = r.speaker ? VOICE_OF[r.speaker] : DEFAULT_VOICE;
-      if (!voice) {
-        const k = r.speaker ?? '(화자 없음)';
-        skipped.set(k, (skipped.get(k) ?? 0) + 1);
+      const v = voiceFor(r.passage_code, r.speaker);
+      if (!v.id) {
+        skipped.set(v.label, (skipped.get(v.label) ?? 0) + 1);
         continue;
       }
-      todo.push({ ...r, voice });
+      todo.push({ ...r, voice: v.id, voiceLabel: v.label });
     }
 
     console.log(`LC 문장 ${rows.length}개 · 이미 있음 ${already} · 생성 대상 ${todo.length}`);
     const byVoice = new Map();
-    for (const t of todo) byVoice.set(t.speaker ?? '(화자 없음)', (byVoice.get(t.speaker ?? '(화자 없음)') ?? 0) + 1);
-    for (const [k, n] of byVoice) console.log(`   ${k}: ${n}문장`);
+    for (const t of todo) byVoice.set(t.voiceLabel, (byVoice.get(t.voiceLabel) ?? 0) + 1);
+    for (const [k, n] of [...byVoice].sort()) console.log(`   ${k}: ${n}문장`);
     for (const [k, n] of skipped) {
-      console.log(`   ⚠ ${k}: ${n}문장 — 보이스 미설정(ELEVENLABS_VOICE_${k})이라 건너뜀`);
+      console.log(`   ⚠ ${k}: ${n}문장 — 보이스 ID 미설정이라 건너뜀`);
     }
 
     if (!todo.length) { console.log('\n생성할 것 없음'); return; }
