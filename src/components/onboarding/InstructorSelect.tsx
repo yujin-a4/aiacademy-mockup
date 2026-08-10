@@ -1,7 +1,10 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { saveProfileToSupabase } from '@/lib/profile'
+import { useCurriculumLectures, type DbLecture } from '@/data/db/questionStore'
+import { getInstructorPlan, refToSeq, type InstructorPlan } from '@/data/instructorCurriculum'
+import { displayLecture } from '@/data/lectureTitles'
 
 declare global {
   namespace JSX {
@@ -32,6 +35,18 @@ function getMatchScore(userDiff: string | null, userMot: string | null, instId: 
   if (userDiff && userDiff === core.difficulty) score += 30
   if (userMot && userMot === core.motivation) score += 20
   return score
+}
+
+type TabId = 'feature' | 'material' | 'curriculum'
+
+/* 강사별 진도 페이스(주 N회). 커리큘럼 42강 ÷ perWeek 로 소요 주수를 계산한다 —
+   화면에 쓰는 "총 42강"은 DB(lectures)에서 오고, 여기서 정하는 건 페이스뿐이다. */
+const INST_PACE: Record<string, { perWeek: number; label: string }> = {
+  park_hyewon: { perWeek: 5, label: '몰아치는 압축 진도' },
+  yun_daeun:   { perWeek: 4, label: '핵심만 빠르게' },
+  lee_doyun:   { perWeek: 4, label: '속도 훈련 반복' },
+  seo_jian:    { perWeek: 3, label: '단계별로 차근차근' },
+  oh_jungja:   { perWeek: 2, label: '절대 서두르지 않기' },
 }
 
 const INSTRUCTORS = [
@@ -238,7 +253,7 @@ const INSTRUCTORS = [
 export default function InstructorSelect({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
   const {
     userName, setSelectedInstructor,
-    targetScore, studyRange, examDate,
+    targetScore, studyRange, examDate, rangeAxis,
     difficulty, motivation, studyPeriod, dailyTime,
   } = useOnboardingStore()
 
@@ -259,7 +274,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const videoInitialized = useRef(false)
   const touchStartX = useRef(0)
 
-  const [activeTab, setActiveTab] = useState<'proposal' | 'curriculum'>('proposal')
+  const [activeTab, setActiveTab] = useState<TabId>('feature')
   const [selectedInst, setSelectedInst] = useState<(typeof INSTRUCTORS)[0] | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const tabSectionRef = useRef<HTMLDivElement | null>(null)
@@ -349,12 +364,8 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
   const goToDetail = (inst: (typeof INSTRUCTORS)[0]) => {
     setSelectedInst(inst)
     setView('detail')
-    setActiveTab('proposal')
+    setActiveTab('feature')
     window.scrollTo(0, 0)
-  }
-
-  const handleTabChange = (tab: 'proposal' | 'curriculum') => {
-    setActiveTab(tab)
   }
 
   /* ═══════════════════════════════════════
@@ -696,15 +707,15 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             </div>
           </div>
 
-          {/* 탭 메뉴 */}
+          {/* ── 탭 (강사 특징 / 맞춤 커리큘럼) ── */}
           <div ref={tabSectionRef} className="flex border-b border-[#DBEAFE] mb-8">
             {[
-              { id: 'proposal', label: 'Study Plan' },
+              { id: 'feature', label: '강의 소개' },
               { id: 'curriculum', label: '커리큘럼' },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id as 'proposal' | 'curriculum')}
+                onClick={() => setActiveTab(tab.id as TabId)}
                 className={`px-10 py-4 text-[15px] font-bold transition-all relative ${
                   activeTab === tab.id ? 'text-[#2563EB]' : 'text-[#9CA3AF] hover:text-[#6B7280]'
                 }`}
@@ -717,88 +728,405 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
             ))}
           </div>
 
-          {/* 탭 콘텐츠 */}
           <div className="animate-fade-in">
-            {activeTab === 'proposal' && (
-              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
-                <div className="max-w-[720px] space-y-10">
-                  <section>
-                    <h4 className="text-[#1C1B33] font-bold text-[20px] mb-4">학습 제안 배경</h4>
-                    <p className="text-[#5B5A72] text-[16px] leading-relaxed">
-                      {userName}님의 학습 패턴은 단기간에 집중하여 성과를 내는 것에 최적화되어 있습니다.
-                      따라서 불필요한 이론 설명보다는 실전에서 바로 활용 가능한 패턴 위주의 학습을 제안합니다.
-                    </p>
-                  </section>
-                  <section className="grid grid-cols-2 gap-8">
-                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
-                      <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">추천 플랜</span>
-                      <p className="text-[#1C1B33] text-[18px] font-bold">{selectedInst.proposal.plan}</p>
-                    </div>
-                    <div className="bg-[#F8FAFF] p-6 rounded-2xl border border-[#EFF6FF]">
-                      <span className="text-[#9CA3AF] text-[12px] font-bold uppercase block mb-1">목표 달성</span>
-                      <p className="text-[#2563EB] text-[18px] font-bold">{selectedInst.proposal.target}</p>
-                    </div>
-                  </section>
+            {activeTab === 'feature' && (
+              <section className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
+                <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">
+                  {userName ? `${userName}님께 이 설계를 제안하는 이유` : '이 설계를 제안하는 이유'}
+                </h4>
+                <p className="text-[#9CA3AF] text-[14px] mb-8">{selectedInst.tag} · {selectedInst.badge}</p>
+
+                {/* 진도 타임라인(StudyPlanTimeline)은 보류 — 되살리려면 여기서 렌더하면 된다 */}
+
+                {/* 학습 제안 배경 — 온보딩 응답(C/S·R/P·목표점수) + 강사 전략 조합 */}
+                <div className="bg-[#EFF6FF] rounded-2xl p-6 border border-[#DBEAFE]">
+                  <span className="text-[#2563EB] text-[12px] font-bold block mb-2">학습 제안 배경</span>
+                  <p className="text-[#1C1B33] text-[15px] leading-relaxed">
+                    {proposalBackground(
+                      userName, difficulty, motivation, targetScore,
+                      selectedInst.name, selectedInst.proposal.target,
+                    )}
+                  </p>
                 </div>
-              </div>
-            )}
 
-            {activeTab === 'curriculum' && (
-              <div className="bg-white rounded-3xl border border-[#DBEAFE] p-10 space-y-10">
-
-                {/* ── 주차별 커리큘럼 (로드맵) ── */}
-                <div>
-                  <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">주차별 커리큘럼</h4>
-                  <p className="text-[#9CA3AF] text-[14px] mb-6">{selectedInst.name} 강사가 단계별로 실력을 끌어올리는 학습 로드맵이에요.</p>
-                  <div className="overflow-hidden border border-[#DBEAFE] rounded-2xl">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-[#F8FAFF] border-b border-[#DBEAFE]">
-                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-20 text-center">주차</th>
-                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF]">단원명</th>
-                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">집중 파트</th>
-                          <th className="px-6 py-4 text-[13px] font-bold text-[#9CA3AF] w-40">목표</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#DBEAFE]">
-                        {selectedInst.curriculum.map((item: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-[#F8FAFF]/50 transition-colors group cursor-pointer">
-                            <td className="px-6 py-6 text-center">
-                              <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold text-[13px] flex items-center justify-center mx-auto">
-                                {idx + 1}
-                              </div>
-                              <span className="text-[11px] font-bold text-[#9CA3AF] mt-1 block">{item.week}</span>
-                            </td>
-                            <td className="px-6 py-6">
-                              <h5 className="text-[#1C1B33] font-bold text-[16px] mb-1">{item.title}</h5>
-                              <p className="text-[#9CA3AF] text-[13px] leading-relaxed">{item.detail}</p>
-                            </td>
-                            <td className="px-6 py-6">
-                              <span className="inline-block px-3 py-1 bg-[#EFF6FF] text-[#2563EB] text-[12px] font-bold rounded-lg border border-[#EDE9FE]">
-                                {item.part || '-'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-6">
-                              <div className="flex items-center justify-between group-hover:pr-2 transition-all">
-                                <span className="text-[#1C1B33] text-[14px] font-bold">{item.goal || '-'}</span>
-                                <svg className="text-[#D1D5DB] group-hover:text-[#2563EB] transition-colors" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <path d="M9 18l6-6-6-6"/>
-                                </svg>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="grid md:grid-cols-2 gap-6 mt-6">
+                  <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#EFF6FF]">
+                    <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">추천 플랜</span>
+                    <p className="text-[#1C1B33] text-[17px] font-bold">{selectedInst.proposal.plan}</p>
+                  </div>
+                  <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#EFF6FF]">
+                    <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">목표 달성</span>
+                    <p className="text-[#2563EB] text-[17px] font-bold">{selectedInst.proposal.target}</p>
                   </div>
                 </div>
 
-              </div>
+              </section>
             )}
 
+            {/* 교재 안내(MaterialGuide) 탭은 보류 — 되살리려면 탭 목록에 다시 넣으면 된다 */}
+
+            {activeTab === 'curriculum' && (
+              <InstructorCurriculum
+                inst={selectedInst}
+                userName={userName}
+                targetScore={targetScore}
+                rangeAxis={rangeAxis}
+              />
+            )}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════
+   맞춤 커리큘럼 — DB 정규 42강
+   ───────────────────────────────────────
+   강의 목록·총 강수는 전부 lectures 테이블에서 온다(하드코딩 주차표를 대체).
+   문항 유무(수업 가능/준비 중)는 여기서 표시하지 않는다 — 이 화면의 강의는 클릭 대상이
+   아니고, 커리큘럼은 "무엇을 배우는지"를 보여주는 자리다. 진입 게이팅은 /lessons 가 한다.
+   ═══════════════════════════════════════ */
+const PART_NAME: Record<number, string> = {
+  1: '사진 묘사', 2: '질의·응답', 3: '짧은 대화', 4: '짧은 담화',
+  5: '단문 빈칸', 6: '장문 빈칸', 7: '독해',
+}
+
+/* ── Study Plan 타임라인 ──
+   기획 원문: "시험 예정일과 목표 점수를 기반으로 기간 내 목표 달성 수치를 시각화".
+   점수 성장 곡선은 시작점(현재 점수·진단 레벨)이 있어야 그릴 수 있는데 온보딩이 그걸 안 받는다.
+   그래서 받는 값(시험일·목표점수·커리큘럼 기간)만으로 그릴 수 있는 진도 타임라인으로 낸다.
+   현재 점수 문항이 생기면 여기에 곡선을 얹으면 된다. */
+function StudyPlanTimeline({
+  userName, examDate, targetScore, curriculumDays, weeks,
+}: {
+  userName: string | null
+  examDate: string | null
+  targetScore: number | null
+  curriculumDays: number
+  weeks: { label: string; title: string }[]
+}) {
+  if (!examDate) return null
+
+  const MS_DAY = 86400000
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dday = Math.max(0, Math.round((new Date(examDate).getTime() - today.getTime()) / MS_DAY))
+  /* 커리큘럼은 시험 직전에 붙는다(1개월 완성반이 시험 한 달 전에 열리는 것과 같다).
+     그래서 막대 왼쪽(오늘 쪽)은 아직 비어 있고, 오른쪽 끝에 커리큘럼 구간이 붙는다.
+     — 왼쪽부터 채우면 이미 진행된 진도처럼 읽힌다. */
+  const short = curriculumDays > dday
+  const leadDays = Math.max(0, dday - curriculumDays)
+  const coursePct = dday > 0 ? Math.min(100, Math.round((curriculumDays / dday) * 100)) : 100
+  const fmt = (d: Date) => d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+  const examLabel = fmt(new Date(examDate))
+  const startLabel = fmt(new Date(new Date(examDate).getTime() - curriculumDays * MS_DAY))
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#DBEAFE] p-6 mb-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
+        <span className="text-[#1C1B33] text-[16px] font-bold">
+          {userName ? `${userName}님의 진도 계획` : '진도 계획'}
+        </span>
+        <span className="text-[#2563EB] text-[14px] font-bold">
+          시험까지 {dday}일{targetScore ? ` · 목표 ${targetScore}점` : ''}
+        </span>
+      </div>
+
+      {/* 오늘 → 시험일 막대. 커리큘럼(파랑)은 오른쪽 끝(시험일)에 붙는다 */}
+      <div className="flex justify-between text-[11px] font-bold text-[#9CA3AF] mb-1.5">
+        <span>오늘</span>
+        <span>{examLabel} 시험</span>
+      </div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-[#F3F4F6]">
+        <div className="bg-[#F3F4F6]" style={{ width: `${100 - coursePct}%` }} />
+        <div className="bg-[#2563EB]" style={{ width: `${coursePct}%` }} />
+      </div>
+
+      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+        {!short && leadDays > 0 && (
+          <span className="text-[12px] font-bold text-[#9CA3AF]">□ 시작 전 {leadDays}일</span>
+        )}
+        <span className="text-[12px] font-bold text-[#2563EB]">■ 커리큘럼 {curriculumDays}일</span>
+      </div>
+
+      <p className="text-[13px] leading-relaxed mt-3 pt-3 border-t border-[#EFF6FF]">
+        {short ? (
+          <span className="text-[#B45309] font-bold">
+            커리큘럼이 {curriculumDays - dday}일 넘칩니다 — 시험일을 미루거나 진도를 당겨야 해요.
+          </span>
+        ) : leadDays > 0 ? (
+          <span className="text-[#5B5A72]">
+            <span className="text-[#1C1B33] font-bold">{startLabel}</span>부터 시작하면 시험일에 딱 맞아요.
+            지금 시작하면 {leadDays}일 여유가 생깁니다.
+          </span>
+        ) : (
+          <span className="text-[#5B5A72]">오늘 시작하면 시험일에 딱 맞아요.</span>
+        )}
+      </p>
+
+      {/* 주차 요약 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-5">
+        {weeks.map((w) => (
+          <div key={w.label} className="bg-[#F8FAFF] rounded-xl px-3 py-2.5 border border-[#EFF6FF]">
+            <span className="text-[#2563EB] text-[11px] font-bold block">{w.label}</span>
+            <span className="text-[#1C1B33] text-[12px] font-semibold leading-snug line-clamp-2">{w.title}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* 학습 제안 배경 — 온보딩 응답(C/S · R/P · 목표점수)과 강사 전략을 조합해 만든다.
+   예전 Study Plan 탭은 모든 강사·모든 사용자에게 같은 문구가 나갔다. 그 자리를 실제 응답으로 채운다. */
+const DIFF_TEXT: Record<string, string> = {
+  C: '어려운 문제에 부딪힐 때 실력이 붙는',
+  S: '기본부터 안정적으로 쌓아가는',
+}
+const MOT_TEXT: Record<string, string> = {
+  P: '목표 자극에 반응하는',
+  R: '성취가 눈에 보일 때 움직이는',
+}
+
+function proposalBackground(
+  userName: string | null, difficulty: string | null, motivation: string | null,
+  targetScore: number | null, instName: string, strategy: string,
+): string {
+  const who = userName ? `${userName}님은` : '분석 결과'
+  const traits = [difficulty && DIFF_TEXT[difficulty], motivation && MOT_TEXT[motivation]]
+    .filter(Boolean).join(', ')
+  const first = traits ? `${who} ${traits} 유형이에요.` : `${who} 아직 성향 진단 전이에요.`
+  const goal = targetScore ? `목표 ${targetScore}점까지` : '목표 점수까지'
+  return `${first} 그래서 ${instName} 강사는 ${goal} ${strategy}로 가는 설계를 제안합니다.`
+}
+
+function InstructorCurriculum({
+  inst, userName, targetScore, rangeAxis,
+}: {
+  inst: {
+    id: string
+    name: string
+    proposal: { plan: string; target: string }
+    curriculum: { week: string; title: string; detail: string; part: string; goal: string }[]
+  }
+  userName: string | null
+  targetScore: number | null
+  rangeAxis: 'W' | 'N' | null
+}) {
+  const lectures = useCurriculumLectures()
+  const [showAll, setShowAll] = useState(false)
+  const pace = INST_PACE[inst.id] ?? { perWeek: 4, label: '' }
+
+  /* 정규 커리큘럼만 — 데모 강의(RC-P7-99)는 seq 가 null 이라 함께 걸러진다 */
+  const curriculum = useMemo(
+    () => lectures
+      .filter((l) => !l.isDemo && l.seq != null)
+      .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)),
+    [lectures],
+  )
+
+  const total = curriculum.length
+
+  /* DB 로딩 실패·미연결이면 섹션 자체를 감춘다 — 빈 표를 보여주느니 없는 게 낫다 */
+  if (!total) return null
+
+  const weeks = Math.ceil(total / pace.perWeek)
+  const perMonth = pace.perWeek * 4
+
+  /* 강좌 요약 — 실제 YBM 강좌 표기(목표점수 / 주N회(월N회) / N주반)를 따른다.
+     값은 전부 실측이다: 강수는 DB, 목표점수는 온보딩 응답, 회차는 INST_PACE 산술.
+     '강의 구분(종합반/LC/RC)'은 뺐다 — 배치표가 이미 LC·RC를 다 담고 있어 중복이다. */
+  /* 설계 시트가 있는 강사는 일자 배치(D1~D20)로, 없으면 42강 평면 목록으로 폴백한다 */
+  const plan = getInstructorPlan(inst.id, rangeAxis)
+  const planDays = plan ? plan.weeks.reduce((n, w) => n + w.days.length, 0) : 0
+
+  const summary = plan
+    ? [
+        { label: '목표 점수', value: targetScore ? `${targetScore} 목표` : plan.headline.split(' · ')[1] ?? '진단 후 확정' },
+        { label: '수업 횟수', value: `주 5일 (총 ${planDays}일)` },
+        { label: '수강 기간', value: `${plan.weeks.length}주 완성` },
+      ]
+    : [
+        { label: '목표 점수', value: targetScore ? `${targetScore} 목표` : '진단 후 확정' },
+        { label: '수업 횟수', value: `주 ${pace.perWeek}회 (월 ${perMonth}회)` },
+        { label: '수강 기간', value: `${weeks}주 완성` },
+      ]
+
+  return (
+    <section className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
+      <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">
+        {userName ? `${userName}님을 위한 맞춤 커리큘럼` : '맞춤 커리큘럼'}
+      </h4>
+      <p className="text-[#9CA3AF] text-[14px] mb-6">
+        총 {total}강{plan ? ` · ${plan.headline}` : pace.label && ` · ${pace.label}`}
+      </p>
+
+      {/* 강좌 기본정보 */}
+      <div className="grid grid-cols-3 gap-px bg-[#DBEAFE] border border-[#DBEAFE] rounded-2xl overflow-hidden mb-6">
+        {summary.map((s) => (
+          <div key={s.label} className="bg-white px-4 py-4">
+            <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">{s.label}</span>
+            <span className="text-[#1C1B33] text-[15px] font-bold">{s.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {plan ? (
+        <DayPlanView plan={plan} instName={inst.name} curriculum={curriculum} />
+      ) : (
+      <>
+      {/* 설계 시트가 없는 강사 — 강사별 주차 설계를 보여준다.
+          강 단위 배치는 콘텐츠팀 시트가 나오기 전까지 만들지 않는다(지어내면 실제 수업과 어긋난다). */}
+      <div className="space-y-3">
+        {inst.curriculum.map((w, i) => (
+          <div key={i} className="border border-[#DBEAFE] rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FAFF]">
+              <span className="shrink-0 px-2.5 h-7 rounded-md bg-[#2563EB] text-white text-[12px] font-bold flex items-center">
+                {w.week}
+              </span>
+              <span className="flex-1 min-w-0 text-[#1C1B33] text-[14px] font-bold">{w.title}</span>
+              <span className="shrink-0 text-[11px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-md border border-[#DBEAFE]">
+                {w.part}
+              </span>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[#5B5A72] text-[13px] leading-relaxed">{w.detail}</p>
+              <p className="text-[#1C1B33] text-[13px] font-bold mt-2">
+                <span className="text-[#2563EB]">목표</span> · {w.goal}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setShowAll((v) => !v)}
+        className="mt-4 w-full py-3 rounded-xl border border-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#F8FAFF] transition-colors"
+      >
+        {showAll ? '강의 목록 접기' : `전체 ${total}강 목록 보기`}
+      </button>
+
+      {showAll && (
+      <ul className="mt-4 border border-[#DBEAFE] rounded-2xl divide-y divide-[#EFF6FF] overflow-hidden">
+        {curriculum.map((l) => (
+          <li key={l.code} className="flex items-center gap-4 px-5 py-4 bg-white">
+            <span className="w-11 shrink-0 text-[12px] font-bold text-center text-[#2563EB]">
+              {l.seq}강
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-bold truncate text-[#1C1B33]">
+                {displayLecture(l.code, l.title).name}
+              </p>
+              <span className="text-[12px] text-[#6B7280]">
+                {l.lcRc} Part {l.part} · {PART_NAME[l.part] ?? '-'}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      )}
+      </>
+      )}
+    </section>
+  )
+}
+
+/* ── 일자 배치(D1~D20) 뷰 ──
+   주차 아코디언 + 설계 기준 접기로 세로 길이를 눌렀다. 강의 칩의 제목은
+   전부 DB(curriculum) 조인 결과다 — 시트에는 강 번호만 있고 제목은 DB가 정본이다. */
+function DayPlanView({
+  plan, instName, curriculum,
+}: { plan: InstructorPlan; instName: string; curriculum: DbLecture[] }) {
+  const [openWeeks, setOpenWeeks] = useState<number[]>([1])
+
+  const bySeq = useMemo(() => {
+    const m = new Map<number, DbLecture>()
+    for (const l of curriculum) if (l.seq != null) m.set(l.seq, l)
+    return m
+  }, [curriculum])
+
+  const toggleWeek = (w: number) =>
+    setOpenWeeks((prev) => (prev.includes(w) ? prev.filter((x) => x !== w) : [...prev, w]))
+
+  return (
+    <div className="space-y-4">
+      {/* 설계 기준(plan.principles) 노출은 보류 — 데이터는 instructorCurriculum.ts 에 남아 있다 */}
+
+      {/* 주차별 일자 배치 */}
+      {plan.weeks.map((w) => {
+        const open = openWeeks.includes(w.week)
+        return (
+          <div key={w.week} className="border border-[#DBEAFE] rounded-2xl overflow-hidden">
+            <button
+              onClick={() => toggleWeek(w.week)}
+              className="w-full flex items-center gap-3 px-5 py-4 bg-[#F8FAFF] hover:bg-[#EFF6FF] transition-colors text-left"
+            >
+              <span className="shrink-0 w-12 h-7 rounded-md bg-[#2563EB] text-white text-[12px] font-bold flex items-center justify-center">
+                {w.week}주차
+              </span>
+              <span className="flex-1 min-w-0 text-[#1C1B33] text-[14px] font-bold">{w.title}</span>
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5"
+                className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            {open && (
+              <div>
+                <ul className="divide-y divide-[#EFF6FF]">
+                  {w.days.map((d) => (
+                    <li key={d.day} className="px-5 py-4 flex flex-col md:flex-row md:gap-4">
+                      <span className="shrink-0 md:w-12 text-[#9CA3AF] text-[12px] font-bold mb-2 md:mb-0 md:pt-1">
+                        D{d.day}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap gap-2">
+                          {d.items.map((item, i) => {
+                            const seq = item.ref ? refToSeq(item.ref) : null
+                            const lec = seq != null ? bySeq.get(seq) : undefined
+                            /* 문항 유무(수업 가능/준비 중)는 표시하지 않는다 — 이 칩은 클릭이 안 되고,
+                               커리큘럼은 "무엇을 배우는지"를 보여주는 자리다. 진입 게이팅은 /lessons 가 한다 */
+                            const label = lec
+                              ? displayLecture(lec.code, lec.title).name
+                              : item.text ?? item.ref ?? ''
+                            return (
+                              <span
+                                key={i}
+                                className="inline-flex items-center text-[12px] font-semibold px-2.5 py-1.5 rounded-lg border bg-white border-[#BFDBFE] text-[#1C1B33]"
+                              >
+                                {label}
+                              </span>
+                            )
+                          })}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                          {d.review && (
+                            <span className="text-[#9CA3AF] text-[12px]">복습 · {d.review}</span>
+                          )}
+                          {d.material && (
+                            <span className="text-[#B45309] text-[12px] font-semibold bg-[#FEF9C3] px-2 py-0.5 rounded">
+                              학습 자료 · {d.material}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {w.goal && (
+                  <p className="px-5 py-3 bg-[#F8FAFF] text-[#5B5A72] text-[13px] leading-relaxed border-t border-[#EFF6FF]">
+                    <span className="text-[#2563EB] font-bold">목표</span> · {w.goal}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
     </div>
   )
 }
