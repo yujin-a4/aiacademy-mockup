@@ -67,25 +67,47 @@ const PLAN = [
     lesson: { test: 1, nos: [24, 25], plus: { test: 2, nos: [17] } },
     practice: { test: 3, nos: [15, 22, 27] } },
 
-  /* Part 3 — 대화 1 + 문항 3 */
+  /* ── Part 3·4 실전은 **세트 3개**를 이어 푼다 ──
+     실제 시험이 (음원 1 + 문항 3) 세트가 줄줄이 이어지는 구조다. 한 세트만 풀면 시험 감각이 안 산다.
+     practice 를 배열로 주면 세트가 순서대로 실린다(지문이 세트마다 따로 생기고, 화면이 그 경계로 묶는다). */
   { lecture: 'LC-P3-01', part: 3,                                   // 고객·직원 대화
     lesson: { test: 1, range: '35-37' },      // 극장 매표소
-    practice: { test: 1, range: '38-40' } },  // 사진관
+    practice: [
+      { test: 1, range: '38-40' },            // 사진관
+      { test: 2, range: '47-49' },            // 배수구 막힘 — 매장 직원의 제품 추천
+      { test: 6, range: '35-37' },            // 자전거 브레이크 교체 문의
+    ] },
   { lecture: 'LC-P3-02', part: 3,                                   // 사무실·동료 대화
     lesson: { test: 1, range: '41-43' },      // 사무실 이전 소식을 두고 동료끼리
-    practice: { test: 2, range: '56-58' } },  // 사내 새 웹사이트 이야기
+    practice: [
+      { test: 2, range: '56-58' },            // 사내 새 웹사이트 이야기
+      { test: 1, range: '50-52' },            // 사내 수상 소식을 두고 동료끼리
+      { test: 3, range: '44-46' },            // 자리를 비운 동료를 찾는 3인 대화
+    ] },
   { lecture: 'LC-P3-03', part: 3,                                   // 문제 상황·해결 대화
     lesson: { test: 1, range: '47-49' },      // 차 고장 — 연료 필터 교체
-    practice: { test: 5, range: '56-58' } },  // 촬영용 모형이 제때 안 나온 문제
+    practice: [
+      { test: 5, range: '56-58' },            // 촬영용 모형이 제때 안 나온 문제
+      { test: 6, range: '32-34' },            // 사내 메신저 답장이 안 나가는 문제
+      { test: 3, range: '53-55' },            // 청구서가 40달러 더 나온 문제
+    ] },
     /* ↑ T2 38-40(청구서 오류)이 주제로는 더 맞지만 파서가 문항을 2개만 건졌다.
        실전은 3문항이 기본이라 3문항 세트로 바꿨다. */
   { lecture: 'LC-P3-04', part: 3,                                   // 일정·회의 대화
     lesson: { test: 1, range: '53-55' },      // 인턴십 프로그램 논의
-    practice: { test: 1, range: '32-34' } },  // 약속 상대를 못 찾는 상황
+    practice: [
+      { test: 1, range: '32-34' },            // 약속 상대를 못 찾는 상황
+      { test: 5, range: '32-34' },            // 출장 항공편을 앞당긴 일정 변경
+      { test: 3, range: '41-43' },            // TV 광고 진행 상황 점검
+    ] },
   /* LC-P3-05 는 수업(주문·배송 대화 + 가격표 시각자료)이 **손으로 만든 세트**라 파서로 다시 못
-     만든다. 그래서 지우지 않고(append) 없던 실전만 덧붙인다 — 세탁기 배송 안내 전화. */
-  { lecture: 'LC-P3-05', part: 3, append: true,                     // 주문·배송 대화
-    practice: { test: 3, range: '38-40' } },                        // 배송 시간 안내 + 설치 요청
+     만든다 → 수업은 그대로 두고(append) 실전만 통째로 다시 쓴다(replacePhase). */
+  { lecture: 'LC-P3-05', part: 3, append: true, replacePhase: 'practice',   // 주문·배송 대화
+    practice: [
+      { test: 3, range: '38-40' },            // 세탁기 배송 시간 안내 + 설치 요청
+      { test: 1, range: '59-61' },            // 자전거 주문 출하 일정
+      { test: 1, range: '65-67' },            // 사무용품 배송 도착 + 송장(시각자료)
+    ] },
 
   /* Part 4 — 담화 1 + 문항 3 */
   /* 시각자료가 붙는 담화는 이 강의의 **수업**에 둔다 — 유형 그리드 t06(담화 표/자료형)이
@@ -93,16 +115,42 @@ const PLAN = [
      일반형 담화(t05)는 LC-P4-02(전화 메시지) 수업이 대신 보여준다. */
   { lecture: 'LC-P4-01', part: 4,                                    // 안내 방송·공지
     lesson: { test: 6, range: '95-97', visual: VISUAL_WORKSHOP },     // 안내 + 워크숍 일정표 ← t06
-    practice: { test: 1, range: '77-79' } },                          // 공지
+    practice: [
+      { test: 1, range: '77-79' },            // 공지
+      { test: 1, range: '92-94' },            // 검사실 공지
+      { test: 5, range: '92-94' },            // 창고 근무 공지
+    ] },
   { lecture: 'LC-P4-02', part: 4,                                    // 전화 메시지·녹음 안내
-    lesson: { test: 1, range: '71-73' }, practice: { test: 2, range: '80-82' } },
+    lesson: { test: 1, range: '71-73' },
+    practice: [
+      { test: 2, range: '80-82' },            // 전화 메시지
+      { test: 1, range: '80-82' },            // 자동 응답 메시지(녹음 안내) — 강의명 '녹음 안내' 에 딱 맞는다
+      { test: 2, range: '83-85' },            // 숙박업소에 남긴 전화 메시지
+    ] },
+  /* ⚠️ 광고·홍보는 **교재에 담화가 더 없다.** TEST 1·2·3·5·6 의 미사용 Part 4 세트에 [광고] 라벨이
+     하나도 없어서, 홍보 성격이 가장 가까운 관광·강좌 안내로 채웠다. 진짜 광고 세트가 필요하면
+     다른 회차를 더 파싱하거나 2권을 붙여야 한다(2권 LC 파서는 아직 Part 3·4 를 못 잡는다). */
   { lecture: 'LC-P4-03', part: 4,                                    // 광고·홍보
-    lesson: { test: 3, range: '71-73' }, practice: { test: 6, range: '74-76' } },
+    lesson: { test: 3, range: '71-73' },
+    practice: [
+      { test: 6, range: '74-76' },            // 광고
+      { test: 6, range: '83-85' },            // 협곡 투어 안내 — 관광 상품 홍보(근사치)
+      { test: 6, range: '80-82' },            // 기술 강좌 소개 팟캐스트 — 강좌 홍보(근사치)
+    ] },
   { lecture: 'LC-P4-04', part: 4,                                    // 뉴스·보도
     lesson: { test: 2, range: '77-79' },      // 뉴스 보도
-    practice: { test: 1, range: '74-76' } },  // 방송
+    practice: [
+      { test: 1, range: '74-76' },            // 방송
+      { test: 5, range: '77-79' },            // 라디오 경제 보도
+      { test: 3, range: '86-88' },            // 건강 정보 방송
+    ] },
   { lecture: 'LC-P4-05', part: 4,                                    // 연설·소개
-    lesson: { test: 5, range: '80-82' }, practice: { test: 6, range: '89-91' } },
+    lesson: { test: 5, range: '80-82' },
+    practice: [
+      { test: 6, range: '89-91' },            // 연설
+      { test: 3, range: '92-94' },            // 창립 25주년 기념 만찬 인사말
+      { test: 2, range: '86-88' },            // 세미나 도입 — 진행자가 강좌를 소개
+    ] },
 ];
 
 /** 담화(P4)는 한 덩어리로 나온다 — 문장 단위 재생을 하려면 쪼개야 한다 */
@@ -153,6 +201,9 @@ function unitsOf(byTest, part, sel) {
     return [{ ...set, test: s.test, visual: s.visual }];
   };
   if (!sel) return [];                    // append 계획은 한쪽(수업 또는 실전)만 채운다
+  /* 배열이면 세트를 여러 개 넣는다 — P3·P4 실전은 실제 시험처럼 (음원 1 + 문항 3) 세트가 이어진다.
+     지문이 세트마다 따로 생기고, 화면(fromDb.buildPractice)이 그 지문 경계로 세트를 되찾는다. */
+  if (Array.isArray(sel)) return sel.flatMap((s) => take(s));
   return sel.plus ? [...take(sel), ...take(sel.plus)] : take(sel);
 }
 
@@ -235,6 +286,23 @@ async function main() {
              실험장은 `select sandbox.reset()` 으로 정본에서 다시 만드는 버리는 사본이다. */
           await c.query('delete from sandbox.lecture_items where lecture_id = $1', [lectureId]);
           if (oldPsg.length) await c.query('delete from passages where id = any($1)', [oldPsg.map((r) => r.id)]);
+        }
+
+        /* replacePhase: 그 단계만 통째로 다시 쓴다. append 강의에서 한쪽(예: 실전)을 늘릴 때
+           안 지우면 재실행마다 같은 세트가 또 붙는다. 반대쪽(파서로 못 만드는 수업 세트)은 그대로 둔다. */
+        if (j.append && j.replacePhase === 'practice') {
+          const { rows: old } = await c.query(
+            `select id, passage_id from questions where lecture_id = $1 and content->>'stage' = 'practice'`,
+            [lectureId]);
+          if (old.length) {
+            const ids = old.map((r) => r.id);
+            const psgs = [...new Set(old.map((r) => r.passage_id).filter(Boolean))];
+            await c.query('delete from learner_answer_log where question_id = any($1)', [ids]);
+            await c.query('delete from questions where id = any($1)', [ids]);
+            await c.query('delete from lecture_items where lecture_id = $1', [lectureId]);
+            await c.query('delete from sandbox.lecture_items where lecture_id = $1', [lectureId]);
+            if (psgs.length) await c.query('delete from passages where id = any($1)', [psgs]);
+          }
         }
 
         /* append 면 지문·문항 번호를 이미 쓰인 다음부터 — 재실행해도 같은 코드가 다시 나오면 안 된다 */

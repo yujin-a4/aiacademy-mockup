@@ -5,7 +5,7 @@
    지문/채팅/표(P7, 점진 공개). 모든 영어 텍스트는 단어 탭 → 형광펜(필기 인식 대체). */
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
-import type { TypeLesson, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
+import type { TypeLesson, TypeLessonContent, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
 
 export interface ContentState {
   revealedScript: Set<string> | 'all'
@@ -15,6 +15,8 @@ export interface ContentState {
   activePassageId?: string
   playingId: string | null
   marks: Set<string>
+  /** 단어 탭(형광펜)을 쓸 수 있나 — 실전은 false. 지정하지 않으면 쓸 수 있다 */
+  tapWords?: boolean
   tutorMarks: Set<string>
   onTapWord: (word: string) => void
   /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
@@ -32,6 +34,9 @@ export interface ContentState {
    *  ⚠️ 인덱스는 그대로 둔다. 턴이 qIdx 로 문항을 가리키므로 배열을 자르면 어긋난다. */
   visibleQ?: { from: number; to: number }
   focusQ?: number
+  /** 잠깐 짚어 보여줄 문항 — '안 푼 문제가 있어요' 로 데려간 자리. 화면에 스크롤해 올리고 표시를 단다.
+   *  focusQ 를 쓰면 '지금 읽어주는 문항' 과 뜻이 섞여서 따로 둔다. */
+  spotlightQ?: number
   /** 'single': focusQ 문항만 선택 가능 / 'all': 전 문항 선택 가능 / 'none' */
   answerMode: 'none' | 'single' | 'all'
   answers: Record<number, string>
@@ -57,17 +62,38 @@ export function targetTokens(targets: string[] | undefined): Set<string> {
   return s
 }
 
+/** 형광펜 표시 하나의 키 — `자리|토큰번호|단어`.
+ *  단어만으로 표시하면 **같은 단어가 지문에 나올 때마다 전부 칠해진다.** 학생이 짚은 것은 그 자리
+ *  하나인데 화면은 다섯 군데가 켜지는 식이라, 자리(scope)와 토큰 번호까지 넣어 그 자리만 칠한다.
+ *  뒤에 단어를 붙여 두는 이유는 '목표 단어를 다 짚었나'(mark 상호작용) 판정이 단어로 이뤄지기 때문이다. */
+export const markKey = (scope: string, i: number, word: string) => `${scope}|${i}|${word}`
+/** 표시된 키 집합 → 표시된 **단어** 집합 (mark 완료 판정용) */
+export const markedWords = (marks: Set<string>) => {
+  const s = new Set<string>()
+  marks.forEach((k) => { const w = k.split('|').pop(); if (w) s.add(w) })
+  return s
+}
+
 /* ── 단어 탭 텍스트 ── */
-function TapText({ text, st, className }: { text: string; st: ContentState; className?: string }) {
+function TapText({ text, st, className, scope = '' }: { text: string; st: ContentState; className?: string; scope?: string }) {
   const tokens = text.split(/(\s+)/)
+  /* 실전에는 형광펜이 없다 — 시험지에 밑줄을 긋고 싶으면 좌하단 연필(필기)을 쓴다.
+     단어를 눌러 노랗게 칠하는 건 수업에서 강사가 "여기 짚어보세요" 할 때 쓰는 장치다. */
+  const tappable = st.tapWords !== false
   return (
     <span className={className}>
       {tokens.map((tk, i) => {
         if (/^\s+$/.test(tk)) return <span key={i}>{tk}</span>
-        const key = normWord(tk)
-        if (!key) return <span key={i}>{tk}</span>
+        const word = normWord(tk)
+        if (!word) return <span key={i}>{tk}</span>
+        const tMarked = st.tutorMarks.has(word)   // 강사가 짚은 단어는 지문 어디에 있든 같이 켜진다
+        if (!tappable) {
+          return tMarked
+            ? <span key={i} className="rounded-[3px] px-[1px] -mx-[1px] bg-[#DBEAFE] text-[#1D4ED8] font-semibold">{tk}</span>
+            : <span key={i}>{tk}</span>
+        }
+        const key = markKey(scope, i, word)
         const marked = st.marks.has(key)
-        const tMarked = st.tutorMarks.has(key)
         return (
           <span key={i} onClick={() => st.onTapWord(key)}
             className={`cursor-pointer rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
@@ -82,7 +108,7 @@ function TapText({ text, st, className }: { text: string; st: ContentState; clas
 }
 
 /* ── 빈칸 마커(______ / ___(n)___) 포함 문장 ── */
-function SentenceText({ text, st, focusBlank }: { text: string; st: ContentState; focusBlank?: number }) {
+function SentenceText({ text, st, focusBlank, scope = '' }: { text: string; st: ContentState; focusBlank?: number; scope?: string }) {
   const parts = text.split(/(___\(\d\)___|______)/)
   return (
     <>
@@ -100,7 +126,7 @@ function SentenceText({ text, st, focusBlank }: { text: string; st: ContentState
             </span>
           )
         }
-        return <TapText key={i} text={p} st={st} />
+        return <TapText key={i} text={p} st={st} scope={`${scope}.${i}`} />
       })}
     </>
   )
@@ -138,14 +164,32 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   // 파트1·2는 실제 시험에서 문제 지문이 없음(사진/음성) → 문제 헤더 숨기고 보기만
   const hideQ = lesson.part === 1 || lesson.part === 2
 
+  const spotted = st.spotlightQ === qIdx
   useEffect(() => {
     if (focused) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [focused])
+  /* 안 푼 문항으로 데려온 경우 — 세트 안에서 아래쪽에 있으면 화면 밖이라 보이지가 않는다 */
+  useEffect(() => {
+    if (spotted) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [spotted])
 
+  /* 지금 다루는 문항이라도 **파란 테두리는 두르지 않는다** — 보기 하나를 고르면 그 보기에도
+     파란 테두리가 생겨서 테두리가 두 겹이 되고, 실전은 한 화면에 한 문항뿐이라 강조할 대상도 없다.
+     지금 문항이라는 표시는 아래 Q번호 칩(파란 배경)이 이미 하고 있다. */
+  /* 답안지 모드(LC 실전, 채점 전)에서는 카드 껍데기를 통째로 벗긴다 — 실제 시험지의 마킹란은
+     상자 안에 들어 있지 않고 (A)(B)(C)(D) 가 그냥 놓여 있다. 테두리·그림자가 있으면 웹 폼처럼
+     보여서 시험지 느낌이 깨진다. 채점하면 보기·근거가 열려 해설 카드가 되므로 상자를 되돌린다. */
+  const bare = !!st.answerSheet && !graded
+  /* P3·P4 실전은 세 문항이 한 상자 안에 나란히 있다 — 음원이 지금 읽어주는 문항이 어느 것인지
+     보이지 않으면 학생이 따라가지 못한다. 이때만 옅은 파랑으로 짚는다.
+     (선택한 보기의 파란 테두리와 겹치지 않게 카드는 배경으로, 보기는 테두리로 구분한다) */
+  const readingNow = focused && !!st.selfAudio && (lesson.part === 3 || lesson.part === 4) && !graded
   return (
     <div ref={ref}
-      className={`rounded-2xl border bg-white p-4 transition-all ${
-        focused ? 'border-[#2563EB] shadow-[0_2px_16px_rgba(37,99,235,0.14)] ring-1 ring-[#2563EB]/20' : 'border-[#E5E7EB]'
+      className={bare ? `py-1 ${spotted ? 'rounded-2xl ring-2 ring-[#FCA5A5] bg-[#FEF2F2]' : ''}` : `rounded-2xl border p-4 transition-all ${
+        spotted ? 'border-[#FCA5A5] bg-[#FEF2F2] ring-2 ring-[#FCA5A5]/40'
+          : readingNow ? 'border-[#BFDBFE] bg-[#F5F9FF] shadow-[0_2px_16px_rgba(37,99,235,0.10)]'
+            : `border-[#E5E7EB] bg-white ${focused ? 'shadow-[0_2px_16px_rgba(15,23,42,0.08)]' : ''}`
       }`}>
       {!hideQ && (
         <div className="flex items-start gap-2.5 mb-3">
@@ -153,13 +197,15 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
             focused ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
           }`}>Q{qIdx + 1}</span>
           <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed pt-0.5">
-            <TapText text={q.q} st={st} />
+            <TapText text={q.q} st={st} scope={`q${qIdx}`} />
           </p>
           {/* 전체 지문 음원이 나가는 중 — 재생 바를 없앤 대신 "지금 소리가 난다"를 여기서 알린다.
               스크립트가 잠긴 P3·P4는 이 표시가 유일한 재생 신호다. */}
-          {scriptPlaying && (
+          {/* 문항이 여러 개 펼쳐져 있으면(P3·P4 실전) 세 장에 다 붙는다 → **짚고 있는 문항에만** 단다.
+              담화가 나가는 동안(아직 짚는 문항이 없을 때)은 맨 위 세트 음원 바가 이미 재생을 알린다. */}
+          {scriptPlaying && (focused || (!st.selfAudio && st.focusQ === undefined)) && (
             <span className="ml-auto shrink-0 flex items-center gap-1 rounded-full bg-[#EFF6FF] px-2 py-1 text-[10px] font-black text-[#2563EB]">
-              <SpeakerIcon pulse /> 재생 중
+              <SpeakerIcon pulse /> {readingNow ? '읽는 중' : '재생 중'}
             </span>
           )}
         </div>
@@ -237,7 +283,7 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                     )
                   ) : (
                     <span className="text-[13px] md:text-[14px] text-[#1C1B33] leading-snug flex-1">
-                      <TapText text={o.text} st={st} />
+                      <TapText text={o.text} st={st} scope={`q${qIdx}.${o.label}`} />
                     </span>
                   )}
                   {playing && !textHidden && <SpeakerIcon pulse />}
@@ -266,7 +312,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
         })}
       </div>
       )}
-      {(lesson.part === 3 || lesson.part === 4) && <ScriptAccordion lesson={lesson} st={st} />}
+      {/* 세트 실전에서는 카드마다 달지 않는다 — 세 문항이 **같은 스크립트**를 보므로 세 번 반복된다.
+          그때는 세트 머리('대화 듣기' 아래)에 한 번만 놓는다(아래 세트 레이아웃). */}
+      {(lesson.part === 3 || lesson.part === 4) && !st.selfAudio && <ScriptAccordion lesson={lesson} st={st} />}
     </div>
   )
 }
@@ -336,8 +384,8 @@ function SpeakerIcon({ pulse }: { pulse?: boolean }) {
 }
 
 /* ── LC 스크립트 아코디언 (각 문항 아래) — 정답 확인 전 잠금, 해제되면 접었다 폈다 ── */
-function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState }) {
-  const script = lesson.content.audioScript ?? []
+function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: ContentState; only?: SentenceItem[] }) {
+  const script = only ?? lesson.content.audioScript ?? []
   const [open, setOpen] = useState(false)
   if (!script.length) return null
   const anyRevealed = st.revealedScript === 'all' || st.revealedScript.size > 0
@@ -377,11 +425,12 @@ function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState 
                 <div className={`flex gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${playing ? 'bg-[#EFF6FF] ring-1 ring-[#93C5FD]' : ''}`}>
                   {s.speaker && (
                     <span className={`shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center mt-0.5 ${
-                      s.speaker === 'W' ? 'bg-[#FCE7F3] text-[#DB2777]' : 'bg-[#DBEAFE] text-[#2563EB]'
-                    }`}>{s.speaker}</span>
+                      s.speaker.startsWith('W') ? 'bg-[#FCE7F3] text-[#DB2777]' : 'bg-[#DBEAFE] text-[#2563EB]'
+                    }`}>{/* DB 화자는 교재 태그(W-Am·M-Cn…)라 성별 글자만 뽑아 쓴다 — 억양은 목소리로 들린다 */}
+                      {s.speaker[0]}</span>
                   )}
                   <p className="text-[13px] md:text-[14px] text-[#334155] leading-relaxed flex-1">
-                    <TapText text={s.en} st={st} />
+                    <TapText text={s.en} st={st} scope={s.id} />
                   </p>
                   {/* 문장 재생은 별도 버튼 — 문장 안의 단어 탭은 형광펜이라 클릭 대상이 겹치면 안 된다 */}
                   {st.onPlaySentence && (
@@ -405,18 +454,59 @@ function ScriptAccordion({ lesson, st }: { lesson: TypeLesson; st: ContentState 
 /* ── 시각자료(표) — LC 표/자료형(Part 3·4의 "Look at the graphic") ──
    실물 시험지도 지문과 같은 조판이다: 검은 실선 박스 + 가운데 세리프 볼드 제목 + 검은 실선 표.
    RC 지문과 같은 ExamTable 을 쓴다 — 한 시험지 안에서 표만 다른 톤이면 그게 더 튄다. */
+function VisualTable({ visual }: { visual: NonNullable<TypeLessonContent['visual']> }) {
+  return (
+    <div className="mx-auto max-w-[560px] border-[1.5px] border-[#111] bg-white px-3 py-3 md:px-4 md:py-4">
+      {visual.title && (
+        <p className="text-center font-exam-serif font-bold text-[15px] md:text-[17px] text-[#111] mb-2 tracking-wide">
+          {visual.title}
+        </p>
+      )}
+      <ExamTable table={visual.table} />
+    </div>
+  )
+}
+
 function VisualPanel({ lesson }: { lesson: TypeLesson }) {
   const v = lesson.content.visual
   if (!v) return null
+  return <VisualTable visual={v} />
+}
+
+/* ── 세트 음원 버튼 (P3·P4 실전) ──
+   음원 하나가 문항 셋을 덮으므로 세트 머리에 하나만 둔다. `qaudio:<세트 첫 문항>` 으로 부르면
+   실전 듣기 한 판(담화 → 문항 읽어주기 → 답할 시간)이 그 세트 범위 안에서 돈다. */
+function SetAudioButton({ kind, st, from, to }: { kind: string; st: ContentState; from: number; to: number }) {
+  const id = `qaudio:${from}`
+  const left = st.playsLeft ? st.playsLeft(id) : Infinity
+  const out = left <= 0
+  /* 다른 세트가 재생 중일 때 이 버튼까지 '재생 중' 이 되면 안 된다 — 지금 짚는 문항이 내 범위인지로 가른다.
+     담화가 나가는 동안엔 아직 짚는 문항이 없다(focusQ 없음) → 그때는 '남은 횟수를 쓴 세트' 가 나다. */
+    const mine = st.focusQ !== undefined ? (st.focusQ >= from && st.focusQ < to) : out
+  const playing = !!st.playingId && mine
   return (
-    <div className="mx-auto max-w-[560px] border-[1.5px] border-[#111] bg-white px-3 py-3 md:px-4 md:py-4">
-      {v.title && (
-        <p className="text-center font-exam-serif font-bold text-[15px] md:text-[17px] text-[#111] mb-2 tracking-wide">
-          {v.title}
-        </p>
-      )}
-      <ExamTable table={v.table} />
-    </div>
+    <button type="button" disabled={out} onClick={() => st.onPlaySentence?.(id, '')}
+      aria-label={`${kind} 음원 듣기`}
+      className={`w-full flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+        playing ? 'border-[#93C5FD] bg-[#EFF6FF]'
+          : out ? 'border-[#EEF0F4] bg-white cursor-not-allowed'
+            : 'border-[#BFDBFE] bg-white hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
+      }`}>
+      <span aria-hidden className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+        playing ? 'bg-[#2563EB] text-white animate-pulse'
+          : out ? 'bg-[#F1F3F7] text-[#C4C9D4]' : 'bg-[#EFF6FF] text-[#2563EB]'
+      }`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
+        </svg>
+      </span>
+      <span className="min-w-0">
+        <span className={`block text-[13px] font-bold ${out ? 'text-[#C4C9D4]' : playing ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
+          {out ? '재생 완료' : playing ? '재생 중…' : `${kind} 듣기 (1회)`}
+        </span>
+        <span className="block text-[11px] text-[#9CA3AF] mt-0.5">{kind}를 듣고 이어지는 문항에 답하세요</span>
+      </span>
+    </button>
   )
 }
 
@@ -453,7 +543,7 @@ function SentenceSpan({ s, st, focusBlank, docId }: { s: SentenceItem; st: Conte
         match && docId ? 'cursor-pointer' : ''
       } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC]' : ''}`}>
       {matched && <span className="mr-0.5 text-[#16A34A] font-black">✓</span>}
-      <SentenceText text={s.en} st={st} focusBlank={focusBlank} />{' '}
+      <SentenceText text={s.en} st={st} focusBlank={focusBlank} scope={s.id} />{' '}
     </span>
   )
 }
@@ -653,7 +743,7 @@ function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
                   {c.time && <span className="ml-1.5">[{c.time}]</span>}
                 </p>
                 <p className="font-exam-sans text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
-                  <TapText text={c.text} st={st} />
+                  <TapText text={c.text} st={st} scope={c.id} />
                 </p>
               </div>
             </div>
@@ -757,34 +847,64 @@ function EqLine({ label }: { label: string }) {
 
 /* ── P2 질문 카드 — 질문 음원이 여기서 재생되고, 재생 표시도 여기 뜬다 ── */
 function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentState; children: ReactNode }) {
-  const q1 = lesson.content.audioScript?.[0]
+  /* P2 는 audioScript[i] ↔ 문항 i 다. 예전엔 **항상 [0]** 을 재생해서, 문항이 여러 개인 강의에서는
+     2·3번 문항에서도 1번 질문이 나갔다. 지금 다루는 문항(focusQ)의 발화를 쓴다. */
+  const qIdx = st.focusQ ?? 0
+  const q1 = lesson.content.audioScript?.[qIdx] ?? lesson.content.audioScript?.[0]
   const qRevealed = !!q1 && (st.revealedScript === 'all' || st.revealedScript.has(q1.id))
+  /* 실전에서는 질문만이 아니라 보기까지 이어서 나간다 — 그 동안 내내 "재생 중"이어야 한다 */
   const playing = st.playingId === q1?.id
-  const playQ = () => q1 && st.onPlaySentence?.(q1.id, q1.en)
+    || (!!st.selfAudio && (st.playingId === `qaudio:${qIdx}` || !!st.playingId?.startsWith(`opt:${qIdx}:`)))
+
+  /* ── 이 카드가 곧 [음원 듣기] 버튼이다 ──
+     실전에서 하단에 따로 버튼을 두면, 소리가 나는 곳(이 카드)과 트는 곳(하단 바)이 갈라져
+     학생이 어디를 봐야 할지 모른다. `qaudio:` 로 부르면 실전 듣기 한 판(질문 → 보기 → 카운트다운)이 돈다. */
+  const left = st.selfAudio && st.playsLeft ? st.playsLeft(`qaudio:${qIdx}`) : Infinity
+  const out = left <= 0
+  const playQ = () => {
+    if (!q1) return
+    if (st.selfAudio) { if (!out) st.onPlaySentence?.(`qaudio:${qIdx}`, q1.en) }
+    else st.onPlaySentence?.(q1.id, q1.en)
+  }
 
   return (
     <div className="max-w-[560px] mx-auto space-y-4">
-      <div className={`rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
-        playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
-      }`}>
-        <button onClick={playQ} aria-label="질문 음원 재생"
+      {/* 문제 번호 — 파트2는 시험지에 지문이 없어 번호가 유일한 위치 표시다.
+          실전은 시험지 문구를 그대로 적는다("Mark your answer on your answer sheet."). */}
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{qIdx + 1}</span>
+        {st.selfAudio && (
+          <span className="text-[12px] font-medium text-[#9CA3AF] truncate">Mark your answer on your answer sheet.</span>
+        )}
+      </div>
+      <button type="button" onClick={playQ} disabled={out}
+        aria-label={st.selfAudio ? '음원 듣기' : '질문 음원 재생'}
+        className={`w-full rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
+          playing ? 'border-[#93C5FD] bg-[#EFF6FF]'
+            : out ? 'border-[#EEF0F4] bg-[#FAFAFA] cursor-not-allowed'
+              : 'border-[#E5E7EB] bg-white hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
+        }`}>
+        <span aria-hidden
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-            playing ? 'bg-[#2563EB] text-white animate-pulse' : 'bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE]'
+            playing ? 'bg-[#2563EB] text-white animate-pulse'
+              : out ? 'bg-[#F1F3F7] text-[#C4C9D4]' : 'bg-[#EFF6FF] text-[#2563EB]'
           }`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
           </svg>
-        </button>
+        </span>
         {qRevealed && q1 ? (
-          <p className="text-[15px] font-semibold text-[#1C1B33] text-center leading-relaxed"><TapText text={q1.en} st={st} /></p>
+          <span className="text-[15px] font-semibold text-[#1C1B33] text-center leading-relaxed"><TapText text={q1.en} st={st} scope={q1.id} /></span>
         ) : playing ? (
           /* 재생 표시가 사는 자리 — 예전엔 강사 창에 별도 재생 바가 떴는데, 소리가 나는 곳과
              표시가 나는 곳이 달라 어디를 봐야 할지 알 수 없었다. 음원은 여기서 나온다. */
-          <EqLine label="질문 음성 재생 중" />
+          <EqLine label={st.selfAudio ? '재생 중' : '질문 음성 재생 중'} />
         ) : (
-          <p className="text-[13px] text-[#9CA3AF] font-medium">질문은 음성으로 나와요</p>
+          <span className={`text-[13px] font-medium ${out ? 'text-[#C4C9D4]' : 'text-[#9CA3AF]'}`}>
+            {st.selfAudio ? (out ? '재생 완료' : '눌러서 음원 듣기 (1회)') : '질문은 음성으로 나와요'}
+          </span>
         )}
-      </div>
+      </button>
       {children}
     </div>
   )
@@ -890,9 +1010,23 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         <div className="flex flex-col gap-6 max-w-[620px] mx-auto">
           {content.questions.map((q, i) => (
             !qInView(st, i) ? null : <div key={i} className="flex flex-col gap-3">
+              {/* 실전은 시험지를 그대로 따른다 — Part 1 은 **문항마다 지시문이 없다.**
+                  영문 Directions 가 첫 문항 위에 한 번만 인쇄되고, 그 뒤로는 번호와 사진뿐이다.
+                  (수업은 학습 안내가 필요하니 한국어 한 줄을 그대로 둔다) */}
+              {st.selfAudio && i === 0 && (
+                <p className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[11px] leading-relaxed text-[#6B7280]">
+                  <span className="font-bold text-[#1C1B33]">Directions:</span> For each question in this part, you will hear
+                  four statements about a picture in your test book. When you hear the statements, you must select the one
+                  statement that best describes what you see in the picture. Then find the number of the question on your
+                  answer sheet and mark your answer. The statements will not be printed in your test book and will be
+                  spoken only one time.
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
-                <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>
+                {st.selfAudio
+                  ? <span className="flex-1 min-w-0" />
+                  : <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>}
                 {/* 음원 듣기 버튼은 **실전에서만**. 수업에서는 강사가 틀어주고,
                     나가는 동안에는 아래 보기가 파랗게 켜져 재생 중임을 알린다. */}
                 {q.audio && st.selfAudio && st.onPlaySentence && (() => {
@@ -921,12 +1055,13 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                 )}
               </div>
               {(q.photo ?? content.photo) && (
-                /* 실전은 사진 4장이 세로로 쌓여 한 화면에 못 넣는다(스크롤 유지).
-                   대신 장당 높이를 묶어 한 쌍(사진+보기)이 화면 안에 들어오게 한다.
+                /* 장당 높이를 묶어 한 쌍(사진+보기)이 화면 안에 들어오게 한다.
+                   실전(selfAudio)은 페이저로 한 문항씩 넘기므로 사진이 세로로 쌓이지 않는다 → 더 크게 본다.
+                   수업은 여러 문항이 이어서 보일 수 있어 그대로 둔다.
                    object-contain — 파트1은 사진 구석의 사물이 정답 근거라 잘라내면 안 된다. */
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={q.photo ?? content.photo} alt={`문제 ${i + 1} 사진`}
-                  className="w-full max-h-[34vh] rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]" />
+                  className={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
               )}
               <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
             </div>
@@ -961,6 +1096,49 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
 
   /* P3·P4 — 시각자료 + 문항 (스크립트는 각 문항 아래 아코디언) */
   if (part === 3 || part === 4) {
+    const kind = part === 3 ? '대화' : '담화'
+    /* ── 실전 = 세트 나열 ──
+       실제 시험지는 한 세트의 세 문항이 한 페이지에 나란히 인쇄되고, 세트가 아래로 이어진다.
+       학생은 담화를 들으며 그 세트의 셋을 눈으로 훑는다 — 한 문항씩 넘기면 실전이 안 된다.
+       그래서 실전에서는 탭/페이저 대신 세트마다 상자를 하나씩 놓고 통째로 편다.
+       세트 정보가 없으면(옛 데이터·수업) 전체를 한 세트로 본다. */
+    const sets = content.sets ?? [{ script: content.audioScript ?? [], visual: content.visual, from: 0, to: content.questions.length }]
+    if (st.selfAudio && content.questions.length > 1) {
+      return (
+        <div className="space-y-5">
+          {/* 넘기는 단위가 세트라 지금 세트만 그린다 — 9문항을 한 화면에 이어 붙이면 스크롤만 길다 */}
+          {sets.map((set, si) => !qInView(st, set.from) ? null : (
+            <div key={si} className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-3 md:p-4 space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                {sets.length > 1 && (
+                  <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#1C1B33] text-white">세트 {si + 1}/{sets.length}</span>
+                )}
+                <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB]">
+                  Questions {set.from + 1}–{set.to}
+                </span>
+                <span className="text-[11px] text-[#9CA3AF] truncate">한 {kind}에 딸린 {set.to - set.from}문항입니다</span>
+              </div>
+
+              {/* 세트 음원 — '이 문항의 음원' 이 없으므로 세트 머리에서 한 번 튼다.
+                  누르면 대화/담화 → 문항 읽어주기 → 답할 시간이 그 세트 안에서 이어진다. */}
+              <SetAudioButton kind={kind} st={st} from={set.from} to={set.to} />
+
+              {/* 스크립트는 **세트에 하나**다 — 세 문항이 같은 대화를 본다. 그리고 푸는 동안에는
+                  아예 내보내지 않는다(잠금 안내조차 미끼가 된다). 채점하면 여기서 열린다. */}
+              {st.graded.size > 0 && <ScriptAccordion lesson={lesson} st={st} only={set.script} />}
+
+              {set.visual && <VisualTable visual={set.visual} />}
+
+              <div className="space-y-2.5">
+                {content.questions.slice(set.from, set.to).map((q, k) => (
+                  <QuestionCard key={set.from + k} q={q} qIdx={set.from + k} lesson={lesson} st={st} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
     return (
       <div className="space-y-4">
         <VisualPanel lesson={lesson} />
@@ -979,7 +1157,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
     const SentenceCard = ({ text }: { text: string }) => (
       <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
         <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
-          <SentenceText text={text} st={st} focusBlank={focusBlank} />
+          <SentenceText text={text} st={st} focusBlank={focusBlank} scope="p5" />
         </p>
       </div>
     )

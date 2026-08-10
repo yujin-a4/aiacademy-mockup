@@ -619,15 +619,23 @@ function NoteViewer({ kind, startIndex, studyNotes, tipNotes, autoPrint, onClose
 }
 
 /* ── 코스 섹션 ── */
-function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }: {
+function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', collapsible, defaultOpen = true }: {
   course: CourseData
   onOpenStudy: (lessonId: string) => void
   onOpenTip: (courseId: number) => void
   labelPrefix?: string
+  /* 헤더를 눌러 접었다 펼 수 있게 한다. '기존 콘텐츠'(구버전 아카이브)처럼
+     늘 펼쳐 둘 이유가 없는 섹션에만 켠다. */
+  collapsible?: boolean
+  defaultOpen?: boolean
 }) {
   const router = useRouter()
+  const [open, setOpen] = useState(collapsible ? defaultOpen : true)
   // labelPrefix가 있으면 "Part 5 · 제목", 없으면 제목만 ("기존 콘텐츠")
   const heading = labelPrefix ? `${labelPrefix} ${course.id} · ${course.title}` : course.title
+  // 접을 수 있으면 헤더 전체가 토글 버튼, 아니면 그냥 상자
+  const Header = collapsible ? 'button' : 'div'
+  const headerProps = collapsible ? { type: 'button' as const, onClick: () => setOpen(o => !o) } : {}
 
   if (course.fullyLocked) {
     return (
@@ -658,7 +666,10 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
 
       {/* 코스 헤더 */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
+      <Header
+        {...headerProps}
+        className={`w-full text-left px-4 pt-4 pb-3 ${open ? 'border-b border-[#F3F4F6]' : ''} ${collapsible ? 'hover:bg-[#FAFBFF] transition-colors' : ''}`}
+      >
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -666,15 +677,23 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
             </div>
             <p className="text-[#9CA3AF] text-[12px]">{course.desc}</p>
           </div>
-          <div className="shrink-0 text-right pl-2">
-            <p className="text-[13px] font-black text-[#2563EB]">{doneCount} / {course.lessons.length}</p>
-            <p className="text-[10px] text-[#D1D5DB] font-medium">완료</p>
+          <div className="shrink-0 flex items-center gap-2 pl-2">
+            <div className="text-right">
+              <p className="text-[13px] font-black text-[#2563EB]">{doneCount} / {course.lessons.length}</p>
+              <p className="text-[10px] text-[#D1D5DB] font-medium">완료</p>
+            </div>
+            {collapsible && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            )}
           </div>
         </div>
-      </div>
+      </Header>
 
       {/* 강의 타임라인 */}
-      <div className="relative px-4 py-2">
+      <div className={`relative px-4 py-2 ${open ? '' : 'hidden'}`}>
         <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
 
         {course.lessons.map((lesson) => {
@@ -758,7 +777,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book' }:
       </div>
 
       {/* Book 비법 노트 — 전 레슨 완료 시 해제 */}
-      {course.tipNote && (
+      {course.tipNote && open && (
         <div className="px-4 pb-4 pt-1">
           <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5">
             <div className="flex items-center gap-2 mb-2.5 flex-wrap">
@@ -1299,7 +1318,7 @@ export default function LessonsPage() {
 
               {/* ── 기존 콘텐츠 — 이전 Book 콘텐츠 전체를 하나의 book으로 ── */}
               <div className="pt-4">
-                <CourseSection course={legacyCourse} labelPrefix="" onOpenStudy={openStudy} onOpenTip={openTip} />
+                <CourseSection course={legacyCourse} labelPrefix="" collapsible defaultOpen={false} onOpenStudy={openStudy} onOpenTip={openTip} />
               </div>
                 </div>
               ) : (
