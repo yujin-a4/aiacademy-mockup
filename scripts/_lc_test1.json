@@ -653,21 +653,21 @@
    "label": null,
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Sorry to bother you, Carl, but do you know where Rodney is? I was supposed to show him these sales figures for our new tablet computer as soon as they came in, but he’s not in his office.",
      "for_q": [
       32
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "He’s at a doctor’s appointment, and he won’t be back today. But if you give that paper to me, I’ll pass it on to him tomorrow.",
      "for_q": [
       33
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Thank you, I’d appreciate that. I’ll be conducting job interviews all day tomorrow.",
      "for_q": [
       34
@@ -763,38 +763,38 @@
    "label": null,
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Wilmoth Theater box office. How can I assist you today?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Hi, I have tickets for the August eighth performance of Two Villages, but I’d like to go on a later date. I understand that you allow free exchanges?",
      "for_q": [
       35
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Actually, that policy only applies to theater members. Are you a member of our theater?",
      "for_q": [
       36
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Oh… no, I’m not.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "OK, then the exchanges will cost you eight dollars per ticket. However, if you buy a membership today, I could waive those charges.",
      "for_q": [
       37
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Thanks, but I’ll just take the exchanges. I don’t live in the city, so it would be hard for me to come to your theater regularly.",
      "for_q": [
       37
@@ -890,26 +890,26 @@
    "label": null,
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Hi. I need a photograph of myself for a travel visa application. Does your studio do that kind of thing?",
      "for_q": [
       38
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Absolutely. I can take that for you right away. Did the application instructions mention any special requirements for the photo?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Oh, yes, actually. It’s supposed to be a certain size… I forgot to bring that information, though.",
      "for_q": [
       39
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Don’t worry. I can look it up online for you on this computer. What country are you trying to go to?",
      "for_q": [
       40
@@ -1005,38 +1005,38 @@
    "label": null,
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Tina, I just saw your announcement about the company moving offices—how exciting! It looks like the new space has more square footage, so we’ll finally have room to expand our workforce.",
      "for_q": [
       41
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Yes, and the transportation situation in that neighborhood is also better. We’ll have access to a bigger parking area.",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "That’s great. Umm… I’m concerned about the timing of the move, though. Couldn’t you postpone it by a few weeks? The end of this month will be a busy time for my team.",
      "for_q": [
       42
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "I mean, that was the president’s decision.",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Oh, I see. Then I guess I’ll discuss the problem with the team and figure out how we can rearrange our work schedule.",
      "for_q": [
       43
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Good idea. Let me know if I can help.",
      "for_q": []
     }
@@ -1130,26 +1130,26 @@
    "label": "3인 대화",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Hi, Tim and Rafael. I heard that we’ve been unable to prepare the soil in the carrot field for planting. What’s going on?",
      "for_q": [
       44
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "The special fertilizer we ordered hasn’t arrived. Rafael just called the supplier, but they couldn’t help.",
      "for_q": [
       45
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Right—their records show the shipment was completed, even though it wasn’t. It might take a while to figure out what went wrong.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Well, we need to get the carrots planted.",
      "for_q": []
     }
@@ -1243,33 +1243,33 @@
    "label": null,
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "OK, ma’am, we’ve figured out what’s wrong with your car. The fuel filter needs to be replaced. We can do that for you right away for two hundred dollars.",
      "for_q": [
       47
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Oh, that’s a lot. I’ve done some basic repairs in the past. Could I buy the part from you, and handle the replacement myself?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Hmm… with the way your car is designed, it wouldn’t be an easy job. There are a lot of steps. It would take us over an hour.",
      "for_q": [
       48
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "OK, then I guess you should do it. I’ll go out and get something to eat while I wait. Uh, I’ve never been to this area before…",
      "for_q": [
       49
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "There’s a great diner over that way.",
      "for_q": []
     }
@@ -1363,46 +1363,46 @@
    "label": null,
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Sung-ho, didn’t I see your name on the list of this year’s employee award winners?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Yes, I won a prize for streamlining our customer support processes.",
      "for_q": [
       50
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Ah, I heard about the improvements to our workflow in that area. So those were your ideas?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Actually, I got most of them from a workshop I went to earlier this year.",
      "for_q": [
       51
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Well, you still deserve credit for bringing them to the company. So, do you know what the prize will be?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "It’s three hundred dollars.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Wow! What are you going to do with it?",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "I’m going to set it aside for now. I’d like to make a down payment on a house someday.",
      "for_q": [
       52
@@ -1498,33 +1498,33 @@
    "label": null,
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Mr. Ramsay, can we talk for a minute about the summer internships? The program has been going differently from what we’d hoped…",
      "for_q": [
       53
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Oh, really? I’ve been checking in with the interns regularly, and their feedback has been positive so far. They say the experience has been very educational.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Well, the main problem is that the project of managing the two of them is interfering TEST 1 TEST 1 with our team’s regular duties. We’ve been spending hours each day on it.",
      "for_q": [
       54
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "I see. Then let’s include this issue on the agenda for tomorrow’s staff meeting so that we can brainstorm possible solutions together.",
      "for_q": [
       55
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "That would be great.",
      "for_q": []
     }
@@ -1618,41 +1618,41 @@
    "label": "3인 대화",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Welcome, Mr. Alvarado. I’m Ellen Browder, the CEO of Browder Holdings. This is our director of business development, Kayoko Tokachi.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Hello, Mr. Alvarado. Thank you for coming in to talk about our proposal to acquire your game studio.",
      "for_q": [
       56
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "It’s a very exciting possibility. Browder’s customer base is so large. I would love for our video games to reach a wider audience.",
      "for_q": [
       57
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "That’s what we want as well.",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Wonderful. But… I am concerned about how becoming part of Browder might affect our game development process.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Tell us more about that.",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Well, I know that companies like yours value efficiency. But for us, the more important goal is coming up with unique ideas for games. We spend a lot of time and effort on that.",
      "for_q": [
       58
@@ -1748,26 +1748,26 @@
    "label": null,
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Greg—good news! The assembly line is about to finish making the mountain bikes for Kellum Sporting Goods. We’ll be able to ship the order out as scheduled after all.",
      "for_q": [
       59
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Excellent. The next order to fulfill is another set of mountain bikes for a different dealer, right?",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Yes, but… that one isn’t urgent, and the workers are tired from the overtime they’ve done for the Kellum order. What do you think about shutting down early and giving them the afternoon off?",
      "for_q": [
       60
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Hmm… OK. I’ll make an announcement over the loudspeakers now. Thanks for the idea, Marisa.",
      "for_q": [
       61
@@ -1863,33 +1863,33 @@
    "label": "대화+극장 프로그램",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Oh hi, Sachiko! I didn’t know you were seeing this play this evening, too.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Yes, I’m here with Ian. We wanted to catch the production one more time before it goes on tour next month. Had you seen it before as well?",
      "for_q": [
       62
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "No, and I loved it! Hugh Macdonald was wonderful. It’s too bad that Purva Shah was sick, though. Her replacement gave a good performance, but I’ve heard that Shah’s really great in the role.",
      "for_q": [
       63
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "That’s true. Hey, Ian and I are planning to grab dinner nearby. Do you want to join us?",
      "for_q": [
       64
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Sure! I just have to keep an eye on the time. The parking garage where I left my car closes at ten.",
      "for_q": [
       64
@@ -1958,41 +1958,41 @@
    "label": "대화+송장",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Camila, the shipment from Gillespie Office Supplies arrived.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Oh good! We need those binders. Ms. Chen is going to use them when she presents the housing department’s budget to the city administrators.",
      "for_q": [
       65
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Let’s get everything unpacked.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "I’ll check the invoice… Wait, this isn’t right. I’m sure I ordered more sticky notes than this.",
      "for_q": [
       66
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Can I take a look at the invoice? Ah, there’s a note here at the bottom. It says the manufacturer is behind on production, so this is all that Gillespie had in stock. They’ll send the rest to us by the end of the month.",
      "for_q": []
     },
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "OK. That should be fine.",
      "for_q": []
     },
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Good. So, should we take these boxes of binders to Ms. Chen’s office?",
      "for_q": [
       67
@@ -2088,21 +2088,21 @@
    "label": "대화+출발 안내 전광판",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Hi, Ivy. It’s Craig. Are you at the gate already? I’m still waiting to get through the security screening. I’ve never seen lines this long at this terminal before.",
      "for_q": [
       68
      ]
     },
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Yeah, I was surprised by that too. I just arrived at our gate. But— the departure board now says our flight is delayed by forty minutes. So you have time.",
      "for_q": [
       69
      ]
     },
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "I’m glad to hear that. That does mean that we’ll land too late to catch the last shuttle bus, though. Could you look into other options for getting to the convention center?",
      "for_q": [
       70
@@ -2146,7 +2146,7 @@
    "label": "전화 메시지",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Hello, this is Na-Rim from the culinary school’s administration. 71, I’m calling to let you know that Terrence Hill, who’s enrolled in your food history course, won’t be able to attend the next two sessions. He phoned this morning and notified me that he has an urgent family matter to deal with. We’ll excuse these absences, and we don’t want him to fall behind in the course. Could you e-mail him any slides or handouts you’ll be using in those sessions? Thank you.",
      "for_q": [
       72,
@@ -2244,7 +2244,7 @@
    "label": "방송",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "In local cultural news, the Mayhew Museum of Art has announced plans to update and expand its downtown home. The renovation will be the first major initiative undertaken by Victor Hook since his appointment as the Mayhew’s director earlier this year. The work will mainly involve making the museum more accessible and adding a five- thousand-square-foot gallery to be used for short- term exhibitions. The Eddix Foundation has already agreed to sponsor the first show in the new space—an overview of contemporary Haitian art. If construction is completed on schedule, it will begin in March.",
      "for_q": [
       74,
@@ -2342,7 +2342,7 @@
    "label": "공지",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Hi, everyone. I’m excited to announce that our station has bought new portable news cameras. We looked into the display screens for the studio that some of you suggested, but they were over our budget. Now, the great thing about the new cameras is that they aren’t heavy like our current ones. Our news teams are going to be able to move around more easily when reporting on live events. Uh, for our camera operators— Omar is familiar with this model, but he’ll be out in the field when they arrive. I’ll make sure you each get a user manual along with the camera, though.",
      "for_q": [
       77,
@@ -2441,7 +2441,7 @@
    "label": "자동 응답 메시지",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "Hello, you have reached the desk of Kevin Greco, senior business analyst at Dorsey Electric Company. I am currently unable to take your call. Also, please note that due to a shift in my duties toward our renewable energy projects, I no longer manage our vendor invoices. However, if you need to speak with me regarding another matter, please leave a message after the tone that includes your name and contact information. I will get back to you within two business days. Thank you.",
      "for_q": [
       80,
@@ -2539,7 +2539,7 @@
    "label": "회의 발췌",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "Thank you all for coming to this meeting. As you know, the volume of books that we publish has grown rapidly over the past year. We’ve always outsourced our design tasks to freelancers, but I believe there’s now enough work that it makes more sense financially to have a book designer on staff. So, we’re now seeking to hire someone for a full-time position. I posted a listing online this morning, and notified our freelancers about it. I’m going to e-mail the job ad to you all as well. Please send it around to anyone you think might be interested.",
      "for_q": [
       83,
@@ -2664,7 +2664,7 @@
    "label": "담화",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Cn",
      "en": "OK, now that I’ve shown you how our gym expects you to format your client workout plans, let’s talk about actually implementing them. We believe your first task is to make sure that the client understands what they’re supposed to do. For example, when you ask them to use something like the leg press machine, be aware that many people are not familiar with this equipment. You may even want to demonstrate how to use it yourself. It’s important that the client feel confident about what they’re doing. It will make them want to keep scheduling sessions with you— which is your main goal.",
      "for_q": [
       86,
@@ -2735,7 +2735,7 @@
    "label": "회의 발췌",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Br",
      "en": "Next, I have an update on the project to increase customer engagement with our athletic shoe line. As you may remember, we added a pop-up advertisement to our Web site in order to encourage visitors to subscribe to our mailing list. Well, after one week, we have over ten thousand new subscribers—well over the goal we set! It seems that a lot of people want the giveaway poster of our spokesperson playing basketball in our shoes. I know there was some concern about the cost of offering this incentive, but I think these results show that it's worth it. We now have a direct channel of communication with many more potential customers.",
      "for_q": [
       89,
@@ -2833,7 +2833,7 @@
    "label": "공지",
    "script": [
     {
-     "speaker": "M",
+     "speaker": "M-Au",
      "en": "Can I have everyone’s attention, please? I know you have a lot of patient samples to perform tests on today, but this will just take a moment. I have an announcement about our benefits for employees. Several of you have expressed frustration that there hasn’t been a clear overview of the retirement savings plans, insurance coverage, and everything else that the lab offers its workers. Until now, the information was scattered throughout different documents or was only made available to human resources staff. Now, there’s a single file on our shared network. In addition, I promise to provide a prompt response to any questions you have about this information.",
      "for_q": [
       92,
@@ -2931,7 +2931,7 @@
    "label": "안내+지도",
    "script": [
     {
-     "speaker": "W",
+     "speaker": "W-Am",
      "en": "OK, team. Your first job today is taking a shipment of desks to Augustine Industries. Make sure to put the protective mats down before you move them in—the company’s very worried about damage to their floors. Uh… the office manager’s going to keep a parking space open for you near the entrance—specifically, the spot at the bottom of the ramp, so you won’t have to navigate the stairs. And you have another job scheduled for eleven a.m., so come straight back here when you’re done.",
      "for_q": [
       95,

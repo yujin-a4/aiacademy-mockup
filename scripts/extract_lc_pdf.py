@@ -30,7 +30,10 @@ import re
 
 import fitz
 
-SPEAKER = re.compile(r"^([WM])-[A-Za-z]{2}\s*(.*)$")
+# 교재는 화자를 성별+억양으로 적는다(W-Am, W-Br, M-Au, M-Cn = 실제 토익의 네 억양).
+# 예전엔 앞 글자(W/M)만 남기고 억양을 버렸는데, 그러면 **3인 대화의 남자 둘이 같은 사람**이 된다.
+# 전체 태그를 살려 둔다 — 목소리 배정도 이 태그를 그대로 따르면 교재와 같아진다.
+SPEAKER = re.compile(r"^([WM]-[A-Za-z]{2})\s*(.*)$")
 OPT = re.compile(r"^\((A|B|C|D)\)\s*(.*)$")
 ANSWER = re.compile(r"정답은\s*\(([A-D])\)\s*이?다")
 
