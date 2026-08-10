@@ -881,6 +881,15 @@ const PART_NAME: Record<number, string> = {
   1: '사진 묘사', 2: '질의·응답', 3: '짧은 대화', 4: '짧은 담화',
   5: '단문 빈칸', 6: '장문 빈칸', 7: '독해',
 }
+const PART_DESC: Record<number, string> = {
+  1: '사진 속 인물·사물을 알맞게 묘사한 문장 고르기',
+  2: '질문과 평서문에 어울리는 응답 고르기',
+  3: '두 사람의 대화를 듣고 3문항 풀기',
+  4: '한 사람의 담화를 듣고 3문항 풀기',
+  5: '문장 빈칸에 맞는 문법·어휘 고르기',
+  6: '지문 흐름을 따라 빈칸 4개 채우기',
+  7: '단일·복수 지문을 읽고 정보 찾기',
+}
 /* 문항이 들어 있고 화면이 도는 파트. LC(2·3·4)는 화면 형판이 없어 막아뒀었는데,
    2026-07-28 에 LC 화면을 붙이고 교재 문항까지 넣어서 열었다. */
 const PLAYABLE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
@@ -889,34 +898,83 @@ const PLAYABLE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
    실제 강의는 모두 4문항 이상(수업+실전 3). questionCount는 전체 문항 수. */
 const MIN_PLAYABLE = 4
 
-function CurriculumCard({ l }: { l: DbLecture }) {
+const isPlayable = (l: DbLecture) => l.questionCount >= MIN_PLAYABLE && PLAYABLE_PARTS.has(l.part)
+
+/* DB 제목은 "LC1강 — 인물 중심 vs 사물·상태 중심 …" 꼴이다.
+   한 줄짜리 타임라인에 통째로 넣으면 번호 때문에 제목이 잘린다 → 번호를 칩으로 떼어낸다. */
+function splitTitle(title: string): { no: string | null; name: string } {
+  const m = /^([A-Za-z]*\d+강)\s*[—–-]\s*(.+)$/.exec(title)
+  return m ? { no: m[1], name: m[2] } : { no: null, name: title }
+}
+
+/* 파트 하나 = 카드 하나. 아래 '기존 콘텐츠'(CourseSection)와 같은 형태 —
+   흰 카드 + 헤더 + 왼쪽 세로선을 따라 강의가 줄지어 선 타임라인.
+   강의를 낱개 카드로 세우면 42강이 42개 블록이 되어 파트 경계가 안 보인다. */
+function PartSection({ part, lectures }: { part: number; lectures: DbLecture[] }) {
   const router = useRouter()
-  const lc = l.lcRc === 'LC'
-  const playable = l.questionCount >= MIN_PLAYABLE && PLAYABLE_PARTS.has(l.part)
+  const lc = lectures[0].lcRc === 'LC'
+  const ready = lectures.filter(isPlayable).length
+
   return (
-    <button
-      disabled={!playable}
-      onClick={() => playable && router.push(`/lecture/${l.code}`)}
-      className={`group text-left rounded-2xl border p-4 transition-all ${
-        playable
-          ? 'bg-white border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99] cursor-pointer'
-          : 'bg-[#F9FAFB] border-[#EEF0F3] cursor-default'
-      }`}
-    >
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {l.part}</span>
-        {playable
-          ? <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-2 py-0.5 rounded-md">{l.questionCount}문항</span>
-          : <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-2 py-0.5 rounded-md">준비 중</span>}
+    <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
+
+      {/* 파트 헤더 */}
+      <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
+                Part {part}
+              </span>
+              <p className="text-[#1C1B33] font-bold text-[14px]">{PART_NAME[part] ?? ''}</p>
+            </div>
+            <p className="text-[#9CA3AF] text-[12px]">{PART_DESC[part] ?? ''}</p>
+          </div>
+          <div className="shrink-0 text-right pl-2">
+            <p className="text-[13px] font-black text-[#2563EB]">{ready} / {lectures.length}</p>
+            <p className="text-[10px] text-[#D1D5DB] font-medium">수강 가능</p>
+          </div>
+        </div>
       </div>
-      <p className={`text-[14px] font-bold mb-2 ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'} transition-colors`}>{l.title}</p>
-      {playable && (
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#2563EB]">
-          수업 시작
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="group-hover:translate-x-0.5 transition-transform"><path d="M9 18l6-6-6-6"/></svg>
-        </span>
-      )}
-    </button>
+
+      {/* 강의 타임라인 */}
+      <div className="relative px-4 py-2">
+        <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
+
+        {lectures.map((l) => {
+          const { no, name } = splitTitle(l.title)
+
+          /* 문항이 준비된 강의 */
+          if (isPlayable(l)) return (
+            <button
+              key={l.code}
+              onClick={() => router.push(`/lecture/${l.code}`)}
+              className="relative w-full flex items-center gap-3 py-2.5 text-left group"
+            >
+              <div className="relative z-10 w-5 h-5 rounded-full border-2 border-[#D1D5DB] bg-white flex items-center justify-center shrink-0 group-hover:border-[#2563EB] transition-colors">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#D1D5DB] group-hover:bg-[#2563EB] transition-colors" />
+              </div>
+              {no && <span className="text-[10px] font-bold text-[#9CA3AF] bg-[#F9FAFB] px-1.5 py-0.5 rounded-md shrink-0">{no}</span>}
+              <span className="text-[13px] text-[#374151] flex-1 min-w-0 truncate group-hover:text-[#2563EB] transition-colors">{name}</span>
+              <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md shrink-0">{l.questionCount}문항</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          )
+
+          /* 문항이 아직 없는 강의 — 누르면 깨지므로 잠근다 */
+          return (
+            <div key={l.code} className="relative flex items-center gap-3 py-2.5 opacity-40">
+              <div className="relative z-10 w-5 h-5 rounded-full bg-[#F3F4F6] flex items-center justify-center shrink-0">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              {no && <span className="text-[10px] font-bold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">{no}</span>}
+              <span className="text-[13px] text-[#6B7280] flex-1 min-w-0 truncate">{name}</span>
+              <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">준비 중</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -930,30 +988,11 @@ function CurriculumGrid() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
   }, [lectures])
-  const playableCount = lectures.filter((l) => l.questionCount > 0 && PLAYABLE_PARTS.has(l.part)).length
 
   if (lectures.length === 0) return null
   return (
-    <div className="space-y-5">
-      <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-        <p className="text-[13px] font-bold text-[#1C1B33]">커리큘럼 정규 수업 <span className="text-[#2563EB]">{lectures.length}강</span> <span className="text-[#9CA3AF] font-semibold">· 지금 들을 수 있는 강의 {playableCount}</span></p>
-        <p className="text-[11px] text-[#9CA3AF] mt-0.5">파트별 강의를 강사 스캐폴딩(S1~S7)으로 학습해요. 문항이 준비된 강의부터 열립니다.</p>
-      </div>
-      {parts.map(([part, lessons]) => {
-        const lc = lessons[0].lcRc === 'LC'
-        return (
-          <div key={part}>
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <span className={`text-[11px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {part}</span>
-              <p className="text-[12px] font-bold text-[#374151]">{PART_NAME[part] ?? ''}</p>
-              <span className="text-[11px] text-[#C4C9D4]">{lessons.length}강</span>
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {lessons.map((l) => <CurriculumCard key={l.code} l={l} />)}
-            </div>
-          </div>
-        )
-      })}
+    <div className="space-y-3">
+      {parts.map(([part, lessons]) => <PartSection key={part} part={part} lectures={lessons} />)}
     </div>
   )
 }
