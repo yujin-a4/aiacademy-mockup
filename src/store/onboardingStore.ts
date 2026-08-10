@@ -13,6 +13,12 @@ export interface UserProfile {
   dailyTime: string | null;
   selectedInstructor: string | null;
   studyRange: 'LC+RC' | 'LC' | 'RC' | null;
+  /** 가장 최근에 치른 토익 시험일. 응시 경험이 없으면 null */
+  lastExamDate: string | null;
+  /** 가장 최근 시험의 LC 점수 (5~495). 미입력이면 null */
+  currentLcScore: number | null;
+  /** 가장 최근 시험의 RC 점수 (5~495). 미입력이면 null */
+  currentRcScore: number | null;
 }
 
 interface OnboardingState extends UserProfile {
@@ -29,6 +35,8 @@ interface OnboardingState extends UserProfile {
   setDailyTime: (time: string) => void;
   setSelectedInstructor: (instructor: string) => void;
   setStudyRange: (range: 'LC+RC' | 'LC' | 'RC') => void;
+  /** 최근 시험 결과를 한 번에 설정. 응시 경험이 없으면 세 값 모두 null로 넘긴다 */
+  setLastExamResult: (date: string | null, lc: number | null, rc: number | null) => void;
 
   saveCurrentProfile: () => void;
   loadProfile: (name: string) => void;
@@ -48,6 +56,9 @@ export const useOnboardingStore = create<OnboardingState>()(
       dailyTime: null,
       selectedInstructor: null,
       studyRange: null,
+      lastExamDate: null,
+      currentLcScore: null,
+      currentRcScore: null,
       savedProfiles: [],
 
       setUserName: (name) => set({ userName: name }),
@@ -61,11 +72,13 @@ export const useOnboardingStore = create<OnboardingState>()(
       setDailyTime: (time) => set({ dailyTime: time }),
       setSelectedInstructor: (instructor) => set({ selectedInstructor: instructor }),
       setStudyRange: (range) => set({ studyRange: range }),
+      setLastExamResult: (date, lc, rc) =>
+        set({ lastExamDate: date, currentLcScore: lc, currentRcScore: rc }),
 
       saveCurrentProfile: () => {
-        const { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, savedProfiles } = get();
+        const { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, lastExamDate, currentLcScore, currentRcScore, savedProfiles } = get();
         if (!userName) return;
-        const profile: UserProfile = { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange };
+        const profile: UserProfile = { userName, rangeAxis, rhythm, difficulty, motivation, targetScore, studyPeriod, examDate, dailyTime, selectedInstructor, studyRange, lastExamDate, currentLcScore, currentRcScore };
         const idx = savedProfiles.findIndex((p) => p.userName === userName);
         if (idx >= 0) {
           const updated = [...savedProfiles];

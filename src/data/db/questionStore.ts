@@ -394,6 +394,10 @@ export interface DbLecture {
   part: number
   lcRc: string
   questionCount: number
+  /** 커리큘럼 42강 순서(LC 1~16 → RC 17~42). 데모 강의는 null.
+      fetchCurriculumLectures 만 채운다 — 문항 기준 목록(fetchLecturesWithQuestions)에는 없다 */
+  seq?: number | null
+  isDemo?: boolean
 }
 
 /** 문항이 있는 강의 목록 (part → code 순 정렬). 실패 시 빈 배열 */
@@ -451,7 +455,7 @@ export async function fetchCurriculumLectures(): Promise<DbLecture[]> {
   const supabase = getSupabase()
   if (!supabase) return []
   const [lecRes, counts] = await Promise.all([
-    supabase.from('lectures').select('lecture_code, title, part, lc_rc'),
+    supabase.from('lectures').select('lecture_code, title, part, lc_rc, seq, is_demo'),
     fetchLecturesWithQuestions(),
   ])
   if (lecRes.error || !lecRes.data) return []
@@ -460,6 +464,7 @@ export async function fetchCurriculumLectures(): Promise<DbLecture[]> {
     .map((l) => ({
       code: l.lecture_code, title: l.title, part: l.part, lcRc: l.lc_rc,
       questionCount: countByCode.get(l.lecture_code) ?? 0,
+      seq: l.seq ?? null, isDemo: l.is_demo ?? false,
     }))
     .sort((a, b) => a.part - b.part || a.code.localeCompare(b.code))
 }

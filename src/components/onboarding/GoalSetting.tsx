@@ -20,6 +20,14 @@ const TOEIC_DATES = [
   '2026-12-13', '2026-12-27',
 ]
 
+const SCORE_MIN = 5
+const SCORE_MAX = 495
+
+/** 토익 파트 점수는 5점 단위 */
+function roundTo5(n: number) {
+  return Math.round(n / 5) * 5
+}
+
 function getDefaultExamDate() {
   const twoMonthsLater = new Date()
   twoMonthsLater.setMonth(twoMonthsLater.getMonth() + 2)
@@ -82,9 +90,51 @@ function TwoColCard({
   )
 }
 
+/** LC / RC 파트 점수 입력 한 칸 */
+function ScoreField({
+  label, value, onChange,
+}: {
+  label: string; value: number | null; onChange: (v: number | null) => void
+}) {
+  const step = (delta: number) => {
+    const base = value ?? (delta > 0 ? SCORE_MIN - 5 : SCORE_MAX + 5)
+    onChange(Math.max(SCORE_MIN, Math.min(SCORE_MAX, roundTo5(base + delta))))
+  }
+  const btn = 'shrink-0 w-9 h-9 rounded-lg bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0] transition-colors flex items-center justify-center'
+  return (
+    <div className="flex-1 min-w-0 bg-white border-2 border-[#E5E7EB] rounded-2xl px-5 py-4">
+      <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label={`${label} 5점 내리기`} onClick={() => step(-5)} className={btn}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14" /></svg>
+        </button>
+        <input
+          type="text" inputMode="numeric" placeholder="0" value={value ?? ''}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^0-9]/g, '')
+            if (raw === '') return onChange(null)
+            // 입력 중에는 상한만 막는다 — 하한까지 걸면 "4"를 치는 순간 5로 튄다
+            onChange(Math.min(SCORE_MAX, Number(raw)))
+          }}
+          onBlur={() => {
+            if (value === null) return
+            onChange(Math.max(SCORE_MIN, Math.min(SCORE_MAX, roundTo5(value))))
+          }}
+          className="flex-1 min-w-0 w-full text-center text-[#0F172A] font-bold text-[22px] leading-9 bg-transparent outline-none placeholder:text-[#CBD5E1] placeholder:font-normal"
+        />
+        <button type="button" aria-label={`${label} 5점 올리기`} onClick={() => step(5)} className={btn}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const store = useOnboardingStore()
-  const [subStep, setSubStep] = useState<'score' | 'date'>('score')
+  const [subStep, setSubStep] = useState<'current' | 'score' | 'date'>('current')
+  const [lcScore, setLcScore] = useState<number | null>(store.currentLcScore)
+  const [rcScore, setRcScore] = useState<number | null>(store.currentRcScore)
   const [selectedScore, setSelectedScore] = useState<number | null>(null)
   const [score, setScore] = useState<number | null>(null)
   const [examDate, setExamDate] = useState(() => {
@@ -131,9 +181,68 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     onNext()
   }
 
+  /* ─── 최근 시험 점수 ─── */
+  const totalScore = (lcScore ?? 0) + (rcScore ?? 0)
+  const currentValid = lcScore !== null && rcScore !== null
+
+  const handleCurrentNext = (skipped: boolean) => {
+    if (skipped) {
+      setLcScore(null); setRcScore(null)
+      store.setLastExamResult(null, null, null)
+    } else {
+      if (!currentValid) return
+      store.setLastExamResult(null, lcScore, rcScore)
+    }
+    setSubStep('score')
+  }
+
+  if (subStep === 'current') return (
+    <TwoColCard
+      step="STEP 5"
+      title={'최근 토익 점수를\n알려주세요'}
+      subtitle="가장 최근에 치른 시험 결과를 입력해 주세요. 지금 실력에 맞춰 커리큘럼을 짭니다"
+    >
+      <div className="animate-fade-in">
+        {/* LC · RC 점수 */}
+        <div className="flex gap-3 mb-3">
+          <ScoreField label="LC" value={lcScore} onChange={setLcScore} />
+          <ScoreField label="RC" value={rcScore} onChange={setRcScore} />
+        </div>
+
+        {/* 총점 */}
+        <div className="bg-[#EEF2FF] rounded-2xl px-6 py-4 flex items-center justify-between mb-5">
+          <span className="text-primary/70 text-[12px] font-semibold uppercase tracking-wider">총점</span>
+          <span className="text-primary font-bold text-[24px]">
+            {currentValid ? `${totalScore}점` : '—'}
+          </span>
+        </div>
+
+        <div className="space-y-2.5">
+          <button
+            onClick={() => handleCurrentNext(false)}
+            disabled={!currentValid}
+            className={`w-full h-12 font-bold text-[15px] rounded-xl transition-all ${
+              currentValid
+                ? 'bg-primary hover:bg-[#1D4ED8] text-white active:scale-[0.98]'
+                : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+            }`}
+          >
+            다음
+          </button>
+          <button
+            onClick={() => handleCurrentNext(true)}
+            className="w-full h-10 text-[#94A3B8] font-medium text-[13px] hover:text-[#64748B] transition-colors"
+          >
+            아직 토익에 응시한 적 없어요
+          </button>
+        </div>
+      </div>
+    </TwoColCard>
+  )
+
   /* ─── 목표 점수 ─── */
   if (subStep === 'score') return (
-    <TwoColCard step="STEP 5" title={'목표 점수는\n얼마인가요?'}>
+    <TwoColCard step="STEP 6" title={'목표 점수는\n얼마인가요?'}>
       <div className="animate-fade-in">
         <div className="flex flex-col gap-4">
           {SCORE_OPTIONS.map((opt) => {
@@ -181,6 +290,12 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
             )
           })}
         </div>
+        <button
+          onClick={() => setSubStep('current')}
+          className="w-full h-10 mt-4 text-[#94A3B8] font-medium text-[13px] hover:text-[#64748B] transition-colors"
+        >
+          이전으로
+        </button>
       </div>
     </TwoColCard>
   )
@@ -188,7 +303,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   /* ─── 시험 예정일 ─── */
   return (
     <TwoColCard
-      step="STEP 6"
+      step="STEP 7"
       title={'시험 예정일을\n알려주세요'}
       subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요"
     >
