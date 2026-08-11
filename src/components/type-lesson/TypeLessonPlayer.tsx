@@ -27,6 +27,7 @@ import SessionEndFlow from '@/components/session/SessionEndFlow'
 import type { PartKey } from '@/lib/sessionHistory'
 import { getTodayProgress, markLectureDone } from '@/lib/todayPlan'
 import type { RailDiag } from '@/data/typeLearning/fromSteps'
+import { track, secSince, trackLessonStart } from '@/lib/analytics'
 
 /* 레일 정본이 이도윤 ver 한 벌뿐 — 온보딩에서 다른 강사를 골라도 짚는 순서는 이 레일을 따르고
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
@@ -451,6 +452,31 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [practiceScore, setPracticeScore] = useState<PracticeResult | null>(null)
   const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
 
+  /* ── 단계별 체류 (GA) ──
+     단계가 바뀔 때마다 **직전 단계에 얼마나 있었는지**를 남긴다. 이 하나로
+     "수업이 길어 지쳤나 · 오답 같이 보기를 실제로 붙잡고 있나 · 어디서 나갔나" 가 다 보인다.
+     화면을 떠날 때(pagehide·언마운트)도 같은 값을 흘려서, 도중에 나간 경우가 빠지지 않게 한다. */
+  const phaseAtRef = useRef(Date.now())
+  const prevPhaseRef = useRef(phase)
+  useEffect(() => {
+    if (prevPhaseRef.current === phase) return
+    track('stage_left', {
+      stage: prevPhaseRef.current, next: phase,
+      sec: secSince(phaseAtRef.current), lecture: lessonProp.id, part: lessonProp.part,
+    })
+    prevPhaseRef.current = phase
+    phaseAtRef.current = Date.now()
+  }, [phase, lessonProp.id, lessonProp.part])
+  useEffect(() => {
+    const send = () => track('stage_left', {
+      stage: prevPhaseRef.current, next: 'exit',
+      sec: secSince(phaseAtRef.current), lecture: lessonProp.id, part: lessonProp.part,
+    })
+    window.addEventListener('pagehide', send)
+    return () => { window.removeEventListener('pagehide', send); send() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   /* 실전 세트(없으면 수업 문항 그대로) — 리뷰는 이 문항들을 다시 푼다 */
   const practiceContent = lessonProp.practice ?? lessonProp.content
 
@@ -570,15 +596,51 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 도입(LessonIntro) → 수업 진입 여부. 실전으로 바로 들어온 경우엔 도입을 지나온 것으로 본다
      (도입 화면이 실전 위에 다시 뜨면 "시작하기"가 수업으로 되돌린다) */
   const [started, setStarted] = useState(initialStage === 'practice')
+  /* 수업 한 판 시작 — 몇 번째 수업인지, 앱을 처음 연 뒤 얼마 만인지가 여기서 붙는다
+     (두 번째 수업으로 이어지는지 = FGI 규모에서 리텐션의 유일한 실물) */
+  const lessonStartSentRef = useRef(false)
+  useEffect(() => {
+    if (!started || lessonStartSentRef.current) return
+    lessonStartSentRef.current = true
+    trackLessonStart({ lecture: lessonProp.id, part: lessonProp.part, area: lessonProp.area, entry: initialStage ?? 'lesson' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started])
   /* 강사 창 배치 — 우측 패널(기본) ⇄ 최소화(작은 창). 강사 말·선택지·행동 지시·입력이 전부 이 창 안에 있다 */
   const [dockMode, setDockMode] = useState<DockMode>('sidebar')
   const dockModeRef = useRef(dockMode)
   dockModeRef.current = dockMode
+  /* ── 측정 (GA) ──
+     "강사 패널을 언제 접는가" 가 FGI 관찰 항목이라, 접힘/펼침을 **누가 시켰는지까지** 남긴다.
+     화면이 좁아 코드가 자동으로 접는 경우가 있어(아래 matchMedia), 안 가르면 학생이 접은 것으로 읽힌다. */
+  const lessonStartRef = useRef(Date.now())
+  /* 지금 어느 단계인가 — 같은 강사 패널을 **수업**에서 접는 것과 **오답 같이 보기**에서 접는 것은
+     전혀 다른 신호다. 이벤트마다 단계를 실어야 나중에 갈라 볼 수 있다. */
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const setDock = (m: DockMode, by: 'user' | 'auto' = 'user') => {
+    if (dockModeRef.current !== m) {
+      track('tutor_panel_toggled', {
+        to: m, by, turn: turnIdxRef.current + 1, sec: secSince(lessonStartRef.current),
+        lecture: lesson.id, part: lesson.part, stage: phaseRef.current,
+      })
+    }
+    setDockMode(m)
+  }
   const feedRef = useRef<HTMLDivElement>(null)   // 대화 흐름 — 새 발화·새 단계가 오면 아래로 따라간다
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('voice')
   /* 에이전트 콜백은 세션 시작 시점 클로저를 잡는다 — 지금 모드는 ref 로 읽어야 최신이다 */
   const chatModeRef = useRef(chatMode)
   chatModeRef.current = chatMode
+  /* 음성·텍스트 중 무엇을 쓰는가 — 바꾼 시점(몇 번째 턴)까지 남겨야 "언제 말하기를 포기했나" 가 보인다 */
+  const setChat = (m: 'text' | 'voice') => {
+    if (chatModeRef.current !== m) {
+      track('tutor_mode_changed', {
+        to: m, turn: turnIdxRef.current + 1, sec: secSince(lessonStartRef.current),
+        lecture: lesson.id, part: lesson.part, stage: phaseRef.current,
+      })
+    }
+    setChatMode(m)
+  }
   const [inputText, setInputText] = useState('')
   const [chatLog, setChatLog] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
 
@@ -596,9 +658,30 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const injected = injectedRef.current.has(p.message)
       if (injected) { injectedRef.current.delete(p.message); return }
       const cur = turnIdxRef.current
+      /* ── 대화량 측정 ──
+         **내용은 보내지 않는다.** GA 파라미터는 100자에서 잘리고, 참가자 발화 전문을 넘기는 건
+         개인정보 문제다. 여기서는 글자 수·턴 번호·모드만 남기고 전문은 DB 로 따로 간다.
+         이 값들로 "대화가 얼마나 길었나 / 몇 번 오갔나 / 음성인가 텍스트인가" 가 전부 나온다. */
+      const trackTurn = () => track('tutor_turn', {
+        role: p.source === 'user' ? 'user' : 'ai',
+        chars: p.message.trim().length,
+        /* 시키는 것만 하는가, 자기가 묻는가 — 강사를 '선생님'으로 받아들였는지의 대리 지표.
+           내용은 안 보낸다. 물음표가 있었는지만 남긴다 */
+        is_question: p.source === 'user' ? /[?？]/.test(p.message) : undefined,
+        turn: cur + 1,
+        mode: chatModeRef.current,
+        sec: secSince(lessonStartRef.current),
+        stage: phaseRef.current,
+        lecture: lesson.id,
+        part: lesson.part,
+      })
+      if (p.source !== 'user') trackTurn()
       if (p.source === 'user') {
         /* 침묵이 "..." 로 전사돼 오는 걸 답으로 세면 안 된다 — 그게 게이트가 열리던 원인 */
         if (isEmptyAnswer(p.message)) {
+          /* 침묵·잡음이 "..." 로 전사돼 온 것. 이게 잦으면 STT 가 학생 말을 못 받고 있다는 뜻이라
+             참가자는 "말이 안 통한다"고 느낀다 — FGI 를 통째로 오염시키는 종류의 결함이다. */
+          track('stt_empty', { turn: cur + 1, stage: phaseRef.current, lecture: lesson.id, part: lesson.part })
           if (PACE_LOG) console.log('[pace] 빈 응답 무시', cur, JSON.stringify(p.message))
           return
         }
@@ -615,11 +698,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           // 친 문장은 보낼 때 이미 화면에 올렸다 — 응답으로만 세고 대화에는 다시 안 쌓는다
           respondedRef.current.add(cur)
           agentReactedRef.current.delete(cur)
+          trackTurn()
           return
         }
         // 답이 들어왔다 = 응답 있음. 단, 강사가 그 내용에 반응하기 전에는 진행을 막는다(아래 게이트)
         respondedRef.current.add(cur)
         agentReactedRef.current.delete(cur)
+        trackTurn()
         if (PACE_LOG) console.log('[pace] 응답 인식', cur, p.message.slice(0, 20))
       } else if (respondedRef.current.has(cur)) {
         // 강사가 학생 답 뒤에 말을 했다 = 그 답에 반응했다 → 이제 다음 단계로 가도 된다
@@ -693,6 +778,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             reaskRef.current.set(cur, used + 1)
             reaskAtRef.current.set(cur, Date.now())
             setReaskShown(used + 1)
+            track('tutor_reask', {
+              turn: cur + 1, nth: used + 1, step: live[cur]?.stage,
+              stage: phaseRef.current, lecture: lesson.id, part: lesson.part,
+            })
             return REASK[Math.min(used, 1)]
           }
         }
@@ -713,6 +802,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             + '수업 단계가 끝났다. 학생에게 이제 실전 문제를 풀어보자고 짧게 말하고 멈춰라.'
         }
         const nextIdx = cur + 1
+        /* ── 스캐폴딩이 실제로 작동했는가 (H3) ──
+           이 단계에서 학생이 **입을 열었는지**, 강사가 **몇 번 되물었는지**, 끝내 답을 못 했는지.
+           어느 단계에서 학생이 닫히는지가 이 이벤트 하나로 문항 단위까지 나온다. */
+        track('turn_advanced', {
+          turn: cur + 1,
+          responded: respondedRef.current.has(cur),
+          gave_up: gaveUp,
+          reasks: reaskRef.current.get(cur) ?? 0,
+          sec: Math.round((Date.now() - enteredAtRef.current) / 1000),
+          step: live[cur]?.stage,
+          stage: phaseRef.current,
+          lecture: lesson.id,
+          part: lesson.part,
+        })
         setTurnIdx(nextIdx)
         advancedAtRef.current = Date.now()
         if (PACE_LOG) console.log('[pace] 에이전트 진행', cur, '→', nextIdx, gaveUp ? '(응답 없이 포기)' : '')
@@ -745,7 +848,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           ? '자, 방금 푼 것 중에 틀린 것만 같이 다시 볼게요. 하나씩 짚어봅시다.'
           : turns[0].tutor,
       }),
-    }).catch(() => {})
+    }).catch((e: unknown) => {
+      /* 강사 세션이 안 붙으면 이 제품은 그냥 문제집이다 — FGI 에서 가장 먼저 알아야 할 사고 */
+      track('tutor_session_failed', {
+        stage: phaseRef.current, lecture: lesson.id, part: lesson.part,
+        reason: e instanceof Error ? e.name : 'unknown',
+      })
+    })
   }
   /* ── 강사 세션은 화면을 벗어나면 무조건 끊는다 ──
      안 끊으면 학생이 다른 화면으로 가도 마이크가 열려 있고 강사가 계속 말한다(요금도 계속 나간다).
@@ -908,10 +1017,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const apply = () => {
       setNarrow(mq.matches)
       if (mq.matches) {
-        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDockMode('mini') }
+        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDock('mini', 'auto') }
       } else if (autoMiniRef.current) {
         autoMiniRef.current = false
-        setDockMode('sidebar')            // 학생이 직접 접은 건 되돌리지 않는다
+        setDock('sidebar', 'auto')        // 학생이 직접 접은 건 되돌리지 않는다
       }
     }
     apply()
@@ -1480,12 +1589,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         {/* 우: 강사 창 — 우측 패널 ⇄ 최소화(작은 창).
             작은 창은 fixed라 여기 자리를 차지하지 않는다. 내용은 슬롯으로 넘기고 배치는 도크가 정한다. */}
         <TutorDock
-          mode={dockMode} setMode={setDockMode}
+          mode={dockMode} setMode={setDock}
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
           poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
-          chatMode={chatMode} setChatMode={setChatMode}
+          chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
           getMicFreq={() => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
           connected={agentConnected} connecting={agentConnecting}
@@ -1619,6 +1728,13 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000)
     return () => clearInterval(t)
   }, [graded])
+  /* 측정용 — 콜백 안에서 지금 경과 초를 읽는다(state 를 클로저로 잡으면 옛 값이 온다) */
+  const elapsedRef = useRef(0)
+  elapsedRef.current = elapsed
+  /* 음원이 자동으로 넘긴 페이지 번호 — 학생이 그 자리에서 뒤로 돌아오는지 보려고 들고 있는다 */
+  const autoAdvancedRef = useRef<number | null>(null)
+  /* 채점한 시각 — 결과 화면을 얼마나 들여다보는지 잰다 */
+  const gradedAtRef = useRef<number | null>(null)
   const clock = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`
 
   /* 실전 세트가 있으면 그걸 푼다. 없으면(로컬 샘플 유형) 수업에서 다룬 문항을 그대로 다시 푼다. */
@@ -1674,6 +1790,16 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   }
   const playsLeft = (id: string) => (graded ? Infinity : Math.max(0, MAX_PLAYS - (playCount[countKey(id)] ?? 0)))
   const countPlay = (id: string) => { if (!graded) setPlayCount((p) => ({ ...p, [countKey(id)]: (p[countKey(id)] ?? 0) + 1 })) }
+  /* 실전 음원은 시험처럼 **1회**다. 다 쓴 뒤에도 또 틀려고 했다면 그 규칙이 답답하다는 뜻 —
+     `lc_returned_back` 과 같이 보면 "실전 듣기가 너무 빠른가"가 숫자로 나온다. */
+  const blockedRef = useRef(0)
+  const trackBlocked = (id: string) => {
+    blockedRef.current += 1
+    track('audio_replay_blocked', {
+      lecture: pLesson.id, part: pLesson.part, target: countKey(id),
+      nth: blockedRef.current, sec: elapsedRef.current,
+    })
+  }
 
   /* ── 듣기 진행 상태 ──
      runId  : 진행 중인 시퀀스 토큰. 끊으면 올려서 뒤따르던 await 들이 스스로 빠져나간다
@@ -1724,7 +1850,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   const runListening = async (from: number) => {
     // 이미 한 판이 돌고 있으면 무시 — 배너 버튼과 ContentView 버튼이 겹쳐 눌리면 음원이 두 겹으로 난다
     if (owner.current !== null) return
-    if (playsLeft(`item:${from}`) <= 0) return
+    if (playsLeft(`item:${from}`) <= 0) { trackBlocked(`item:${from}`); return }
     countPlay(`item:${from}`)
     const my = ++runId.current
     manual.current = false
@@ -1763,7 +1889,13 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
       }
       setReadingQ(null)
       // 세트가 끝나면 다음 세트로 넘긴다 — 시험에서 음원이 다음 세트로 그냥 이어지는 것과 같다
-      if (!manual.current && si < sets.length - 1) setPage(si + 1)
+      if (!manual.current && si < sets.length - 1) {
+        /* 자동으로 넘어간 것을 남긴다 — 뒤에서 학생이 손으로 되돌아오면 짝이 맞는다
+           ("자동으로 넘어간 뒤 다시 돌아오는가" 가 FGI 관찰 항목이다) */
+        autoAdvancedRef.current = si + 1
+        track('lc_auto_advanced', { lecture: pLesson.id, part: pLesson.part, from_set: si + 1, to_set: si + 2 })
+        setPage(si + 1)
+      }
     } else {
       owner.current = ownerOf(from)
       // 문항 통음원 mp3 가 있으면 그걸, 없으면 질문 발화 + 보기를 이어 붙여 재생
@@ -1783,7 +1915,11 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
       if (!(await say(my, items))) return
       if (!(await countDown(my, gapSec))) return
       if (manual.current) return
-      if (from < last) setPage(from + 1)
+      if (from < last) {
+        autoAdvancedRef.current = from + 1
+        track('lc_auto_advanced', { lecture: pLesson.id, part: pLesson.part, from_set: from + 1, to_set: from + 2 })
+        setPage(from + 1)
+      }
     }
     owner.current = null
   }
@@ -1792,6 +1928,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   const goPage = (p: number) => {
     manual.current = true
     setCountdown(null)
+    /* 음원이 자동으로 넘긴 자리에서 **뒤로** 돌아왔다 = 못 따라갔다는 신호.
+       실전 듣기가 너무 빠른지 판단하는 근거라 따로 남긴다. */
+    if (!graded && p < page && autoAdvancedRef.current === page) {
+      track('lc_returned_back', {
+        lecture: pLesson.id, part: pLesson.part, from_set: page + 1, to_set: p + 1,
+        sec: elapsedRef.current,
+      })
+    }
     if (owner.current && owner.current !== ownerOf(p)) stopRun()
     setPage(p)
   }
@@ -1801,7 +1945,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   const playMedia = (id: string, text: string) => {
     const m = /^qaudio:(\d+)$/.exec(id)
     if (m) { void runListening(Number(m[1])); return }
-    if (playsLeft(id) <= 0) return
+    if (playsLeft(id) <= 0) { trackBlocked(id); return }
     countPlay(id)
     stopVoice()
     void speakEnglishSeq([{ id, text, src: optionSrc(pLesson, id) ?? srcOf(pLesson.id, id) }], setPlayingId)
@@ -1810,6 +1954,9 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   const answered = qs.filter((_, i) => answers[i]).length
   const results = qs.map((q, i) => answers[i] === q.options.find((o) => o.correct)?.label)
   const correct = results.filter(Boolean).length
+  /* 나가는 순간(언마운트) 결과 체류를 남길 때 쓴다 — 그 시점엔 이 값이 클로저에 안 잡힌다 */
+  const correctRef = useRef(0)
+  correctRef.current = correct
 
   /* ── 실전은 실제 시험지를 따른다 ──
      P1·P2는 시험지에 보기가 **인쇄되지 않는다**(A/B/C만 있고 내용은 음원). 보기 텍스트를 처음부터
@@ -1836,6 +1983,32 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   }, [warn])
   useEffect(() => { if (spotQ !== null && answers[spotQ]) setSpotQ(null) }, [answers, spotQ])
 
+  /* 실전에 들어온 순간 — 여기서부터 소요 시간을 잰다 */
+  useEffect(() => {
+    track('practice_started', {
+      lecture: pLesson.id, part: pLesson.part, area: pLesson.area,
+      questions: qs.length, sets: sets.length,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  /* 결과 화면을 얼마나 보는지 — 나가는 순간(언마운트·탭 닫기)에 체류 시간을 남긴다.
+     "채점 결과를 얼마나 들여다보는가" 는 해설을 실제로 읽는지 판단하는 근거다. */
+  useEffect(() => {
+    const send = () => {
+      if (gradedAtRef.current === null) return
+      track('practice_result_viewed', {
+        lecture: pLesson.id, part: pLesson.part,
+        dwell_sec: secSince(gradedAtRef.current),
+        correct: correctRef.current, total: qs.length,
+      })
+      gradedAtRef.current = null
+    }
+    window.addEventListener('pagehide', send)
+    return () => { window.removeEventListener('pagehide', send); send() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const st: ContentState = {
     revealedScript: hideUntilGraded ? new Set<string>() : 'all',
     revealedOptions: allOptions,
@@ -1848,7 +2021,19 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
     answerMode: graded ? 'none' : 'all',
     answers, graded: graded ? new Set(qs.map((_, i) => i)) : new Set(),
-    onSelect: (q, l) => { if (!graded) setAnswers((p) => ({ ...p, [q]: l })) },
+    onSelect: (q, l) => {
+      if (graded) return
+      /* 골랐던 답을 **바꾸는가** — 확신 없이 찍고 있는지의 대리 지표.
+         처음 고르는 것과 바꾸는 것을 갈라야 의미가 있다(처음 고르기는 그냥 푸는 것이다). */
+      const before = answers[q]
+      if (before && before !== l) {
+        track('answer_changed', {
+          lecture: pLesson.id, part: pLesson.part, q: q + 1,
+          sec: elapsedRef.current,
+        })
+      }
+      setAnswers((p) => ({ ...p, [q]: l }))
+    },
     showKo: false,
     /* 한 화면에 한 문항. 전 문항을 세로로 이어 붙이면 스크롤로 뭉개져서 지금 몇 번을 푸는지
        감이 안 오고, 지문 2분할에서는 오른쪽 칸이 끝없이 길어진다 — 아래 페이저로 넘긴다.
@@ -1882,6 +2067,12 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     setSpotQ(null)
     setPage(0)          // 채점하면 처음부터 결과를 훑는다
     setGraded(true)
+    gradedAtRef.current = Date.now()
+    track('practice_submitted', {
+      lecture: pLesson.id, part: pLesson.part, area: pLesson.area,
+      elapsed_sec: elapsedRef.current,
+      correct, total, score_pct: total ? Math.round((correct / total) * 100) : 0,
+    })
   }
 
   return (

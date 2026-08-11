@@ -3,7 +3,8 @@ import { useWrongAnswerStore, WrongAnswer, SCAFFOLDING } from '@/store/wrongAnsw
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useMemo, useState, Suspense } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
+import { track, secSince } from '@/lib/analytics'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 
 const LABELS = ['A', 'B', 'C', 'D']
@@ -38,6 +39,32 @@ function ReviewInner() {
   const [correctCount, setCorrectCount] = useState(0)
   const [done, setDone]         = useState(false)
   const drawing = useDrawingTool()
+
+  /* ── 측정 (GA) ──
+     오답을 강사와 다시 보는 단계는 **얼마나 오래 붙잡고 있는지**가 곧 스캐폴딩이 먹히는지의 신호다.
+     들어온 시각을 잡아 두고, 끝냈을 때 소요 시간과 정답 수를 남긴다. */
+  const startedAtRef = useRef(Date.now())
+  const doneSentRef = useRef(false)
+  useEffect(() => {
+    track('review_started', {
+      count: questions.length,
+      part: partId ?? undefined,
+      category: category ?? undefined,
+      instructor: instructor ?? undefined,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    if (!done || doneSentRef.current) return
+    doneSentRef.current = true
+    track('review_finished', {
+      count: questions.length,
+      correct: correctCount,
+      elapsed_sec: secSince(startedAtRef.current),
+      part: partId ?? undefined,
+      category: category ?? undefined,
+    })
+  }, [done, correctCount, questions.length, partId, category])
 
   const inst      = instructor ?? 'park_hyewon'
   const instColor = INST_COLOR[inst] ?? INST_COLOR.park_hyewon

@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 import type { TypeLesson, TypeLessonContent, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
+import { track } from '@/lib/analytics'
 
 export interface ContentState {
   revealedScript: Set<string> | 'all'
@@ -405,7 +406,12 @@ function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: Content
   // 해제 상태 — 접기/펼치기
   return (
     <div className="mt-3 rounded-xl border border-[#E5E7EB] overflow-hidden">
-      <button onClick={() => setOpen((v) => !v)}
+      <button
+        onClick={() => setOpen((v) => {
+          /* LC 실전에서 **스크립트를 실제로 펼쳐 보는가** — 채점 뒤 해설을 읽는지 판단하는 근거 */
+          if (!v) track('script_opened', { lecture: lesson.id, part: lesson.part, stage: st.selfAudio ? 'practice' : 'lesson' })
+          return !v
+        })}
         className="w-full flex items-center gap-2 px-3 py-2.5 bg-[#F8FAFF] hover:bg-[#EFF6FF] transition-colors">
         <SpeakerIcon />
         <span className="text-[12px] font-bold text-[#475569]">스크립트</span>
@@ -814,7 +820,13 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
           const pending = st.matchState?.evidence.some((ev) =>
             ev.passageId === d.id && ev.targetIds.some((tid) => !st.matchState!.matchedTargets.has(`${d.id}:${tid}`)))
           return (
-            <button key={d.id} onClick={() => setActive(i)}
+            <button key={d.id}
+              onClick={() => {
+                /* 이중·삼중 지문을 실제로 **오가며** 푸는가 — 연계 문항의 핵심 행동이다.
+                   한 번도 안 넘겼다면 두 번째 지문을 아예 안 봤다는 뜻이다. */
+                if (active !== i) track('passage_tab_switched', { lecture: lesson.id, part: lesson.part, to: i + 1, of: docs.length })
+                setActive(i)
+              }}
               className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${
                 active === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
               }`}>
