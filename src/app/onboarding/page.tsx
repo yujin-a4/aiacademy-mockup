@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { track, secSince } from '@/lib/analytics'
 import NameInput from '@/components/onboarding/NameInput'
 import QuizCard from '@/components/onboarding/QuizCard'
 import GoalSetting from '@/components/onboarding/GoalSetting'
@@ -14,10 +15,30 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { createClient } from '@/lib/supabase'
 
 // step 1=Name 2=Quiz 3=Goal 4=DiagnosisLoading 5=Diagnosis 6=CurriculumLoading 7=Instructor 8=Curriculum
+/* 단계 이름 — GA 리포트에서 번호만 보면 어디서 떨어졌는지 못 읽는다 */
+const STEP_NAME: Record<number, string> = {
+  1: '이름', 2: '진단퀴즈', 3: '목표설정', 4: '진단중', 5: '진단결과',
+  6: '커리큘럼생성중', 7: '강사선택', 8: '커리큘럼확인',
+}
+
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const router = useRouter()
   const store = useOnboardingStore()
+
+  /* ── 온보딩 퍼널 (GA) ──
+     "온보딩이 길다"는 인상은 다들 갖고 있는데 **어느 단계에서** 지치는지는 아무도 모른다.
+     단계마다 도달을 남기고, 직전 단계에 얼마나 머물렀는지를 같이 실어 병목을 짚는다. */
+  const stepAtRef = useRef(Date.now())
+  const startedAtRef = useRef(Date.now())
+  useEffect(() => {
+    track('onboarding_step', {
+      step, name: STEP_NAME[step] ?? String(step),
+      prev_sec: secSince(stepAtRef.current),
+      total_sec: secSince(startedAtRef.current),
+    })
+    stepAtRef.current = Date.now()
+  }, [step])
 
   const handleLogout = async () => {
     await createClient().auth.signOut()
