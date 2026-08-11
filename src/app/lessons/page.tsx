@@ -6,7 +6,8 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
-import { useCurriculumLectures, type DbLecture } from '@/data/db/questionStore'
+import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
+import { FGI_SCHEDULE, FGI_DEMO_SEQ, REVIEW_LABEL, demoLecturesOf, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -926,72 +927,148 @@ function splitTitle(title: string): { no: string | null; name: string } {
   return m ? { no: m[1], name: m[2] } : { no: null, name: title }
 }
 
-/* 파트 하나 = 카드 하나. 아래 '기존 콘텐츠'(CourseSection)와 같은 형태 —
-   흰 카드 + 헤더 + 왼쪽 세로선을 따라 강의가 줄지어 선 타임라인.
-   강의를 낱개 카드로 세우면 42강이 42개 블록이 되어 파트 경계가 안 보인다. */
-function PartSection({ part, lectures }: { part: number; lectures: DbLecture[] }) {
+/* ── 하루 = 카드 하나 ──
+   커리큘럼을 파트별로 세우면 "오늘 뭘 하면 되는지"가 화면에 없다. 학습자가 여는 단위는 파트가
+   아니라 **하루**다 — 강의 셋을 듣고 복습 하나로 닫는다. 그래서 카드의 단위를 Day 로 바꾼다.
+   파트별로 세우던 PartSection 은 지웠다. 두 보기를 다 두면 어느 쪽이 정본인지 흐려진다. */
+function DaySection({ day, bySeq, doneSeq }: {
+  day: ScheduleDay; bySeq: Map<number, DbLecture>; doneSeq: Set<number>
+}) {
   const router = useRouter()
-  const lc = lectures[0].lcRc === 'LC'
-  const ready = lectures.filter(isPlayable).length
+  const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq) }))
+  const ready = items.filter((i) => i.lec && isPlayable(i.lec)).length
+  const reviewOpen = isReviewUnlocked(day, doneSeq)
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
 
-      {/* 파트 헤더 */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6]">
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>
-                Part {part}
-              </span>
-              <p className="text-[#1C1B33] font-bold text-[14px]">{PART_NAME[part] ?? ''}</p>
-            </div>
-            <p className="text-[#9CA3AF] text-[12px]">{PART_DESC[part] ?? ''}</p>
-          </div>
-          <div className="shrink-0 text-right pl-2">
-            <p className="text-[13px] font-black text-[#2563EB]">{ready} / {lectures.length}</p>
-            <p className="text-[10px] text-[#D1D5DB] font-medium">수강 가능</p>
-          </div>
+      {/* 하루 머리 — Day 가 제일 크다. 주차는 그 옆에 작게 */}
+      <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6] flex items-center gap-3">
+        <div className="shrink-0 w-11 h-11 rounded-xl bg-[#EFF6FF] flex flex-col items-center justify-center">
+          <span className="text-[9px] font-bold text-[#93C5FD] leading-none">DAY</span>
+          <span className="text-[15px] font-black text-[#2563EB] leading-none mt-0.5">{day.day}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[#1C1B33] font-bold text-[14px]">{day.week}주차 · {day.day}일차</p>
+          {/* 하루가 무엇으로 이뤄지는지 한 줄 — 매일 같은 모양이라 한 번 읽으면 그만이다 */}
+          <p className="text-[#9CA3AF] text-[12px]">강의 3개 + 복습 1개</p>
+        </div>
+        <div className="shrink-0 text-right pl-2">
+          <p className="text-[13px] font-black text-[#2563EB]">{ready} / {items.length}</p>
+          <p className="text-[10px] text-[#D1D5DB] font-medium">수강 가능</p>
         </div>
       </div>
 
-      {/* 강의 타임라인 */}
       <div className="relative px-4 py-2">
         <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
 
-        {lectures.map((l) => {
-          const { no, name } = splitTitle(l.title)
+        {items.map(({ seq, lec }) => {
+          /* 시간표에는 있는데 DB 에 아직 없는 강의 — 콘텐츠가 덜 들어온 상태다 */
+          if (!lec) return (
+            <div key={seq} className="relative flex items-center gap-3 py-2.5 opacity-40">
+              <div className="relative z-10 w-5 h-5 rounded-full bg-[#F3F4F6] shrink-0" />
+              <span className="text-[13px] text-[#6B7280] flex-1 min-w-0 truncate">{seq}강</span>
+              <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">준비 중</span>
+            </div>
+          )
 
-          /* 문항이 준비된 강의 */
-          if (isPlayable(l)) return (
-            <button
-              key={l.code}
-              onClick={() => router.push(`/lecture/${l.code}`)}
-              className="relative w-full flex items-center gap-3 py-2.5 text-left group"
-            >
+          const { name } = splitTitle(lec.title)
+          const lc = lec.lcRc === 'LC'
+
+          /* ── 오늘의 수업 — 목록 안에서 그 줄만 카드로 부푼다 ──
+             위에 따로 빼지 않는다. 빼면 같은 강의가 화면에 두 번 나오고, 목록에서 그게 어느 날
+             무엇 다음인지가 사라진다. 아래 '기존 콘텐츠'(CourseSection)가 쓰는 방식과 같다 —
+             줄 하나가 그 자리에서 커지고 시작 버튼을 단다. */
+          if (FGI_DEMO_SEQ.has(seq) && isPlayable(lec)) {
+            const done = doneSeq.has(seq)
+            return (
+              <div key={lec.code} className="relative my-2.5 -mx-1">
+                <div className="rounded-2xl overflow-hidden border border-[#C7D2FE] shadow-[0_4px_20px_rgba(37,99,235,0.16)]">
+                  <div className="bg-white px-4 pt-4 pb-3">
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-[#2563EB] shrink-0">
+                          ▶ 오늘의 수업
+                        </span>
+                        {/* 한 번 들은 뒤에도 자리는 그대로다 — 시연 중 되돌아갈 길이 사라지면 안 된다 */}
+                        {done && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">수강 완료</span>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                        lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
+                      }`}>Part {lec.part}</span>
+                    </div>
+                    <p className="text-[#1C1B33] font-bold text-[15px] leading-snug">{name}</p>
+                  </div>
+                  <button onClick={() => router.push(`/lecture/${lec.code}`)}
+                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] py-3 font-bold text-[13px] text-white flex items-center justify-center gap-2 transition-all active:scale-[0.99]">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    {done ? '다시 듣기' : '시작하기'}
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          /* 하루 안에 LC·RC 가 섞여 있다 → 파트 칩을 줄마다 둔다. 파트별 보기에서는 헤더가
+             그 일을 해서 필요 없었지만, 여기서는 줄마다 파트가 다르다. */
+          const partChip = (
+            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
+              lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
+            }`}>P{lec.part}</span>
+          )
+
+          if (isPlayable(lec)) return (
+            <button key={lec.code} onClick={() => router.push(`/lecture/${lec.code}`)}
+              className="relative w-full flex items-center gap-2.5 py-2.5 text-left group">
               <div className="relative z-10 w-5 h-5 rounded-full border-2 border-[#D1D5DB] bg-white flex items-center justify-center shrink-0 group-hover:border-[#2563EB] transition-colors">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#D1D5DB] group-hover:bg-[#2563EB] transition-colors" />
               </div>
-              {no && <span className="text-[10px] font-bold text-[#9CA3AF] bg-[#F9FAFB] px-1.5 py-0.5 rounded-md shrink-0">{no}</span>}
+              {partChip}
               <span className="text-[13px] text-[#374151] flex-1 min-w-0 truncate group-hover:text-[#2563EB] transition-colors">{name}</span>
-              <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md shrink-0">{l.questionCount}문항</span>
+              <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md shrink-0">{lec.questionCount}문항</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6"/></svg>
             </button>
           )
 
-          /* 문항이 아직 없는 강의 — 누르면 깨지므로 잠근다 */
           return (
-            <div key={l.code} className="relative flex items-center gap-3 py-2.5 opacity-40">
+            <div key={lec.code} className="relative flex items-center gap-2.5 py-2.5 opacity-40">
               <div className="relative z-10 w-5 h-5 rounded-full bg-[#F3F4F6] flex items-center justify-center shrink-0">
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
-              {no && <span className="text-[10px] font-bold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">{no}</span>}
+              {partChip}
               <span className="text-[13px] text-[#6B7280] flex-1 min-w-0 truncate">{name}</span>
               <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">준비 중</span>
             </div>
           )
         })}
+
+        {/* ── 복습 — 하루를 닫는 자리 ──
+            강의가 아니라 세션이다. 그날 강의에서 틀린 유형으로 새 문제를 낸다.
+            잠겨 있을 때도 **자리는 보인다** — 하루가 강의 셋으로 끝나는 게 아니라는 걸
+            화면이 먼저 말해줘야 한다.
+            색은 열렸을 때만 쓴다. 못 누르는 줄에 색을 주면 어디를 봐야 할지 흐려진다. */}
+        <div className={`relative flex items-center gap-2.5 py-2.5 border-t border-dashed mt-1 ${
+          reviewOpen ? 'border-[#DBEAFE]' : 'border-[#F1F5F9]'
+        }`} title={reviewOpen
+          ? '이날 강의에서 틀린 유형으로 새 문제를 냅니다'
+          : demoLecturesOf(day).length
+            ? '시연 강의를 끝내면 열려요'
+            : '이날 강의를 모두 끝내면 열려요'}>
+          <div className={`relative z-10 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+            reviewOpen ? 'bg-[#EFF6FF]' : 'bg-[#F3F4F6]'
+          }`}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={reviewOpen ? '#2563EB' : '#9CA3AF'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6" /><path d="M3 13a9 9 0 1 0 3-7.7L3 8" /></svg>
+          </div>
+          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
+            reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#6B7280]'
+          }`}>복습</span>
+          <span className={`text-[13px] flex-1 min-w-0 truncate ${reviewOpen ? 'text-[#374151]' : 'text-[#6B7280]'}`}>{REVIEW_LABEL}</span>
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
+            reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#9CA3AF]'
+          }`}>{reviewOpen ? '열림' : '잠김'}</span>
+        </div>
       </div>
     </div>
   )
@@ -999,19 +1076,38 @@ function PartSection({ part, lectures }: { part: number; lectures: DbLecture[] }
 
 function CurriculumGrid() {
   const lectures = useCurriculumLectures()
-  const parts = useMemo(() => {
-    const map = new Map<number, DbLecture[]>()
-    for (const l of lectures) {
-      if (!map.has(l.part)) map.set(l.part, [])
-      map.get(l.part)!.push(l)
-    }
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0])
+  const doneCodes = useCompletedLectures()
+  /* 시간표는 seq(커리큘럼 42강 번호)로 강의를 부른다 → 번호로 찾을 수 있게 한 번 말아둔다 */
+  const bySeq = useMemo(() => {
+    const map = new Map<number, DbLecture>()
+    for (const l of lectures) if (l.seq != null) map.set(l.seq, l)
+    return map
   }, [lectures])
+  /* 완료 기록은 강의 코드로 오고 시간표는 번호로 센다 → 한 번만 번호로 옮겨둔다 */
+  const doneSeq = useMemo(() => {
+    const s = new Set<number>()
+    for (const l of lectures) if (l.seq != null && doneCodes.has(l.code)) s.add(l.seq)
+    return s
+  }, [lectures, doneCodes])
 
   if (lectures.length === 0) return null
   return (
     <div className="space-y-3">
-      {parts.map(([part, lessons]) => <PartSection key={part} part={part} lectures={lessons} />)}
+      {([1, 2] as const).map((week) => (
+        <div key={week} className="space-y-3">
+          {/* 주차 머리 — 카드가 아니라 구분선 한 줄. 카드로 만들면 Day 카드와 무게가 같아진다 */}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-[12px] font-black text-[#1C1B33]">{week}주차</span>
+            <span className="flex-1 h-px bg-[#E5E7EB]" />
+            <span className="text-[11px] font-semibold text-[#9CA3AF]">
+              D{(week - 1) * 6 + 1}–D{week * 6}
+            </span>
+          </div>
+          {FGI_SCHEDULE.filter((d) => d.week === week).map((d) => (
+            <DaySection key={d.day} day={d} bySeq={bySeq} doneSeq={doneSeq} />
+          ))}
+        </div>
+      ))}
     </div>
   )
 }

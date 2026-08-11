@@ -11,6 +11,8 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
+import { getLearnerId } from '@/lib/profile'
+import { DEMO_LEARNER_UUID } from '@/data/db/learningEventStore'
 import type { Part7Set, Question as P7SetQuestion } from '@/data/part7Scenario'
 import type { P5Question, P6Passage, P7Passage, RCChoices } from '@/data/rcData'
 
@@ -477,6 +479,33 @@ export function useCurriculumLectures(): DbLecture[] {
     return () => { alive = false }
   }, [])
   return data
+}
+
+/* ── 끝낸 강의 ──
+   수업을 한 판 끝내면 learner_progress 에 completed_count 가 올라간다(learningEventStore).
+   '복습이 열렸는가' 같은 판단은 그 기록이 정본이다 — 화면이 따로 세면 새로고침에 날아간다. */
+export async function fetchCompletedLectureCodes(): Promise<Set<string>> {
+  const supabase = getSupabase()
+  if (!supabase) return new Set()
+  const learnerId = await getLearnerId(DEMO_LEARNER_UUID)
+  const { data, error } = await supabase
+    .from('learner_progress')
+    .select('lecture_code, completed_count')
+    .eq('learner_id', learnerId)
+  if (error || !data) return new Set()
+  return new Set((data as { lecture_code: string; completed_count: number }[])
+    .filter((r) => (r.completed_count ?? 0) > 0)
+    .map((r) => r.lecture_code))
+}
+
+export function useCompletedLectures(): Set<string> {
+  const [done, setDone] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    let alive = true
+    fetchCompletedLectureCodes().then((s) => { if (alive) setDone(s) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  return done
 }
 
 /** 강의의 문항 전체 (code 순). 수업 화면은 첫 문항을 대표로 쓴다 */
