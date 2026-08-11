@@ -67,6 +67,57 @@ export function instPose(instructor: string, pose: InstPose): string | null {
   return null
 }
 
+/* ── 강사 영상 클립 (원형 아바타 안에서 도는 무음 루프) ──
+   사진 대신 영상을 넣는다. **포즈와 같은 열쇠(InstPose)를 쓴다** — 단계마다 상황을 고르는
+   판단(poseForTurn)은 이미 있고, 여기서는 그 상황에 어떤 클립을 물릴지만 정한다.
+
+   클립 넷. 위 POSE_FALLBACK 이 빈 자리를 알아서 채운다.
+     gesture-a / gesture-b — 일반적인 말하는 장면 둘. **강사가 말하는 동안**이 여기다
+     nod                   — 끄덕임. 강사가 말하지 않는 동안(학생이 답하거나 화면을 보는 시간).
+                             말하는 그림을 그대로 두면 소리 없이 입만 움직이는 꼴이 된다
+     praise                — 박수. 칭찬·마무리(S7 표현 정리)에서만 나온다
+
+   ⚠️ 클립은 **무음**이고, 강사 목소리는 이것과 아무 상관이 없다 — 목소리는 ElevenLabs 에이전트가
+      따로 내보낸다(음성 모드) 또는 lib/tts 가 재생한다. 영상이 muted 인 것과 강사가 말하는 것은
+      서로 다른 소리 통로다. 영상에 소리를 넣으면 오히려 브라우저가 자동재생을 막아 그림이 멈춘다.
+
+   촬영·인코딩 규격 (지키지 않으면 화면에서 티가 난다)
+     · **무음**. 목소리는 TTS 로 따로 나간다. 소리가 있으면 브라우저가 자동재생을 막는다
+     · 정사각 크롭. 원이 118px(작을 땐 56px)이라 얼굴이 프레임을 채워야 뭔지 알아본다
+     · 3~5초, 시작과 끝 자세가 같아야 이음매가 안 튄다. 안 되면 부메랑(정방향+역방향)으로 잇는다
+     · H.264 mp4. 카톡에서 넘어온 원본은 HEVC 라 브라우저에서 안 도는 경우가 있다
+     · 한 개 1MB 안쪽. 아바타 원에 18MB 짜리를 물리면 수업 시작이 그만큼 늦어진다
+   변환은 scripts/make-instructor-clips.js 가 한다. */
+export const INST_CLIPS: Record<string, Partial<Record<InstPose, string>>> = {
+  lee_doyun: {
+    /* 둘 다 '일반적인 말하는 장면'이라 어느 쪽을 어디에 걸든 맞고 틀리고가 없다. 다만 한 클립만
+       계속 돌면 같은 동작이 반복되는 게 눈에 띄므로 상황을 갈라 두 개가 번갈아 나오게 둔다. */
+    greeting: '/instructor/lee_doyun/clips/gesture-a.mp4',   // 인사·기본
+    explain: '/instructor/lee_doyun/clips/gesture-a.mp4',    // 설명하는 중
+    point: '/instructor/lee_doyun/clips/gesture-b.mp4',      // 짚어주는 중
+    listen: '/instructor/lee_doyun/clips/nod.mp4',           // 끄덕임 — 강사가 말하지 않는 동안
+    praise: '/instructor/lee_doyun/clips/praise.mp4',        // 박수 — 칭찬·마무리
+  },
+}
+
+/** 강사 × 포즈 → 영상 경로. 클립이 없으면 null (호출부가 사진으로 폴백한다). */
+export function instClip(instructor: string, pose: InstPose): string | null {
+  const clips = INST_CLIPS[instructor]
+  if (!clips) return null
+  for (const p of POSE_FALLBACK[pose]) {
+    if (clips[p]) return clips[p] as string
+  }
+  return null
+}
+
+/** 이 강사가 영상 클립을 갖고 있는가 (없으면 사진 아바타 그대로) */
+export const hasClips = (instructor: string) => Boolean(INST_CLIPS[instructor])
+
+/** 이 강사의 클립 전부(중복 제거). 화면이 미리 깔아두고 크로스페이드하는 데 쓴다. */
+export function instClips(instructor: string): string[] {
+  return Array.from(new Set(Object.values(INST_CLIPS[instructor] ?? {})))
+}
+
 /** 이 강사가 포즈 컷아웃을 갖고 있는가 (없으면 기존 썸네일 UI 유지) */
 export const hasPoses = (instructor: string) => Boolean(INST_POSES[instructor])
 
