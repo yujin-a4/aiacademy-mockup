@@ -1747,6 +1747,21 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
   const splitReading = (pLesson.part === 6 || pLesson.part === 7) && (pLesson.content.passages?.length ?? 0) > 0
   const multi = qs.length > 1
 
+  /* ── 적정 풀이 시간 (RC 전용) ──
+     실제 시험 RC 는 75분에 100문항이고, 그 75분을 파트별로 나눠 쓰는 배분이 정석으로 통한다.
+       Part 5 : 30문항 10분  → 문항당 20초
+       Part 6 : 16문항  8분  → 문항당 30초 (지문을 읽어야 하므로 P5 보다 길다)
+       Part 7 : 54문항 55분  → 문항당 60초 (지문 읽는 시간 포함)
+     이 값 × 문항 수가 '보통 이 정도면 푼다' 는 선이다. 넘으면 주황(warn), 1.5배를 넘으면 빨강(over).
+     LC 는 색을 바꾸지 않는다 — 속도를 정하는 건 음원이지 학생이 아니라서, 늦었다고 경고하면 거짓말이다. */
+  const RC_SEC_PER_Q: Record<number, number> = { 5: 20, 6: 30, 7: 60 }
+  const paceBudget = pLesson.area === 'RC' ? (RC_SEC_PER_Q[pLesson.part] ?? 30) * qs.length : null
+  const pace: 'none' | 'ok' | 'warn' | 'over' = paceBudget === null ? 'none'
+    : elapsed > paceBudget * 1.5 ? 'over' : elapsed > paceBudget ? 'warn' : 'ok'
+  /* 색만 바뀌면 왜 바뀌었는지 모른다 — 기준 시간을 툴팁으로 같이 준다(재촉하는 배너는 두지 않는다) */
+  const paceHint = paceBudget === null ? null
+    : `적정 ${Math.floor(paceBudget / 60)}분 ${String(paceBudget % 60).padStart(2, '0')}초 (문항 ${qs.length}개)`
+
   /* ── 음원의 주인 ──
      "문항이 바뀌면 음원을 끊는다" 가 아니라 **"음원이 바뀌어야 할 때만 끊는다"** 로 잡는다.
        Part 1·2 : 문항 하나 = 음원 하나  → 문항을 옮기면 주인이 바뀌므로 끊긴다
@@ -2071,6 +2086,9 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     track('practice_submitted', {
       lecture: pLesson.id, part: pLesson.part, area: pLesson.area,
       elapsed_sec: elapsedRef.current,
+      /* 적정 시간 대비 얼마나 걸렸나 — "맞혔지만 두 배 걸렸다" 를 점수와 같이 봐야 실력이 보인다 */
+      pace_budget_sec: paceBudget ?? undefined,
+      pace_ratio: paceBudget ? Math.round((elapsedRef.current / paceBudget) * 100) / 100 : undefined,
       correct, total, score_pct: total ? Math.round((correct / total) * 100) : 0,
     })
   }
@@ -2084,10 +2102,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
         onJump={onJumpPhase}
         extra={
           <>
-            {/* 풀이 시간 — 시험처럼 재되 재촉하지 않는다. 채점하면 멈추고 그 값이 기록으로 남는다 */}
-            <span className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold tabular-nums ${
-              graded ? 'bg-[#F1F5F9] text-[#64748B]' : 'bg-[#EFF6FF] text-[#2563EB]'
-            }`} title={graded ? '걸린 시간' : '푸는 중'}>
+            {/* 풀이 시간 — 시험처럼 재되 재촉하지 않는다. 채점하면 멈추고 그 값이 기록으로 남는다.
+                RC 는 적정 시간을 넘기면 주황, 한참 넘기면 빨강으로 색만 바뀐다(위 paceBudget).
+                끊거나 넘기지는 않는다 — 실전 감각을 주는 것이 목적이지 탈락시키는 게 아니다. */}
+            <span className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold tabular-nums transition-colors ${
+              pace === 'over' ? 'bg-[#FEF2F2] text-[#DC2626]'
+                : pace === 'warn' ? 'bg-[#FFF7ED] text-[#EA580C]'
+                  : graded ? 'bg-[#F1F5F9] text-[#64748B]' : 'bg-[#EFF6FF] text-[#2563EB]'
+            }`} title={[graded ? '걸린 시간' : '푸는 중', paceHint].filter(Boolean).join(' · ')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
                 <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
               </svg>

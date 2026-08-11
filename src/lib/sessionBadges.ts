@@ -24,16 +24,9 @@ interface BadgeInput {
   recap?: { correct: number; total: number }
 }
 
-function maxStreak(results: boolean[]): number {
-  let max = 0, cur = 0
-  for (const r of results) {
-    if (r) { cur++; if (cur > max) max = cur }
-    else cur = 0
-  }
-  return max
-}
-
-export function computeBadges(input: BadgeInput, results: boolean[]): Badge[] {
+/* `results`(문항별 정오답)는 지금 어느 문구도 쓰지 않지만 인자로 남겨둔다 — 호출부(완료 플로우·
+   화면 갤러리)가 이미 넘기고 있고, 문항 단위 조건이 다시 생길 자리다. */
+export function computeBadges(input: BadgeInput, _results: boolean[]): Badge[] {
   const { correctCount, totalCount, isFirstTime, recap } = input
   const score = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 100
   const badges: Badge[] = []
@@ -59,15 +52,9 @@ export function computeBadges(input: BadgeInput, results: boolean[]): Badge[] {
     })
   }
 
-  // 3연속 정답
-  if (results.length >= 3 && maxStreak(results) >= 3) {
-    badges.push({
-      id: 'streak',
-      icon: '🔥',
-      label: '3연속 정답',
-      description: '집중력이 대단해요!',
-    })
-  }
+  /* '3연속 정답' 은 뺐다 — 몇 문항을 맞혔느냐(만점·고득점)와 같은 것을 순서만 바꿔 두 번
+     칭찬하는 문구였다. 4문항짜리 실전에서는 80% 만 넘겨도 거의 항상 같이 떠서, 성취 문구가
+     두 장 연달아 나오는 대신 한 장의 무게가 가벼워졌다. */
 
   // 정리 단계 — 배운 표현을 스스로 꺼냈는가. 만점일 때만 말한다
   if (recap && recap.total > 0 && recap.correct === recap.total) {
