@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PERSONA_PROMPTS } from '@/lib/personaPrompts'
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+/* ⚠️ 모델 이름은 구글이 조용히 내린다 — `gemini-2.5-flash` 는 2026-08 기준 신규 사용자에게 404 다
+   ("no longer available to new users"). 그래서 질문 기능이 통째로 폴백 문구만 뱉고 있었다(실측).
+   모델을 바꿀 때는 반드시 실제 호출로 확인할 것: 목록에 보인다고 쓸 수 있는 게 아니다. */
+const GEMINI_MODEL = 'gemini-3-flash-preview'
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 
 export async function POST(req: NextRequest) {
   try {

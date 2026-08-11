@@ -975,5 +975,5 @@ export function buildLessonFromDb(local: TypeLesson, rows: UiDbQuestion[], ancho
   }
   if (built === local) return local          // 필수 필드가 비어 폴백된 경우 실전도 붙이지 않는다
 
-  return { ...built, practice: buildPractice(local.part, rows) ?? built.practice }
+  return { ...built, dbBacked: true, practice: buildPractice(local.part, rows) ?? built.practice }
 }
