@@ -16,7 +16,12 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 
 export type DockMode = 'sidebar' | 'mini'
-export interface ChatMsg { role: 'ai' | 'user'; text: string }
+export interface ChatMsg {
+  role: 'ai' | 'user'
+  text: string
+  /** 대본 밖 질문·답변인가 — 수업 흐름과 섞이지 않게 노란 결로 묶어 보여준다 */
+  aside?: boolean
+}
 
 /* ── 대화 모드 토글 — 강사 아바타 바로 아래에 산다 ──
    버튼 하나지만 **두 칸이 다 보이고 지금 칸만 채워진다**(세그먼트 스위치).
@@ -98,16 +103,21 @@ function MicWave({ active, speaking, getFreq }: {
 }
 
 /** 음성 모드 하단 — 마이크 버튼 없이 파형만. "지금 듣고 있다"는 상태 한 줄. */
-function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent }: {
+function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive }: {
   connected: boolean; connecting: boolean; isSpeaking: boolean
+  /** 학생 차례인가 — undefined 면 예전처럼 '연결됐으면 듣는 중' */
+  micActive?: boolean
   getFreq?: () => Uint8Array | undefined
   onStartAgent: () => void
 }) {
   return (
     <div className="shrink-0 px-3 md:px-4 pt-2 pb-3 border-t border-gray-100">
       {connected ? (
-        <div className="flex items-center gap-2.5 rounded-2xl bg-[#F8FAFF] border border-[#DBEAFE] px-3 py-2">
-          <MicWave active={connected} speaking={isSpeaking} getFreq={getFreq} />
+        /* 학생 차례가 아니면 입력칸을 흐리게 둔다 — 파형이 뛰면 "지금 말해도 된다" 는 거짓말이 된다 */
+        <div className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 transition-colors ${
+          micActive === false ? 'bg-[#FAFAFA] border-[#EEF0F4] opacity-60' : 'bg-[#F8FAFF] border-[#DBEAFE]'
+        }`}>
+          <MicWave active={micActive ?? connected} speaking={isSpeaking} getFreq={getFreq} />
         </div>
       ) : (
         <button onClick={connecting ? undefined : onStartAgent} disabled={connecting}
@@ -115,8 +125,11 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
           {connecting ? '강사와 연결 중…' : '연결이 끊겼어요 — 눌러서 다시 연결'}
         </button>
       )}
-      <p className="mt-1.5 text-center text-[11px] font-bold text-[#2563EB]">
-        {!connected ? '' : isSpeaking ? '강사가 말하는 중…' : '듣고 있어요 — 그냥 말하면 돼요'}
+      <p className={`mt-1.5 text-center text-[11px] font-bold ${micActive === false ? 'text-[#9CA3AF]' : 'text-[#2563EB]'}`}>
+        {!connected ? ''
+          : isSpeaking ? '강사가 말하는 중…'
+            : micActive === false ? '잠시 기다려 주세요'
+              : '듣고 있어요 — 그냥 말하면 돼요'}
       </p>
     </div>
   )
@@ -226,15 +239,21 @@ function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 1
   )
 }
 
-/* 채팅 말풍선 — 강사=회색(왼쪽) / 나=파랑(오른쪽) */
-function Bubble({ role, text }: ChatMsg) {
+/* 채팅 말풍선 — 강사=회색(왼쪽) / 나=파랑(오른쪽).
+   질문(aside)은 노란 결로 묶는다: 수업 대본과 학생이 따로 물어본 것은 성격이 다른 대화라,
+   같은 색으로 쌓이면 나중에 다시 읽을 때 어디까지가 수업이었는지 구분이 안 된다. */
+function Bubble({ role, text, aside }: ChatMsg) {
   const mine = role === 'user'
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[85%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
-        mine
-          ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
-          : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
+        aside
+          ? mine
+            ? 'bg-[#FDE68A] text-[#78350F] rounded-2xl rounded-br-sm'
+            : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] rounded-2xl rounded-bl-sm'
+          : mine
+            ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
+            : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
       }`}>{text}</div>
     </div>
   )
@@ -265,6 +284,11 @@ export interface TutorDockProps {
   isSpeaking: boolean
   /** 지금 강사가 하는 말 (음성 모드 박스 · 최소화 말풍선) */
   lastLine: string
+  /** 지금 학생이 말해도 되는가 — 대본 수업에서 마이크가 열린 동안만 true.
+   *  주지 않으면(에이전트 모드) 예전처럼 연결돼 있으면 늘 듣는 것으로 본다. */
+  micActive?: boolean
+  /** 입력칸 **아래**에 붙는 자리 — 질문 버튼처럼 수업 진행과 층이 다른 것 */
+  footer?: ReactNode
   /** 텍스트 모드 채팅 흐름 */
   messages: ChatMsg[]
   /** 선택지·다음 버튼 등 — 발화 박스 아래(음성) / 채팅 흐름 안(텍스트) */
@@ -283,7 +307,7 @@ export interface TutorDockProps {
 }
 
 export default function TutorDock({
-  mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips,
+  mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking,
   lastLine, messages, actions, hint, actionKey,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
@@ -362,13 +386,14 @@ export default function TutorDock({
             {actions}
           </div>
           <VoiceListener connected={connected} connecting={connecting} isSpeaking={isSpeaking}
-            getFreq={getMicFreq} onStartAgent={onStartAgent} />
+            getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive} />
+          {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
         </>
       ) : (
         <>
           {/* 채팅창 — 강사 회색 / 나 파랑. 선택지·지시도 이 흐름 안에서 뜬다 */}
           <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 pt-2 pb-3 space-y-2">
-            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} />)}
+            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} />)}
             {/* 선택지·행동 지시도 채팅 한 칸 — 강사 말풍선 쪽(왼쪽)에 붙는 카드.
                 이번 턴에 할 일이 없으면(둘 다 null) 빈 카드가 남지 않게 empty:hidden 으로 접는다. */}
             <div className="flex justify-start empty:hidden">
@@ -377,10 +402,11 @@ export default function TutorDock({
                 {actions}
               </div>
             </div>
-            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} />)}
+            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} />)}
           </div>
           <TextComposer connected={connected} connecting={connecting}
             inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent} />
+          {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
         </>
       )}
     </div>

@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { IncomingCallScreen, ActiveCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
-import { INST_NAME, INST_THUMBS, INST_MESSAGES } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, INST_MESSAGES, INST_PERSONA } from '@/data/instructorData'
 import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
 
@@ -135,13 +135,6 @@ function RegularDashboard() {
     lee_doyun: '공부할 시간이야. 오늘 목표 꼭 달성하고 자자고.',
     seo_jian: '오늘도 잘 왔어요 💜 조급해하지 말고 같이 한 걸음씩 가봐요.',
     oh_jungja: '오늘도 왔네요. 천천히 한 문제씩 하면 돼요. 시작해봐요.',
-  }
-  const INST_PERSONA: Record<string, string> = {
-    park_hyewon: 'park',
-    yun_daeun: 'jang',
-    lee_doyun: 'kim',
-    seo_jian: 'jang',
-    oh_jungja: 'park',
   }
   const greeting = INST_GREETING[selectedInstructor ?? 'park_hyewon'] ?? '오늘 토익 공부할 시간이에요! 같이 시작해봐요.'
   const ttsPersona = INST_PERSONA[selectedInstructor ?? 'park_hyewon'] ?? 'park'

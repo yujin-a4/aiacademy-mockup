@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { INST_VOICE } from '@/data/instructorData'
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
 
@@ -24,7 +25,7 @@ function sanitizeForTts(raw: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { text: rawText, persona = 'mentor' } = await req.json()
+    const { text: rawText, persona = 'mentor', instructor } = await req.json()
 
     if (!rawText) {
       return NextResponse.json({ error: 'text is required' }, { status: 400 })
@@ -34,7 +35,9 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.ELEVENLABS_API_KEY
     // persona === 'listening' → 듣기 음원 목소리, 그 외 → 강사(기본) 목소리
     const isListening = persona === 'listening'
-    const instructorVoice = process.env.ELEVENLABS_VOICE_ID
+    /* 강사를 알려주면 **그 강사 목소리**로 읽는다. 안 알려주면 예전처럼 기본 목소리.
+       (persona 는 말투 파라미터일 뿐 목소리를 고르지 않는다 — 그래서 전에는 전부 같은 목소리였다) */
+    const instructorVoice = (instructor && INST_VOICE[instructor]) || process.env.ELEVENLABS_VOICE_ID
     const audioVoice = process.env.ELEVENLABS_AUDIO_VOICE_ID ?? instructorVoice
     const voiceId = isListening ? audioVoice : instructorVoice
 

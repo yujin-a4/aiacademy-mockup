@@ -20,6 +20,7 @@ import { INST_NAME } from '@/data/instructorData'
 import { useDbLectureQuestions } from '@/data/db/questionStore'
 import { useLectureProgram } from '@/data/db/lectureProgramStore'
 import { buildLessonFromDb } from '@/data/typeLearning/fromDb'
+import { FGI_SCENARIO } from '@/data/typeLearning/fgiScenario'
 import { buildLessonFromItems } from '@/data/typeLearning/fromItems'
 import { useRailPrompts } from '@/data/typeLearning/railPrompts'
 
@@ -100,9 +101,17 @@ export default function LecturePage() {
     builtLesson?.part ?? 0, !!rail, builtLesson?.items,
     instructor,        // 말투 — 첫 마디는 낭독되므로 강사별로 달라져야 한다
   )
-  const finalLesson = builtLesson && rail
-    ? { ...builtLesson, turns: promptState.turns }
-    : builtLesson
+  /* ── 대본 수업 (FGI 시연) ──
+     시연 강의는 강사가 할 말을 시트에 다 정해 뒀다. 그 강의에서는 레일에서 만든 턴 대신
+     대본 턴으로 돈다 — 단계 순서·발화·학생이 할 일이 전부 대본에 있으므로 LLM 이 문구를
+     새로 만들 자리가 없다(useRailPrompts 결과도 쓰지 않는다).
+     문항(사진·보기·음원)은 그대로 DB 것을 쓴다. 바뀌는 것은 **진행**뿐이다. */
+  const scenario = FGI_SCENARIO[code]
+  const finalLesson = builtLesson && scenario
+    ? { ...builtLesson, turns: scenario }
+    : builtLesson && rail
+      ? { ...builtLesson, turns: promptState.turns }
+      : builtLesson
   const finalRail = rail && { ...rail, generated: promptState.generated, status: promptState.status }
 
   if (!local || !finalLesson) {
@@ -135,7 +144,7 @@ export default function LecturePage() {
   }
 
   // 대사 생성이 끝나기 전에 들어가면 강사가 시트의 옛 예시 문구를 말한다 — 시작을 막는다
-  return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail}
+  return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} scripted={!!scenario}
     /* ?stage=practice — 도입·수업을 건너뛰고 실전 세트부터. 유형 그리드에서 온다:
        한 강의가 수업/실전에 서로 다른 지문 변종을 담는 경우(이중 일반형 ↔ 표형)가 있어,
        그 변종을 보여주려면 실전으로 바로 들어가야 한다. */

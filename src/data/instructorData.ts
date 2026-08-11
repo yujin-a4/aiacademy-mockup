@@ -119,6 +119,30 @@ export function instClip(instructor: string, pose: InstPose): string | null {
   return null
 }
 
+/* ── 강사 → TTS 목소리(persona) ──
+   api/tts 의 persona 키다. 강사 5명에 목소리가 1:1 로 있지는 않아서 가까운 것으로 묶는다.
+   대시보드에만 있던 표를 여기로 올렸다 — 대본 낭독(수업 화면)도 같은 목소리를 써야 한다. */
+export const INST_PERSONA: Record<string, string> = {
+  park_hyewon: 'park',
+  yun_daeun: 'jang',
+  lee_doyun: 'kim',
+  seo_jian: 'jang',
+  oh_jungja: 'park',
+}
+
+/* ── 강사 → ElevenLabs 목소리 ID ──
+   **그 강사의 튜터 에이전트가 쓰는 목소리와 같은 것**이다(에이전트 설정에서 가져옴).
+   같아야 하는 이유: 학생은 같은 강사를 수업(에이전트)과 대본 낭독(api/tts) 두 통로로 듣는다.
+   통로가 다르다고 목소리가 바뀌면 다른 사람이 된다.
+   ⚠️ 전에는 api/tts 가 강사와 무관하게 ELEVENLABS_VOICE_ID 하나만 썼다 — 이도윤을 골라도
+      박혜원 목소리가 나오던 원인(실측). persona 는 말 속도·안정성만 바꾼다.
+   전용 목소리가 아직 없는 강사(서지안·오정자)는 박혜원 것으로 폴백한다. */
+export const INST_VOICE: Record<string, string> = {
+  park_hyewon: 'aKMUzTQk58byFPNhpATt',
+  yun_daeun: 'QPFsEL6IBxlT15xfiD6C',
+  lee_doyun: 'MpbDJfQJUYUnp0i1QvOZ',
+}
+
 /** 이 강사가 영상 클립을 갖고 있는가 (없으면 사진 아바타 그대로) */
 export const hasClips = (instructor: string) => Boolean(INST_CLIPS[instructor])
 
