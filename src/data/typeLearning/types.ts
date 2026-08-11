@@ -210,6 +210,11 @@ export interface TypeLesson {
   practice?: TypeLessonContent
   /** 아이템 순회로 만든 수업이면 아이템 목록. 앵커 1문항짜리(구방식)면 없음 */
   items?: LessonItemRef[]
+  /** DB 문항으로 갈아끼운 수업인가.
+   *  ⚠️ 로컬 샘플 음원 매니페스트(audioManifest)를 **쓰면 안 된다**. 매니페스트 키가
+   *  `t01/opt:0:A` 처럼 **샘플 강의 id + 보기 자리**라, 문항을 DB 것으로 바꿔도 키는 그대로 맞는다
+   *  → 새 사진에 옛 문제의 음원이 얹혀 나간다(실측). 소리가 없는 편이 틀린 소리보다 낫다. */
+  dbBacked?: boolean
   turns: Turn[]
   recap: LessonRecap   // 세션 정리 화면(실전 문제 이후) — 핵심 문장 3개 + 마무리 멘트
 }

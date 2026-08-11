@@ -122,12 +122,13 @@ export async function speakTurn(
 }
 
 /** TTS 오디오를 미리 fetch해서 Audio 객체로 반환. 실패 시 null. */
-export async function fetchTTSAudio(text: string, persona: string): Promise<HTMLAudioElement | null> {
+/** @param instructor 강사 id — 주면 **그 강사 목소리**로 읽는다(없으면 기본 목소리) */
+export async function fetchTTSAudio(text: string, persona: string, instructor?: string): Promise<HTMLAudioElement | null> {
   try {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, persona }),
+      body: JSON.stringify({ text, persona, instructor }),
     })
     const data = await res.json()
     if (!data.useNativeTts && data.audioContent) {
@@ -184,9 +185,9 @@ export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
 
 /** fetchTTSAudio + playAndWait + speechSynthesis fallback.
  *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다. */
-export async function speakTTS(text: string, persona: string): Promise<void> {
+export async function speakTTS(text: string, persona: string, instructor?: string): Promise<void> {
   const token = _playbackToken
-  const audio = await fetchTTSAudio(text, persona)
+  const audio = await fetchTTSAudio(text, persona, instructor)
   if (_playbackToken !== token) return  // fetch 중 stopCurrentAudio 호출됨
   if (audio) {
     await playAndWait(audio)
