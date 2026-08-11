@@ -151,8 +151,30 @@ function TextComposer({ connected, connecting, inputText, setInputText, onSend, 
 /* ── 강사 아바타 — 원형 사진 + 강사 음량에 반응하는 파동 링 ──
    **음성·텍스트 모드가 똑같이 쓴다.** 강사가 말하는 동안(speaking) 출력 음량(getFreq)에 따라 링이
    커졌다 작아진다. 음량 데이터가 없으면(브라우저 TTS 폴백) 잔잔한 기본 맥동으로 뛴다. */
-function PulseAvatar({ src, name, speaking, getFreq, size = 120 }: {
+/* ── 아바타 안의 영상 ──
+   클립을 갈아끼우는 방식(src 교체)은 쓰지 않는다 — 바꿀 때마다 디코딩이 처음부터 다시 돌아서
+   원이 까맣게 한 번 깜빡이고, 단계가 넘어갈 때마다 그 깜빡임이 보인다.
+   그래서 **클립 셋을 다 겹쳐 깔아두고 opacity 로만 넘긴다.** 안 보이는 클립도 계속 돌지만
+   무음 3~5초짜리 작은 파일이라 이게 싸다. 얼굴이 이어져 보이는 값이 화면에서는 더 크다. */
+function ClipStack({ clips, active, name }: { clips: string[]; active: string; name: string }) {
+  return (
+    <>
+      {clips.map((src) => (
+        <video key={src} src={src} autoPlay muted loop playsInline preload="auto"
+          aria-label={src === active ? name : undefined}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+          style={{ objectPosition: '50% 16%', opacity: src === active ? 1 : 0 }} />
+      ))}
+    </>
+  )
+}
+
+function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120 }: {
   src: string; name: string; speaking: boolean; getFreq?: () => Uint8Array | undefined; size?: number
+  /** 지금 상황에 맞는 영상 클립. 없으면 사진(src)을 그대로 쓴다 */
+  clipSrc?: string | null
+  /** 이 강사가 가진 클립 전부 — 겹쳐 깔아두고 크로스페이드하기 위해 */
+  allClips?: string[]
 }) {
   const [level, setLevel] = useState(0)
   useEffect(() => {
@@ -193,8 +215,12 @@ function PulseAvatar({ src, name, speaking, getFreq, size = 120 }: {
       ))}
       <div className="relative rounded-full overflow-hidden border-[3px] border-white bg-gradient-to-b from-[#EAF1FF] to-white"
         style={{ width: size, height: size, boxShadow: speaking ? `0 0 ${12 + level * 20}px rgba(37,99,235,${0.16 + level * 0.24})` : '0 4px 16px rgba(0,0,0,0.12)' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} className="w-full h-full object-cover" style={{ objectPosition: '50% 16%' }} />
+        {clipSrc ? (
+          <ClipStack clips={allClips?.length ? allClips : [clipSrc]} active={clipSrc} name={name} />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={src} alt={name} className="w-full h-full object-cover" style={{ objectPosition: '50% 16%' }} />
+        )}
       </div>
     </div>
   )
@@ -223,6 +249,10 @@ export interface TutorDockProps {
   imgSrc: string
   /** 단계별 강사 포즈 컷아웃(배경 투명). 아바타 원 안에 쓰인다. 없으면 imgSrc. */
   poseSrc?: string | null
+  /** 단계별 강사 영상 클립. 있으면 사진 대신 이게 원 안에서 돈다 */
+  clipSrc?: string | null
+  /** 이 강사의 클립 전부 — 미리 깔아두고 크로스페이드하려고 받는다 */
+  allClips?: string[]
   /** 학생 입력 모드 — 아바타 아래 영역이 갈린다 (음성=발화 박스 / 텍스트=채팅창) */
   chatMode: 'voice' | 'text'
   setChatMode: (m: 'voice' | 'text') => void
@@ -253,7 +283,7 @@ export interface TutorDockProps {
 }
 
 export default function TutorDock({
-  mode, setMode, canSidebar = true, name, imgSrc, poseSrc,
+  mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking,
   lastLine, messages, actions, hint, actionKey,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
@@ -281,7 +311,8 @@ export default function TutorDock({
   if (mode === 'mini') {
     return (
       <MiniDock
-        faceSrc={faceSrc} name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking}
+        faceSrc={faceSrc} clipSrc={clipSrc} allClips={allClips}
+        name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking}
         getTutorFreq={getTutorFreq} lastLine={lastLine}
         chatMode={chatMode} setChatMode={setChatMode}
         inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
@@ -307,7 +338,7 @@ export default function TutorDock({
 
       {/* 아바타 + 모드 토글 — 두 모드 공통. 단계 표시가 빠진 만큼 위로 붙는다 */}
       <div className="shrink-0 flex flex-col items-center pt-1.5 pb-2 bg-gradient-to-b from-[#F5F8FF] to-white">
-        <PulseAvatar src={faceSrc} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={118} />
+        <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={118} />
         <div className="-mt-2 flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`}
             title={connected ? '연결됨' : '연결 안 됨'} />
@@ -360,9 +391,10 @@ export default function TutorDock({
    · 얼굴을 끌면 창이 통째로 따라온다(끌지 않고 탭하면 원래 패널로 복원)
    · 말풍선은 **자르지 않는다** — 발화가 길면 박스가 커지고, 아주 길면 그 안에서 스크롤한다
    · 선택지·행동 지시도 이 안에서 작은 UI로 보인다 */
-function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFreq, lastLine, chatMode, setChatMode,
+function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, getTutorFreq, lastLine, chatMode, setChatMode,
   inputText, setInputText, onSend, onStartAgent, actions, hint, onRestore }: {
-  faceSrc: string; name: string; connected: boolean; connecting: boolean; isSpeaking: boolean
+  faceSrc: string; clipSrc?: string | null; allClips?: string[]
+  name: string; connected: boolean; connecting: boolean; isSpeaking: boolean
   getTutorFreq?: () => Uint8Array | undefined
   lastLine: string
   chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
@@ -458,7 +490,7 @@ function MiniDock({ faceSrc, name, connected, connecting, isSpeaking, getTutorFr
           isSpeaking ? 'shadow-[0_0_18px_rgba(37,99,235,0.55)]' : 'shadow-lg'
         }`}>
         <span className="pointer-events-none block">
-          <PulseAvatar src={faceSrc} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={56} />
+          <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={56} />
         </span>
         <span className={`absolute bottom-2 right-2 w-3 h-3 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
       </button>
