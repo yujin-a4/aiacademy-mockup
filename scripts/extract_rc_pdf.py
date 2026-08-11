@@ -44,6 +44,11 @@ import fitz
 HEAD = re.compile(r"Questions?\s+(\d{3})[-–](\d{3})\s+refer to the following\s+([^.]+)\.")
 QNUM = re.compile(r"^(\d{3})\.?\s+(.*)$")
 OPT = re.compile(r"^\(([A-D])\)\s*(.*)$")
+# 파트가 끝난 **뒤**에 오는 시험지·교재 안내문. 문항 영역에 그대로 딸려 오는데, 보기 줄이 아니라서
+# '접힌 줄'로 오해되어 **마지막 문항의 (D) 보기가 통째로 삼킨다**(실측: 전 10회차의 146번·200번).
+#   Part 6 끝 → Part 7 Directions   /   Part 7 끝 → 'Stop! This is the end of the test'
+#   본권은 영어 시험지라 **한글이 나오면 그건 교재 안내**다(‘테스트 전 체크리스트 …’).
+TAIL = re.compile(r"^(Directions:|Stop!)|Directions:\s*In this part|[가-힣]")
 # 정답 문장은 두 갈래다: '(A)가 정답이다' / '(B) performing이 정답이다' / '정답은 (D)이다'.
 # 보기 표시와 '정답' 사이에 영어 단어가 끼는 형태가 많아서 사이를 넉넉히 허용하고,
 # 해설 안에 (A)(B) 가 여러 번 나오므로 **정답이라고 말한 그 보기**만 집는다.
@@ -356,6 +361,18 @@ def parse_questions(text):
         l = clean(raw)
         if not l:
             continue
+        # 안내문이 시작되면 이 세트의 문항은 거기서 끝이다 — 뒤는 전부 시험지 furniture.
+        # 안내문이 **보기와 같은 줄**에 붙어 오기도 하므로(‘Unit 105 Stop! This is …’)
+        # 통째로 버리지 않고 앞부분(진짜 보기)만 살린 뒤 끊는다 — 버리면 보기가 3개가 되어
+        # 문항이 통째로 사라진다.
+        t = TAIL.search(l)
+        if t and t.start() == 0:
+            break
+        last = False
+        if t:
+            l, last = l[:t.start()].strip(), True
+            if not l:
+                break
         mq = QNUM.match(l)
         mo = OPT.match(l)
         # Part 6 는 '143.	(A) will be halting' 처럼 번호와 첫 보기가 한 줄에 붙는다.
@@ -366,8 +383,7 @@ def parse_questions(text):
             cur = {"no": int(mq.group(1)), "q": "", "options": []}
             m2 = OPT.match(mq.group(2))
             cur["options"].append({"label": m2.group(1), "text": m2.group(2).strip()})
-            continue
-        if mq and not mo:
+        elif mq and not mo:
             if cur:
                 out.append(cur)
             cur = {"no": int(mq.group(1)), "q": mq.group(2).strip(), "options": []}
@@ -379,6 +395,8 @@ def parse_questions(text):
                 cur["options"][-1]["text"] = (cur["options"][-1]["text"] + " " + l).strip()
             else:
                 cur["q"] = (cur["q"] + " " + l).strip()
+        if last:
+            break
     if cur:
         out.append(cur)
     return [q for q in out if len(q["options"]) == 4]

@@ -74,13 +74,17 @@ export interface TypeLessonContent {
   optionAudio?: boolean
   /** LC 표/자료형(T4·T6) 시각자료 — 음원 듣는 동안 화면에 상시 노출 */
   visual?: { title: string; table: TableData }
-  /** LC P3·P4 실전 — 세트 경계. 음원 하나에 문항 셋이고, 실전은 그런 세트를 여러 개 푼다.
+  /** 실전 세트 경계 — **한 자료에 문항 여럿**인 파트가 전부 여기 얹힌다.
+   *  P3·P4 는 자료가 음원(대화·담화), P6·P7 은 자료가 지문(단일·이중·삼중)이다.
    *  `questions` 는 세트를 이어 붙인 **평평한 배열**이다 — 답·채점·오답 리뷰가 전부 그 인덱스를 쓰므로
    *  세트를 도입해도 그 경로는 건드리지 않는다. 여기서는 세트마다 자기 스크립트와 문항 범위만 갖는다.
    *  세트가 하나뿐이면 굳이 채우지 않는다(없으면 audioScript 를 그대로 쓰는 옛 경로). */
   sets?: {
-    script: SentenceItem[]
+    /** LC(P3·P4) 세트의 음원 스크립트. RC(P6·P7) 세트는 음원이 없어 비어 있다 */
+    script?: SentenceItem[]
     visual?: { title: string; table: TableData }
+    /** RC 세트가 쓰는 지문 id — `passages` 는 세트를 이어 붙인 평평한 배열이라 여기서 되짚는다 */
+    passageIds?: string[]
     from: number; to: number
     /** 지문 **앞**에 나오는 내레이터 안내 — "Questions 1 through 3 refer to the following conversation."
      *  실제 시험은 담화 전에 이 문장이 반드시 나온다(DB `content.set_intro_url` / `set_intro_text`). */

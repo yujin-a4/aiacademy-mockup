@@ -51,9 +51,12 @@ function passageDocsOf(q: UiDbQuestion | undefined): PassageDoc[] {
 }
 
 function docOf(p: UiDbPassage | null | undefined, id: string): PassageDoc | null {
-  if (!p || p.sentences.length === 0) return null
-  const kind = (PASSAGE_KINDS.has(p.kind as PassageDoc['kind']) ? p.kind : 'article') as PassageDoc['kind']
+  if (!p) return null
   const body = p.body as { table?: TableData; chat?: ChatMessage[] } | null
+  /* 문장이 없어도 **표·대화가 있으면 지문이다** — 도면·시간표는 교재에서 그림이라 문장이 0개다.
+     문장만 세면 그런 지문이 통째로 사라진다(실측: 삼중 지문의 도면 탭이 없어졌다). */
+  if (p.sentences.length === 0 && !body?.table && !body?.chat?.length) return null
+  const kind = (PASSAGE_KINDS.has(p.kind as PassageDoc['kind']) ? p.kind : 'article') as PassageDoc['kind']
   const table = body?.table
   // 문자 대화는 말풍선(화자·시각)이 있어야 폰 조판이 나온다. 문장 목록만으로는 흰 종이가 된다
   const chat = body?.chat
@@ -791,6 +794,71 @@ function buildPart7(local: TypeLesson, group: UiDbQuestion[]): TypeLesson {
 /* ═══════════ 실전 문제 세트 (stage='practice') ═══════════ */
 
 /**
+ * RC(P6·P7) 실전 — **지문 묶음 하나 = 세트 하나 = 문항 여럿**.
+ * 이중·삼중 지문은 지문 2~3장이 한 세트다(문항은 그중 첫 지문에 링크돼 있고, 나머지는
+ * `passages`(set_code)로 딸려 온다).
+ *
+ * `questions` 는 세트를 이어 붙인 **평평한 배열**로 둔다 — 답·채점·오답 리뷰가 전부 그 인덱스를
+ * 쓰기 때문이다(LC 3·4 와 같은 규칙). 세트는 자기 지문과 문항 범위만 갖는다.
+ */
+function buildRcPracticeSets(part: number, group: UiDbQuestion[]): TypeLessonContent | undefined {
+  /* 세트 키 — 정규화된 지문이 1차. 옛 데이터(지문 미이관)는 content 문자열로 묶는다 */
+  const keyOf = (q: UiDbQuestion) =>
+    q.passages?.[0]?.code ?? q.passage?.code
+    ?? q.content.passage_text ?? q.content.passage_context ?? q.code
+
+  const byPsg = new Map<string, UiDbQuestion[]>()
+  for (const q of group) {
+    const k = keyOf(q)
+    if (!byPsg.has(k)) byPsg.set(k, [])
+    byPsg.get(k)!.push(q)
+  }
+
+  const passages: PassageDoc[] = []
+  const questions: QuestionItem[] = []
+  const sets: NonNullable<TypeLessonContent['sets']> = []
+
+  Array.from(byPsg.values()).forEach((g, si) => {
+    const head = g[0]
+    const raw = part === 6 ? head.content.passage_context : head.content.passage_text
+    const fromDb = passageDocsOf(head)
+    const docs: PassageDoc[] = fromDb.length
+      ? fromDb
+      : raw
+        ? [{
+            id: 'p1',
+            kind: passageKind(part === 7 ? head.content.passage_type : undefined, raw),
+            sentences: part === 6
+              ? clozeSentences(raw)
+              : raw.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((en, i) => ({ id: `e${i + 1}`, en })),
+          }]
+        : []
+    if (!docs.length) return          // 지문이 없는 묶음은 통째로 건너뛴다 (풀 수가 없다)
+
+    /* 지문 id 는 지문 묶음 안에서만 유일하다(p1·p2) — 세트를 이어 붙이면 겹쳐서
+       탭이 남의 세트 지문을 연다. 세트가 둘 이상일 때만 앞에 세트 번호를 붙인다. */
+    if (si > 0) docs.forEach((d, i) => { d.id = `g${si + 1}p${i + 1}` })
+
+    const type = head.content.passage_type
+    if (docs.length === 1) { if (type) docs[0].label = type }
+    else docs.forEach((d, i) => { d.label = `지문 ${i + 1} · ${KIND_KO[d.kind] ?? '지문'}` })
+
+    const from = questions.length
+    g.forEach((q, i) => {
+      const item = part === 6
+        ? toQuestion(q, `빈칸 (${qNo(q) || i + 1})`)
+        : withDoc(toQuestion(q), q, docs)
+      questions.push(item)
+    })
+    passages.push(...docs)
+    sets.push({ passageIds: docs.map((d) => d.id), from, to: questions.length })
+  })
+
+  if (!questions.length) return undefined
+  return { passages, sets, questions }
+}
+
+/**
  * 같은 강의의 실전 문항(P00x)으로 실전 stage용 콘텐츠를 만든다.
  * 수업에서 다룬 문항을 다시 푸는 게 아니라, DB에 따로 준비된 세트를 푼다.
  * P1은 문항마다 사진이, P5는 문항마다 문장이 다르고, P6·P7은 수업과 다른 지문 하나를 공유한다.
@@ -850,7 +918,7 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
         cursor += g.length
       }
       return {
-        audioScript: sets.flatMap((s) => s.script),
+        audioScript: sets.flatMap((s) => s.script ?? []),
         ...(sets.length > 1 ? { sets } : {}),
         ...(sets[0].visual ? { visual: sets[0].visual } : {}),
         /* 문항 낭독 음원 — 없으면 화면이 브라우저 TTS 로 떨어진다 */
@@ -870,34 +938,12 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
         }],
         questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
       }
-    case 6: {
-      const passage = group[0].content.passage_context
-      const doc = passageDocOf(group[0])
-        ?? (passage ? { id: 'p1', kind: passageKind(undefined, passage), sentences: clozeSentences(passage) } : null)
-      if (!doc || !passage) return undefined
-      const same = group.filter((q) => q.content.passage_context === passage)
-      return {
-        passages: [doc],
-        questions: same.map((q, i) => toQuestion(q, `빈칸 (${qNo(q) || i + 1})`)),
-      }
-    }
-    case 7: {
-      const text = group[0].content.passage_text
-      if (!text) return undefined
-      const fromDb = passageDocsOf(group[0])
-      const docs: PassageDoc[] = fromDb.length ? fromDb : [{
-        id: 'p1', kind: passageKind(group[0].content.passage_type, text),
-        sentences: text.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((en, i) => ({ id: `e${i + 1}`, en })),
-      }]
-      const type = group[0].content.passage_type
-      if (docs.length === 1) { if (type) docs[0].label = type }
-      else docs.forEach((d, i) => { d.label = `지문 ${i + 1} · ${KIND_KO[d.kind] ?? '지문'}` })
-      const same = group.filter((q) => q.content.passage_text === text)
-      return {
-        passages: docs,
-        questions: same.map((q) => withDoc(toQuestion(q), q, docs)),
-      }
-    }
+    /* RC(6·7) — **지문 하나(이중·삼중이면 한 묶음) = 세트 하나 = 문항 여럿**이다.
+       LC 3·4 와 같은 규칙으로 지문(passage.code)으로 묶는다. 예전엔 group[0] 의 지문만 보고
+       나머지 지문의 문항을 **버렸다** — 한 강의에 실전 세트가 둘 이상 실리는 순간 문항이 사라진다. */
+    case 6:
+    case 7:
+      return buildRcPracticeSets(part, group)
     default:
       return undefined
   }
