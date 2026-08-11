@@ -22,36 +22,66 @@ const INTERNAL = [/^\/dev(\/|$)/, /^\/rail-editor(\/|$)/, /^\/status(\/|$)/]
 export const isInternalPath = (path: string) => INTERNAL.some((re) => re.test(path))
 
 /* ── 참가자 표식 ──
-   FGI 참가자는 코드가 붙은 링크로 들어온다: `…/?p=P03`
-   그 값을 기기에 저장해서 **그 뒤 모든 이벤트**에 `cohort=fgi` · `participant=P03` 을 붙인다.
-   우리(내부)는 파라미터 없이 들어오니 자동으로 `cohort=internal` 이 되고,
-   GA 에서 `cohort = fgi` 비교 하나로 내부 사용이 통째로 빠진다.
-   **기간으로 자르는 것보다 정확하다** — FGI 기간에도 우리는 이 앱을 쓰기 때문이다. */
+   FGI 참가자는 **사람마다 다른 링크와 다른 계정**을 받는다. 둘 다 표식으로 쓰되 역할을 나눈다.
+
+     누구인가(participant) ← **계정**이 정본. 사람마다 하나씩 나눠주는 것이라 기기를 바꿔도,
+                             링크 없이 다시 들어와도 같은 사람으로 이어진다.
+                             로그인 전 화면(로그인 자체)에서는 링크의 `?p=` 가 임시로 그 자리를 채운다.
+     어느 집단인가(cohort)  ← **링크**(`?p=`)로 정한다. 우리는 파라미터 없이 들어오니 `internal`,
+                             참가자는 `fgi`. GA 에서 `cohort = fgi` 하나로 내부 사용이 통째로 빠진다.
+                             **기간으로 자르는 것보다 정확하다** — FGI 기간에도 우리는 이 앱을 쓴다.
+
+   계정을 participant 로 삼되 cohort 까지 fgi 로 올리지는 않는다 — 그러면 우리가 우리 계정으로
+   로그인한 것까지 전부 참가자로 잡혀서 가르는 의미가 없어진다. 다만 참가자 계정은 `ybm00`~`ybm50`
+   으로 미리 파둔 번호라, 그 꼴이면 링크를 잃어버려도 참가자로 본다(아래 FGI_ID). */
 const PARTICIPANT_KEY = 'ybm_fgi_participant'
+const COHORT_KEY = 'ybm_fgi_cohort'
 export const PARTICIPANT_PARAM = 'p'
+/** 참가자용으로 파둔 계정 번호(`ybm00`~`ybm50`). 이 꼴이면 링크가 없어도 참가자로 본다 —
+ *  계정 이름 규칙이 곧 안전망이다. **숫자 두 자리로 좁힌다** — `ybm`으로 시작하기만 하면
+ *  다 참가자로 보면 우리가 쓰는 계정까지 딸려 들어간다. */
+const FGI_ID = /^YBM\d{2}$/
 
 let participant: string | null = null
+let isFgi = false
 
-/** 링크의 `?p=` 를 읽어 저장한다. 한 번 붙으면 그 기기에서는 계속 참가자로 남는다
- *  (참가자가 앱을 껐다 켜도, 링크 없이 다시 들어와도 같은 사람으로 이어진다) */
+const remember = (code: string, fgi: boolean) => {
+  participant = code
+  if (fgi) isFgi = true
+  try {
+    window.localStorage.setItem(PARTICIPANT_KEY, code)
+    if (fgi) window.localStorage.setItem(COHORT_KEY, 'fgi')
+  } catch { /* 시크릿 모드 등 저장이 막힌 경우 — 이번 세션에만 남는다 */ }
+}
+
+/** 링크의 `?p=` 를 읽어 저장한다. 한 번 붙으면 그 기기에서는 계속 참가자로 남는다 */
 export function initParticipant(search: URLSearchParams): string | null {
   if (typeof window === 'undefined') return null
   const fromLink = (search.get(PARTICIPANT_PARAM) ?? '').trim().toUpperCase()
-  try {
-    if (fromLink && /^[A-Z0-9_-]{1,16}$/.test(fromLink)) {
-      window.localStorage.setItem(PARTICIPANT_KEY, fromLink)
-      participant = fromLink
-    } else {
-      participant = window.localStorage.getItem(PARTICIPANT_KEY)
-    }
-  } catch {
-    participant = fromLink || null           // 시크릿 모드 등 저장이 막힌 경우
+  if (fromLink && /^[A-Z0-9_-]{1,16}$/.test(fromLink)) {
+    remember(fromLink, true)
+    return participant
   }
+  try {
+    participant = window.localStorage.getItem(PARTICIPANT_KEY)
+    isFgi = window.localStorage.getItem(COHORT_KEY) === 'fgi'
+  } catch { /* 저장이 막힌 환경 */ }
+  return participant
+}
+
+/** 로그인 계정으로 참가자를 확정한다(`ybm07@ybm.co.kr` → `YBM07`).
+ *  링크는 기기에 붙는 표식이라 어긋날 수 있다 — 계정은 사람에게 붙으므로 이쪽이 정본이다. */
+export function setParticipantFromAccount(email: string | null | undefined): string | null {
+  if (typeof window === 'undefined' || !email) return participant
+  const code = email.split('@')[0].trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16)
+  if (!code || code === participant) return participant
+  remember(code, FGI_ID.test(code))
+  identify()                                  // 이미 보낸 user property 를 새 값으로 덮는다
   return participant
 }
 
 export const getParticipant = () => participant
-export const getCohort = () => (participant ? 'fgi' : 'internal')
+export const getCohort = () => (isFgi ? 'fgi' : 'internal')
 
 /** 참가자·집단은 **user property** 로도 심는다 — 이벤트 파라미터와 달리
  *  GA 리포트에서 '사용자 기준' 으로 쪼갤 수 있다(참가자별 세션 수·재방문 등) */

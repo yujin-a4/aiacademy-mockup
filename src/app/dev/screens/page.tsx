@@ -4,7 +4,7 @@
    완료 화면과 실전 화면에서 **나올 수 있는 상태를 URL 하나로 재현**한다.
 
    왜 필요한가: 이 상태들은 실제로 돌려서는 만들기 어렵다. 완료 화면의 성취 문구는 만점·80%·
-   3연속·첫 완주 같은 조건이 맞아야 나오고, 스텝은 2~3초마다 자동으로 넘어가서 붙잡을 수가 없다.
+   첫 완주 같은 조건이 맞아야 나오고, 스텝은 2~3초마다 자동으로 넘어가서 붙잡을 수가 없다.
    실전 화면도 파트마다 골격이 다른데 매번 수업을 처음부터 돌려야 닿는다.
 
    그래서 여기서는
@@ -112,7 +112,7 @@ const SCREENS: Screen[] = [
     note: '실전 만점일 때.',
     render: () => (
       <StepBadge badge={feedback('perfect', { correctCount: 4, totalCount: 4, isFirstTime: false }, [true, true, true, true])}
-        badgeIndex={1} totalBadges={2} onNext={noop} />
+        badgeIndex={1} totalBadges={1} onNext={noop} />
     ),
   },
   {
@@ -120,15 +120,7 @@ const SCREENS: Screen[] = [
     note: '실전 80% 이상이지만 만점은 아닐 때. 만점이면 이 문구 대신 완벽 풀이가 나간다.',
     render: () => (
       <StepBadge badge={feedback('high-score', { correctCount: 4, totalCount: 5, isFirstTime: false }, [true, true, true, true, false])}
-        badgeIndex={1} totalBadges={2} onNext={noop} />
-    ),
-  },
-  {
-    id: 'end-fb-streak', group: '완료 화면', label: '③ 성취 — 3연속 정답 🔥',
-    note: '연속으로 3문항 이상 맞혔을 때.',
-    render: () => (
-      <StepBadge badge={feedback('streak', { correctCount: 4, totalCount: 5, isFirstTime: false }, [true, true, true, true, false])}
-        badgeIndex={2} totalBadges={2} onNext={noop} />
+        badgeIndex={1} totalBadges={1} onNext={noop} />
     ),
   },
   {
@@ -154,7 +146,7 @@ const SCREENS: Screen[] = [
       <div className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center">
         <p className="text-slate-800 font-bold text-lg">성취 문구 없음</p>
         <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
-          만점·80%·3연속·정리만점·첫완주 중 아무것도 해당하지 않으면 이 스텝을 건너뛴다.
+          만점·80%·정리만점·첫완주 중 아무것도 해당하지 않으면 이 스텝을 건너뛴다.
           잘한 게 없으면 말하지 않는다.
         </p>
       </div>
