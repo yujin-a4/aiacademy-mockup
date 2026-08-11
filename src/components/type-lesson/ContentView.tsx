@@ -23,8 +23,13 @@ export interface ContentState {
   /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
   onPlaySentence?: (id: string, text: string) => void
   /** 학생이 음원을 직접 트는 화면인가 (실전). 수업은 **강사가 틀어준다** —
-   *  수업에서는 '음원 듣기' 버튼을 두지 않고, 지금 나가는 자리(보기·문항 옆)만 파랗게 켜서 알린다. */
+   *  수업에서는 학생이 버튼을 누를 수 없고, 지금 나가는 자리만 파랗게 켜서 알린다. */
   selfAudio?: boolean
+  /** 수업의 스캐폴딩 단계가 다 끝났는가. 이때부터 수업 화면의 음원 버튼이 눌린다 —
+   *  실전으로 넘어가기 전에 학생이 혼자 다시 들어보는 구간. */
+  audioFree?: boolean
+  /** 수업 화면에서 그 문항(P1·P2) 또는 담화 전체(P3·P4)를 재생한다. audioFree 일 때만 불린다 */
+  onPlayAudio?: (qIdx: number) => void
   /** 이 음원을 더 들을 수 있는 횟수 (실전은 2회 제한). undefined면 무제한 */
   playsLeft?: (id: string) => number
   /** 실제 시험지처럼 **보기 없이 (A)(B)(C)(D) 마킹만** 하는 답안지 모드 (LC 실전, 채점 전) */
@@ -315,7 +320,21 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
       )}
       {/* 세트 실전에서는 카드마다 달지 않는다 — 세 문항이 **같은 스크립트**를 보므로 세 번 반복된다.
           그때는 세트 머리('대화 듣기' 아래)에 한 번만 놓는다(아래 세트 레이아웃). */}
-      {(lesson.part === 3 || lesson.part === 4) && !st.selfAudio && <ScriptAccordion lesson={lesson} st={st} />}
+      {(lesson.part === 3 || lesson.part === 4) && !st.selfAudio && (
+        <>
+          {/* 담화 음원은 문항이 아니라 **세트 전체**에 하나다 → 스크립트 위, 세트 머리에 둔다 */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">
+              {lesson.part === 3 ? '대화' : '담화'}를 듣고 문항에 답하세요
+            </span>
+            <LessonAudioButton st={st} qIdx={0} label={`${lesson.part === 3 ? '대화' : '담화'} 듣기`}
+              /* 이 파트는 문장을 이어 재생하므로 어느 문장이 나가든 '재생 중'이다 —
+                 보기(opt:)·문항 통음원(qaudio:)만 빼면 지금 나가는 건 담화다 */
+              playing={!!st.playingId && !st.playingId.startsWith('opt:') && !st.playingId.startsWith('qaudio:')} />
+          </div>
+          <ScriptAccordion lesson={lesson} st={st} />
+        </>
+      )}
     </div>
   )
 }
@@ -477,6 +496,34 @@ function VisualPanel({ lesson }: { lesson: TypeLesson }) {
   const v = lesson.content.visual
   if (!v) return null
   return <VisualTable visual={v} />
+}
+
+/* ── 수업의 음원 버튼 ──
+   **수업 중에는 강사가 튼다.** 버튼은 자리에 있되 눌리지 않고, 음원이 나가는 동안 '재생 중'으로
+   켜져서 "지금 이 자리에서 소리가 난다"만 알린다. 학생이 조작할 것이 없어도 버튼이 보여야
+   소리가 어디서 나오는지 안다 — 표시만 띄우면 그게 무엇의 소리인지 연결이 안 된다.
+
+   수업의 스캐폴딩 단계가 다 끝나면(audioFree) 같은 버튼이 그대로 눌린다. 실전으로 넘어가기 전에
+   혼자 다시 들어보는 구간이라, 버튼을 새로 만들지 않고 **잠긴 것이 풀리는** 모양으로 둔다. */
+function LessonAudioButton({ st, qIdx, playing, label = '음원 듣기' }: {
+  st: ContentState; qIdx: number; playing: boolean; label?: string
+}) {
+  const free = !!st.audioFree
+  return (
+    <button type="button" disabled={!free} onClick={() => st.onPlayAudio?.(qIdx)}
+      aria-label={free ? label : '강사가 들려주는 음원'}
+      title={free ? label : '수업 중에는 강사가 들려줍니다'}
+      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
+        playing ? 'border-[#93C5FD] bg-[#EFF6FF] text-[#2563EB]'
+          : free ? 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+            : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-default'
+      }`}>
+      {/* 나가는 동안에는 막대 파형 — 보기를 재생할 때와 같은 표시다. 소리가 나는 자리가 여기임을
+          이 표시가 말한다(강사 아바타의 파동은 강사 목소리 몫이라 여기 것과 섞이면 안 된다). */}
+      {playing ? <EqBars /> : <SpeakerIcon />}
+      {playing ? '재생 중…' : free ? label : '강사가 들려줘요'}
+    </button>
+  )
 }
 
 /* ── 세트 음원 버튼 (P3·P4 실전) ──
@@ -847,12 +894,19 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
 function EqLine({ label }: { label: string }) {
   return (
     <span className="flex items-center gap-2 text-[12px] font-bold text-[#2563EB]">
-      <span className="flex items-end gap-[2px] h-3">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} className="w-[2.5px] h-full rounded-full bg-[#2563EB] origin-bottom animate-eq" style={{ animationDelay: `${i * 0.1}s` }} />
-        ))}
-      </span>
+      <EqBars />
       {label}
+    </span>
+  )
+}
+
+/** 막대 파형만 — 버튼 안처럼 글자를 따로 두는 자리에서 쓴다 */
+function EqBars() {
+  return (
+    <span aria-hidden className="flex items-end gap-[2px] h-3 shrink-0">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span key={i} className="w-[2.5px] h-full rounded-full bg-current origin-bottom animate-eq" style={{ animationDelay: `${i * 0.1}s` }} />
+      ))}
     </span>
   )
 }
@@ -872,22 +926,23 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
      실전에서 하단에 따로 버튼을 두면, 소리가 나는 곳(이 카드)과 트는 곳(하단 바)이 갈라져
      학생이 어디를 봐야 할지 모른다. `qaudio:` 로 부르면 실전 듣기 한 판(질문 → 보기 → 카운트다운)이 돈다. */
   const left = st.selfAudio && st.playsLeft ? st.playsLeft(`qaudio:${qIdx}`) : Infinity
-  const out = left <= 0
+  /* 수업 중에는 학생이 못 튼다 — 강사가 튼다. 단계가 다 끝나면(audioFree) 그때 풀린다 */
+  const locked = !st.selfAudio && !st.audioFree
+  const out = left <= 0 || locked
   const playQ = () => {
     if (!q1) return
     if (st.selfAudio) { if (!out) st.onPlaySentence?.(`qaudio:${qIdx}`, q1.en) }
-    else st.onPlaySentence?.(q1.id, q1.en)
+    else if (st.audioFree) st.onPlayAudio?.(qIdx)
   }
 
   return (
     <div className="max-w-[560px] mx-auto space-y-4">
       {/* 문제 번호 — 파트2는 시험지에 지문이 없어 번호가 유일한 위치 표시다.
-          실전은 시험지 문구를 그대로 적는다("Mark your answer on your answer sheet."). */}
+          시험지 문구를 그대로 적는다. 수업에서도 같게 둔다 — 수업에서만 한국어 안내를 달면
+          실전에 들어갈 때 화면이 달라져서, 시험지가 어떻게 생겼는지 익히는 자리가 사라진다. */}
       <div className="flex items-center gap-2">
         <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{qIdx + 1}</span>
-        {st.selfAudio && (
-          <span className="text-[12px] font-medium text-[#9CA3AF] truncate">Mark your answer on your answer sheet.</span>
-        )}
+        <span className="text-[12px] font-medium text-[#9CA3AF] truncate">Mark your answer on your answer sheet.</span>
       </div>
       <button type="button" onClick={playQ} disabled={out}
         aria-label={st.selfAudio ? '음원 듣기' : '질문 음원 재생'}
@@ -913,7 +968,8 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
           <EqLine label={st.selfAudio ? '재생 중' : '질문 음성 재생 중'} />
         ) : (
           <span className={`text-[13px] font-medium ${out ? 'text-[#C4C9D4]' : 'text-[#9CA3AF]'}`}>
-            {st.selfAudio ? (out ? '재생 완료' : '눌러서 음원 듣기 (1회)') : '질문은 음성으로 나와요'}
+            {st.selfAudio ? (out ? '재생 완료' : '눌러서 음원 듣기 (1회)')
+              : st.audioFree ? '눌러서 다시 듣기' : '질문은 음성으로 나와요'}
           </span>
         )}
       </button>
@@ -1022,9 +1078,11 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         <div className="flex flex-col gap-6 max-w-[620px] mx-auto">
           {content.questions.map((q, i) => (
             !qInView(st, i) ? null : <div key={i} className="flex flex-col gap-3">
-              {/* 실전은 시험지를 그대로 따른다 — Part 1 은 **문항마다 지시문이 없다.**
-                  영문 Directions 가 첫 문항 위에 한 번만 인쇄되고, 그 뒤로는 번호와 사진뿐이다.
-                  (수업은 학습 안내가 필요하니 한국어 한 줄을 그대로 둔다) */}
+              {/* Part 1 은 시험지에 **문항마다 지시문이 없다.** 영문 Directions 가 첫 문항 위에
+                  한 번만 인쇄되고, 그 뒤로는 번호와 사진뿐이다.
+                  Directions 는 **실전에서만** 편다 — 수업은 강사가 무엇을 할지 말해주는 자리라
+                  다섯 줄짜리 영문 안내가 사진 위 자리를 먹기만 한다. 한국어 안내도 두지 않는다:
+                  수업과 실전의 문항 화면이 달라지면 시험지가 어떻게 생겼는지 익히는 자리가 사라진다. */}
               {st.selfAudio && i === 0 && (
                 <p className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[11px] leading-relaxed text-[#6B7280]">
                   <span className="font-bold text-[#1C1B33]">Directions:</span> For each question in this part, you will hear
@@ -1036,9 +1094,8 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
               )}
               <div className="flex items-center gap-2">
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
-                {st.selfAudio
-                  ? <span className="flex-1 min-w-0" />
-                  : <span className="text-[12px] font-bold text-[#6B7280] flex-1 min-w-0">사진을 가장 잘 묘사한 보기를 고르세요</span>}
+                {/* 시험지에는 번호 옆에 아무것도 없다 — 자리만 비워 둔다 */}
+                <span className="flex-1 min-w-0" />
                 {/* 음원 듣기 버튼은 **실전에서만**. 수업에서는 강사가 틀어주고,
                     나가는 동안에는 아래 보기가 파랗게 켜져 재생 중임을 알린다. */}
                 {q.audio && st.selfAudio && st.onPlaySentence && (() => {
@@ -1059,11 +1116,9 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                     </button>
                   )
                 })()}
-                {/* 수업 — 버튼 없이 "지금 여기서 소리가 난다"만 */}
-                {!st.selfAudio && st.playingId === `qaudio:${i}` && (
-                  <span className="shrink-0 flex items-center gap-1 rounded-full bg-[#EFF6FF] px-2 py-1 text-[10px] font-black text-[#2563EB]">
-                    <SpeakerIcon pulse /> 재생 중
-                  </span>
+                {/* 수업 — 사진 옆이 그 문항 음원이 나오는 자리다 */}
+                {!st.selfAudio && q.audio && (
+                  <LessonAudioButton st={st} qIdx={i} playing={st.playingId === `qaudio:${i}`} />
                 )}
               </div>
               {(q.photo ?? content.photo) && (
