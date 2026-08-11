@@ -1643,6 +1643,13 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     ?? [{ script: pLesson.content.audioScript ?? [], from: 0, to: pLesson.content.questions.length }]
   const ownerOf = (p: number) => (setAudio ? `set:${p}` : `q:${p}`)
 
+  /* ── 넘기는 단위 ──
+     **한 자료에 문항 여럿**인 파트는 페이지가 문항이 아니라 **세트**다.
+       P3·P4 : 자료가 음원(대화·담화)  P6·P7 : 자료가 지문(단일·이중·삼중)
+     지문 하나에 딸린 4문항을 한 장씩 넘기게 하면, 지문을 훑으며 문항을 오가는 이 파트의
+     푸는 법 자체가 화면에서 사라진다 → 세트 안은 다 펼치고 세트로 넘긴다. */
+  const pagedBySet = setAudio || !!pLesson.content.sets
+
   /* ── 실제 시험 간격 ──
      Part 1·2 는 보기를 다 읽어준 뒤 5초. Part 3·4 는 문항을 하나씩 읽어주고 문항마다 8초,
      시각자료(표·그래프) 문항은 표를 보며 답해야 해서 12초를 준다. */
@@ -1731,7 +1738,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
       const si = Math.max(0, sets.findIndex((s) => from >= s.from && from < s.to))
       const set = sets[si]
       owner.current = ownerOf(si)
-      const setScript = set ? set.script : script
+      const setScript = set?.script ?? script
       const setLast = set ? set.to - 1 : last
 
       /* 실제 시험은 담화 **앞**에 내레이터 안내가 먼저 나온다 —
@@ -1849,10 +1856,11 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
        학생은 담화를 들으며 세 문항을 눈으로 훑는다. 한 문항씩 넘기면 다음 문항을 미리 못 봐서
        실전 감각이 안 잡힌다 → 세트 안은 다 펼치고(음원이 읽는 문항만 focusQ 로 짚는다),
        **넘기는 단위는 세트**로 한다(page = 세트 번호). 9문항을 한 화면에 이어 붙이면 스크롤만 길다. */
-    visibleQ: setAudio
+    visibleQ: pagedBySet
       ? { from: sets[Math.min(page, sets.length - 1)].from, to: sets[Math.min(page, sets.length - 1)].to }
       : (multi ? { from: page, to: page + 1 } : undefined),
-    focusQ: setAudio ? (readingQ ?? undefined) : (multi ? page : undefined),
+    /* 짚는 문항 — LC 는 지금 읽어주는 문항. RC 세트는 짚을 게 없다(학생이 스스로 오간다) */
+    focusQ: setAudio ? (readingQ ?? undefined) : (pagedBySet ? undefined : (multi ? page : undefined)),
     spotlightQ: spotQ ?? undefined,
   }
 
@@ -1865,9 +1873,9 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
     if (missing >= 0) {
       setWarn('안 푼 문제가 있어요')
       setSpotQ(missing)
-      // P3·P4 는 페이지가 세트라 그 문항이 든 세트로, 그 외에는 그 문항으로 간다
+      // 세트로 넘기는 파트는 그 문항이 든 세트로, 그 외에는 그 문항으로 간다
       const si = sets.findIndex((s) => missing >= s.from && missing < s.to)
-      goPage(setAudio ? Math.max(0, si) : missing)
+      goPage(pagedBySet ? Math.max(0, si) : missing)
       return
     }
     stopRun()
@@ -1976,13 +1984,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
             )}
           </div>
 
-          {/* 페이저 — P1·P2·P5 는 문항 단위, P3·P4 는 **세트 단위**로 넘긴다 */}
-          {(setAudio ? sets.length > 1 : multi) && (() => {
-            const pages = setAudio ? sets.length : total
+          {/* 페이저 — P1·P2·P5 는 문항 단위, P3·P4·P6·P7 은 **세트 단위**로 넘긴다.
+              세트가 하나뿐이면(지금 대부분의 RC 실전) 넘길 데가 없으니 페이저 자체를 안 그린다 */}
+          {(pagedBySet ? sets.length > 1 : multi) && (() => {
+            const pages = pagedBySet ? sets.length : total
             /* 칩 하나의 상태 — 세트 칩은 그 세트 문항 전체를 묶어 본다(다 맞으면 초록, 하나라도 틀리면 빨강) */
             const stateOf = (p: number) => {
-              const from = setAudio ? sets[p].from : p
-              const to = setAudio ? sets[p].to : p + 1
+              const from = pagedBySet ? sets[p].from : p
+              const to = pagedBySet ? sets[p].to : p + 1
               const idxs = Array.from({ length: to - from }, (_, k) => from + k)
               if (graded) {
                 return idxs.every((i) => answers[i] === qs[i].options.find((o) => o.correct)?.label) ? 'ok' : 'no'
@@ -2002,7 +2011,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase }: {
                       : s === 'done' ? 'border-[#93C5FD] bg-[#EFF6FF] text-[#2563EB]'
                       : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
                     return (
-                      <button key={i} onClick={() => goPage(i)} aria-label={setAudio ? `${i + 1}번 세트` : `${i + 1}번 문항`}
+                      <button key={i} onClick={() => goPage(i)} aria-label={pagedBySet ? `${i + 1}번 세트` : `${i + 1}번 문항`}
                         className={`w-7 h-7 rounded-lg border text-[11px] font-black transition-colors hover:border-[#93C5FD] ${cls}`}>
                         {i + 1}
                       </button>

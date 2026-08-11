@@ -1125,7 +1125,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
 
               {/* 스크립트는 **세트에 하나**다 — 세 문항이 같은 대화를 본다. 그리고 푸는 동안에는
                   아예 내보내지 않는다(잠금 안내조차 미끼가 된다). 채점하면 여기서 열린다. */}
-              {st.graded.size > 0 && <ScriptAccordion lesson={lesson} st={st} only={set.script} />}
+              {st.graded.size > 0 && <ScriptAccordion lesson={lesson} st={st} only={set.script ?? []} />}
 
               {set.visual && <VisualTable visual={set.visual} />}
 
@@ -1184,13 +1184,57 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
   /* P6·P7 — 지문(들) + 문항, 각각 독립 스크롤. 지문이 여럿이면 탭으로 전환.
      강사 창 최소화(readingSideBySide): 콘텐츠가 화면 전폭을 쓰므로 지문(좌) | 문항(우) 가로 2열.
      우측 패널일 때는 폭이 좁으니 지문(위)/문항(아래) 세로 스택. */
+
+  /* ── 실전 = 세트 단위(P3·P4 와 같은 규칙) ──
+     실제 시험지는 지문 하나에 딸린 문항이 **전부 인쇄돼** 있고, 학생은 지문을 훑으며 4문항을
+     오간다. 수업은 강사가 한 문항씩 끌고 가니 탭이 맞지만, 실전에서 탭으로 갈라 놓으면
+     "지문 하나에 문제 여럿" 이라는 이 파트의 성격 자체가 화면에서 사라진다 → 전부 펴서 스크롤.
+     (지문이 여럿인 이중·삼중은 그대로 **탭**이다 — 지문을 나란히 펴면 어느 쪽을 보는지 흐려진다) */
+  const readingSets = content.sets
+  /* 지금 세트의 지문만 탭에 올린다 — `passages` 는 세트를 이어 붙인 평평한 배열이라,
+     거르지 않으면 다음 세트의 지문 탭이 미리 열려 있다 */
+  const readingDocs = (() => {
+    const all = content.passages ?? []
+    const vis = st.visibleQ
+    if (!readingSets || !vis) return all
+    const ids = readingSets.find((s) => vis.from >= s.from && vis.from < s.to)?.passageIds
+    return ids?.length ? all.filter((p) => ids.includes(p.id)) : all
+  })()
+
+  const practiceStack = st.selfAudio && multiQ ? (
+    <div className="flex-1 min-h-0 flex flex-col">
+      {(() => {
+        const inView = content.questions.map((_, i) => i).filter((i) => qInView(st, i))
+        const set = readingSets?.find((s) => s.from === inView[0])
+        return (
+          <div className="shrink-0 flex items-center gap-2 pb-2">
+            <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB]">
+              Questions {(inView[0] ?? 0) + 1}–{(inView[inView.length - 1] ?? 0) + 1}
+            </span>
+            {readingSets && readingSets.length > 1 && set && (
+              <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#1C1B33] text-white">
+                세트 {readingSets.indexOf(set) + 1}/{readingSets.length}
+              </span>
+            )}
+            <span className="text-[11px] text-[#9CA3AF] truncate">한 지문에 딸린 {inView.length}문항입니다</span>
+          </div>
+        )
+      })()}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-0.5">
+        {content.questions.map((q, i) => (
+          qInView(st, i) ? <QuestionCard key={i} q={q} qIdx={i} lesson={lesson} st={st} /> : null
+        ))}
+      </div>
+    </div>
+  ) : null
+
   if (readingSideBySide) {
     return (
       <SplitPane
-        left={<PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />}
-        right={multiQ
+        left={<PassageTabs docs={readingDocs} lesson={lesson} st={st} focusBlank={focusBlank} />}
+        right={practiceStack ?? (multiQ
           ? <QuestionTabs lesson={lesson} st={st} pane />
-          : <div className="flex-1 min-h-0 overflow-y-auto">{questionsBlock}</div>}
+          : <div className="flex-1 min-h-0 overflow-y-auto">{questionsBlock}</div>)}
       />
     )
   }
@@ -1198,10 +1242,10 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
      문항 칸: 탭이 있으면 탭 줄은 고정하고 카드만 스크롤(QuestionTabs가 자체 스크롤을 가짐) */
   return (
     <StackPane
-      top={<PassageTabs docs={content.passages ?? []} lesson={lesson} st={st} focusBlank={focusBlank} />}
-      bottom={multiQ
+      top={<PassageTabs docs={readingDocs} lesson={lesson} st={st} focusBlank={focusBlank} />}
+      bottom={practiceStack ?? (multiQ
         ? <QuestionTabs lesson={lesson} st={st} pane />
-        : <div className="flex-1 min-h-0 overflow-y-auto">{questionsBlock}</div>}
+        : <div className="flex-1 min-h-0 overflow-y-auto">{questionsBlock}</div>)}
     />
   )
 }
