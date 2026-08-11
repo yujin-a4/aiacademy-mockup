@@ -13,7 +13,7 @@ import ContentView, { targetTokens, markedWords, type ContentState } from '@/com
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice } from '@/lib/voice'
-import { INST_NAME, INST_THUMBS, tutorAgentFor, instPose, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
@@ -143,11 +143,12 @@ function poseForTurn(turn: Turn, speaking: boolean): InstPose {
   const k = turn.interaction.kind
   const s = turn.stage
   if (speaking) return /^S[145]/.test(s) || k === 'mark' || k === 'match' ? 'point' : 'explain'
+  /* 여기부터는 **강사가 말하지 않는 동안**이다. 학생이 답하거나 화면을 보는 시간이므로
+     손짓하며 말하는 그림을 계속 두면 소리 없이 입만 움직이는 꼴이 된다 → 듣는 자세로 모은다.
+     칭찬·마무리(S7)만 예외로 박수. 단, 그때도 학생이 말하는 중이면 듣는 게 먼저다. */
   if (k === 'subjective') return 'listen'
   if (s.startsWith('S7') || s.includes('표현 정리')) return 'praise'
-  if (k === 'mark' || k === 'match' || /^S[145]/.test(s)) return 'point'
-  if (turn.no === 0) return 'greeting'
-  return 'explain'
+  return 'listen'
 }
 
 /* ── 에이전트 그라운딩용 "이번 수업 사실" ──
@@ -1594,6 +1595,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
           poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
+          /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(poseForTurn)은
+             사진과 똑같이 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
+          clipSrc={instClip(instructor, poseForTurn(turn, tutorSpeaking))}
+          allClips={instClips(instructor)}
           chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
           getMicFreq={() => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
