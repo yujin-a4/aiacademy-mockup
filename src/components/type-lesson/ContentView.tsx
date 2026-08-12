@@ -296,10 +296,13 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
             <div key={o.label} data-opt={`${qIdx}:${o.label}`}>
               <div className="flex items-center gap-1.5">
                 <button
-                  disabled={!selectable && !optAudio}
-                  onClick={() => (selectable ? st.onSelect(qIdx, o.label) : optAudio ? playOpt() : undefined)}
+                  /* ⚠️ optAudio(보기가 음성인 유형인가)가 아니라 **optPlayable**(지금 틀 수 있나)을 본다.
+                     둘을 헷갈리면 수업 중에도 보기를 눌러 음원이 나간다 — 강사가 들려주기 전에
+                     학생이 먼저 들어버리면 '듣고 고르는' 단계가 성립하지 않는다(실측). */
+                  disabled={!selectable && !optPlayable}
+                  onClick={() => (selectable ? st.onSelect(qIdx, o.label) : optPlayable ? playOpt() : undefined)}
                   className={`flex-1 min-w-0 flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all ${rowCls} ${
-                    selectable || optAudio ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
+                    selectable || optPlayable ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
                   }`}>
                   <span className={`shrink-0 w-6 h-6 rounded-full border-2 text-[11px] font-black flex items-center justify-center ${circleCls}`}>
                     {o.label}
