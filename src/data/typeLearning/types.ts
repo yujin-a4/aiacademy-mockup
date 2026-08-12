@@ -158,6 +158,11 @@ export interface Turn {
   stage: string
   /** 강사 발화 (말풍선 + TTS) — 시트 '자유 표현/말투 예시' 기반 이도윤 톤 */
   tutor: string
+  /** 학생이 **틀렸을 때** 대신 할 말. 시트에 이렇게 적혀 있는 줄이 있다:
+   *    "풀이 결과가 정답일 때 … 잘 맞혔어요! 풀이 결과가 오답일 때 … 같이 확인해볼게요."
+   *  그대로 읽으면 강사가 두 경우를 모두 읊는다 — 갈래를 갈라 담고 화면이 하나만 고른다.
+   *  없으면 `tutor` 를 그대로 쓴다(대부분의 줄). */
+  tutorIfWrong?: string
   audio?: AudioCue
   reveal?: RevealState
   interaction: Interaction

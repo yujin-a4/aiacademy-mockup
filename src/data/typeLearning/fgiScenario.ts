@@ -1380,11 +1380,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "interaction": {
             "kind": "subjective",
             "prompt": "자, 문제 다 풀었으니깐 여기서 포인트 한번 짚고 갈게요. 사진에서 인물이 '지금 ~하고 있다'는 동작을 나타낼 때는 주로 어떤 형태로 표현할까요?",
-            "hint": "be +",
-            "accepts": [
-              "be +",
-              "ing 진행형"
-            ]
+            "hint": "be + -ing 진행형"
           }
         },
         {
@@ -1403,8 +1399,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S5 정답 근거 연결",
-          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 B죠? 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 B였어요. 이런 문제는 시험장 가면 꼭 맞혀주고 넘어가야 해요. 어떤 부분에서 헷갈려서 틀렸는지 같이 확인해볼게요.",
+          "tutor": "이제 선택지 봐볼게요. 정답은 B죠? 잘 맞혔어요!",
           "focusQ": 0,
+          "tutorIfWrong": "이제 선택지 봐볼게요. 정답은 B였어요. 이런 문제는 시험장 가면 꼭 맞혀주고 넘어가야 해요. 어떤 부분에서 헷갈려서 틀렸는지 같이 확인해볼게요.",
           "reveal": {
             "optionText": [
               {
@@ -1424,8 +1421,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 B를 다시 들어볼게요. The woman is painting a picture on an easel. 재생",
+          "tutor": "정답 B를 다시 들어볼게요.",
           "focusQ": 0,
+          "audio": {
+            "kind": "option",
+            "qIdx": 0,
+            "label": "B"
+          },
           "reveal": {
             "optionText": [
               {
@@ -1668,8 +1670,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
-          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 A죠. 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 A였어요. 어떤 부분이 어려웠는지 정답이랑 오답 같이 확인해볼게요.",
+          "tutor": "이제 선택지 봐볼게요. 정답은 A죠. 잘 맞혔어요!",
           "focusQ": 1,
+          "tutorIfWrong": "이제 선택지 봐볼게요. 정답은 A였어요. 어떤 부분이 어려웠는지 정답이랑 오답 같이 확인해볼게요.",
           "reveal": {
             "optionText": [
               {
@@ -1689,8 +1692,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 A를 다시 들어볼게요. Some of the shoes are lined up on the floor. 재생",
+          "tutor": "정답 A를 다시 들어볼게요.",
           "focusQ": 1,
+          "audio": {
+            "kind": "option",
+            "qIdx": 1,
+            "label": "A"
+          },
           "reveal": {
             "optionText": [
               {
@@ -1906,8 +1914,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
-          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 D죠. 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 D였어요. 어떤 부분이 헷갈렸는지 정답이랑 오답을 같이 확인해볼게요.",
+          "tutor": "이제 선택지 봐볼게요. 정답은 D죠. 잘 맞혔어요!",
           "focusQ": 2,
+          "tutorIfWrong": "이제 선택지 봐볼게요. 정답은 D였어요. 어떤 부분이 헷갈렸는지 정답이랑 오답을 같이 확인해볼게요.",
           "reveal": {
             "optionText": [
               {
@@ -1927,8 +1936,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 D를 다시 들어볼게요. Some pots have been lined up on a shelf. 재생",
+          "tutor": "정답 D를 다시 들어볼게요.",
           "focusQ": 2,
+          "audio": {
+            "kind": "option",
+            "qIdx": 2,
+            "label": "D"
+          },
           "reveal": {
             "optionText": [
               {
@@ -2121,8 +2135,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 44,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 D를 다시 들어볼게요. He's picking up an empty cup. 재생",
+          "tutor": "정답 D를 다시 들어볼게요.",
           "focusQ": 0,
+          "audio": {
+            "kind": "option",
+            "qIdx": 0,
+            "label": "D"
+          },
           "reveal": {
             "optionText": [
               {
@@ -2265,8 +2284,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 52,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 A를 다시 들어볼게요. Some artwork is hanging on a wall. 재생",
+          "tutor": "정답 A를 다시 들어볼게요.",
           "focusQ": 1,
+          "audio": {
+            "kind": "option",
+            "qIdx": 1,
+            "label": "A"
+          },
           "reveal": {
             "optionText": [
               {
@@ -2409,8 +2433,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 60,
           "stage": "S5 정답 근거 연결",
-          "tutor": "사람 두 명이 나오는 사진이죠? 이런 사진은 각 인물의 동작을 잘 봐야 해요. 정답 B를 다시 들어볼게요. One of the women is resting her arm on a glass counter. 재생",
+          "tutor": "사람 두 명이 나오는 사진이죠? 이런 사진은 각 인물의 동작을 잘 봐야 해요. 정답 B를 다시 들어볼게요.",
           "focusQ": 2,
+          "audio": {
+            "kind": "option",
+            "qIdx": 2,
+            "label": "B"
+          },
           "reveal": {
             "optionText": [
               {
@@ -2563,8 +2592,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 68,
           "stage": "S5 정답 근거 연결",
-          "tutor": "정답 C를 다시 들어볼게요. Some desktops have been divided with partitions. 재생",
+          "tutor": "정답 C를 다시 들어볼게요.",
           "focusQ": 3,
+          "audio": {
+            "kind": "option",
+            "qIdx": 3,
+            "label": "C"
+          },
           "reveal": {
             "optionText": [
               {
