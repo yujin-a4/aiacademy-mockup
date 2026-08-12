@@ -70,7 +70,13 @@ const SOURCES = [
       ],
     },
   },
-  // { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤' },  ← 유형학습 2 부터 빈칸(0812)
+  /* 이도윤 — 같은 1강, 다른 대본. 표 모양이 윤다은 탭과 다르다:
+       · 한 탭에 강의가 **좌우로 둘** 있다 — 왼쪽(c0~c4) LC 1강, 오른쪽(c8~) RC Part 5(24강).
+         오른쪽은 아직 머리(도입·표 제목)만 있고 내용이 없어서 왼쪽만 읽는다.
+       · 도입이 '화면 텍스트 | AI 강사 대사' 두 칸이다 — 화면 텍스트가 곧 '오늘 배울 내용'.
+       · 본편 사이에 곁가지가 섞여 있다('유형 학습 3 → 실전 문제 버전' = 시간 없을 때 쓰는 대체본,
+         '실전 문제로 넘어갈 때 멘트'). parse 가 홀로 선 제목 줄에서 블록을 닫아 걸러낸다. */
+  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤', range: [0, 8] },
 ]
 
 const go = process.argv.includes('--go')
@@ -149,11 +155,12 @@ function askOf(tutor) {
 }
 
 /** 표 머리 줄에서 열 위치를 찾는다 — 강사마다 낱말이 다르다 */
+const HEADER_TUTOR = ['강사 진행', 'AI 강사 대사', 'AI 강사']
 function columnsOf(row) {
   const cells = (row || []).map((c) => clean(c))
   const find = (...names) => cells.findIndex((c) => names.some((n) => c.includes(n)))
   const stage = find('단계', '스캐폴딩')
-  const tutor = find('강사 진행', 'AI 강사', '강사')
+  const tutor = find(...HEADER_TUTOR)
   const mode = find('학생 방식', '학생 답변 방식', '학생 인터랙션')
   /* 예시 답변 열은 '학생' 으로 시작하는 것이 여럿이라 **방식 열 뒤**에서 찾는다 */
   const sample = cells.findIndex((c, i) => i > mode && (c.includes('답변') || c === '학생'))
@@ -161,57 +168,96 @@ function columnsOf(row) {
   return { stage, tutor, mode, sample }
 }
 
-function parse(tabName) {
+/** 표 머리 줄인가 — 강사 열에 **머리말 낱말**이 있으면 머리 줄이다(발화가 아니라) */
+function isHeaderRow(row, cols) {
+  return !!cols && HEADER_TUTOR.includes(clean((row || [])[cols.tutor]))
+}
+
+/** "1. 사람은 … 2. 사물은 … 3. …" 한 칸 → 세 줄로 */
+function splitPoints(text) {
+  return clean(text).split(/\s*\d+\.\s*/).map((x) => clean(x)).filter(Boolean)
+}
+
+/**
+ * @param range 읽을 열 구간 [from, to). **한 탭에 강의가 좌우로 둘 있는 경우**가 있다
+ *   (FGI_이도윤: 왼쪽 c0~c4 = LC 1강, 오른쪽 c8~ = RC Part 5). 창을 잘라 한쪽만 읽는다.
+ */
+function parse(tabName, range) {
   const tab = JSON.parse(fs.readFileSync(DUMP, 'utf8')).sheets.find((s) => s.name === tabName)
   if (!tab) throw new Error(`시트에 "${tabName}" 탭이 없다 — 콘텐츠팀이 탭 이름을 바꿨는지 볼 것`)
 
   const blocks = []
   let cur = null
   let cols = null
-  for (const row of tab.values) {
-    const c0 = clean((row || [])[0])
-    /* 블록 머리 — 여기서 잘라야 뒤쪽 초안까지 딸려 들어가지 않는다 */
+  for (const raw of tab.values) {
+    const row = range ? (raw || []).slice(range[0], range[1]) : (raw || [])
+    const c0 = clean(row[0])
+
+    /* 블록 머리 — 여기서 잘라야 뒤쪽 초안까지 딸려 들어가지 않는다.
+       '실전 1' 과 '실전 문제 1' 을 같이 받는다(강사마다 다르게 적는다). */
     const head = /^유형 학습\s*\d+$/.test(c0) ? 'lesson'
-      : /^실전\s*\d+$/.test(c0) ? 'practice'
+      : /^실전(\s*문제)?\s*\d+$/.test(c0) ? 'practice'
       : /^도입$/.test(c0) ? 'intro' : null
-    if (head) { cur = { kind: head, turns: [] }; blocks.push(cur); cols = null; continue }
-    if (!cur) continue
-    /* 도입은 표가 아니라 문단이다 — 둘째 칸의 글을 그대로 모은다(이도윤 탭이 이 꼴) */
-    if (cur.kind === 'intro') {
-      const para = clean((row || [])[1])
-      if (para) cur.turns.push({ stage: '도입', tutor: para, mode: '듣기', samples: [] })
+    if (head) {
+      cur = { kind: head, turns: [], script: [], points: [] }
+      blocks.push(cur)
+      cols = null
+      // 머리 줄에 바로 도입 발화가 붙어 있는 꼴도 있다
+      if (head === 'intro' && clean(row[1])) cur.script.push(clean(row[1]))
       continue
     }
+
+    /* ── 홀로 선 제목 줄은 앞 블록을 **닫는다** ──
+       'FGI_이도윤' 에는 본편 말고도 '유형 학습 3 → 실전 문제 버전'(시간이 없을 때 쓰는 대체본),
+       '실전 문제로 넘어갈 때 멘트' 같은 곁가지가 사이사이 들어 있다. 닫지 않으면 그것들이
+       앞 문항의 턴으로 붙어 한 문항이 54턴이 된다(실측). */
+    const lone = c0 && !row.slice(1).some((x) => clean(x))
+    const meta = /^(ID:|사진:|정답:)/.test(c0) || /^YBM_[A-Z0-9_]+$/i.test(c0)
+    if (lone && !meta) { cur = null; cols = null; continue }
+
+    if (!cur) continue
     if (/^ID:/.test(c0)) { cur.srcCode = c0.replace(/^ID:\s*/, ''); continue }
     if (/^YBM_[A-Z0-9_]+$/i.test(c0)) { cur.srcCode = c0; continue }   // ID: 없이 코드만 적은 블록
     if (/^사진:/.test(c0)) { cur.photo = c0.replace(/^사진:\s*/, ''); continue }
     if (/^정답:/.test(c0)) { cur.answer = c0.replace(/^정답:\s*/, '').slice(0, 1); continue }
 
-    const asCols = columnsOf(row)
-    if (asCols && !clean((row || [])[asCols.tutor]).includes('“')) {
-      // 표 머리 줄 ('단계 | 강사 진행 | …')
-      if (/^(단계|스캐폴딩)$/.test(c0) || clean((row || [])[asCols.tutor]) === '강사 진행') { cols = asCols; continue }
+    /* ── 도입은 표가 아니다 ──
+       '화면 텍스트 | AI 강사 대사' 두 칸이고, 화면 텍스트 칸이 곧 '오늘 배울 내용' 이다. */
+    if (cur.kind === 'intro') {
+      if (/^화면 텍스트$/.test(c0)) {
+        cur.introAt = { points: 0, script: row.findIndex((x) => HEADER_TUTOR.includes(clean(x))) }
+        continue
+      }
+      const si = cur.introAt?.script ?? 1
+      const sc = clean(row[si])
+      const pts = cur.introAt ? clean(row[cur.introAt.points]) : ''
+      if (sc) cur.script.push(sc)
+      if (pts) cur.points = splitPoints(pts)
+      continue
     }
+
+    const asCols = columnsOf(row)
+    if (isHeaderRow(row, asCols)) { cols = asCols; continue }
     if (!cols) continue
 
-    const tutor = clean((row || [])[cols.tutor])
+    const tutor = clean(row[cols.tutor])
     if (!tutor) continue        // 빈칸 줄 — 아직 안 쓴 대본이다. 버린다
     cur.turns.push({
-      stage: clean((row || [])[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업',
+      stage: clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업',
       tutor,
-      mode: normMode(cols.mode >= 0 ? (row || [])[cols.mode] : ''),
-      samples: samples(cols.sample >= 0 ? (row || [])[cols.sample] : ''),
+      mode: normMode(cols.mode >= 0 ? row[cols.mode] : ''),
+      samples: samples(cols.sample >= 0 ? row[cols.sample] : ''),
     })
   }
-  return blocks.filter((b) => b.turns.length)
+  return blocks.filter((b) => b.turns.length || b.script.length)
 }
 
-/** 이 턴이 **어느 보기를 지목하고 있는가** — "이번에는 A를 볼게요", "D에서는 …", 단계명 'S6 오답 제거 - A'.
- *  화면은 이걸 보고 그 보기의 스크립트를 연다. 강사가 읽고 있는 문장이 화면에 없으면 못 따라간다.
- *  홀로 선 대문자만 센다 — 영어 문장 속 글자('an easel')를 보기 라벨로 오인하면 안 된다. */
+/** 이 턴이 **어느 보기를 지목하고 있는가** — "이번에는 A를 볼게요", "D에서는 …",
+ *  단계명 'S6 오답 제거 - A' · 'S6 오답 제거 (A)'.
+ *  화면은 이걸 보고 그 보기의 스크립트를 연다. 강사가 읽고 있는 문장이 화면에 없으면 못 따라간다. */
 function labelsOf(t) {
-  /* 단계명에 적혀 있으면 그게 정답이다 — 실전 대본은 'S6 오답 제거 - A' 처럼 짚는 보기를 달고 있다 */
-  const suffix = /[-–]\s*([A-D])\s*$/.exec(t.stage)
+  /* 단계명에 적혀 있으면 그게 정답이다 — 실전 대본은 짚는 보기를 단계명에 달고 있다 */
+  const suffix = /[-–(]\s*([A-D])\s*\)?\s*$/.exec(t.stage)
   if (suffix) return [suffix[1]]
 
   const hit = new Set()
@@ -220,8 +266,8 @@ function labelsOf(t) {
   while ((m = re.exec(t.tutor))) {
     const before = t.tutor.slice(0, m.index).replace(/[\s'"‘’“”]+$/, '').slice(-1)
     const after = t.tutor.slice(m.index + 1).replace(/^['"‘’“”]+/, '').slice(0, 1)
-    /* 영어 구문 속 **자리표시자**는 보기가 아니다 — "pour A into B", "hand A to B", "prop A against B".
-       앞이 영어면 버린다. 그리고 보기 라벨은 뒤에 조사가 붙는다("A를 볼게요", "D에서는", "B예요"). */
+    /* 영어 구문 속 **자리표시자**는 보기가 아니다 — "pour A into B", "hand A to B".
+       앞이 영어면 버린다. 그리고 보기 라벨은 뒤에 조사가 붙는다("A를 볼게요", "D에서는"). */
     if (/[A-Za-z]/.test(before)) continue
     if (!/[가-힣]/.test(after)) continue
     hit.add(m[1])
@@ -269,7 +315,7 @@ function toTurn(t, qIdx, no, seq, kind) {
 }
 
 function build(src) {
-  const blocks = parse(src.tab)
+  const blocks = parse(src.tab, src.range)
   const out = { turns: [], review: [] }
   let no = 0
   let lessonSeq = 0
@@ -278,9 +324,11 @@ function build(src) {
   console.log(`\n══ ${src.instructor} · ${src.lecture} ← "${src.tab}"`)
 
   /* 도입 — 시트에 있으면 시트가 정본, 없으면 설정에 적어 둔 것 */
-  const fromSheet = blocks.filter((b) => b.kind === 'intro').flatMap((b) => b.turns.map((t) => t.tutor))
+  const introBlocks = blocks.filter((b) => b.kind === 'intro')
+  const fromSheet = introBlocks.flatMap((b) => b.script)
+  const sheetPoints = introBlocks.flatMap((b) => b.points)
   const script = fromSheet.length ? fromSheet.join('\n') : src.intro?.script
-  if (script) out.intro = { script, points: src.intro?.points ?? [] }
+  if (script) out.intro = { script, points: sheetPoints.length ? sheetPoints : (src.intro?.points ?? []) }
   console.log(`도입: ${fromSheet.length ? '시트' : src.intro ? '설정' : '없음'}`
     + `${out.intro ? ` · ${out.intro.script.length}자 · 오늘 배울 내용 ${out.intro.points.length}개` : ''}`)
 

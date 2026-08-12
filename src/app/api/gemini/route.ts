@@ -4,6 +4,24 @@ import { PERSONA_PROMPTS } from '@/lib/personaPrompts'
 /* ⚠️ 모델 이름은 구글이 조용히 내린다 — `gemini-2.5-flash` 는 2026-08 기준 신규 사용자에게 404 다
    ("no longer available to new users"). 그래서 질문 기능이 통째로 폴백 문구만 뱉고 있었다(실측).
    모델을 바꿀 때는 반드시 실제 호출로 확인할 것: 목록에 보인다고 쓸 수 있는 게 아니다. */
+/** 말하기 답 판정 — 화면이 낱말 겹침으로 못 가린 것만 여기로 온다.
+ *
+ *  왜 필요한가: 기대 답이 "그림을 그리고 있어요" 일 때 학생이 "이젤 페인팅" 이라고 하면
+ *  겹치는 낱말이 하나도 없어 오답이 됐다(실측). 뜻은 맞는데 말이 다를 뿐이다.
+ *  **애매하면 맞다고 한다** — 시연에서 맞은 답을 틀렸다고 하는 쪽이 훨씬 나쁘다. */
+const JUDGE_PROMPT = `너는 한국어 학습 답안 채점기다. 말투도 설명도 없이 O 또는 X 한 글자만 출력한다.
+
+O — 학생 답이 기대 답과 **같은 것을 가리킨다**. 표현·언어·길이가 달라도 된다.
+  기대 "그림을 그리고 있어요" ← "이젤 페인팅" O · "painting" O · "그림 그려요" O
+  기대 "동작이요" ← "뭘 하는지" O
+  기대 "나란히 놓여 있어요" ← "줄 서 있어요" O
+
+X — 학생 답이 **다른 것을 가리키거나**, 답이 아니다.
+  기대 "그림을 그리고 있어요" ← "밥 먹고 있어요" X · "책 읽어요" X
+  아무 답 ← "몰라요" X · "아무거나" X · "네" X
+
+판단이 반반이면 O 를 낸다. 그러나 **뜻이 분명히 다르면 반드시 X** 다.`
+
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 
@@ -15,6 +33,8 @@ export async function POST(req: NextRequest) {
       correctAnswer,
       userAnswer,
       persona = 'jang',
+      instructor,         // 강사코드(yun_daeun …) — 있으면 **이쪽이 말투를 정한다**
+      judge,              // true 면 말투를 벗고 **O/X 판정기**로 쓴다 (아래 JUDGE_PROMPT)
       history = [],
       imageBase64,        // 필기 캔버스 이미지 (base64 PNG, 선택)
     } = await req.json()
@@ -24,7 +44,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 })
     }
 
-    const systemPrompt = PERSONA_PROMPTS[persona] ?? PERSONA_PROMPTS.jang
+    /* ── 말투를 정하는 것은 강사다 ──
+       `persona`(park·jang·kim…)는 원래 **TTS 파라미터**(말 속도·안정성)를 고르는 키였는데,
+       그 키로 시스템 프롬프트까지 골라서 강사와 다른 사람이 답하고 있었다:
+       윤다은 → 'jang' → "애교 넘치는 장연지" (실측). 강사코드가 오면 그쪽을 먼저 본다.
+       강사별 프롬프트가 아직 없는 강사는 예전대로 persona 로 떨어진다. */
+    const systemPrompt = judge ? JUDGE_PROMPT
+      : (instructor && PERSONA_PROMPTS[instructor])
+      ?? PERSONA_PROMPTS[persona] ?? PERSONA_PROMPTS.jang
 
     /* 대화 이력 구성 (최근 6턴으로 확장) */
     const historyContents = (history as { role: string; text: string }[])
@@ -62,8 +89,11 @@ export async function POST(req: NextRequest) {
         { role: 'user', parts: userParts },
       ],
       generationConfig: {
-        maxOutputTokens: 300,
-        temperature: persona === 'p6tutor' ? 0.7 : 0.8,
+        /* 판정은 한 글자면 되지만 **한도를 넉넉히 준다** — 4 로 조였더니 응답이 통째로 잘려
+           빈 내용에 finishReason=MAX_TOKENS 만 왔다(실측). 빈 답은 '정답' 으로 떨어지므로
+           판정이 사실상 꺼진 채로 전부 통과했다. 온도는 0 — 같은 답은 매번 같게 나와야 한다. */
+        maxOutputTokens: judge ? 16 : 300,
+        temperature: judge ? 0 : persona === 'p6tutor' ? 0.7 : 0.8,
         thinkingConfig: { thinkingBudget: 0 },
       },
     }
