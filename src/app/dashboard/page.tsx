@@ -9,6 +9,7 @@ import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS, INST_MESSAGES, INST_PERSONA } from '@/data/instructorData'
 import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
+import { DEMO_DDAY } from '@/data/curriculumSchedule'
 
 type CallState = 'idle' | 'ringing' | 'active' | 'log'
 
@@ -197,6 +198,7 @@ function RegularDashboard() {
   }, [selectedInstructor, msgIdx, currentMessages])
 
   const ddayLabel = useMemo(() => {
+    if (DEMO_DDAY) return DEMO_DDAY          // 시연 고정값 (내 학습 화면과 같은 값을 써야 한다)
     if (!examDate) return null
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const exam = new Date(examDate); exam.setHours(0, 0, 0, 0)
