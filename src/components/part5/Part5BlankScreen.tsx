@@ -64,7 +64,7 @@ const STUDENT_VARS: Record<string, string> = {
 interface Props { onEnd?: () => void }
 
 function PhaseStepper({ active, onEnd, extra }: { active: number; onEnd: () => void; extra?: React.ReactNode }) {
-  const labels = ['도입', '수업', '실전', '정리']
+  const labels = ['도입', '유형 학습', '실전 문제', '핵심 요약']
   return (
     <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-white border-b border-gray-100 shrink-0">
       <button onClick={onEnd} className="p-1" aria-label="뒤로">

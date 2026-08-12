@@ -18,12 +18,16 @@
 
 여러 번 돌려도 안전하다 — 같은 이름으로 덮어쓴다.
 """
+import io
 import json
 import os
 import re
 import sys
 
 import fitz  # PyMuPDF
+from PIL import Image
+
+DPI = 300   # 교재 사진 원본과 비슷한 픽셀 수가 나오는 값
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -76,21 +80,32 @@ def extract(code, out_dir):
     for info in page.get_images(full=True):
         xref = info[0]
         for r in page.get_image_rects(xref):
-            placed.append((r.y0, xref))
-    placed.sort()
+            placed.append((r.y0, xref, r))
+    placed.sort(key=lambda x: x[0])
     if len(placed) < 2:
         print(f"  ✗ {code}: p{page_no + 1} 에서 사진을 2장 못 찾았다({len(placed)}장) — 지면 구조가 다르다")
         return None
 
-    _, xref = placed[(qno - 1) % 2]
-    img = doc.extract_image(xref)
-    name = f"{code.upper()}.{img['ext']}"
+    _, xref, rect = placed[(qno - 1) % 2]
+    """왜 스트림을 꺼내지 않고 **그 자리를 렌더**하는가 (2026-08-12)
+
+    `doc.extract_image(xref)` 는 PDF 안에 박힌 **원본 바이트를 그대로** 준다. 그런데 그림이
+    어떻게 보일지는 그 바이트만으로 정해지지 않는다 — 이미지 객체에 붙은 색공간과 /Decode 를
+    같이 봐야 한다. 2권의 Part 1 사진들이 정확히 그런 경우라, 스트림만 꺼내면 **흑백이 뒤집혀**
+    나왔다(실측: 원본 페이지와 상관계수 −0.98. 사람 얼굴이 까맣고 머리가 하얬다).
+    1권은 DeviceGray 라 멀쩡했고 — 그래서 절반만 깨진 채로 지나갔다.
+
+    페이지를 렌더하면 뷰어가 그리는 경로를 그대로 타므로 색공간·Decode·마스크가 전부 적용된다.
+    해상도는 dpi 로 정한다(300dpi = 교재 사진 원본과 비슷한 픽셀 수).
+    """
+    pix = page.get_pixmap(clip=rect, dpi=DPI)
+    name = f"{code.upper()}.jpeg"
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, name)
-    with open(path, "wb") as f:
-        f.write(img["image"])
-    kb = len(img["image"]) // 1024
-    print(f"  ✓ {code} → {os.path.relpath(path, ROOT)}  {img['width']}x{img['height']} {kb}KB  (p{page_no + 1})")
+    # 교재 사진은 흑백이다 — 회색조로 저장하면 화질 그대로 파일만 작아진다
+    Image.open(io.BytesIO(pix.tobytes("png"))).convert("L").save(path, "JPEG", quality=88, optimize=True)
+    kb = os.path.getsize(path) // 1024
+    print(f"  ✓ {code} → {os.path.relpath(path, ROOT)}  {pix.width}x{pix.height} {kb}KB  (p{page_no + 1})")
     return path
 
 

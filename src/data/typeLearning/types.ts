@@ -132,7 +132,10 @@ export type Interaction =
   | { kind: 'choice'; prompt: string; choices: { text: string; correct?: boolean }[]; feedback?: string; fixedPrompt?: boolean }
   | { kind: 'pickAnswer'; qIdx: number; prompt?: string }              // 필수 응답 — 보기에서 정답 선택
   | { kind: 'solveAll'; prompt?: string }                              // 전체 문항 풀기(실전 턴)
-  | { kind: 'subjective'; prompt: string; hint?: string }              // 주관식 — 텍스트/음성
+  /** 주관식 — 텍스트/음성. `hint` 는 못 맞혔을 때 강사가 읽어주는 **한 문장**이고,
+   *  `accepts` 는 정답으로 받아줄 답이 여럿일 때의 나머지다(시트가 예시 답변을 여러 줄 적어 둔 경우).
+   *  둘을 나누는 이유 — 셋을 이어 읽으면 교정 발화가 말이 안 된다. */
+  | { kind: 'subjective'; prompt: string; hint?: string; accepts?: string[] }
   | { kind: 'mark'; prompt: string; targetWords?: string[] }           // 필수 수행 — 단어 탭 하이라이트(+필기)
   | { kind: 'match'; prompt: string; evidence: MatchEvidence[] }       // 근거 연결(이중·삼중) — 지문에서 직접 탭
   /* 쉐도잉(따라 말하기)은 제품에서 제외됐다(2026-08-04) — 기능·버튼·데이터 전부 삭제.
