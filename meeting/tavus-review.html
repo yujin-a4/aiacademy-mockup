@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>실시간 AI 강사 기술 검토 — Tavus</title>
+<style>
+  :root {
+    --ground:#F6F8FC; --surface:#FFFFFF; --surface-2:#FAFBFE;
+    --line:#E2E7F0; --line-strong:#CBD3E1;
+    --ink:#101623; --ink-2:#3E4859; --ink-3:#6B7688;
+    --brand:#1B45C4; --brand-ink:#1B45C4; --brand-soft:#EAEFFC; --brand-line:#C9D6F7;
+    --ok:#17795A; --ok-soft:#E4F4EC; --ok-line:#BFE3D2;
+    --warn:#9A6410; --warn-soft:#FBF1DE; --warn-line:#EDD9AF;
+    --stop:#B93A2C; --stop-soft:#FBEBE8; --stop-line:#F0C9C2;
+    --shadow:0 1px 2px rgba(16,22,35,.04), 0 8px 24px -16px rgba(16,22,35,.18);
+    --sans:"Pretendard Variable","Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+    --mono:ui-monospace,"SFMono-Regular","SF Mono",Menlo,Consolas,"D2Coding",monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0D1017; --surface:#141922; --surface-2:#1A202B;
+      --line:#262E3B; --line-strong:#38414F;
+      --ink:#E8ECF3; --ink-2:#B3BCC9; --ink-3:#7E8899;
+      --brand:#7A9BFF; --brand-ink:#9DB4FF; --brand-soft:#18213A; --brand-line:#2C3A5E;
+      --ok:#4CC38F; --ok-soft:#12291F; --ok-line:#1F4535;
+      --warn:#E0A94A; --warn-soft:#2A2113; --warn-line:#4A3A1B;
+      --stop:#F0766A; --stop-soft:#2C1714; --stop-line:#4D2822;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0D1017; --surface:#141922; --surface-2:#1A202B;
+    --line:#262E3B; --line-strong:#38414F;
+    --ink:#E8ECF3; --ink-2:#B3BCC9; --ink-3:#7E8899;
+    --brand:#7A9BFF; --brand-ink:#9DB4FF; --brand-soft:#18213A; --brand-line:#2C3A5E;
+    --ok:#4CC38F; --ok-soft:#12291F; --ok-line:#1F4535;
+    --warn:#E0A94A; --warn-soft:#2A2113; --warn-line:#4A3A1B;
+    --stop:#F0766A; --stop-soft:#2C1714; --stop-line:#4D2822;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+
+  *, *::before, *::after { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  a { color:var(--brand-ink); text-underline-offset:3px; }
+  :focus-visible { outline:2px solid var(--brand); outline-offset:3px; border-radius:4px; }
+
+  .topbar {
+    position:fixed; inset:0 0 auto 0; height:56px; z-index:40;
+    display:flex; align-items:center; gap:12px; padding:0 20px;
+    background:var(--surface); border-bottom:1px solid var(--line);
+  }
+  .topbar .mark {
+    width:26px; height:26px; border-radius:7px; flex:none;
+    background:var(--brand); color:#fff; display:grid; place-items:center;
+    font-size:12px; font-weight:700; letter-spacing:-.02em;
+  }
+  .topbar h1 { margin:0; font-size:.9375rem; font-weight:600; letter-spacing:-.01em; }
+  .topbar .meta { margin-left:auto; font-size:.75rem; color:var(--ink-3); font-family:var(--mono); }
+  .navtoggle {
+    display:none; width:32px; height:32px; flex:none; padding:0;
+    background:none; border:1px solid var(--line); border-radius:8px;
+    color:var(--ink-2); cursor:pointer; font-size:14px; line-height:1;
+  }
+
+  .sidebar {
+    position:fixed; top:56px; bottom:0; left:0; width:250px; z-index:30;
+    overflow-y:auto; padding:22px 14px 60px;
+    background:var(--surface); border-right:1px solid var(--line);
+  }
+  .sidebar .eyebrow {
+    font-size:.6875rem; font-weight:700; letter-spacing:.08em;
+    color:var(--ink-3); padding:0 10px; margin:0 0 8px;
+  }
+  .sidebar ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; }
+  .sidebar a {
+    display:flex; gap:9px; padding:7px 10px; border-radius:7px;
+    font-size:.8125rem; line-height:1.45; color:var(--ink-2);
+    text-decoration:none; border-left:2px solid transparent;
+  }
+  .sidebar a .n { font-family:var(--mono); font-size:.75rem; color:var(--ink-3); flex:none; }
+  .sidebar a:hover { background:var(--surface-2); color:var(--ink); }
+  .sidebar a.on { background:var(--brand-soft); color:var(--brand-ink); font-weight:600; border-left-color:var(--brand); }
+  .sidebar a.on .n { color:var(--brand-ink); }
+
+  main { margin:56px 0 0 250px; padding:44px 32px 120px; }
+  .col { max-width:840px; margin:0 auto; display:flex; flex-direction:column; gap:48px; }
+
+  .lede h2 {
+    margin:0; font-size:2rem; line-height:1.28;
+    font-weight:700; letter-spacing:-.035em; text-wrap:balance;
+  }
+  .lede p { margin:0; font-size:1.0625rem; color:var(--ink-2); max-width:62ch; }
+  .lede .tag {
+    display:inline-block; margin-bottom:14px; padding:4px 11px;
+    background:var(--brand-soft); border:1px solid var(--brand-line);
+    color:var(--brand-ink); border-radius:99px; font-size:.75rem; font-weight:600;
+  }
+
+  section { scroll-margin-top:76px; display:flex; flex-direction:column; gap:16px; }
+  section > h3 {
+    margin:0; padding-bottom:12px; border-bottom:1px solid var(--line);
+    font-size:1.375rem; font-weight:700; letter-spacing:-.025em;
+    display:flex; align-items:baseline; gap:11px; text-wrap:balance;
+  }
+  section > h3 .n { font-family:var(--mono); font-size:.875rem; font-weight:600; color:var(--brand-ink); flex:none; }
+  h4 { margin:8px 0 -4px; font-size:.9375rem; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+  section p { margin:0; color:var(--ink-2); max-width:68ch; }
+  section p strong, li strong, td strong, th strong { color:var(--ink); font-weight:600; }
+  .note { font-size:.8125rem; color:var(--ink-3); }
+  ul.plain { margin:0; padding-left:1.15em; color:var(--ink-2); display:flex; flex-direction:column; gap:5px; }
+  ul.plain li::marker { color:var(--ink-3); }
+
+  .tw { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+  table { border-collapse:collapse; width:100%; min-width:520px; font-size:.9375rem; }
+  th, td { padding:10px 15px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); line-height:1.6; }
+  thead th { background:var(--surface-2); font-size:.75rem; font-weight:700; letter-spacing:.05em; color:var(--ink-3); white-space:nowrap; }
+  tbody tr:last-child td, tbody tr:last-child th { border-bottom:0; }
+  tbody th { font-weight:600; color:var(--ink); white-space:nowrap; }
+  td { color:var(--ink-2); }
+  .num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--ink); }
+  .hot { color:var(--stop); }
+  .cool { color:var(--ok); }
+  .key-cell { color:var(--ink); font-weight:600; }
+  .jump { font-weight:600; text-decoration:none; border-bottom:1px solid var(--brand-line); white-space:nowrap; }
+  .jump:hover { border-bottom-color:var(--brand); }
+
+  .p { display:inline-block; padding:1px 9px; border-radius:99px; font-size:.75rem; font-weight:700; white-space:nowrap; border:1px solid transparent; }
+  .p-ok   { background:var(--ok-soft);    color:var(--ok);        border-color:var(--ok-line); }
+  .p-warn { background:var(--warn-soft);  color:var(--warn);      border-color:var(--warn-line); }
+  .p-no   { background:var(--stop-soft);  color:var(--stop);      border-color:var(--stop-line); }
+  .p-info { background:var(--brand-soft); color:var(--brand-ink); border-color:var(--brand-line); }
+  .p-off  { background:var(--surface-2);  color:var(--ink-3);     border-color:var(--line-strong); }
+
+  .verdicts { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .v {
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:17px 18px 19px; box-shadow:var(--shadow);
+    display:flex; flex-direction:column; gap:7px;
+  }
+  .v .k { font-size:.75rem; font-weight:700; letter-spacing:.06em; color:var(--ink-3); }
+  .v .h { font-size:1.0625rem; font-weight:700; letter-spacing:-.02em; line-height:1.4; }
+  .v.ok .h { color:var(--ok); } .v.warn .h { color:var(--warn); } .v.no .h { color:var(--stop); }
+  .v p { font-size:.875rem; line-height:1.6; color:var(--ink-2); margin:0; }
+
+  .call { border-radius:12px; padding:14px 17px; border:1px solid var(--line); background:var(--surface); display:flex; flex-direction:column; gap:5px; }
+  .call .k { font-size:.75rem; font-weight:700; letter-spacing:.05em; }
+  .call p { font-size:.9375rem; margin:0; color:var(--ink); max-width:none; }
+  .call.key  { background:var(--brand-soft); border-color:var(--brand-line); }
+  .call.key .k { color:var(--brand-ink); }
+  .call.risk { background:var(--stop-soft); border-color:var(--stop-line); }
+  .call.risk .k { color:var(--stop); }
+
+  code { font-family:var(--mono); font-size:.875em; padding:1px 5px; border-radius:5px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); }
+
+  footer { border-top:1px solid var(--line); padding-top:20px; font-size:.8125rem; color:var(--ink-3); display:flex; flex-direction:column; gap:8px; }
+  footer p { margin:0; }
+  footer a { color:var(--ink-3); }
+  footer .srcs { display:flex; flex-wrap:wrap; gap:5px 14px; }
+
+  @media (max-width:1020px) { .verdicts { grid-template-columns:1fr; } }
+  @media (max-width:860px) {
+    .navtoggle { display:block; }
+    .sidebar { transform:translateX(-100%); transition:transform .18s ease; box-shadow:var(--shadow); }
+    .sidebar.open { transform:translateX(0); }
+    main { margin-left:0; padding:32px 20px 100px; }
+    .lede h2 { font-size:1.6875rem; }
+    .topbar .meta { display:none; }
+  }
+  @media print {
+    .topbar, .sidebar, .navtoggle { display:none; }
+    main { margin:0; padding:0; }
+    section { break-inside:avoid; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="navtoggle" id="navtoggle" aria-label="목차 열기">☰</button>
+  <span class="mark">T</span>
+  <h1>실시간 AI 강사 기술 검토 — Tavus</h1>
+  <span class="meta">2026-08-12 · YBM AI LAB</span>
+</div>
+
+<nav class="sidebar" id="sidebar" aria-label="목차">
+  <p class="eyebrow">목차</p>
+  <ol>
+    <li><a href="#s0"><span class="n">0</span><span>결론</span></a></li>
+    <li><a href="#s1"><span class="n">1</span><span>무엇을 사는가</span></a></li>
+    <li><a href="#s2"><span class="n">2</span><span>강사 얼굴 생성</span></a></li>
+    <li><a href="#s3"><span class="n">3</span><span>연동 방식 3안</span></a></li>
+    <li><a href="#s4"><span class="n">4</span><span>기술 사양</span></a></li>
+    <li><a href="#s5"><span class="n">5</span><span>비용</span></a></li>
+    <li><a href="#s6"><span class="n">6</span><span>실측 필요 항목</span></a></li>
+    <li><a href="#s7"><span class="n">7</span><span>미사용 결정 기능</span></a></li>
+    <li><a href="#s8"><span class="n">8</span><span>로드맵</span></a></li>
+  </ol>
+</nav>
+
+<main>
+<div class="col">
+
+  <div class="lede">
+    <span class="tag">기술 검토 · 의사결정용</span>
+    <h2>Tavus 실시간 휴먼 도입 검토</h2>
+  </div>
+
+  <!-- 0 -->
+  <section id="s0">
+    <h3><span class="n">00</span>결론</h3>
+
+    <div class="verdicts">
+      <div class="v warn">
+        <span class="k">기술</span>
+        <span class="h">웹 가능 · 앱 미검증</span>
+        <p>얼굴 복제, 실시간 발화, 턴 교대 모두 상용 수준(응답 0.6초). 단
+           <strong>공식 문서에 모바일·RN 관련 기술이 없어</strong> 앱 적용은 사례·보증이 없는 상태다.
+           자사 서비스는 앱 기반이므로 선결 과제.</p>
+      </div>
+      <div class="v no">
+        <span class="k">비용</span>
+        <span class="h">수업 전체 적용 불가</span>
+        <p>화면 노출 1분당 과금. 전 구간 적용 시 학생 1인 <strong>월 원가 13만 원</strong> — 구독료를 초과.</p>
+      </div>
+      <div class="v warn">
+        <span class="k">미확인</span>
+        <span class="h">한국어 품질</span>
+        <p>한국어 지원은 명시돼 있으나 립싱크 정확도·실지연은 비공개. 검증에는 유료 계정이 필요.</p>
+      </div>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>판정</th><th>내용</th><th>상세</th></tr></thead>
+        <tbody>
+          <tr><th>강사 얼굴 복제</th><td><span class="p p-ok">가능</span></td>
+              <td>사진·영상 모두. 영상은 신규 촬영·초상권 계약 선행</td>
+              <td><a class="jump" href="#s2">2장</a></td></tr>
+          <tr><th>수업 설계 유지</th><td><span class="p p-ok">가능</span></td>
+              <td>얼굴만 사용하고 LLM, TTS, STT는 우리 것으로 하여 스캐폴딩 수업 설계 유지 가능.
+                  그러나 얼굴만 사용한다고 해서 비용은 줄어들지 않음.</td>
+              <td><a class="jump" href="#s3">3장</a></td></tr>
+          <tr><th>응답 속도</th><td><span class="p p-warn">조건부</span></td>
+              <td>영어 0.6초. 한국어는 저속 엔진 강제</td>
+              <td><a class="jump" href="#s4">4장</a></td></tr>
+          <tr><th>한국어 립싱크</th><td><span class="p p-warn">미확인</span></td>
+              <td class="key-cell">도입 가부를 가르는 관문</td>
+              <td><a class="jump" href="#s6">6장</a></td></tr>
+          <tr><th>한·영 코드스위칭</th><td><span class="p p-warn">미확인</span></td>
+              <td class="key-cell">수업 발화 특성상 필수 조건</td>
+              <td><a class="jump" href="#s6">6장</a></td></tr>
+          <tr><th>전 구간 원가</th><td><span class="p p-no">불가</span></td>
+              <td>1인 월 13만 원 — 구독료 초과</td>
+              <td><a class="jump" href="#s5">5장</a></td></tr>
+          <tr><th>구간 한정 원가</th><td><span class="p p-ok">가능</span></td>
+              <td>1인 월 2.2만 원</td>
+              <td><a class="jump" href="#s5">5장</a></td></tr>
+          <tr><th>모바일 앱</th><td><span class="p p-warn">미검증</span></td>
+              <td class="key-cell">공식 문서에 모바일·RN 언급 자체가 없음. 우회 구현 또는 웹뷰 대체가 필요하며
+                  자사 서비스가 앱 기반이라 선결 과제</td>
+              <td><a class="jump" href="#s4">4장</a> · <a class="jump" href="#s6">6장</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h3><span class="n">01</span>무엇을 사는가</h3>
+    <p>실시간 AI 강사는 네 개 층으로 구성된다. 우리는 이 중 <strong>얼굴 층만 없다.</strong></p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>층</th><th>역할</th><th>우리 현황</th></tr></thead>
+        <tbody>
+          <tr><th>인식(STT)</th><td>학생 발화를 텍스트로 변환</td><td><span class="p p-ok">보유</span></td></tr>
+          <tr><th>판단(LLM)</th><td>무엇을 말할지 결정</td><td><span class="p p-ok">보유</span> 강사별 레일·단계 게이트</td></tr>
+          <tr><th>발화(TTS)</th><td>텍스트를 음성으로 변환</td><td><span class="p p-ok">보유</span> 강사 음원 503개</td></tr>
+          <tr><th class="key-cell">얼굴</th><td>음성에 맞춰 입·표정 렌더링</td><td><span class="p p-no">없음</span> 사전 촬영 클립으로 대체 중</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>도입으로 얻는 것</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>수준</th><th>내용</th><th>현재</th><th>도입 후</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>강사 얼굴이 화면에 노출</td><td><span class="p p-ok">가능</span></td><td><span class="p p-ok">가능</span></td></tr>
+          <tr><td>2</td><td class="key-cell">대본에 없는 발화를 실시간 생성</td><td><span class="p p-no">불가</span></td><td><span class="p p-ok">가능</span> — 도입 목적</td></tr>
+          <tr><td>3</td><td>학생 표정·시선을 인식해 반응</td><td><span class="p p-no">불가</span></td><td><span class="p p-off">미사용 결정</span> <a class="jump" href="#s7">7장</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h3><span class="n">02</span>강사 얼굴 생성</h3>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th></th><th>이미지 기반</th><th>영상 기반</th></tr></thead>
+        <tbody>
+          <tr><th>입력</th><td>정면 사진 1장</td><td>발화 1분 + <strong>무음 1분</strong></td></tr>
+          <tr><th>소요</th><td class="num">수 초</td><td class="num">4~6시간</td></tr>
+          <tr><th>결과 차이</th><td>얼굴은 동일, 개인 특유의 표정·습관은 소실</td><td>표정·습관까지 재현</td></tr>
+          <tr><th>기능 차이</th><td colspan="2">없음 — 동일 엔진(Phoenix-4)</td></tr>
+          <tr><th>적용</th><td>AI 가상 강사, 프로토타입</td><td class="key-cell">실제 강사 복제</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>실제 강사 복제 시 제약</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>내용</th><th>조치</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>동의 녹음 의무</th>
+            <td>영상 서두에 본인 육성 동의 문구가 없으면 학습 실패</td>
+            <td class="key-cell">기존 촬영본 재사용 불가 — 신규 촬영 필요</td>
+          </tr>
+          <tr>
+            <th>촬영 조건</th>
+            <td>눈높이 카메라 · 얼굴 화면 25% 이상 · 손동작 금지 · 1~2문장마다 입 닫고 정지 · 균일 조명</td>
+            <td>강의 촬영 톤과 상이. 별도 세션 편성</td>
+          </tr>
+          <tr>
+            <th>초상권</th>
+            <td>Tavus 동의는 Tavus 학습용. YBM의 활용 범위·기간은 별건</td>
+            <td class="key-cell">강사별 AI 복제본 활용 계약 선행</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h3><span class="n">03</span>연동 방식 3안</h3>
+    <p>Tavus는 4개 층을 묶어 판매한다. 어디까지 대체할지에 따라 3안이 나온다.</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>안</th><th>Tavus 담당</th><th>우리 담당</th><th>평가</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>A · 전체</th>
+            <td>인식·판단·발화·얼굴</td>
+            <td>—</td>
+            <td>구축 최속. 단 <strong>레일·단계 게이트가 전부 무효</strong>가 되어 화면·발화 불일치 문제가 재발</td>
+          </tr>
+          <tr>
+            <th>B · 판단만 자체 <span class="p p-info">권장</span></th>
+            <td>인식·발화·얼굴</td>
+            <td>판단(LLM)</td>
+            <td class="key-cell">수업 설계를 유지한 채 얼굴만 확보. 연동 규격이 업계 표준이라 접합 용이</td>
+          </tr>
+          <tr>
+            <th>C · 얼굴만</th>
+            <td>얼굴</td>
+            <td>인식·판단·발화</td>
+            <td>완전 통제 + 기존 음원 재활용. 단 턴 교대·끼어들기 제어를 전부 자체 구현해야 함</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call key">
+      <span class="k">B안 권장 근거</span>
+      <p>A안은 <code>docs/tutor-control-plan.md</code> 기준으로 구축한 발화 통제 구조를 폐기하게 된다.
+         해당 문제는 실시간 적용 구간이 길어질수록 커진다.</p>
+    </div>
+
+    <p class="note">개발 범위 — 자체 튜터 서버를 <code>OpenAI /chat/completions</code> + SSE 규격으로 노출하는 어댑터 1종.
+       설정은 <code>base_url</code>·<code>api_key</code>·<code>model</code> 3개.</p>
+
+    <div class="call risk">
+      <span class="k">3안의 비용은 동일하다</span>
+      <p>Tavus 요금은 <strong>세션 분 단위 단일 과금</strong>이며 층별로 나눠 사지 않는다.
+         B·C안으로 층을 덜어내도 <strong>분당 단가는 그대로이고</strong>, 자체 LLM·TTS 비용이 그 위에 추가된다.
+         즉 3안의 선택 기준은 비용이 아니라 <strong>수업 통제권</strong>이다.</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h3><span class="n">04</span>기술 사양</h3>
+    <p class="note">공식 문서·제품 발표 기준. 확인 불가 항목은 <span class="p p-warn">미공개</span>로 표기.</p>
+
+    <h4>응답 속도</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>수치</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><th>발화 종료 → 응답 시작</th><td class="num">약 600ms</td><td>공식 수치</td></tr>
+          <tr><th>발화 종료 판정</th><td class="num">55ms</td><td>턴테이킹 모델(Sparrow-1) 중앙값</td></tr>
+          <tr><th>대화 자연성 임계</th><td class="num">200~500ms</td><td>초과 시 침묵으로 인지</td></tr>
+          <tr><th>국내 접속 실지연</th><td><span class="p p-warn">미공개</span></td><td>서버 리전 비공개. 실측 필요</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>렌더링</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>사양</th></tr></thead>
+        <tbody>
+          <tr><th>해상도 / 프레임</th><td class="num">1080p · 40fps</td></tr>
+          <tr><th>오디오</th><td class="num">24kHz</td></tr>
+          <tr><th>범위</th><td>머리 ~ 어깨</td></tr>
+          <tr><th>동시성</th><td>Full-duplex. 학생 발화 중에도 청취 리액션(끄덕임·표정) 유지</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>인식 엔진 — 한국어 제약 발생 지점</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>엔진</th><th>특성</th><th>한국어</th></tr></thead>
+        <tbody>
+          <tr><th>tavus-auto</th><td>언어별 자동 선택 (기본값)</td><td><span class="p p-ok">지원</span></td></tr>
+          <tr><th>tavus-parakeet</th><td class="key-cell">최저 지연</td><td><span class="p p-no">불가</span> 영어·유럽어 전용</td></tr>
+          <tr><th>tavus-whisper</th><td>최광범위 언어</td><td><span class="p p-ok">지원</span></td></tr>
+          <tr><th>tavus-soniox</th><td>인도계 언어 특화</td><td><span class="p p-off">해당 없음</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call risk">
+      <span class="k">핵심 리스크</span>
+      <p>한국어는 최저 지연 엔진(parakeet)을 사용할 수 없어 whisper 계열로 강제된다.
+         <strong>공식 600ms는 영어 기준일 개연성이 높으며</strong>, 한국어 실지연은 별도 측정이 필요하다.</p>
+    </div>
+
+    <p class="note"><code>hotwords</code> 설정으로 인식 취약 어휘를 사전 등록할 수 있다 — 파트 번호, 보기 기호, 문법 용어 등.</p>
+
+    <h4>발화 엔진</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>선택지</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><th>Cartesia</th><td>기본값</td></tr>
+          <tr><th class="key-cell">ElevenLabs</th><td><strong>현재 사용 중인 엔진.</strong> 기존 강사 보이스 이식 가능</td></tr>
+          <tr><th>Azure</th><td>선택 가능</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>세션 파라미터</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>값</th><th>활용</th></tr></thead>
+        <tbody>
+          <tr><th>최대 세션</th><td class="num">기본 3,600초</td><td>1강 분량 충분</td></tr>
+          <tr><th>무응답 종료</th><td class="num">기본 300초</td><td class="key-cell">미접속 세션 과금 차단</td></tr>
+          <tr><th>그린스크린</th><td>지원</td><td class="key-cell">시험지 화면 위에 강사 오버레이 배치 가능</td></tr>
+          <tr><th>실시간 자막</th><td>지원</td><td>세션 중 발화를 영상 위에 자막으로 표시. 자체 UI로 대체 가능</td></tr>
+          <tr><th>웹훅</th><td>세션 상태 콜백</td><td>세션 시작·종료를 학습 기록에 연동</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>클라이언트 지원</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>환경</th><th>지원</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><th>웹</th><td><span class="p p-ok">공식</span></td>
+              <td>공식 연동 경로 5종 — React 컴포넌트 · iframe · Vanilla JS · Node/Express · Daily SDK</td></tr>
+          <tr><th>앱 (Expo/RN)</th><td><span class="p p-warn">언급 없음</span></td>
+              <td><strong>공식 문서에 모바일·React Native 관련 기술이 전혀 없다.</strong>
+                  불가로 명시된 것이 아니라 지원 표명 자체가 없는 상태.
+                  기반 인프라(Daily)가 RN 라이브러리를 별도 제공하므로 이론상 가능하나,
+                  Tavus 측 사례·보증이 없어 직접 검증해야 한다</td></tr>
+          <tr><th>앱 내 웹뷰</th><td><span class="p p-warn">대안</span></td>
+              <td>공식 iframe 경로가 있어 앱 안에서 웹뷰로 띄우는 방식은 성립 가능성이 높다.
+                  RN 직접 연동이 실패할 경우의 대체안</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h3><span class="n">05</span>비용</h3>
+    <p>과금은 <strong>영상 노출 시간(분)</strong>과 <strong>동시 세션 수</strong> 두 축이다.</p>
+
+    <h4>과금 구조 — 단일 요금</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><th>과금 단위</th><td>대화 세션의 <strong>노출 분</strong>. 인식·판단·발화·얼굴 4개 층이 단가에 모두 포함</td></tr>
+          <tr><th class="key-cell">층별 분리 구매</th><td class="key-cell"><span class="p p-no">불가</span>
+              자체 LLM·자체 음원을 써도 <strong>분당 단가는 동일</strong>하며, 해당 비용이 별도로 추가된다</td></tr>
+          <tr><th>최소 과금</th><td>대화 1건당 <strong>30초</strong>. 짧은 세션을 잘게 쪼갤수록 손실 발생</td></tr>
+          <tr><th>음성 전용 할인</th><td>미제공 (도입 예정으로만 공지)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">아래 원가는 Tavus 요금만 반영한 하한선이다. B·C안 채택 시 자체 LLM·TTS 비용이 추가된다 — <a class="jump" href="#s3">3장</a>.</p>
+
+    <h4>전 구간 적용 시</h4>
+    <p class="note">1강 30분 · 최상위 요금제 단가(분당 약 364원) · 환율 1,400원 기준</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>범위</th><th>사용량</th><th>원가</th></tr></thead>
+        <tbody>
+          <tr><th>1인 · 1강</th><td class="num">30분</td><td class="num">약 1.1만 원</td></tr>
+          <tr><th>1인 · 월 12강</th><td class="num">360분</td><td class="num hot">약 13만 원 / 월</td></tr>
+          <tr><th>1인 · 정규 42강</th><td class="num">1,260분</td><td class="num hot">약 46만 원</td></tr>
+          <tr><th>300명 파일럿 · 월</th><td class="num">108,000분</td><td class="num hot">약 3,900만 원 / 월</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call risk">
+      <span class="k">사업성 판단</span>
+      <p>온라인 어학 서비스 구독료가 월 3~5만 원대인데 원가만 13만 원이다.
+         <strong>전 구간 실시간 적용은 현 단가에서 성립하지 않는다.</strong></p>
+    </div>
+
+    <h4>구간 한정 적용 시</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>설계</th><th>적용 구간</th><th>1인 월 원가</th></tr></thead>
+        <tbody>
+          <tr><th>전 구간</th><td>30분 수업 전체</td><td class="num hot">약 13만 원</td></tr>
+          <tr><th class="key-cell">핵심 구간 <span class="p p-info">권장</span></th><td>도입 + 오답 코칭 (회당 5분)</td><td class="num cool">약 2.2만 원</td></tr>
+          <tr><th>최소 적용</th><td>주 1회 관리 코칭 (5분)</td><td class="num cool">약 0.7만 원</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>적용 구간 설계가 곧 원가 설계다.</strong> 개발 착수 전에 확정해야 한다.</p>
+
+    <h4>요금제와 동시 세션</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>요금제</th><th>월 비용</th><th>포함 시간</th><th>동시 세션</th><th>얼굴 슬롯</th></tr></thead>
+        <tbody>
+          <tr><th>무료</th><td class="num">0</td><td class="num">25분</td><td class="num">1</td><td class="num">0</td></tr>
+          <tr><th>Starter</th><td class="num">약 8만 원</td><td class="num">100분</td><td class="num">3</td><td class="num">3</td></tr>
+          <tr><th>Growth</th><td class="num">약 56만 원</td><td class="num">1,250분</td><td class="num">10</td><td class="num">7</td></tr>
+          <tr><th>Business</th><td class="num">약 137만 원</td><td class="num">4,000분</td><td class="num">15</td><td class="num">15</td></tr>
+          <tr><th>Enterprise</th><td>협의</td><td>협의</td><td>협의</td><td>무제한</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain">
+      <li><strong>내부 테스트</strong> — 10명 내외 동시 시연에도 Starter(3세션)는 부족. <strong>Growth 이상 필요.</strong></li>
+      <li><strong>300명 파일럿</strong> — 피크 시간대 20% 중첩만 가정해도 60세션. <strong>Enterprise 협의 불가피.</strong></li>
+    </ul>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h3><span class="n">06</span>실측 필요 항목</h3>
+    <p>공개 자료로 판단 불가한 항목이다. <strong>1·2번 중 하나라도 실패하면 도입 불가다.</strong></p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>항목</th><th>쟁점</th><th>실패 시</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td><th>한국어 립싱크</th>
+            <td>한국어 음소 기준 학습 여부 비공개. 영어권 서비스의 통상 취약점</td>
+            <td><span class="p p-no">도입 불가</span></td>
+          </tr>
+          <tr>
+            <td>2</td><th>한·영 코드스위칭</th>
+            <td>수업 발화가 한국어 설명 + 영어 예문 혼용. Tavus는 단일 언어 고정을 권고</td>
+            <td><span class="p p-no">도입 불가</span></td>
+          </tr>
+          <tr>
+            <td>3</td><th>국내 실지연</th>
+            <td>공식 600ms는 영어 추정치. 리전 비공개, 한국어는 저속 엔진 강제 — <a class="jump" href="#s4">4장</a></td>
+            <td><span class="p p-warn">설계 변경</span> 1.5초 초과 시 수업 리듬 붕괴</td>
+          </tr>
+          <tr>
+            <td>4</td><th>자체 음원 립싱크</th>
+            <td>기존 강사 음원 503개 재활용 가능 여부</td>
+            <td><span class="p p-warn">비용 증가</span> 보이스 재제작</td>
+          </tr>
+          <tr>
+            <td>5</td><th>앱(Expo/RN) 구동</th>
+            <td>공식 SDK 없음. 기반 인프라(Daily)의 RN 라이브러리로 직접 구현.
+                <strong>자사 서비스가 앱 기반이므로 웹 검증만으로는 판단 불가</strong></td>
+            <td><span class="p p-warn">설계 변경</span> 웹뷰 방식 대체 검토</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>검증 조건</h4>
+    <p>무료(Basic)는 <strong>커스텀 얼굴 0슬롯 · 제공 얼굴만</strong> 사용 가능해 강사 복제를 전제로 한 검증이 불가하다.
+       실측하려면 최소 <strong>Starter(월 약 8만 원 · 100분 · 얼굴 3슬롯)</strong> 결제가 선행돼야 한다.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>항목</th><th>필요 조건</th></tr></thead>
+        <tbody>
+          <tr><th>1 · 립싱크</th><td>강사 얼굴 슬롯 필요 → <strong>Starter 이상</strong></td></tr>
+          <tr><th>2 · 코드스위칭</th><td>동일</td></tr>
+          <tr><th>3 · 실지연</th><td>동일. 국내 회선에서 측정</td></tr>
+          <tr><th>4 · 자체 음원</th><td>동일. 에코 모드로 기존 mp3 주입</td></tr>
+          <tr><th>5 · 앱 구동</th><td>RN 프로젝트에서 세션 접속·영상 재생 확인. <strong>별도 스파이크 필요</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h3><span class="n">07</span>미사용 결정 기능</h3>
+    <p>제공되지만 우리 서비스에는 적용하지 않기로 한 기능이다. 설정으로 켤 수 있어 기록만 남긴다.</p>
+
+    <h4>학생 인식 층 (Raven-1) — 기본 활성, 비활성화 가능</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>감지 항목</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><th>표정 · 외양</th><td>학생의 얼굴 표정과 겉모습</td></tr>
+          <tr><th>시선</th><td>화면 응시 여부 및 집중도</td></tr>
+          <tr><th>음성 톤</th><td>답답함·혼란 등 정서 신호</td></tr>
+          <tr><th>발화 속도</th><td>말의 빠르기 변화</td></tr>
+          <tr><th>환경</th><td>화면 내 사물, 복수 인원 존재 여부</td></tr>
+          <tr><th>화면 공유</th><td>공유 화면 내용 해석 (기본 활성)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call key">
+      <span class="k">비활성화가 유리한 근거</span>
+      <p><strong>규정</strong> EU AI Act가 교육 현장 감정 인식을 제한 · <strong>동의</strong> 학생 영상 해석은 별도 고지 대상 ·
+         <strong>성능</strong> 처리 단계 축소</p>
+    </div>
+
+    <h4>기타</h4>
+    <div class="tw">
+      <table>
+        <thead><tr><th>기능</th><th>내용</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><th>43개 언어</th><td>다국어 수업</td><td>사업 확장 시 재검토</td></tr>
+          <tr><th>화상회의 참여</th><td>AI 강사가 Google Meet에 참가자로 입장</td><td>B2B 세미나 활용 여지</td></tr>
+          <tr><th>지식 문서 연결</th><td>업로드 문서를 참조해 답변</td><td>자체 문항 DB 사용</td></tr>
+          <tr><th>대화 기억</th><td>이전 세션 내용을 다음 세션에 반영</td><td>자체 학습 기록 사용</td></tr>
+          <tr><th>영상 생성</th><td>대본 기반 비실시간 영상 제작</td><td>분당 약 1,100원 · 별도 상품</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h3><span class="n">08</span>로드맵</h3>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>시기</th><th>실행</th><th>판단 기준</th></tr></thead>
+        <tbody>
+          <tr><th>8월</th><td class="key-cell">Starter 결제 후 <a class="jump" href="#s6">6장</a> 4개 항목 실측</td>
+              <td>1·2번 실패 시 중단, 재검토 6개월 후로 이월</td></tr>
+          <tr><th>연내</th><td class="key-cell">적용 구간 확정 · 강사 초상권 계약 · 재촬영 일정 수립</td>
+              <td>실측 통과가 전제. 원가는 적용 구간에 종속</td></tr>
+          <tr><th>MVP1 (연말)</th><td class="key-cell">구간 한정 적용으로 개발사 이관</td>
+              <td>도입·오답 코칭 구간. 1인 월 원가 2만 원 선</td></tr>
+          <tr><th>이후</th><td class="key-cell">전 구간 적용</td>
+              <td>분당 단가가 현재의 1/3 이하로 하락 시</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>수치는 Tavus 공식 문서·요금표·제품 발표 기준 (2026-08-12 확인). 원화 환산은 환율 1,400원 기준 추정치.</p>
+    <div class="srcs">
+      <a href="https://docs.tavus.io/sections/introduction">문서 개요</a>
+      <a href="https://www.tavus.io/pricing">요금제</a>
+      <a href="https://docs.tavus.io/sections/replicas/replica-training">얼굴 학습</a>
+      <a href="https://docs.tavus.io/sections/conversational-video-interface/language-support">언어 지원</a>
+      <a href="https://docs.tavus.io/sections/conversational-video-interface/persona/stt">인식 엔진</a>
+      <a href="https://docs.tavus.io/sections/conversational-video-interface/persona/llm">커스텀 LLM</a>
+      <a href="https://docs.tavus.io/sections/conversational-video-interface/persona/perception">인식 층</a>
+      <a href="https://docs.tavus.io/sections/conversational-video-interface/echo-mode">에코 모드</a>
+      <a href="https://docs.tavus.io/api-reference/conversations/create-conversation">세션 API</a>
+      <a href="https://www.tavus.io/blog/sparrow-1-human-level-conversational-timing-in-real-time-voice">응답 속도</a>
+      <a href="https://www.tavus.io/blog/phoenix-4-real-time-human-rendering-with-emotional-intelligence">렌더링 엔진</a>
+    </div>
+  </footer>
+
+</div>
+</main>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar a'));
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section[id]'));
+
+  function paint() {
+    var best = null, bestTop = -Infinity;
+    sections.forEach(function (s) {
+      var top = s.getBoundingClientRect().top - 90;
+      if (top <= 0 && top > bestTop) { bestTop = top; best = s.id; }
+    });
+    if (!best && sections.length) best = sections[0].id;
+    links.forEach(function (a) { a.classList.remove('on'); });
+    if (best && byId[best]) byId[best].classList.add('on');
+  }
+
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(function () { paint(); ticking = false; });
+  }, { passive: true });
+  paint();
+
+  var sidebar = document.getElementById('sidebar');
+  document.getElementById('navtoggle').addEventListener('click', function () {
+    sidebar.classList.toggle('open');
+  });
+  links.forEach(function (a) {
+    a.addEventListener('click', function () { sidebar.classList.remove('open'); });
+  });
+})();
+</script>
+</body>
+</html>
