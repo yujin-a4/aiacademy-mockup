@@ -1324,6 +1324,1410 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       ],
     },
   },
+  lee_doyun: {
+    'LC-P1-01': {
+      intro: {
+        "script": "오늘은 토익 시험에서 제일 먼저 만나게 될 Part 1 사람과 사물 사진이 나오는 문제를 공부해볼 거예요. 가장 쉬워보이지만, 간혹 어려운 문제가 나오면 만점 받기 쉽지 않기도 해요. Part 1 공부의 핵심은 인물과 사물의 상태를 나타내는 표현 외우기예요! 자, 이제 수업하러 가볼까요?",
+        "points": [
+          "사람은 '무엇을 하는지' 먼저 보기",
+          "사물은 '어디에 어떤 상태인지' 먼저 보기",
+          "사진과 다른 동작·사물·위치 빠르게 지우기"
+        ]
+      },
+      turns: [
+        {
+          "no": 1,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S1 핵심 단서 찾기",
+          "tutor": "사진 먼저 봐볼게요. 지금 이 사진에는 여자가 보이죠? 이렇게 인물이 나오는 사진에서는 인물이 어떤 동작을 하고 있는지, 무엇을 들고 있는지, 어떤 자세로 있는지 잘 봐야 해요. 여자가 무엇을 하고 있나요?",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "이렇게 인물이 나오는 사진에서는 인물이 어떤 동작을 하고 있는지, 무엇을 들고 있는지, 어떤 자세로 있는지 잘 봐야 해요. 여자가 무엇을 하고 있나요?",
+            "hint": "(붓으로) 그림을 그리고 있어요"
+          }
+        },
+        {
+          "no": 2,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "학생 풀이",
+          "tutor": "맞아요. 여자가 앉아서 붓으로 그림을 그리고 있죠? 이 정도로 사진 파악했으면 이제 선택지 듣고 문제 풀어볼게요.",
+          "focusQ": 0,
+          "audio": {
+            "kind": "options",
+            "qIdx": 0,
+            "labels": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "interaction": {
+            "kind": "pickAnswer",
+            "qIdx": 0
+          }
+        },
+        {
+          "no": 3,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S3 개념 코칭",
+          "tutor": "자, 문제 다 풀었으니깐 여기서 포인트 한번 짚고 갈게요. 사진에서 인물이 '지금 ~하고 있다'는 동작을 나타낼 때는 주로 어떤 형태로 표현할까요?",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "자, 문제 다 풀었으니깐 여기서 포인트 한번 짚고 갈게요. 사진에서 인물이 '지금 ~하고 있다'는 동작을 나타낼 때는 주로 어떤 형태로 표현할까요?",
+            "hint": "be +",
+            "accepts": [
+              "be +",
+              "ing 진행형"
+            ]
+          }
+        },
+        {
+          "no": 4,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S3 개념 코칭",
+          "tutor": "맞아요. 인물이 지금 하고 있는 동작은 주로 be + -ing 형태로 표현해요. 그래서 인물이 등장하는 사진에서는 선택지를 들을 때 인물의 핵심 동작을 나타내는 동사를 먼저 잡는 게 중요해요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 5,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 B죠? 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 B였어요. 이런 문제는 시험장 가면 꼭 맞혀주고 넘어가야 해요. 어떤 부분에서 헷갈려서 틀렸는지 같이 확인해볼게요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 6,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 B를 다시 들어볼게요. The woman is painting a picture on an easel. 재생",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 7,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "여기서 핵심 동작을 나타내는 동사 표현은 무엇인가요?",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "여기서 핵심 동작을 나타내는 동사 표현은 무엇인가요?",
+            "hint": "is painting painting"
+          }
+        },
+        {
+          "no": 8,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "맞아요, is painting이 핵심이에요. 그 뒤에는 on an easel이 나오죠. easel은 그림 그릴 때 그림판을 놓는 틀이에요. 그런데 이젤 뜻 몰라도 일단 여자가 무언가 위에 그림을 그리고 있다는 의미죠? 이렇게 핵심 동사는 맞는데 뒤에 나온 단어 잘 모르겠으면 일단 정답 후보로 두고 다른 선택지를 확실히 지워가면 돼요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 9,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "그럼 선택지 A 볼게요.The woman is rinsing a paintbrush in a sink. 핵심 동사 is rinsing 뒤에 in a sink가 나오죠. 여기서도 rinsing 뜻 몰라도 확실히 아닌 거 뭐예요?",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "그럼 선택지 A 볼게요.The woman is rinsing a paintbrush in a sink. 핵심 동사 is rinsing 뒤에 in a sink가 나오죠. 여기서도 rinsing 뜻 몰라도 확실히 아닌 거 뭐예요?",
+            "hint": "in a sink 싱크"
+          }
+        },
+        {
+          "no": 10,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "그렇죠! 사진에 싱크대는 아예 안나오죠? 참고로 rinse는 헹구다 라는 뜻이에요. 싱크대에서 붓을 헹구는 장면은 사진에 없죠. 이렇게 동사 뜻을 잘 모르거나 정확히 못들었어도, 뒤에 들린 사물이나 장소가 사진에 아예 없으면 오답으로 지우고 넘기면 돼요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 11,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "다음 선택지 C 볼게요. The woman is visiting an art gallery. 이건 진짜 아니죠? is visiting, art gallery 둘다 전혀 사진에 등장하지 않으니깐 바로 X 하고 넘겨요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 12,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "마지막으로 선택지 D 볼게요. The woman is holding a tube of paint. is holding, a tube of paint 가 들리죠. 사진에서 여자가 물감 튜브를 들고 있나요?",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "마지막으로 선택지 D 볼게요. The woman is holding a tube of paint. is holding, a tube of paint 가 들리죠. 사진에서 여자가 물감 튜브를 들고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 13,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "맞아요. 물감 튜브를 들고 있지 않으니깐 이것도 오답으로 넘기면 돼요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 14,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "S7 표현 정리",
+          "tutor": "그럼 마지막으로 핵심 정리하고 갈게요. 인물이 등장하는 선택지를 들으면 가장 먼저 핵심 동사를 확인하고, 뒤에 나오는 사물이나 장소가 맞는지 확인하면 돼요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 15,
+          "itemSeq": 1,
+          "occurrence": 1,
+          "stage": "마무리 멘트",
+          "tutor": "이제 다음 문제로 넘어가볼게요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 16,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S1 핵심 단서 찾기",
+          "tutor": "이번 사진에는 사람은 안보이고 사물, 풍경만 보이죠? 이렇게 사물, 풍경만 나오는 사진에서는 사물의 위치와 배치를 잘 확인해야 해요. 뭐가 보이나요?",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "이렇게 사물, 풍경만 나오는 사진에서는 사물의 위치와 배치를 잘 확인해야 해요. 뭐가 보이나요?",
+            "hint": "옷장, 행거에 걸린 옷, 선반"
+          }
+        },
+        {
+          "no": 17,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "학생 풀이",
+          "tutor": "맞아요. 행거에 옷이 걸려있고 왼쪽에 선반에 물건이 쌓여있고 우측 벽에는 모자가 있어요. 이제 선택지 듣고 문제 풀어볼게요.",
+          "focusQ": 1,
+          "audio": {
+            "kind": "options",
+            "qIdx": 1,
+            "labels": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "interaction": {
+            "kind": "pickAnswer",
+            "qIdx": 1
+          }
+        },
+        {
+          "no": 18,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S3 개념 코칭",
+          "tutor": "자, 문제 다 풀었으니깐 여기서 포인트 한번 짚고 갈게요. 사진에서 사람이 사물을 놓는 중인가요, 사물이 이미 놓여 있는 상태인가요?",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "자, 문제 다 풀었으니깐 여기서 포인트 한번 짚고 갈게요. 사진에서 사람이 사물을 놓는 중인가요, 사물이 이미 놓여 있는 상태인가요?",
+            "hint": "사물이 놓여 있는 상태"
+          }
+        },
+        {
+          "no": 19,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S3 개념 코칭",
+          "tutor": "그렇죠! 렇게 사람이 사물을 옮기거나 놓는 행동이 진행 중인 게 아니라, 사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 have/has been + p.p. 형태가 자주 나와요. Part 1에서는 두 형태 모두 사물이 이미 어떤 상태로 놓여 있을 때 쓰여요.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 20,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 A죠. 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 A였어요. 어떤 부분이 어려웠는지 정답이랑 오답 같이 확인해볼게요.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 21,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 A를 다시 들어볼게요. Some of the shoes are lined up on the floor. 재생",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 22,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "일부 신발이, are lined up 줄 세워져 있다, on the floor 바닥에 라고 했죠. 사진에서 신발이 여러 개 있고, 그 중 일부가 줄 세워져 있나요?",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "일부 신발이, are lined up 줄 세워져 있다, on the floor 바닥에 라고 했죠. 사진에서 신발이 여러 개 있고, 그 중 일부가 줄 세워져 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 23,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠! 신발 중 일부가 바닥에 줄지어 놓여 있으니까 some of the shoes와 on the floor가 사진과 정확히 맞아요. 또 누군가 신발을 줄 세우는 중이 아니라 신발이 이미 줄지어 있는 상태이기 때문에 are lined up도 잘 맞죠. 여기서 line up은 '한 줄로 세우다'라는 뜻이에요. 사물 사진에서 자주 나오는 표현이니깐 외워두세요.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 24,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "다음으로 선택지 B 볼게요. Clothing has been folded and stacked. 옷이 개어져서 쌓여 있지 않죠? 오답으로 X 하고 넘어가면 돼요.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 25,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "다음 선택지 C A handbag has been left on top of a basket. 은 완전 오답이죠? 핸드백이 바구니 위에 없으니깐 빠르게 넘겨버려요.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 26,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "마지막 D 봐볼게요. Hats are being stored on some shelves. are being stored처럼 be being p.p.는 누군가에 의해 어떤 행동이 진행되고 있는 게 사진에서 보여야 해요. 그런데 사진에서 모자가 선반에 옮겨져 보관되는 중인 게 보이나요?",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "마지막 D 봐볼게요. Hats are being stored on some shelves. are being stored처럼 be being p.p.는 누군가에 의해 어떤 행동이 진행되고 있는 게 사진에서 보여야 해요. 그런데 사진에서 모자가 선반에 옮겨져 보관되는 중인 게 보이나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 27,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "맞아요. be being pp가 나오면 누군가에 의해 모자가 보관되는 장면이 나와야 해요. 그리고 on some shelves라는 위치도 사진과 맞지 않으니깐 오답입니다.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 28,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 정리할게요. 사물 사진은 '어디에 어떻게 놓여 있는지'를 먼저 보고, 이미 놓인 상태인지 누군가에 의해 놓여지고 있는지 구분하세요. be lined up은 '줄지어 놓여 있다', stack은 '쌓다' 였어요. 외워두고 가세요!",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 29,
+          "itemSeq": 2,
+          "occurrence": 2,
+          "stage": "마무리 멘트",
+          "tutor": "그럼 이제 실전 문제로 넘어가볼게요.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 30,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S1 핵심 단서 찾기",
+          "tutor": "이번에는 조금 어려운 문제 가볼게요. 이것도 사물과 풍경이 중심인 사진이에요. 사물 사진에서는 무엇이 어디에 있고, 어떤 상태인지 먼저 확인한다고 했죠? 사진에서 눈에 띄는 사물과 위치를 말해볼까요?",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "사진에서 눈에 띄는 사물과 위치를 말해볼까요?",
+            "hint": "화분, 식물, 선반 등"
+          }
+        },
+        {
+          "no": 31,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "학생 풀이",
+          "tutor": "좋아요. 사진 속 사물과 위치를 확인했으니 이제 선택지를 듣고 정답을 골라볼게요.",
+          "focusQ": 2,
+          "audio": {
+            "kind": "options",
+            "qIdx": 2,
+            "labels": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "interaction": {
+            "kind": "pickAnswer",
+            "qIdx": 2
+          }
+        },
+        {
+          "no": 32,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S3 개념 코칭",
+          "tutor": "그럼 한번만 더 포인트 짚고 가볼게요.사물이 이미 어떤 상태로 놓여 있으면 be + p.p.나 have/has been + p.p. 형태가 자주 나온다고 했죠? 반대로 be being + p.p.는 어떤 행동이 지금 진행되고 있을 때 쓰인다고 했어요.",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 33,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 D죠. 잘 맞혔어요! 풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 D였어요. 어떤 부분이 헷갈렸는지 정답이랑 오답을 같이 확인해볼게요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 34,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 D를 다시 들어볼게요. Some pots have been lined up on a shelf. 재생",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 35,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "Some pots 일부 화분들이, have been lined up 줄지어 놓여 있다, on a shelf 선반 위에라고 했어요. 사진에서 일부 화분이 선반 위에 줄지어 놓여 있나요?",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "Some pots 일부 화분들이, have been lined up 줄지어 놓여 있다, on a shelf 선반 위에라고 했어요. 사진에서 일부 화분이 선반 위에 줄지어 놓여 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 36,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠! 사진에 화분들이 선반 위에 줄지어 놓여 있으니까 some pots, lined up, on a shelf가 모두 사진과 맞아요. 그리고 지금 누군가 화분을 줄 세우는 중이 아니라 이미 줄지어 놓인 상태이기 때문에 have been lined up도 잘 맞아요. line up은 앞 문제에서도 나왔죠? 사물 사진에서 자주 나오는 표현이에요.",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 37,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "이제 A 볼게요. Some greenhouse plants are being watered. are being watered는 식물에 물을 주는 행동이 지금 진행되고 있다는 뜻이에요. 사진에서 실제로 식물에 물을 주는 행동이 진행되고 있나요?",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "이제 A 볼게요. Some greenhouse plants are being watered. are being watered는 식물에 물을 주는 행동이 지금 진행되고 있다는 뜻이에요. 사진에서 실제로 식물에 물을 주는 행동이 진행되고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 38,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "맞아요. 식물은 보이더라도 물을 주는 행동은 진행되고 있지 않죠. 사진에 있는 사물이 들렸다고 바로 정답으로 고르면 안 돼요. be being + p.p.가 들리면 그 행동이 실제로 진행 중인지까지 확인하세요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 39,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "다음 B는 A shovel has been propped against a shed.라고 했어요. 이 선택지는 단어가 좀 어려웠죠? shovel은 '삽', shed는 '창고' 라는 뜻이에요. 여기서 동사 prop 모른다고 해도 사진에 삽이 있어요, 없어요?",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "subjective",
+            "prompt": "shovel은 '삽', shed는 '창고' 라는 뜻이에요. 여기서 동사 prop 모른다고 해도 사진에 삽이 있어요, 없어요?",
+            "hint": "없어요"
+          }
+        },
+        {
+          "no": 40,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "그렇죠. 사진에 삽이 없으니까 이 단어만 알아도 바로 X 할 수 있어요. prop against 는 '~를 ~에 기대어 세워두다'라는 뜻이에요. 지금 나온 단어랑 표현들 꼭 외워두세요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 41,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "다음 C는 Large leaves are scattered across the ground. 예요. scattered는 '흩어져 있는'이라는 뜻이에요. 사진에서 큰 나뭇잎들이 바닥 여기저기에 흩어져 있지 않으니깐 오답이에요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 42,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 오늘 나온 빈출 표현 정리할 게요. line up은 '줄지어 놓다', prop against는 '~에 기대어 세우다', scatter는 '흩어 놓다'라는 뜻이었어요. 이 정도 어휘는 꼭 외워두세요.",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 43,
+          "itemSeq": 3,
+          "occurrence": 3,
+          "stage": "마무리 멘트",
+          "tutor": "좋아요. 이제 실전 문제로 넘어가볼게요.",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "next"
+          }
+        }
+      ],
+      review: [
+        {
+          "no": 44,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 D를 다시 들어볼게요. He's picking up an empty cup. 재생",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 45,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "is picking up, 집어 들고 있다, an empty cup, 빈 컵을이라고 했죠. 사진에서 남자가 빈 컵을 집어 들고 있나요?",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "is picking up, 집어 들고 있다, an empty cup, 빈 컵을이라고 했죠. 사진에서 남자가 빈 컵을 집어 들고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 46,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠. 인물 사진에서는 가장 먼저 사람이 실제로 하고 있는 동작을 확인해야 해요. 남자가 빈 컵을 집어 들고 있으니까 사진과 정확히 맞죠? pick up은 '집어 들다'라는 뜻이에요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 47,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "A는 He's tying a cloth apron.이었어요. tie는 '매다, 묶다', apron은 '앞치마'라는 뜻이에요. 일단 사진에서 남자가 앞치마를 하고 있긴 하지만, 지금 앞치마를 묶는 동작을 하고 있는 건 아니죠. 사진에 있는 사물만 보고 선택지를 고르면 안 되고, 핵심 동작까지 확인해야 해요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 48,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "B의 pouring beans into a coffee machine, 커피 제조기에 원두를 붓는 동작도 사진에 없으니까 바로 X 하면 됩니다.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 49,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "C는 handing a beverage to a customer, 손님에게 음료를 건네고 있다고 했어요. 그런데 사진에 손님이 보이나요?",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "C는 handing a beverage to a customer, 손님에게 음료를 건네고 있다고 했어요. 그런데 사진에 손님이 보이나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 50,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "맞아요. customer가 사진에 아예 없죠. 이렇게 사진에 없는 사람이나 사물이 나오면 빠르게 오답으로 지울 수 있어요.",
+          "focusQ": 0,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 0,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 51,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 표현만 정리할게요. pick up은 집어 들다, pour은 붓다, hand는 건네주다 예요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 52,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 A를 다시 들어볼게요. Some artwork is hanging on a wall. 재생",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 53,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "Some artwork, 미술품들이, is hanging, 걸려 있다, on a wall, 벽에라고 했죠. 사진에서 미술품이 벽에 걸려 있나요?",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "Some artwork, 미술품들이, is hanging, 걸려 있다, on a wall, 벽에라고 했죠. 사진에서 미술품이 벽에 걸려 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 54,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠. hang은 '걸다'라는 뜻이지만, 그림이나 물건이 이미 걸려 있는 상태를 말할 때 be hanging 형태로 표현할 수도 있어요.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 55,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "B는 Reading materials have been left on a sofa.였어요. 읽을거리는 사진에 있지만 소파 위가 아니라 탁자 위에 있죠. 선택지에 사물은 맞아도 위치가 다르면 오답이에요.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 56,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "C Some windows are being installed. 에서 are being installed는 창문이 지금 설치되고 있는 중이라는 뜻이에요. 사진에서 창문이 설치되고 있나요?",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "C Some windows are being installed. 에서 are being installed는 창문이 지금 설치되고 있는 중이라는 뜻이에요. 사진에서 창문이 설치되고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 57,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "맞아요. 창문이 이미 설치되어있는 상태이죠? 이렇게 이미 설치된 상태일 때는 have been installed라고 해야 맞아요. are being installed가 정답이려면 누군가에 의해 창문이 설치되는 장면이 사진에 있어야 해요. 꼭 주의하세요!",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 58,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "D는 Some potted plants have fallen on the floor. 화분이 바닥에 떨어져 있다고 했어요. 아니죠? 화분이 있긴 하지만 바닥에 떨어져 있지는 않아서 오답이죠.",
+          "focusQ": 1,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 1,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 59,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 핵심 정리할게요. is hang on a wall은 벽에 걸려 있는 상태를 나타내고, have been left는 놓여 있는 상태, are being installed는 설치되고 있는 중을 나타내요.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 60,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "사람 두 명이 나오는 사진이죠? 이런 사진은 각 인물의 동작을 잘 봐야 해요. 정답 B를 다시 들어볼게요. One of the women is resting her arm on a glass counter. 재생",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 61,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "여자들 중 한 명이, is resting her arm, 팔을 기대고 있다, on a glass counter, 유리 진열대에라고 했어요. 사진에서 한 여자가 유리 진열대에 팔을 기대고 있나요?",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "여자들 중 한 명이, is resting her arm, 팔을 기대고 있다, on a glass counter, 유리 진열대에라고 했어요. 사진에서 한 여자가 유리 진열대에 팔을 기대고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 62,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠. 여러 사람이 등장하는 사진에서는 누가 어떤 동작을 하고 있는지 정확하게 연결해야 해요. 한 여자가 유리 진열대에 팔을 기대고 있으니까 B가 정답입니다.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 63,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "A는 여자 중 한 명이 is reaching into a shopping cart. 쇼핑 카트 안으로 손을 뻗고 있다고 했어요. 사진 속 여자가 손을 뻗고 있기는 하지만 쇼핑 카트 안으로 뻗는 거는 아니죠? 바로 오답으로 X하고 넘어가요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 64,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "C에는 pushing a button on a cash register가 나왔죠. 사진에 계산대 버튼이 보이나요?",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "C에는 pushing a button on a cash register가 나왔죠. 사진에 계산대 버튼이 보이나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 65,
+          "stage": "S6 오답 제거 (C)",
+          "tutor": "맞아요. 사진에 없는 button, cash register 같은 핵심 사물이 나오면 빠르게 제거할 수 있어요.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 66,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "D의 opening a display case, 진열장을 열고 있다는 동작도 사진에 없어요. 진열장 근처에 있다고 해서 opening까지 맞는 건 아니니까 동작을 정확히 확인해야 합니다.",
+          "focusQ": 2,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 2,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 67,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 rest one's arm on ~은 ~에 팔을 기대다, reach into ~는 ~안으로 손을 뻗다, push a button은 버튼을 누르다, open a display case는 진열장을 열다예요.",
+          "focusQ": 2,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 68,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "정답 C를 다시 들어볼게요. Some desktops have been divided with partitions. 재생",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 69,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "Some desktops, 일부 책상 상판이, have been divided, 나뉘어 있다, with partitions, 파티션으로라고 했어요. 사진에서 책상 공간들이 파티션으로 나뉘어 있나요?",
+          "focusQ": 3,
+          "interaction": {
+            "kind": "choice",
+            "prompt": "Some desktops, 일부 책상 상판이, have been divided, 나뉘어 있다, with partitions, 파티션으로라고 했어요. 사진에서 책상 공간들이 파티션으로 나뉘어 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요",
+                "correct": true
+              },
+              {
+                "text": "아니에요"
+              }
+            ]
+          }
+        },
+        {
+          "no": 70,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그렇죠. 사진에서 책상 상판이 파티션으로 나뉘어 있는 상태가 그대로 보이니까 C가 정답이에요. 사물 사진에서는 이렇게 사물이 어떤 상태로 배치돼 있는지를 정확하게 들어야 합니다.",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "C"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 71,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "A는 **Trash bins are being emptied.**였어요. are being emptied는 쓰레기통을 지금 비우고 있는 중이라는 뜻이에요. 사진에서 그런 행동이 진행되고 있나요?",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "choice",
+            "prompt": "A는 **Trash bins are being emptied.**였어요. are being emptied는 쓰레기통을 지금 비우고 있는 중이라는 뜻이에요. 사진에서 그런 행동이 진행되고 있나요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "맞아요"
+              },
+              {
+                "text": "아니에요",
+                "correct": true
+              }
+            ]
+          }
+        },
+        {
+          "no": 72,
+          "stage": "S6 오답 제거 (A)",
+          "tutor": "맞아요. 쓰레기통이 보이더라도 비워지는 행동이 진행 중인 건 아니죠. be being p.p.가 들리면 실제 행동이 진행 중인지 꼭 확인하세요.",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "A"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 73,
+          "stage": "S6 오답 제거 (B)",
+          "tutor": "B의 **Chairs have been positioned along a wall.**은 의자들이 벽을 따라 놓여 있다는 뜻인데, 사진의 의자 위치와 맞지 않으니까 오답입니다.",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 74,
+          "stage": "S6 오답 제거 (D)",
+          "tutor": "D는 **There is a stack of documents at each workstation.**이었어요. 그런데 사진에 a stack of documents, 서류 더미가 보이지 않죠. 이런 선택지는 핵심 사물이 없으면 바로 X 하면 돼요.",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 75,
+          "stage": "S7 표현 정리",
+          "tutor": "마지막으로 divide A with B는 A를 B로 나누다, partition은 칸막이, position ~ along a wall은 ~을 벽을 따라 배치하다, a stack of documents는 서류 더미예요.",
+          "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "A",
+                  "B"
+                ]
+              }
+            ]
+          },
+          "interaction": {
+            "kind": "next"
+          }
+        }
+      ],
+    },
+  },
 }
 
 /** 이 강사·강의 조합의 대본 (없으면 undefined — 평소 레일로 돈다) */

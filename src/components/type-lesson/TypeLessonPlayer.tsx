@@ -13,7 +13,7 @@ import ContentView, { targetTokens, markedWords, type ContentState } from '@/com
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, speakKorean, stopVoice as stopCueAudio } from '@/lib/voice'
-import { speakTTS, koLetters, stopCurrentAudio } from '@/lib/tts'
+import { speakTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
 import { INST_NAME, INST_PERSONA, INST_THUMBS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
@@ -164,6 +164,8 @@ function subjectiveOk(said: string, expected?: string, accepts?: string[]): bool
   if (!wanted.length) return true                  // 기대 답이 없으면 무엇을 말해도 받아준다
   const words = (t: string) => (t.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' ').split(/\s+/)
     .map((w) => w.replace(/(이에요|예요|어요|아요|해요|이다|다|요)$/, ''))
+    /* 조사를 뗀다 — "그림을" 과 "그림" 이 다른 낱말로 잡히면 맞은 답이 오답이 된다 */
+    .map((w) => (w.length > 2 ? w.replace(/(으로|에서|에게|한테|까지|부터|을|를|이|가|은|는|에|와|과|도|의)$/, '') : w))
     .filter((w) => w.length >= 2 && !KO_STOP.has(w)))
   const got = new Set(words(said))
   return wanted.some((one) => {
@@ -628,6 +630,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [selfPlaying, setSelfPlaying] = useState(false)
   /* 대본을 읽는 중인가 — 에이전트가 없으면 아바타·파형이 볼 신호가 이것뿐이다 */
   const [narrating, setNarrating] = useState(false)
+  /* 지금 읽고 있는 문장과 **어디까지 드러났는가** — 말과 글자를 맞추는 데 쓴다(startReveal).
+     대화 스크롤이 이 값을 보고 따라 내려가므로 선언이 그 효과보다 위에 있어야 한다. */
+  const [typed, setTyped] = useState<{ text: string; shown: number } | null>(null)
   /* 수업 화면에 있을 때만 뜻이 있다 — 실전·리뷰로 넘어간 뒤에도 켜져 있으면
      리뷰 화면에 '수업이 끝났어요' 가 그대로 뜬다 */
   const freePlay = afterLesson && phase === 'lesson'
@@ -1120,40 +1125,49 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      강의 하나가 사진 3장·문장 5개로 돈다(STEP 4). 턴은 itemSeq 로 자기 문제를 가리키므로
      "이 문제의 스캐폴딩이 어디서 끝나는지"는 그 번호가 바뀌는 지점이다.
      turns 는 문제 순으로 이어져 있다 — 같은 itemSeq 가 떨어져 나타나지 않는다. */
+  /** 아래 진행 줄이 '문제' 로 세는 단위.
+   *  수업은 아이템(itemSeq) 이고, **리뷰는 문항(focusQ)** 이다 — 실전 문항은 수업 아이템 표에
+   *  없어서 itemSeq 가 비어 있다. 리뷰도 "문제 하나를 마치면 다음 문제" 로 도는 것은 같다. */
+  const navKeyOf = (t: Turn) => (phase === 'review' ? t.focusQ : t.itemSeq)
   const itemSpan = useMemo(() => {
     const map = new Map<number, { first: number; last: number }>()
     turns.forEach((t, i) => {
-      if (t.itemSeq == null) return
-      const cur = map.get(t.itemSeq)
+      const key = phase === 'review' ? t.focusQ : t.itemSeq
+      if (key == null) return
+      const cur = map.get(key)
       if (cur) cur.last = i
-      else map.set(t.itemSeq, { first: i, last: i })
+      else map.set(key, { first: i, last: i })
     })
     return map
-  }, [turns])
+  }, [turns, phase])
 
   /* 지금 문제의 다음 문제 첫 턴 — 없으면(마지막 문제) null. 강사 창의 '수업 마치기' 가 그 자리를 잇는다 */
   const nextItemAt = useMemo(() => {
-    if (curItemSeq == null) return null
-    const cur = itemSpan.get(curItemSeq)
+    const key = navKeyOf(turn)
+    if (key == null) return null
+    const cur = itemSpan.get(key)
     if (!cur) return null
     let best: number | null = null
     itemSpan.forEach(({ first }) => {
       if (first > cur.last && (best === null || first < best)) best = first
     })
     return best
-  }, [curItemSeq, itemSpan])
+  }, [turn, itemSpan])
 
   /* ── 문제 경계 ──
      **문제는 자동으로 넘어가지 않는다.** 한 문제의 마지막 턴에 오면 거기서 멈추고, 학생이
      [다음 문제] 를 눌러야 넘어간다. 자동 전진(아래 effect)과 next_step 도 이 경계를 넘지 못한다.
        atItemEnd : 지금 턴이 이 문제의 마지막 턴이고, 뒤에 문제가 더 있다
-       itemDone  : 그 마지막 턴까지 실제로 끝났다(답을 받는 턴이면 채점까지) = 버튼이 열리는 시점 */
-  const curSpan = curItemSeq != null ? itemSpan.get(curItemSeq) : undefined
-  /* 아래 '앞으로 가는 줄' 이 전진을 맡는 수업인가 — 아이템 순회로 만든 수업(대부분의 DB 강의)이다.
+       itemDone  : 그 마지막 턴까지 실제로 끝났다(답을 받는 턴이면 채점까지) = 버튼이 열리는 시점
+     **리뷰도 같은 규칙으로 돈다** — 틀린 문제를 다시 푸는 자리도 문제 단위라, 수업과 다른
+     방식으로 넘기면 학생이 방금 익힌 조작을 다시 배워야 한다. */
+  const navKey = navKeyOf(turn)
+  const curSpan = navKey != null ? itemSpan.get(navKey) : undefined
+  /* 아래 '앞으로 가는 줄' 이 전진을 맡는 단계인가 — 아이템 순회로 만든 수업(대부분의 DB 강의)과 리뷰.
      아이템이 없는 옛 방식 강의는 강사 창의 버튼이 그대로 그 일을 한다. */
-  const stripNav = phase === 'lesson' && curItemSeq != null
+  const stripNav = (phase === 'lesson' || phase === 'review') && navKey != null
   /* 마지막 문제의 끝도 경계다 — 거기서도 자동으로 실전으로 넘어가면 안 된다 */
-  const atItemEnd = phase === 'lesson' && !!curSpan && turnIdx >= curSpan.last
+  const atItemEnd = (phase === 'lesson' || phase === 'review') && !!curSpan && turnIdx >= curSpan.last
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
   const itemDone = atItemEnd
     && (itemLastTurn?.interaction.kind !== 'pickAnswer' || graded.has(itemLastTurn.interaction.qIdx))
@@ -1206,11 +1220,15 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log.ready, phase])
 
-  /* 대화 흐름은 항상 마지막 발화가 보이게 — 턴이 넘어가거나 새 메시지가 오면 아래로 */
+  /* 대화 흐름은 항상 마지막 발화가 보이게 — 턴이 넘어가거나 새 메시지가 오면 아래로.
+     **말풍선이 자라는 동안에도** 따라가야 한다: 글자가 소리에 맞춰 하나씩 드러나므로(typed)
+     메시지 수는 그대로인 채 높이만 늘어난다. 그것만 보고 있으면 말풍선이 길어질수록
+     아래가 화면 밖으로 밀려 나간다(실측: 강사가 말하는데 스크롤이 안 따라갔다).
+     자라는 중에는 smooth 를 쓰지 않는다 — 매 프레임 부드러운 스크롤을 걸면 서로 밀려 덜컹인다. */
   useEffect(() => {
     const el = feedRef.current
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-  }, [turnIdx, chatLog.length, dockMode, chatMode])
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: typed ? 'auto' : 'smooth' })
+  }, [turnIdx, chatLog.length, typed, dockMode, chatMode])
 
   /* 실전·정리로 넘어가면 강사 세션 종료 — 문제 풀이 중 강사가 계속 말하지 않게.
      **리뷰는 예외다** — 틀린 문제를 강사와 같이 푸는 단계라 다시 연결한다.
@@ -1340,6 +1358,39 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return out.toDataURL('image/png')
   }
 
+  /** 학생이 **어느 보기 위에** 필기했는가 — "이거 왜 답이에요?" 의 '이거' 를 찾는다.
+   *
+   *  사진은 그림이라 캔버스와 합성해 그대로 보여줄 수 있지만(composeMarkedImage), **보기는 글자다.**
+   *  글자를 캔버스에 못 담아서, 보기에 밑줄을 긋고 물으면 강사가 무엇을 가리키는지 몰랐다(실측).
+   *  그래서 그림 대신 좌표로 푼다 — 보기 상자(data-opt)와 겹치는 자리에 잉크가 있는지 본다.
+   *  vision 에 맡기는 것보다 정확하다: 밑줄이 흐리거나 짧아도 픽셀 하나면 잡힌다. */
+  const inkedOptions = (): string[] => {
+    const canvas = draw.canvasRef.current
+    const root = contentRef.current
+    if (!canvas || !root || !draw.strokeCount) return []
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return []
+    const cr = canvas.getBoundingClientRect()
+    const sx = canvas.width / cr.width
+    const sy = canvas.height / cr.height
+    const hit: string[] = []
+    root.querySelectorAll<HTMLElement>('[data-opt]').forEach((el) => {
+      const r = el.getBoundingClientRect()
+      const x = Math.max(0, Math.round((r.left - cr.left) * sx))
+      const y = Math.max(0, Math.round((r.top - cr.top) * sy))
+      const w = Math.min(canvas.width - x, Math.round(r.width * sx))
+      const h = Math.min(canvas.height - y, Math.round(r.height * sy))
+      if (w <= 0 || h <= 0) return
+      const { data } = ctx.getImageData(x, y, w, h)
+      // 알파만 본다(색은 도구에 따라 다르다). 네 픽셀 걸러 훑어도 밑줄 한 줄은 반드시 걸린다
+      for (let i = 3; i < data.length; i += 16) {
+        if (data[i] > 8) { hit.push(el.dataset.opt ?? ''); return }
+      }
+    })
+    /* "0:B" → "B" (문항은 지금 화면에 하나뿐이라 라벨만으로 통한다) */
+    return Array.from(new Set(hit.map((k) => k.split(':')[1]).filter(Boolean)))
+  }
+
   const checkMark = async () => {
     const it = turn.interaction
     if (it.kind !== 'mark' || markChecking) return
@@ -1448,7 +1499,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        **대본 수업은 다르다.** 강사가 "A를 볼게요" 하며 하나씩 짚어가는데 네 개가 이미 다 열려
        있으면 지금 어느 보기 이야기인지 화면에서 읽히지 않는다(실측). 그래서 대본 수업에서는
          · 짚는 동안 — 그 턴이 지목한 보기만 열고 (위 reveal.optionText)
-         · 그 문제의 단계를 다 마치면(itemDone·freePlay) — 그때 네 개를 다 연다
+         · 그 문제의 마지막 턴에 오면([다음 문제] 가 열리는 그 시점) — 그때 네 개를 다 연다
        혼자 다시 보라고 열어 두는 자리가 거기다. */
     const cur = turns[Math.min(turnIdx, turns.length - 1)]
     /* 이 문항을 다루는 마지막 턴인가 — 다음 턴이 다른 문항으로 넘어가면 여기서 끝난 것이다.
@@ -1590,6 +1641,40 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const askingRef = useRef(false)
   askingRef.current = asking
   const [askBusy, setAskBusy] = useState(false)
+  /* ── 말과 글자를 맞춘다 ──
+     전에는 발화 전체가 한 번에 툭 떴다. 강사는 아직 첫 마디인데 화면에는 끝 문장까지 다 있으니
+     학생은 글자를 먼저 읽고 소리를 기다린다 — 듣기 수업에서 그건 그냥 읽기다.
+     **시간으로 흘려보내지 않고 음원의 재생 위치를 따라간다**(playbackProgress). 그래야 어긋나지
+     않는다: 문장이 길든 짧든, 목소리가 빠르든 느리든 글자는 정확히 소리를 따라온다.
+     음원이 없을 때(브라우저 TTS 폴백)만 글자 수로 대략 잡는다. */
+  const revealRef = useRef<number | null>(null)
+  const startReveal = (text: string) => {
+    if (revealRef.current) cancelAnimationFrame(revealRef.current)
+    const t0 = Date.now()
+    let sawAudio = false
+    setTyped({ text, shown: 0 })
+    const tick = () => {
+      const p = playbackProgress()
+      let ratio: number
+      if (p) { sawAudio = true; ratio = p.current / p.duration }
+      else if (sawAudio) ratio = 1                       // 재생이 끝났다
+      /* 음원을 받아오는 동안(0.5~1.5초)은 한 글자도 내보내지 않는다 — 소리 없이 글자만 흐르면
+         그게 제일 이상하다. 그 시간이 지나도 소리가 없으면 브라우저 TTS 로 떨어진 것으로 본다. */
+      else if (Date.now() - t0 > 1500) ratio = (Date.now() - t0 - 1500) / Math.max(900, text.length * 95)
+      else ratio = 0
+      const want = Math.round(text.length * Math.min(1, Math.max(0, ratio)))
+      /* 값이 그대로면 **같은 객체를 돌려준다** — 안 그러면 프레임마다 리렌더가 돈다 */
+      setTyped((cur) => (cur && cur.text === text && want > cur.shown ? { text, shown: want } : cur))
+      /* 다 드러났으면 루프를 끝낸다. 말이 끊겨(stopVoice) 재생 promise 가 끝나지 않는 경우가
+         있어서, 여기서 스스로 멈추지 않으면 rAF 가 화면이 바뀔 때까지 계속 돈다. */
+      if (want >= text.length) { revealRef.current = null; return }
+      revealRef.current = requestAnimationFrame(tick)
+    }
+    revealRef.current = requestAnimationFrame(tick)
+    return () => { if (revealRef.current) cancelAnimationFrame(revealRef.current); revealRef.current = null }
+  }
+  useEffect(() => () => { if (revealRef.current) cancelAnimationFrame(revealRef.current) }, [])
+
   /* 낭독은 반드시 이걸로 부른다 — 말하는 동안 아바타가 움직이고 파형이 떠야 한다.
      speakTTS 를 직접 부르면 화면은 강사가 말하는 줄 모른다(실측: 영상도 파형도 안 나왔다). */
   const say = async (text: string, aside = false) => {
@@ -1597,9 +1682,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        낭독·피드백·질문 답변이 전부 이 문을 지나므로 여기 한 곳에서만 쌓으면 된다. */
     setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside }]))
     setNarrating(true)
+    const stopReveal = startReveal(text)
     /* 채팅·화면에는 시트 문장 그대로, **읽을 때만** 홀로 선 알파벳을 한글 음으로 바꾼다
        ("D에서는" → "디에서는"). 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다. */
-    try { await speakTTS(koLetters(text), ttsPersona, instructor) } finally { setNarrating(false) }
+    try { await speakTTS(koLetters(text), ttsPersona, instructor) }
+    finally { stopReveal(); setTyped(null); setNarrating(false) }
   }
 
   /** 맞았을 때 앱이 추임새를 넣어야 하는가 — **다음 대본이 이미 받아주면 넣지 않는다.**
@@ -1612,7 +1699,39 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return !!nx && ACK_OPENER.test(nx.tutor.trim())
   }
 
-  const handleScriptedAnswer = async (ok: boolean, correction?: string, gaveUp = false) => {
+  /** 붙잡기를 끝내고 넘어갈 때 하는 말 — **무엇이 왜 아니고 답이 무엇인지**를 담는다.
+   *
+   *  전에는 정답 문구만 끼워 넣어 "이번엔 제가 짚어 줄게요. 아니에요 이렇게 보면 돼요." 가 나갔다.
+   *  두 번이나 틀린 학생에게 그건 아무것도 알려주지 않는다 — 자기 답이 왜 아닌지도, 답이 뭔지도.
+   *
+   *  근거는 **지어내지 않는다.** 이 턴이 어느 보기를 짚는지(reveal.optionText)와 그 보기의 해석
+   *  (question_options.option_explanation)이 있을 때만 "보기가 뭐라고 했는지"를 읽어 준다.
+   *  없으면 고른 것과 답만 분명히 말한다. */
+  const closingLine = (picked?: string): string => {
+    const it = turn.interaction
+    if (it.kind === 'subjective') {
+      return it.hint ? `이렇게 답하면 돼요. ${it.hint}` : '이건 같이 보고 넘어갈게요.'
+    }
+    if (it.kind !== 'choice') return '이건 같이 보고 넘어갈게요.'
+
+    const right = it.choices.find((c) => c.correct)?.text
+    if (!right) return '이건 같이 보고 넘어갈게요.'
+    const label = turn.reveal?.optionText?.[0]?.labels?.[0]
+    const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
+    const trans = label ? q?.options.find((o) => o.label === label)?.why : undefined
+    const mine = picked && picked !== right ? `방금 고른 '${picked}' 는 답이 아니에요. ` : ''
+
+    /* O/X 는 근거의 방향이 정해져 있다 — '아니에요' 면 자료에 없다는 뜻, '맞아요' 면 그대로라는 뜻 */
+    if (trans && label && (right === '아니에요' || right === '맞아요')) {
+      const no = right === '아니에요'
+      /* 이어주는 말이 방향을 만든다 — 아닐 때는 '했는데'(반전), 맞을 때는 '했고'(순접) */
+      const ground = no ? contraOf(lesson.part) : lesson.part === 1 ? '사진 그대로죠?' : '자료와 맞죠?'
+      return `${mine}${label}에서는 ${quoted(trans)} 했${no ? '는데' : '고'}, ${ground} 그래서 답은 '${right}' 예요.`
+    }
+    return `${mine}답은 '${right}' 예요.`
+  }
+
+  const handleScriptedAnswer = async (ok: boolean, picked?: string, gaveUp = false) => {
     const tries = (triesRef.current.get(turnIdx) ?? 0) + 1
     triesRef.current.set(turnIdx, tries)
     if (ok) {
@@ -1624,7 +1743,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        모른다고 말한 학생에게 "그건 조금 달라요, 다시 생각해 볼까요?" 는 앞뒤가 안 맞고,
        모르는 걸 한 번 더 물어봐야 나올 것도 없다. 바로 답을 보여주고 넘어간다. */
     if (gaveUp) {
-      await say(correction ? `괜찮아요, 같이 볼게요. ${correction} 이렇게 보면 돼요.` : '괜찮아요. 이건 같이 보고 넘어갈게요.')
+      await say(`괜찮아요, 같이 볼게요. ${closingLine()}`)
       goNext()
       return
     }
@@ -1636,7 +1755,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setSubjText(''); setSubjSent(false); setChoicePicked(null)
       return
     }
-    await say(correction ? `이번엔 제가 짚어 줄게요. ${correction} 이렇게 보면 돼요.` : '이번엔 같이 보고 넘어갈게요.')
+    await say(`제가 짚어 줄게요. ${closingLine(picked)}`)
     goNext()
   }
 
@@ -1676,11 +1795,41 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     setChatLog((prev) => [...prev, { role: 'user', text }])
     setSubjSent(true)
     setSubjText(text)
-    const gaveUp = isGiveUp(text)
-    const ok = !gaveUp && subjectiveOk(text, it.hint, it.accepts)
-    logResponse(text, ok)
-    void handleScriptedAnswer(ok, it.hint, gaveUp)
+    if (isGiveUp(text)) { logResponse(text, false); void handleScriptedAnswer(false, text, true); return true }
+    if (subjectiveOk(text, it.hint, it.accepts)) { logResponse(text, true); void handleScriptedAnswer(true, text); return true }
+    /* ── 낱말이 안 겹친다고 바로 틀렸다고 하지 않는다 ──
+       기대 답 "그림을 그리고 있어요" 에 학생이 "이젤 페인팅" 이라고 하면 겹치는 낱말이 없다.
+       뜻은 맞는데 말이 다를 뿐이다(실측). 이때만 한 번 물어보고 판정한다 —
+       **낱말이 겹치면 묻지 않으므로**(위에서 끝난다) 대부분의 답은 예전처럼 즉시 반응한다. */
+    void (async () => {
+      const ok = await judgeSubjective(text, it)
+      logResponse(text, ok)
+      void handleScriptedAnswer(ok, text)
+    })()
     return true
+  }
+
+  /** 뜻으로 판정 — 실패하거나 느리면 **맞다고 본다.** 시연에서 맞은 답을 틀렸다고 하는 쪽이
+   *  훨씬 나쁘고, 판정을 기다리느라 침묵이 길어지는 것도 나쁘다(2.5초에서 끊는다). */
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<boolean> => {
+    const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
+    if (!expected) return true
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 2500)
+    try {
+      const res = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          judge: true,
+          message: `[강사 질문] ${turn.tutor}\n[기대 답] ${expected}\n[학생 답] ${said}`,
+        }),
+      })
+      const data = await res.json()
+      const v = String(data.dialogue ?? '').trim().toUpperCase()
+      return !v.startsWith('X')          // 못 읽었으면 맞다고 본다
+    } catch { return true } finally { clearTimeout(timer) }
   }
 
   /* ── 학생 질문 (대본 밖) ──
@@ -1702,11 +1851,15 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
              (표시 판정에 이미 쓰던 방법이다. /api/gemini 는 imageBase64 를 받는다) */
       const penned = Array.from(markedWords(marks))
       const drawn = draw.strokeCount > 0 ? composeMarkedImage() : null
+      const inked = inkedOptions()
       const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           persona: ttsPersona,
+          /* 말투는 **강사**가 정한다 — persona 는 목소리 파라미터 키일 뿐이다(옛 페르소나가
+             대신 답하던 원인). 강사별 프롬프트가 없으면 서버가 알아서 persona 로 떨어진다. */
+          instructor,
           ...(drawn ? { imageBase64: drawn.replace(/^data:image\/\w+;base64,/, '') } : {}),
           message: `${buildLessonFacts(lesson, curItemSeq, gate)}
 
@@ -1720,6 +1873,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 ` : '')
             + (drawn ? `[학생이 사진 위에 직접 표시한 것] 함께 보낸 그림에 학생의 필기가 얹혀 있다.
 무엇을 동그라미·밑줄로 짚었는지 그림에서 보고, 그것을 가리키는 질문으로 읽어라.
+
+` : '')
+            /* 보기 위의 필기는 그림으로 못 보낸다(글자라서) — 어느 보기인지를 글로 알려준다.
+               이게 없으면 "이거 왜 아니에요?" 의 '이거' 를 강사가 못 찾는다(실측). */
+            + (inked.length ? `[학생이 필기로 짚은 보기] ${inked.join(', ')}번 보기 위에 직접 표시했다.
+학생의 '이거'·'여기' 는 그 보기를 가리킨다.
 
 ` : '')
             + `[학생 질문] ${question}
@@ -1902,7 +2061,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
   const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
-  const tutorLine = (agentConnected && lastAgentAi) || turn.tutor
+  /* 음성 모드의 '지금 하는 말' — 읽는 중이면 **거기까지만** 보여준다(말과 글자를 맞춘다).
+     읽는 문장은 대본 발화만이 아니다(피드백·질문 답변도 이 자리를 쓴다) → typed 를 먼저 본다. */
+  const tutorLine = typed ? typed.text.slice(0, typed.shown)
+    : (agentConnected && lastAgentAi) || turn.tutor
 
   /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
      종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
@@ -1926,8 +2088,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* ── 텍스트 모드 채팅 흐름 ──
      에이전트가 붙어 있으면 실제 대화 로그를 그대로 쌓는다(강사 회색 / 나 파랑).
      연결 전·폴백에서는 대화가 없으므로 이번 턴의 레일 발화 + 학생 응답 한 쌍으로 만든다. */
+  /* 텍스트 모드 말풍선도 같은 규칙 — **마지막 강사 말풍선만** 읽는 만큼 자라고, 지나간 말은
+     온전한 문장으로 남는다(기록은 온전해야 다시 읽을 수 있다). */
+  const revealLast = (log: ChatMsg[]): ChatMsg[] => {
+    if (!typed) return log
+    const i = log.length - 1
+    if (i < 0 || log[i].role !== 'ai' || log[i].text !== typed.text) return log
+    return [...log.slice(0, i), { ...log[i], text: typed.text.slice(0, typed.shown) }]
+  }
   const chatMessages: ChatMsg[] = (agentConnected || scripted) && chatLog.length
-    ? chatLog
+    ? revealLast(chatLog)
     : [
       { role: 'ai' as const, text: turn.tutor },
       ...(studentLine ? [{ role: 'user' as const, text: studentLine }] : []),
@@ -2092,9 +2262,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄).
             폭은 비율이되 **강사 창 몫 320px 은 남긴다** — 세로 화면에서 72% 를 그대로 쓰면
             강사 창이 200px대로 눌려 선택지 버튼이 두 줄로 깨진다. */}
+        {/* id="zoom-host" — 사진 크게 보기가 **이 칸 안에서만** 커진다(강사 창은 덮지 않는다).
+            PhotoZoom 이 이 id 를 찾아 여기에 띄운다. 실전 화면에는 이 칸이 없어 화면 전체가 된다. */}
         <div
-          className={`min-h-0 flex flex-col border-gray-100 ${
-            dockMode === 'sidebar' ? 'h-full shrink-0 border-r' : 'flex-1 h-full w-full'
+          id="zoom-host"
+          className={`relative min-h-0 flex flex-col border-gray-100 ${
+            /* 오른쪽 테두리는 두지 않는다 — 경계선은 리사이즈 핸들이 그리는 1px 하나뿐이다.
+               둘 다 그리면 10px 간격을 두고 선이 두 줄 생긴다 */
+            dockMode === 'sidebar' ? 'h-full shrink-0' : 'flex-1 h-full w-full'
           }`}
           style={dockMode === 'sidebar'
             /* 320 = 강사 창 최소 폭, 16 = 그 사이 리사이즈 손잡이 */
@@ -2121,20 +2296,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               층이 다르다. 잠겨 있을 때도 자리는 보인다 — 몇 문제짜리 수업인지가 이 줄에서 읽힌다. */}
           {stripNav && (() => {
             const order = Array.from(itemSpan.keys()).sort((a, b) => a - b)
-            const nth = order.indexOf(curItemSeq!) + 1
-            /* 세 갈래다. 문제가 더 있으면 다음 문제, 마지막 문제를 마쳤으면 수업을 닫고,
-               닫은 뒤(혼자 듣는 구간)에는 실전으로 간다. */
+            const nth = order.indexOf(navKey!) + 1
+            /* 갈래는 넷이다. 문제가 더 있으면 다음 문제, 마지막 문제를 마쳤으면 수업을 닫고,
+               닫은 뒤(혼자 듣는 구간)에는 실전으로 간다. **리뷰의 마지막은 핵심 요약으로.** */
             const nav = nextItemAt !== null
               ? { label: '다음 문제 →', can: itemDone, hint: '이 문제의 단계를 마치면 열려요',
                   /* 다음 문제로 넘어가면 대화도 다시 연다 — 문제 하나가 곧 대화 한 판이다.
                      **대본 수업은 열지 않는다.** 열면 에이전트가 자기 인사말부터 시작해서
                      앱이 읽는 대본과 목소리가 두 개로 겹친다(실측: 2번 문제로 넘어가는 순간). */
                   go: () => { stopVoice(); setTurnIdx(nextItemAt); if (!scripted) startAgent() } }
-              : !freePlay
-                ? { label: '유형 학습 마치기 →', can: itemDone, hint: '마지막 문제의 단계를 마치면 열려요',
-                    go: () => { stopVoice(); setAfterLesson(true) } }
-                : { label: '실전 문제 풀기 →', can: true, hint: '',
-                    go: () => setPhase('practice') }
+              : phase === 'review'
+                ? { label: '핵심 요약으로 →', can: itemDone, hint: '이 문제를 마치면 열려요',
+                    go: () => { stopVoice(); setPhase('wrap') } }
+                : !freePlay
+                  ? { label: '유형 학습 마치기 →', can: itemDone, hint: '마지막 문제의 단계를 마치면 열려요',
+                      go: () => { stopVoice(); setAfterLesson(true) } }
+                  : { label: '실전 문제 풀기 →', can: true, hint: '',
+                      go: () => setPhase('practice') }
             return (
               <div className="shrink-0 border-t border-[#EBEBF0] px-3 md:px-6 py-2.5 flex items-center gap-3">
                 <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
@@ -2153,11 +2331,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           })()}
         </div>
 
-        {/* 세로 리사이즈 핸들 — 사이드바일 때만. 사이드바 자체가 폭 700 이상에서만 서므로 항상 보인다 */}
+        {/* ── 세로 리사이즈 핸들 ──
+            **잡는 자리는 넓고, 보이는 것은 선 하나다.** 회색 띠로 칠하면 화면이 두 쪽으로
+            갈라져 보여서, 수업(왼쪽)과 강사(오른쪽)가 한 화면이라는 느낌이 깨진다.
+            그래서 폭 10px 은 손가락 몫으로 두되 배경은 비우고, 가운데 1px 선만 그린다.
+            만질 수 있다는 신호는 커서(col-resize)와 hover 색으로 준다. */}
         {dockMode === 'sidebar' && (
           <div onPointerDown={onResizeStart} onPointerMove={onResizeMove} onPointerUp={onResizeEnd}
-            className="flex w-4 shrink-0 items-center justify-center cursor-col-resize touch-none bg-gray-50 border-x border-gray-100 hover:bg-gray-100">
-            <div className="h-12 w-1 rounded-full bg-gray-300" />
+            role="separator" aria-orientation="vertical" aria-label="수업 화면과 강사 창의 너비 조절"
+            title="드래그해서 너비를 조절할 수 있어요"
+            className="group relative flex w-2.5 shrink-0 items-stretch justify-center cursor-col-resize touch-none">
+            <div className="w-px bg-[#EBEBF0] transition-colors group-hover:bg-[#93C5FD]" />
+            {/* 손잡이 — 선만 있으면 **만질 수 있는 줄 모른다**(실측). 짧은 알약 하나로 그것만 말한다.
+                띠를 칠하지 않으니 화면이 두 쪽으로 갈라져 보이지도 않는다. */}
+            <span aria-hidden
+              className="absolute top-1/2 -translate-y-1/2 h-9 w-[5px] rounded-full bg-[#D8DCE5] transition-colors group-hover:bg-[#60A5FA]" />
           </div>
         )}
 
@@ -2265,7 +2453,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                     const ok = graded ? c.correct === true : true
                     setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
                     logResponse(c.text, graded ? ok : null)
-                    void handleScriptedAnswer(ok, it.choices.find((ch) => ch.correct)?.text)
+                    /* 넘기는 것은 **학생이 고른 것** 이다 — 짚어줄 때 '방금 고른 X 는 답이 아니에요' 로 쓴다 */
+                    void handleScriptedAnswer(ok, c.text)
                     return
                   }
                   /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
@@ -2278,13 +2467,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 }}
                 subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
                 scripted={scripted}
-                onSubjectiveSubmit={(text) => {
-                  const it = turn.interaction
-                  if (it.kind !== 'subjective') return
-                  setSubjSent(true)
-                  logResponse(text, subjectiveOk(text, it.hint, it.accepts))
-                  void handleScriptedAnswer(subjectiveOk(text, it.hint, it.accepts), it.hint)
-                }}
+                /* 판정은 answerSubjective 한 곳에만 둔다 — 두 군데서 따로 판정하면
+                   같은 답이 통로에 따라 다르게 처리된다(여기는 낱말 겹침만 보고 있었다) */
+                onSubjectiveSubmit={(text) => { answerSubjective(text) }}
                 markDone={markDone}
                 onMarkDone={() => {
                   const it = turn.interaction
@@ -2341,12 +2526,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 }
 
 /* 실전 페이저의 이전/다음 버튼 */
-function PagerBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+function PagerBtn({ onClick, disabled, cued, children }: {
+  onClick: () => void; disabled?: boolean
+  /** 지금 눌러야 할 버튼인가 — 이 문항을 다 풀었고 다음 문항이 남아 있을 때 */
+  cued?: boolean
+  children: ReactNode
+}) {
   return (
     <button onClick={onClick} disabled={disabled}
       className={`text-[12px] font-bold px-3 py-1.5 rounded-lg border transition-colors ${
         disabled ? 'border-[#F1F2F5] text-[#C4C9D4] cursor-not-allowed'
-          : 'border-[#E5E7EB] text-[#374151] bg-white hover:border-[#93C5FD] hover:bg-[#EFF6FF]'
+          : cued ? 'border-[#2563EB] bg-[#2563EB] text-white animate-cue'
+            : 'border-[#E5E7EB] text-[#374151] bg-white hover:border-[#93C5FD] hover:bg-[#EFF6FF]'
       }`}>{children}</button>
   )
 }
@@ -2379,6 +2570,10 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
   const [playingId, setPlayingId] = useState<string | null>(null)
   /* 지금 보고 있는 문항 — 실전은 한 문항씩 넘겨 푼다(아래 visibleQ 주석) */
   const [page, setPage] = useState(0)
+  /* 비동기 재생 루프 안에서 '지금 몇 번째 화면인가' 를 최신값으로 읽는다 —
+     state 를 클로저로 잡으면 판이 시작될 때의 값에 머문다 */
+  const pageRef = useRef(0)
+  pageRef.current = page
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -2481,13 +2676,17 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
 
   /* ── 듣기 진행 상태 ──
      runId  : 진행 중인 시퀀스 토큰. 끊으면 올려서 뒤따르던 await 들이 스스로 빠져나간다
-     manual : 학생이 손으로 문항을 옮겼는가 — 옮겼으면 그 시퀀스의 **자동 넘김만** 끈다.
-              음원은 계속 나간다(Part 3·4 는 담화가 아직 흐르는 중일 수 있다)
-     owner  : 지금 나가는 음원의 주인 */
+     owner  : 지금 나가는 음원의 주인
+     (학생이 손으로 넘겼는지는 더 이상 보지 않는다 — 화면은 언제나 음원을 따라간다) */
   const runId = useRef(0)
-  const manual = useRef(false)
   const owner = useRef<string | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
+  /** 듣기 한 판의 상태 — idle(아직 안 틀었다) · running(흐르는 중) · done(끝났다).
+   *  버튼 세 개(P1 문항별·P2 카드·P3·P4 세트 바)가 이 하나를 보고 같은 얼굴을 한다:
+   *  **시작 전에만 누를 수 있고**, 그 뒤로는 '재생 중…' / '재생 완료' 로 잠긴다. */
+  const [runState, setRunState] = useState<'idle' | 'running' | 'done'>('idle')
+  /** 넘기는 단위의 개수 — P3·P4 는 세트, 나머지는 문항 */
+  const unitCount = pagedBySet ? sets.length : qs.length
   /* P3·P4 는 세 문항이 한 화면에 다 펼쳐져 있다 → 페이지를 넘기는 대신 **지금 읽어주는 문항**을 짚는다 */
   const [readingQ, setReadingQ] = useState<number | null>(null)
 
@@ -2521,90 +2720,93 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
     return my === runId.current
   }
 
-  /* ── 실전 듣기 한 판 ──
-     Part 1·2 : 이 문항의 음원 → 5초 → 다음 문항
-     Part 3·4 : 담화 전체 → (문항 읽어주기 → 8초 → 다음 문항) 을 세트 끝까지
-     마지막 문항에서는 넘기지 않고 멈춘다 — 채점은 학생이 누른다(자동 채점은 되돌릴 수가 없다). */
-  const runListening = async (from: number) => {
-    // 이미 한 판이 돌고 있으면 무시 — 배너 버튼과 ContentView 버튼이 겹쳐 눌리면 음원이 두 겹으로 난다
-    if (owner.current !== null) return
-    if (playsLeft(`item:${from}`) <= 0) { trackBlocked(`item:${from}`); return }
-    countPlay(`item:${from}`)
-    const my = ++runId.current
-    manual.current = false
-    stopVoice()
+  /* ── 실전 듣기 ──
+     **시험은 한 번 시작하면 끝까지 흐른다.** 문항마다 학생이 재생을 누르는 것이 아니라,
+     [시작하기] 한 번에 마지막 문항까지 이어서 나간다. 그래서 이 함수는 '한 문항'이 아니라
+     **한 판 전체**를 맡는다.
+       Part 1·2 : 문항 음원 → 5초 → 다음 문항
+       Part 3·4 : (안내 → 담화 → 문항 읽어주기 → 8초) 를 세트 끝까지, 그리고 다음 세트로
+     학생이 문항을 손으로 넘겨도 **음원은 멈추지 않는다** — 실제 시험에서 시험지를 넘긴다고
+     방송이 멈추지 않는 것과 같다. 다만 그 뒤로는 화면을 대신 넘겨주지 않는다(학생 손이 우선).
 
+     단위(unit) = 넘기는 단위와 같다. P3·P4 는 세트, 나머지는 문항. */
+  const playUnit = async (my: number, u: number): Promise<boolean> => {
     const script = pLesson.content.audioScript ?? []
-    const last = qs.length - 1
 
     if (setAudio) {
-      /* 누른 세트의 스크립트와 문항 범위만 돈다 */
-      const si = Math.max(0, sets.findIndex((s) => from >= s.from && from < s.to))
-      const set = sets[si]
-      owner.current = ownerOf(si)
-      const setScript = set?.script ?? script
-      const setLast = set ? set.to - 1 : last
-
+      const set = sets[u]
+      if (!set) return false
+      const setScript = set.script ?? script
       /* 실제 시험은 담화 **앞**에 내레이터 안내가 먼저 나온다 —
          "Questions 1 through 3 refer to the following conversation." */
-      if (set?.intro) {
-        if (!(await say(my, [{ id: `intro:${from}`, text: set.intro.text, src: set.intro.audio }]))) return
+      if (set.intro) {
+        if (!(await say(my, [{ id: `intro:${set.from}`, text: set.intro.text, src: set.intro.audio }]))) return false
       }
-
       // 담화·대화 전체
-      const ok = await say(my, setScript.map((s) => ({
+      if (!(await say(my, setScript.map((s) => ({
         id: s.id, text: s.en, src: sentenceSrc(pLesson, s.id) ?? srcOf(pLesson, s.id),
-      })))
-      if (!ok) return
+      }))))) return false
       /* 실제 시험처럼 문항을 하나씩 읽어주고 답할 시간을 준다.
          세 문항이 한 페이지에 다 있으므로 문항 사이에서는 페이지를 넘기지 않는다 — 짚는 문항만 옮긴다. */
-      for (let i = from; i <= setLast; i += 1) {
+      for (let i = set.from; i < set.to; i += 1) {
         setReadingQ(i)
         /* 문항 낭독도 내레이터 음원이 있으면 그걸 쓴다("Number 2. Why is the woman …").
            없으면 say() 가 브라우저 TTS 로 떨어진다. */
-        if (!(await say(my, [{ id: `qread:${i}`, text: qs[i]?.q ?? '', src: qs[i]?.readAudio }]))) return
-        if (!(await countDown(my, gapSec))) return
+        if (!(await say(my, [{ id: `qread:${i}`, text: qs[i]?.q ?? '', src: qs[i]?.readAudio }]))) return false
+        if (!(await countDown(my, gapSec))) return false
       }
       setReadingQ(null)
-      // 세트가 끝나면 다음 세트로 넘긴다 — 시험에서 음원이 다음 세트로 그냥 이어지는 것과 같다
-      if (!manual.current && si < sets.length - 1) {
-        /* 자동으로 넘어간 것을 남긴다 — 뒤에서 학생이 손으로 되돌아오면 짝이 맞는다
-           ("자동으로 넘어간 뒤 다시 돌아오는가" 가 FGI 관찰 항목이다) */
-        autoAdvancedRef.current = si + 1
-        track('lc_auto_advanced', { lecture: pLesson.id, part: pLesson.part, from_set: si + 1, to_set: si + 2 })
-        setPage(si + 1)
-      }
+      return true
+    }
+
+    // 문항 통음원 mp3 가 있으면 그걸, 없으면 질문 발화 + 보기를 이어 붙여 재생
+    const whole = `qaudio:${u}`
+    const wholeSrc = optionSrc(pLesson, whole) ?? srcOf(pLesson, whole)
+    const items: { id: string; text: string; src?: string }[] = []
+    if (wholeSrc) {
+      items.push({ id: whole, text: '', src: wholeSrc })
     } else {
-      owner.current = ownerOf(from)
-      // 문항 통음원 mp3 가 있으면 그걸, 없으면 질문 발화 + 보기를 이어 붙여 재생
-      const whole = `qaudio:${from}`
-      const wholeSrc = optionSrc(pLesson, whole) ?? srcOf(pLesson, whole)
-      const items: { id: string; text: string; src?: string }[] = []
-      if (wholeSrc) {
-        items.push({ id: whole, text: '', src: wholeSrc })
-      } else {
-        const s = script[from]   // P2 — 문항 i ↔ 질문 발화 i
-        if (s) items.push({ id: s.id, text: s.en, src: sentenceSrc(pLesson, s.id) ?? srcOf(pLesson, s.id) })
-        for (const o of qs[from]?.options ?? []) {
-          const id = `opt:${from}:${o.label}`
-          items.push({ id, text: `${o.label}. ${o.text}`, src: optionSrc(pLesson, id) })
-        }
-      }
-      if (!(await say(my, items))) return
-      if (!(await countDown(my, gapSec))) return
-      if (manual.current) return
-      if (from < last) {
-        autoAdvancedRef.current = from + 1
-        track('lc_auto_advanced', { lecture: pLesson.id, part: pLesson.part, from_set: from + 1, to_set: from + 2 })
-        setPage(from + 1)
+      const s = script[u]   // P2 — 문항 i ↔ 질문 발화 i
+      if (s) items.push({ id: s.id, text: s.en, src: sentenceSrc(pLesson, s.id) ?? srcOf(pLesson, s.id) })
+      for (const o of qs[u]?.options ?? []) {
+        const id = `opt:${u}:${o.label}`
+        items.push({ id, text: `${o.label}. ${o.text}`, src: optionSrc(pLesson, id) })
       }
     }
-    owner.current = null
+    if (!(await say(my, items))) return false
+    return await countDown(my, gapSec)
   }
 
-  /* 문항 이동 — 학생이 직접 옮긴 경우다. 음원 주인이 바뀌면 끊고, 자동 넘김은 멈춘다 */
+  /** 한 판을 처음부터 끝까지. 시작은 [시작하기] 한 번뿐이고, 다시 부를 수 없다(시험이니까). */
+  const runAll = async () => {
+    if (owner.current !== null || runState !== 'idle') return
+    const my = ++runId.current
+    stopVoice()
+    setRunState('running')
+    track('lc_run_started', { lecture: pLesson.id, part: pLesson.part, units: unitCount })
+
+    for (let u = 0; u < unitCount; u += 1) {
+      owner.current = ownerOf(u)
+      /* 재생 횟수는 **판이 지나가면서** 하나씩 쓴다 — 지나간 문항은 '재생 완료' 가 된다 */
+      countPlay(setAudio ? `item:${sets[u]?.from ?? u}` : `item:${u}`)
+      /* ── 음원이 화면을 끌고 간다 ──
+         **학생이 어디를 보고 있든** 지금 나가는 문항으로 옮긴다. 앞뒤로 넘겨보다가 음원을 놓치면
+         지금 몇 번을 읽어주는지 알 수 없다(실측: 손으로 한 번 넘긴 뒤로는 자동 이동이 멈췄다).
+         실제 시험장에서도 방송은 학생 사정을 봐주지 않는다 — 학생이 따라오는 것이다. */
+      if (pageRef.current !== u) {
+        autoAdvancedRef.current = u
+        track('lc_auto_advanced', { lecture: pLesson.id, part: pLesson.part, from_set: pageRef.current + 1, to_set: u + 1 })
+        setPage(u)
+      }
+      if (!(await playUnit(my, u))) return    // 끊겼다(채점·이탈) — 상태는 끊은 쪽이 정리한다
+    }
+    owner.current = null
+    setRunState('done')
+  }
+
+  /* 문항 이동 — 학생이 직접 옮긴 경우다. 음원은 건드리지 않는다(계속 흐르고, 다음 문항이
+     시작되면 화면은 다시 음원을 따라간다). 여기서 남기는 것은 "따라가지 못했는가" 뿐이다. */
   const goPage = (p: number) => {
-    manual.current = true
     setCountdown(null)
     /* 음원이 자동으로 넘긴 자리에서 **뒤로** 돌아왔다 = 못 따라갔다는 신호.
        실전 듣기가 너무 빠른지 판단하는 근거라 따로 남긴다. */
@@ -2614,15 +2816,18 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
         sec: elapsedRef.current,
       })
     }
-    if (owner.current && owner.current !== ownerOf(p)) stopRun()
+    /* ⚠️ 여기서 음원을 끊지 않는다. 실제 시험에서 시험지를 넘긴다고 방송이 멈추지 않는다 —
+       예전에는 주인이 바뀌면 stopRun() 을 불러서, 학생이 앞 문항을 다시 보려고 넘기는 순간
+       듣기가 통째로 끝나 버렸다. 넘김은 화면만 옮긴다(위 manual 로 자동 넘김만 멈춘다). */
     setPage(p)
   }
 
   /* 듣기 파트 실전은 음원이 있어야 문제가 성립한다 — 문항 통음원/보기 음원 재생.
      문항 통음원(`qaudio:i`)은 ContentView 의 재생 버튼이 부르는 경로 = 실전 듣기 한 판이다. */
   const playMedia = (id: string, text: string) => {
-    const m = /^qaudio:(\d+)$/.exec(id)
-    if (m) { void runListening(Number(m[1])); return }
+    /* 문항별 재생 버튼은 이제 **한 판을 여는 스위치**다 — 어느 문항에서 눌러도 처음부터 끝까지
+       흐른다(시작 전에만 눌린다). 시작한 뒤에는 버튼이 잠겨 여기로 들어오지 않는다. */
+    if (/^qaudio:(\d+)$/.test(id)) { void runAll(); return }
     if (playsLeft(id) <= 0) { trackBlocked(id); return }
     countPlay(id)
     stopVoice()
@@ -2635,6 +2840,19 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
   /* 나가는 순간(언마운트) 결과 체류를 남길 때 쓴다 — 그 시점엔 이 값이 클로저에 안 잡힌다 */
   const correctRef = useRef(0)
   correctRef.current = correct
+
+  /* ── 지금 눌러야 할 곳을 화면이 가리킨다 ──
+     실전에는 강사가 없다. 수업에서는 "이제 골라 보세요" 를 강사가 말해주지만 여기서는 아무도
+     말해주지 않아서, 학생이 보기를 고르고 나면 다음에 뭘 할지 모른 채 멈춘다(실측).
+     **한 번에 한 곳만** 켠다 — 두 곳이 동시에 깜빡이면 가리키는 게 아니라 어지러운 것이다.
+       듣기를 아직 시작 안 했다 → [시작하기] (버튼 쪽에서 audioRun='idle' 로 켠다)
+       답을 고른 문항          → [다음 →]
+     채점한 뒤에는 둘 다 끈다. 그때는 해설을 보는 자리라 재촉할 것이 없다. */
+  const curSet = pagedBySet ? sets[Math.min(page, sets.length - 1)] : null
+  const pageQs = curSet
+    ? Array.from({ length: curSet.to - curSet.from }, (_, k) => curSet.from + k)
+    : [page]
+  const cueNext = !graded && pageQs.every((i) => !!answers[i])
 
   /* ── 실전은 실제 시험지를 따른다 ──
      P1·P2는 시험지에 보기가 **인쇄되지 않는다**(A/B/C만 있고 내용은 음원). 보기 텍스트를 처음부터
@@ -2691,7 +2909,8 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
     revealedScript: hideUntilGraded ? new Set<string>() : 'all',
     revealedOptions: allOptions,
     /* 실전은 강사가 없다 — 음원을 학생이 직접 튼다(수업에서는 버튼 없이 강사가 틀어준다) */
-    playingId, onPlaySentence: playMedia, selfAudio: true, playsLeft, marks, tutorMarks: new Set(),
+    playingId, onPlaySentence: playMedia, selfAudio: true, playsLeft, audioRun: runState,
+    marks, tutorMarks: new Set(),
     /* 실전에는 형광펜이 없다 — 시험지에 표시하고 싶으면 좌하단 연필(필기)을 쓴다 */
     tapWords: false,
     /* 채점 전 LC는 실제 시험지처럼 (A)(B)(C)(D) 마킹만 — 채점하면 보기·스크립트가 열린다 */
@@ -2742,6 +2961,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
       return
     }
     stopRun()
+    setRunState('done')   // 채점하면 듣기는 끝난 것이다 — 버튼이 다시 열리면 안 된다
     setSpotQ(null)
     setPage(0)          // 채점하면 처음부터 결과를 훑는다
     setGraded(true)
@@ -2786,10 +3006,35 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
 
       {/* 문항 — 상단 안내 줄은 두지 않는다. "배운 전략으로 풀어보세요" 는 한 번 읽으면 그만인
           문장인데 매 문항 화면 높이를 먹는다. 음원 조작은 아래 제출 바로 내렸다. */}
-      <div ref={contentRef} className={`flex-1 px-3 md:px-6 py-4 min-h-0 ${splitReading ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-        <div className={`mx-auto ${splitReading ? 'h-full max-w-[1440px]' : 'max-w-[900px]'}`}>
-          <ContentView lesson={pLesson} st={st} readingSideBySide={splitReading} />
+      {/* 문항 영역 — 시작 전에는 그 위에 [시작하기] 가 덮인다(아래 오버레이) */}
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        <div ref={contentRef} className={`flex-1 px-3 md:px-6 py-4 min-h-0 ${splitReading ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+          <div className={`mx-auto ${splitReading ? 'h-full max-w-[1440px]' : 'max-w-[900px]'}`}>
+            <ContentView lesson={pLesson} st={st} readingSideBySide={splitReading} />
+          </div>
         </div>
+
+        {/* ── 시작 오버레이 ──
+            **시험을 여는 버튼은 문항 옆 작은 칩일 수 없다.** 그걸 못 찾으면 학생은 화면 앞에서 멈춘다.
+            화면 한가운데를 덮고 서서 "여기부터" 를 한 번에 말한다. 누르면 사라진다.
+            덮는 것에는 두 번째 뜻이 있다 — **아직 듣지도 않은 보기를 미리 고를 수 없다.**
+            배경은 옅게만 가린다: 사진은 미리 볼 수 있어야 한다(시험도 음원 전에 사진을 본다).
+            **Part 1 에서만** 둔다. Part 2 는 질문 카드가, Part 3·4 는 세트 바가 이미 크게 서 있어
+            여기 또 두면 같은 일을 하는 버튼이 화면에 둘이 된다. 작은 칩뿐인 건 Part 1 이다. */}
+        {pLesson.part === 1 && !graded && runState === 'idle' && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/55 px-6">
+            <button onClick={() => void runAll()}
+              className="rounded-3xl bg-[#2563EB] text-white px-9 py-6 flex flex-col items-center gap-2.5 shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-all hover:bg-[#1D4ED8] active:scale-[0.98] animate-cue">
+              <span aria-hidden className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 ml-1"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+              </span>
+              <span className="text-[19px] font-black leading-none">시작하기</span>
+              <span className="text-[12px] text-white/80 text-center leading-relaxed">
+                한 번 시작하면 마지막 문제까지 이어서 나가요<br />음원은 한 번만 재생돼요
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 제출/채점 바 — 가운데가 문항 페이저(문항이 여러 개일 때만) */}
@@ -2840,20 +3085,20 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
             {(
               pLesson.area === 'LC' && !graded && pLesson.part !== 2 && pLesson.part !== 3 && pLesson.part !== 4
                 && !(pLesson.part === 1 && qs.length > 1) && (() => {
-                const left = playsLeft(`item:${page}`)
-                const out = left <= 0
+                const idle = runState === 'idle'
                 return (
-                  <button onClick={() => void runListening(page)} disabled={out}
+                  <button onClick={() => void runAll()} disabled={!idle}
                     className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
-                      out ? 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
-                        : playingId ? 'border-[#2563EB] bg-[#2563EB] text-white'
-                          : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+                      !idle
+                        ? runState === 'running' ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                          : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
+                        : 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB] animate-cue'
                     }`}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                       className={`w-3.5 h-3.5 shrink-0 ${playingId ? 'animate-pulse' : ''}`}>
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
                     </svg>
-                    {out ? '재생 완료' : playingId ? '재생 중…' : '음원 듣기 (1회)'}
+                    {idle ? '시작하기' : runState === 'running' ? '재생 중…' : '재생 완료'}
                   </button>
                 )
               })()
@@ -2894,7 +3139,8 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
                     )
                   })}
                 </div>
-                <PagerBtn onClick={() => goPage(Math.min(pages - 1, page + 1))} disabled={page === pages - 1}>다음 →</PagerBtn>
+                <PagerBtn onClick={() => goPage(Math.min(pages - 1, page + 1))} disabled={page === pages - 1}
+                  cued={cueNext && page < pages - 1}>다음 →</PagerBtn>
               </div>
             )
           })()}
@@ -2913,7 +3159,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel }
               ? <button onClick={() => onDone({ correct, total, results, answers })} className={PRIMARY_BTN}>
                   {nextLabel ?? (correct === total ? '핵심 요약으로 →' : '틀린 문제 같이 보기 →')}
                 </button>
-              : <button onClick={submit} className={PRIMARY_BTN}>채점하기</button>}
+              /* ── 아직 다 안 풀었으면 옅은 파랑 ──
+                 잠그지는 않는다. 이 버튼은 다 안 푼 상태에서 누르면 **안 푼 문제로 데려가는** 일을
+                 하고 있어서(submit 의 앞부분), 잠그면 그 길이 막힌다. 색으로만 "아직이다" 를 말한다. */
+              : <button onClick={submit}
+                  className={answered === total ? PRIMARY_BTN
+                    : 'px-6 py-3 rounded-xl bg-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#BFDBFE] transition-all active:scale-[0.98]'}>
+                  채점하기
+                </button>}
           </div>
         </div>
       </div>
