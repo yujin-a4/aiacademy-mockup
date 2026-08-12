@@ -55,8 +55,8 @@ const INSTRUCTORS = [
     name: '박혜원',
     isReal: true, // 실제 YBM 스타강사
     tag: '#스파르타압축형',
-    video: '/video/video-park5.mp4',
-    videoJiyun: '/video/video-park5.mp4',
+    video: '/video/video-park5_0812.mp4',
+    videoJiyun: '/video/video-park5_0812.mp4',
     videoObjectPosition: 'center 25%', // 머리 잘림 방지 — 영상 아래로
     thumbnail: '/instructor/park-2.jpg',
     badge: '목표 자극 전문',
@@ -95,8 +95,8 @@ const INSTRUCTORS = [
     name: '윤다은',
     isReal: false, // AI 휴먼
     tag: '#하이텐션핵심형',
-    video: '/video/video-jang.mp4',
-    videoJiyun: '/video/video-jang.mp4',
+    video: '/video/video-yun-0812.mp4',
+    videoJiyun: '/video/video-yun-0812.mp4',
     thumbnail: '/image_reference/jang.png',
     badge: '핵심 포인트 전문',
     desc: 'LC 정답 타이밍과 RC 근거 키워드를 빠르게 짚어주는 에너지 넘치는 코칭.',
@@ -135,7 +135,7 @@ const INSTRUCTORS = [
     isReal: false, // AI 휴먼
     tag: '#직청직독형',
     video: '/instructor/leedoyoon02.mp4',
-    videoJiyun: '/video/video-lee-0722.mp4',
+    videoJiyun: '/instructor/leedoyoon02.mp4',
     videoObjectPosition: 'center 25%', // 머리 잘림 방지 — 영상 아래로
     thumbnail: '/instructor/lee-2.png',
     badge: '직청직독 전문',
