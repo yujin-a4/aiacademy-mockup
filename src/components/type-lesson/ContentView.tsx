@@ -5,6 +5,7 @@
    지문/채팅/표(P7, 점진 공개). 모든 영어 텍스트는 단어 탭 → 형광펜(필기 인식 대체). */
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { TypeLesson, TypeLessonContent, PassageDoc, QuestionItem, SentenceItem, MatchEvidence } from '@/data/typeLearning'
 import { track } from '@/lib/analytics'
 
@@ -36,6 +37,10 @@ export interface ContentState {
   onPlayAudio?: (qIdx: number) => void
   /** 이 음원을 더 들을 수 있는 횟수 (실전은 2회 제한). undefined면 무제한 */
   playsLeft?: (id: string) => number
+  /** 실전 듣기 한 판의 상태. 시험은 **한 번 시작하면 끝까지 흐른다** — 그래서 재생 버튼은
+   *  문항마다 따로 노는 것이 아니라 셋 다 이 하나를 본다.
+   *    idle → [시작하기](누를 수 있는 유일한 상태) · running → 재생 중… · done → 재생 완료 */
+  audioRun?: 'idle' | 'running' | 'done'
   /** 실제 시험지처럼 **보기 없이 (A)(B)(C)(D) 마킹만** 하는 답안지 모드 (LC 실전, 채점 전) */
   answerSheet?: boolean
   /** 지금 도는 아이템의 문항 범위 [from, to). 아이템 순회 수업(STEP 4)에서만 온다.
@@ -285,7 +290,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const optPlayable = optAudio && (!!st.selfAudio || !!st.audioFree)
           const playOpt = () => st.onPlaySentence?.(`opt:${qIdx}:${o.label}`, `${o.label}. ${o.text}`)
           return (
-            <div key={o.label}>
+            /* data-opt — **필기가 어느 보기 위에 있는지**를 화면이 되짚을 수 있게 표시를 남긴다.
+               사진은 그림이라 캔버스와 합성해 보여줄 수 있지만 보기는 글자다. 대신 이 상자와
+               필기 잉크가 겹치는지를 좌표로 본다(TypeLessonPlayer 의 inkedOptions). */
+            <div key={o.label} data-opt={`${qIdx}:${o.label}`}>
               <div className="flex items-center gap-1.5">
                 <button
                   disabled={!selectable && !optAudio}
@@ -547,8 +555,9 @@ function LessonAudioButton({ st, qIdx, playing, label = '음원 듣기' }: {
    실전 듣기 한 판(담화 → 문항 읽어주기 → 답할 시간)이 그 세트 범위 안에서 돈다. */
 function SetAudioButton({ kind, st, from, to }: { kind: string; st: ContentState; from: number; to: number }) {
   const id = `qaudio:${from}`
-  const left = st.playsLeft ? st.playsLeft(id) : Infinity
-  const out = left <= 0
+  /* 세트 바도 같은 규칙 — 한 판을 여는 스위치라 시작 전에만 눌린다 */
+  const run = st.audioRun ?? 'idle'
+  const out = run !== 'idle'
   /* 다른 세트가 재생 중일 때 이 버튼까지 '재생 중' 이 되면 안 된다 — 지금 짚는 문항이 내 범위인지로 가른다.
      담화가 나가는 동안엔 아직 짚는 문항이 없다(focusQ 없음) → 그때는 '남은 횟수를 쓴 세트' 가 나다. */
     const mine = st.focusQ !== undefined ? (st.focusQ >= from && st.focusQ < to) : out
@@ -571,9 +580,11 @@ function SetAudioButton({ kind, st, from, to }: { kind: string; st: ContentState
       </span>
       <span className="min-w-0">
         <span className={`block text-[13px] font-bold ${out ? 'text-[#C4C9D4]' : playing ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
-          {out ? '재생 완료' : playing ? '재생 중…' : `${kind} 듣기 (1회)`}
+          {playing ? '재생 중…' : run === 'idle' ? '시작하기' : run === 'running' ? '재생 중…' : '재생 완료'}
         </span>
-        <span className="block text-[11px] text-[#9CA3AF] mt-0.5">{kind}를 듣고 이어지는 문항에 답하세요</span>
+        <span className="block text-[11px] text-[#9CA3AF] mt-0.5">
+          {run === 'idle' ? '한 번 시작하면 마지막 문제까지 이어서 나가요' : `${kind}를 듣고 이어지는 문항에 답하세요`}
+        </span>
       </span>
     </button>
   )
@@ -916,6 +927,67 @@ function EqLine({ label }: { label: string }) {
   )
 }
 
+/* ── 사진 크게 보기 ──
+   Part 1 은 **사진 구석의 사물이 정답 근거**다("사진에 삽이 보이나요?"). 화면 높이에 맞춰
+   줄여 둔 그림으로는 그게 안 보여서, 학생이 답할 근거를 못 찾는다. 눌러서 전체 화면으로 연다.
+   수업·실전 어디서나 같게 동작한다 — 한쪽에서 되던 것이 다른 쪽에서 안 되면 그게 더 헷갈린다. */
+function PhotoZoom({ src, alt, imgClass, btnClass = '' }: {
+  src: string; alt: string; imgClass: string; btnClass?: string
+}) {
+  const [open, setOpen] = useState(false)
+  /* ── 어디까지 덮을 것인가 ──
+     **강사 창은 덮지 않는다.** 사진을 크게 보는 이유가 대개 강사가 방금 물어본 것("사진에 삽이
+     보이나요?") 때문인데, 그 질문과 답할 버튼이 강사 창에 있다. 통째로 덮으면 크게 본 순간
+     무엇을 보려 했는지가 화면에서 사라지고, 답하려면 다시 닫아야 한다.
+     게다가 대본 수업은 사진을 보는 동안에도 강사가 계속 말한다 — 목소리는 나는데 말하는 사람이
+     화면에 없으면 어디서 나는 소리인지 알 수 없다.
+     그래서 수업에서는 **문제 영역 안에서만** 커지고(zoom-host), 강사 창이 없는 실전에서는
+     자연히 화면 전체가 된다. 사진이 가로형이라 문제 영역만으로도 충분히 크다. */
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    setHost(document.getElementById('zoom-host'))
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [open])
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label={`${alt} 크게 보기`}
+        className={`group relative block ${btnClass}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className={imgClass} />
+        {/* 누를 수 있다는 걸 알려주는 표시 — 사진 위에 얹되 작게. 사진 자체를 가리면 안 된다 */}
+        <span aria-hidden className="absolute right-2 bottom-2 flex items-center gap-1 rounded-lg bg-black/45 px-2 py-1 text-[10px] font-bold text-white opacity-80 transition-opacity group-hover:opacity-100">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3 h-3">
+            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
+          </svg>
+          크게 보기
+        </span>
+      </button>
+
+      {open && (() => {
+        /* 배경을 누르면 닫힌다 — 크게 본 다음 돌아가는 길이 한 곳뿐이면 학생이 갇힌다 */
+        const view = (
+        <div onClick={() => setOpen(false)} role="dialog" aria-modal="true" aria-label={alt}
+          className={`${host ? 'absolute' : 'fixed'} inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 animate-fade-in`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={alt} className="max-h-full max-w-full rounded-xl object-contain" />
+          <button type="button" onClick={() => setOpen(false)} aria-label="닫기"
+            className="absolute right-4 top-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        )
+        /* 문제 영역(zoom-host)이 있으면 그 안에 띄운다 — 스크롤되는 칸 안에 그대로 두면
+           absolute 가 스크롤 높이를 따라가 화면 밖에 그려진다. 그래서 칸 밖으로 옮겨 붙인다. */
+        return host ? createPortal(view, host) : view
+      })()}
+    </>
+  )
+}
+
 /** 막대 파형만 — 버튼 안처럼 글자를 따로 두는 자리에서 쓴다 */
 function EqBars() {
   return (
@@ -941,10 +1013,11 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
   /* ── 이 카드가 곧 [음원 듣기] 버튼이다 ──
      실전에서 하단에 따로 버튼을 두면, 소리가 나는 곳(이 카드)과 트는 곳(하단 바)이 갈라져
      학생이 어디를 봐야 할지 모른다. `qaudio:` 로 부르면 실전 듣기 한 판(질문 → 보기 → 카운트다운)이 돈다. */
-  const left = st.selfAudio && st.playsLeft ? st.playsLeft(`qaudio:${qIdx}`) : Infinity
-  /* 수업 중에는 학생이 못 튼다 — 강사가 튼다. 단계가 다 끝나면(audioFree) 그때 풀린다 */
+  /* 실전은 **한 판**이다 — 이 카드가 시험을 여는 스위치이고, 시작 전에만 눌린다(audioRun).
+     수업 중에는 학생이 못 튼다 — 강사가 튼다. 단계가 다 끝나면(audioFree) 그때 풀린다. */
+  const run = st.audioRun ?? 'idle'
   const locked = !st.selfAudio && !st.audioFree
-  const out = left <= 0 || locked
+  const out = (st.selfAudio ? run !== 'idle' : false) || locked
   const playQ = () => {
     if (!q1) return
     if (st.selfAudio) { if (!out) st.onPlaySentence?.(`qaudio:${qIdx}`, q1.en) }
@@ -965,7 +1038,10 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
         className={`w-full rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
           playing ? 'border-[#93C5FD] bg-[#EFF6FF]'
             : out ? 'border-[#EEF0F4] bg-[#FAFAFA] cursor-not-allowed'
-              : 'border-[#E5E7EB] bg-white hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
+              /* 아직 안 들은 문항 — 여기부터 시작하라고 가리킨다 (P1 의 음원 버튼과 같은 신호) */
+              /* 아직 시작 전 — 여기를 누르면 시험이 시작된다고 화면이 말해준다 */
+              : run === 'idle' ? 'border-[#2563EB] bg-[#EFF6FF] animate-cue'
+                : 'border-[#E5E7EB] bg-white hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
         }`}>
         <span aria-hidden
           className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
@@ -1115,21 +1191,25 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                 {/* 음원 듣기 버튼은 **실전에서만**. 수업에서는 강사가 틀어주고,
                     나가는 동안에는 아래 보기가 파랗게 켜져 재생 중임을 알린다. */}
                 {q.audio && st.selfAudio && st.onPlaySentence && (() => {
-                  /* 실전 음원은 시험처럼 횟수가 정해져 있다(2회). 남은 횟수를 버튼에 적고, 다 쓰면 잠근다 */
-                  const left = st.playsLeft ? st.playsLeft(`qaudio:${i}`) : Infinity
-                  const playing = st.playingId === `qaudio:${i}`
-                  const out = left <= 0
+                  /* ── 한 판을 여는 스위치 ──
+                     시험은 한 번 시작하면 마지막 문항까지 이어서 흐른다. 그래서 이 버튼은
+                     '이 문항을 듣는' 버튼이 아니라 **시험을 시작하는** 버튼이고, 시작 전에만 눌린다.
+                     흐르는 동안에는 지금 나가는 문항만 파랗게 켜서 어디가 재생 중인지 보여준다. */
+                  const run = st.audioRun ?? 'idle'
+                  /* 시작 전에는 **아예 그리지 않는다** — 시험을 여는 것은 문항 위의 큰 [시작하기]
+                     줄 하나뿐이다. 같은 일을 하는 버튼이 둘이면 어느 쪽이 진짜인지 알 수 없다.
+                     시작한 뒤에는 '지금 어느 문항이 나가는가' 를 보여주는 표시로만 남는다. */
+                  if (run === 'idle') return null
+                  const playing = st.playingId === `qaudio:${i}` || !!st.playingId?.startsWith(`opt:${i}:`)
                   return (
-                    <button disabled={out}
-                      onClick={() => st.onPlaySentence?.(`qaudio:${i}`, q.options.map((o) => `${o.label}. ${o.text}`).join(' '))}
-                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
-                        out ? 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
-                          : playing ? 'border-[#2563EB] bg-[#2563EB] text-white'
-                            : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
+                    <span
+                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 ${
+                        playing ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                          : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4]'
                       }`}>
                       <SpeakerIcon pulse={playing} />
-                      {out ? '재생 완료' : playing ? '재생 중…' : `음원 듣기${Number.isFinite(left) ? ` (${left}회 남음)` : ''}`}
-                    </button>
+                      {playing ? '재생 중…' : run === 'running' ? '재생 대기' : '재생 완료'}
+                    </span>
                   )
                 })()}
                 {/* 수업 — 사진 옆이 그 문항 음원이 나오는 자리다 */}
@@ -1142,9 +1222,8 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                    실전(selfAudio)은 페이저로 한 문항씩 넘기므로 사진이 세로로 쌓이지 않는다 → 더 크게 본다.
                    수업은 여러 문항이 이어서 보일 수 있어 그대로 둔다.
                    object-contain — 파트1은 사진 구석의 사물이 정답 근거라 잘라내면 안 된다. */
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={q.photo ?? content.photo} alt={`문제 ${i + 1} 사진`}
-                  className={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
+                <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} btnClass="w-full"
+                  imgClass={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
               )}
               <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
             </div>
@@ -1162,9 +1241,8 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
       <div className="h-full min-h-0 flex flex-col gap-4 max-w-[620px] mx-auto">
         {content.photo && (
           <div className="flex-1 min-h-[120px] flex items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={content.photo} alt="문제 사진"
-              className="max-h-full max-w-full rounded-2xl border border-[#E5E7EB] object-contain" />
+            <PhotoZoom src={content.photo} alt="문제 사진" btnClass="max-h-full max-w-full"
+              imgClass="max-h-full max-w-full rounded-2xl border border-[#E5E7EB] object-contain" />
           </div>
         )}
         <div className="shrink-0 min-w-0 overflow-y-auto">{questionsBlock}</div>

@@ -81,6 +81,9 @@ const config: Config = {
         'pop-badge':   'popBadge 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
         'eq':          'eq 0.9s ease-in-out infinite',
         'pose-in':     'poseIn 0.26s ease-out both',
+        /* '여기 누르세요' — 크기를 키우지 않고 테두리 밖으로 옅은 파란 물결만 퍼진다.
+           실전은 시험 화면이라 요소가 커졌다 작아졌다 하면 시험지 느낌이 깨진다. */
+        'cue':         'cue 1.7s ease-out infinite',
       },
       keyframes: {
         eq: {
@@ -125,6 +128,10 @@ const config: Config = {
         slideUp: {
           '0%':   { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' },
+        },
+        cue: {
+          '0%':       { boxShadow: '0 0 0 0 rgba(37,99,235,0.40)' },
+          '70%,100%': { boxShadow: '0 0 0 6px rgba(37,99,235,0)' },
         },
         ctaPulse: {
           '0%, 100%': { transform: 'scale(1)',    opacity: '1' },
