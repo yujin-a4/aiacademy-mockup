@@ -7,7 +7,7 @@ import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
-import { FGI_SCHEDULE, FGI_DEMO_SEQ, REVIEW_LABEL, demoLecturesOf, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
+import { FGI_SCHEDULE, FGI_DEMO_SEQ, REVIEW_LABEL, DEMO_DDAY, demoLecturesOf, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -694,7 +694,8 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
       </Header>
 
       {/* 강의 타임라인 */}
-      <div className={`relative px-4 py-2 ${open ? '' : 'hidden'}`}>
+      {/* 세로선(28px)과 동그라미(지름 20) 중심 맞추기 — 위 Day 타임라인과 같은 규칙 */}
+      <div className={`relative pl-[18px] pr-4 py-2 ${open ? '' : 'hidden'}`}>
         <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
 
         {course.lessons.map((lesson) => {
@@ -875,7 +876,7 @@ function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
         </span>
         <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F9FAFB] px-2 py-0.5 rounded-md truncate">{t.typeLabel}</span>
         {playable && (
-          <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-2 py-0.5 rounded-md ml-auto shrink-0">
+          <span className="text-[10px] font-bold text-[#6B7280] bg-[#F3F4F6] px-2 py-0.5 rounded-md ml-auto shrink-0">
             {lecture!.questionCount}문항
           </span>
         )}
@@ -959,7 +960,11 @@ function DaySection({ day, bySeq, doneSeq }: {
         </div>
       </div>
 
-      <div className="relative px-4 py-2">
+      {/* ── 타임라인 세로선과 동그라미의 중심 ──
+          선은 컨테이너 왼쪽에서 28px 자리에 있고, 동그라미는 지름 20px 라 왼쪽 여백 + 10px 이
+          그 중심이다. 여백이 16px(px-4) 이면 중심이 26px — **2px 어긋난다.**
+          선을 옮기지 않고 여백을 18px 로 늘려 동그라미·파트·제목을 함께 민다. */}
+      <div className="relative pl-[18px] pr-4 py-2">
         <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
 
         {items.map(({ seq, lec }) => {
@@ -985,21 +990,23 @@ function DaySection({ day, bySeq, doneSeq }: {
               <div key={lec.code} className="relative my-2.5 -mx-1">
                 <div className="rounded-2xl overflow-hidden border border-[#C7D2FE] shadow-[0_4px_20px_rgba(37,99,235,0.16)]">
                   <div className="bg-white px-4 pt-4 pb-3">
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-[#2563EB] shrink-0">
-                          ▶ 오늘의 수업
-                        </span>
-                        {/* 한 번 들은 뒤에도 자리는 그대로다 — 시연 중 되돌아갈 길이 사라지면 안 된다 */}
-                        {done && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">수강 완료</span>
-                        )}
-                      </div>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${
+                    <div className="flex items-center gap-2 flex-wrap mb-2.5">
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-[#2563EB] shrink-0">
+                        ▶ 오늘의 수업
+                      </span>
+                      {/* 한 번 들은 뒤에도 자리는 그대로다 — 시연 중 되돌아갈 길이 사라지면 안 된다 */}
+                      {done && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">수강 완료</span>
+                      )}
+                    </div>
+                    {/* 파트는 **제목 왼쪽**에 붙인다 — 반대쪽 끝에 있으면 제목을 읽고 눈을 되돌려야
+                        무슨 파트인지 안다. 제목이 길어 줄이 바뀌어도 칩은 첫 줄에 남는다(items-start). */}
+                    <div className="flex items-start gap-2">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md shrink-0 mt-[3px] ${
                         lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
                       }`}>Part {lec.part}</span>
+                      <p className="text-[#1C1B33] font-bold text-[15px] leading-snug">{name}</p>
                     </div>
-                    <p className="text-[#1C1B33] font-bold text-[15px] leading-snug">{name}</p>
                   </div>
                   <button onClick={() => router.push(`/lecture/${lec.code}`)}
                     className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] py-3 font-bold text-[13px] text-white flex items-center justify-center gap-2 transition-all active:scale-[0.99]">
@@ -1014,9 +1021,11 @@ function DaySection({ day, bySeq, doneSeq }: {
           /* 하루 안에 LC·RC 가 섞여 있다 → 파트 칩을 줄마다 둔다. 파트별 보기에서는 헤더가
              그 일을 해서 필요 없었지만, 여기서는 줄마다 파트가 다르다. */
           const partChip = (
+            /* 'P5' 가 아니라 'Part 5' — 학생이 시험에서 보는 이름 그대로 쓴다.
+               줄여 쓰면 자리는 아끼지만 파트 번호를 문항 번호로 읽는다. */
             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
               lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
-            }`}>P{lec.part}</span>
+            }`}>Part {lec.part}</span>
           )
 
           if (isPlayable(lec)) return (
@@ -1027,7 +1036,9 @@ function DaySection({ day, bySeq, doneSeq }: {
               </div>
               {partChip}
               <span className="text-[13px] text-[#374151] flex-1 min-w-0 truncate group-hover:text-[#2563EB] transition-colors">{name}</span>
-              <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] px-1.5 py-0.5 rounded-md shrink-0">{lec.questionCount}문항</span>
+              {/* 문항 수는 **사실이지 상태가 아니다** — 초록으로 두면 '완료·정답' 처럼 읽히고,
+                  바로 왼쪽 RC 파트 칩도 초록이라 같은 줄에 초록이 둘이 된다. 회색으로 물린다. */}
+              <span className="text-[10px] font-bold text-[#6B7280] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">{lec.questionCount}문항</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6"/></svg>
             </button>
           )
@@ -1190,6 +1201,9 @@ export default function LessonsPage() {
     []
   )
 
+  /** 이 플랜이 며칠짜리인가 — 커리큘럼 시간표의 Day 수 */
+  const planDays = FGI_SCHEDULE.length
+
   /* 진도율 — 전체 레슨 완료 수 기반 실계산 */
   const { bookCount, totalLessons, doneLessons, overallPct } = useMemo(() => {
     const lessons = COURSES.flatMap(c => c.lessons)
@@ -1227,6 +1241,7 @@ export default function LessonsPage() {
   }
 
   const ddayLabel = useMemo(() => {
+    if (DEMO_DDAY) return DEMO_DDAY
     if (!examDate) return null
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const exam = new Date(examDate); exam.setHours(0, 0, 0, 0)
@@ -1331,8 +1346,10 @@ export default function LessonsPage() {
                 <div className="absolute right-24 bottom-2 w-16 h-16 bg-white/5 rounded-full" />
                 <div className="flex items-start justify-between gap-3 relative z-10">
                   <div className="min-w-0">
+                    {/* 로그인한 계정의 이름 — 온보딩에서 받아 Supabase 프로필에 저장해 둔 값이다
+                        (AccountMenu 가 쓰는 것과 같은 값). 이름이 비어 있으면 '학습자'. */}
                     <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
-                      지윤님의 플랜
+                      {userName || '학습자'}님의 플랜
                     </p>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">{streakDay}일차</span>
@@ -1353,8 +1370,10 @@ export default function LessonsPage() {
                         strokeDashoffset={2 * Math.PI * 34 * (1 - overallPct / 100)} />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-white text-[22px] font-black leading-none">{bookCount}</span>
-                      <span className="text-white/70 text-[10px] font-bold leading-none mt-0.5">Books</span>
+                      {/* 커리큘럼이 Day 단위 시간표로 바뀐 뒤로 'Books 5개'는 옛 교재 묶음 수였다 —
+                          플랜의 크기는 이제 **며칠짜리인가**로 읽는다(FGI_SCHEDULE 의 Day 수). */}
+                      <span className="text-white text-[22px] font-black leading-none">{planDays}</span>
+                      <span className="text-white/70 text-[10px] font-bold leading-none mt-0.5">Days</span>
                     </div>
                   </div>
                 </div>
