@@ -188,6 +188,15 @@ function stopVoice() {
  *  콘텐츠팀은 강사가 학생 답을 받아주고 이어가도록 쓴다 — 시트 42개 답하는 턴 중 25개가 이 꼴이다.
  *  그 앞에 앱이 "좋아요, 맞았어요." 를 또 붙이면 강사가 같은 말을 두 번 한다. */
 const ACK_OPENER = /^(맞아요|맞습니다|좋아요|좋습니다|그렇죠|그래요|정확해요|잘했어요|훌륭해요|네[,\s])/
+/** 대본 첫머리의 맞장구를 뗀다 — "맞아요. 인물이 …" → "인물이 …".
+ *  뗄 것이 없거나 떼면 문장이 없어지는 줄은 그대로 둔다(맞장구만 있는 줄도 있다). */
+function stripAck(text: string): string {
+  const t = text.trim()
+  if (!ACK_OPENER.test(t)) return text
+  const cut = t.replace(/^[^.!?]*[.!?]\s*/, '').trim()
+  /* 너무 짧게 남으면 되돌린다 — 맞장구가 문장의 전부인 줄("좋아요, 잘했어요!")도 있다 */
+  return cut.length >= 10 ? cut : text
+}
 
 /** 학생이 **모른다고 말한** 것인가 — 틀린 답과 다르게 다뤄야 한다.
  *  "몰라요" 에 "그건 조금 달라요, 다시 생각해 볼까요?" 로 답하면 말이 안 되고, 다시 물어도
@@ -308,9 +317,14 @@ function directiveOf(turn: Turn, gate: Gate = 4): string {
    맞춰 발화와 그림이 어긋나지 않게 한다. 학생이 말할 차례(주관식)엔 듣는 자세.
    ※ 지금 이도윤은 2장(calm/talk)뿐이라 폴백상 대부분 두 상태로 수렴하지만, 5포즈가 채워지면
      이 매핑 그대로 세밀해진다. */
-function poseForTurn(turn: Turn, speaking: boolean): InstPose {
+function poseForTurn(turn: Turn, speaking: boolean, cuePlaying = false): InstPose {
   const k = turn.interaction.kind
   const s = turn.stage
+  /* ── 자료 음원이 나가는 동안 ──
+     소리의 주인이 강사가 아니다. 말하는 클립을 돌리면 **강사가 말하는데 목소리는 다른 사람**인
+     꼴이 된다(실측). 같이 듣는 자세 — 끄덕임(listen)으로 둔다.
+     칭찬(S7)보다도 이게 먼저다: 지금 화면에서 일어나는 일은 '듣고 있는 것' 이다. */
+  if (cuePlaying) return 'listen'
   if (speaking) return /^S[145]/.test(s) || k === 'mark' || k === 'match' ? 'point' : 'explain'
   /* 여기부터는 **강사가 말하지 않는 동안**이다. 학생이 답하거나 화면을 보는 시간이므로
      손짓하며 말하는 그림을 계속 두면 소리 없이 입만 움직이는 꼴이 된다 → 듣는 자세로 모은다.
@@ -1557,7 +1571,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          시트 문장을 글자 그대로 읽는다. LLM 이 끼어들 자리가 없어야 대본대로 흐른다.
          강사 목소리(ElevenLabs)가 없으면 lib/tts 가 브라우저 TTS 로 알아서 내려간다. */
       if (scripted) {
-        await say(turn.tutor)
+        /* ── 앞의 답이 틀렸으면 대본의 맞장구를 뗀다 ──
+           대본은 학생이 맞힐 것을 전제로 쓰여 있다: "맞아요. 인물이 지금 하고 있는 동작은 …".
+           그런데 학생이 "몰라" 라고 해서 답을 알려주고 넘어온 자리에서도 그 "맞아요" 가 그대로
+           나간다(실측). 방금 못 맞힌 학생에게 맞았다고 하는 셈이라 수업이 거짓말이 된다.
+           **문장을 새로 짓지는 않는다** — 첫머리 한 마디만 떼고 나머지는 시트 그대로 읽는다. */
+        /* ── 정답·오답 갈래 ──
+           시트가 한 칸에 두 경우를 다 적어 둔 줄이 있다(tutorIfWrong). 지금 학생이 이 문항을
+           맞혔는지로 하나만 고른다. 판단 근거는 **화면에 남은 사실**이다 — 고른 보기가
+           정답인가. 직전 턴의 결과(prevOk)로 보면 사이에 들려주는 턴이 끼는 순간 어긋난다. */
+        const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
+        const picked = turn.focusQ !== undefined ? answers[turn.focusQ] : undefined
+        const gotIt = !!picked && picked === q?.options.find((o) => o.correct)?.label
+        const scripted0 = turn.tutorIfWrong && picked && !gotIt ? turn.tutorIfWrong : turn.tutor
+        const line = prevOkRef.current === false ? stripAck(scripted0) : scripted0
+        prevOkRef.current = null
+        await say(line)
         if (!alive) return
       } else if (agentOnRef.current) {
         /* 주의: 턴이 바뀐 직후엔 에이전트가 아직 "생성 중"이라 isSpeaking=false다.
@@ -1636,6 +1665,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      **되묻기는 한 번뿐이다.** 지금 에이전트가 앓는 병이 정확히 "같은 요구를 끝없이 반복"이라,
      횟수를 코드가 못 박는다. 두 번째에는 짚어주고 넘어간다 — 시연이 거기서 멈추면 안 된다. */
   const triesRef = useRef<Map<number, number>>(new Map())
+  /** 직전 턴의 답이 맞았는가 — 다음 대본 첫머리의 맞장구를 뗄지 정한다.
+   *  null 이면 판단할 것이 없다(들려주기 턴 등). 한 번 쓰고 비운다. */
+  const prevOkRef = useRef<boolean | null>(null)
   /* 질문 모드 — 대본을 잠시 세우고 학생이 묻는 자리. 진행은 이 동안 멈춘다 */
   const [asking, setAsking] = useState(false)
   const askingRef = useRef(false)
@@ -1734,6 +1766,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const handleScriptedAnswer = async (ok: boolean, picked?: string, gaveUp = false) => {
     const tries = (triesRef.current.get(turnIdx) ?? 0) + 1
     triesRef.current.set(turnIdx, tries)
+    prevOkRef.current = ok
     if (ok) {
       if (!scriptWillAck()) await say('좋아요, 맞았어요.')
       goNext()
@@ -1765,6 +1798,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const key = turnIdx
     const tries = (triesRef.current.get(key) ?? 0) + 1
     triesRef.current.set(key, tries)
+    prevOkRef.current = ok
     if (ok) {
       if (!scriptWillAck()) await say('정확해요, 맞았어요.')
       goNext()
@@ -2033,11 +2067,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 강사가 말하는 중인가 — 아바타 파동·포즈가 이 값을 본다.
      에이전트가 붙어 있으면 그쪽 발화가 기준이고, 아니면 화면이 트는 음원(강사가 들려주는 자료)이 기준이다.
      **학생이 직접 튼 음원은 뺀다** — 그건 강사의 소리가 아니다(파형은 그 버튼 안에서 뛴다). */
-  const tutorSpeaking = agentConnected ? conversation.isSpeaking : (narrating || (playingId !== null && !selfPlaying))
+  /* ── 말하는 것과 틀어주는 것을 가른다 ──
+     예전에는 둘을 한 값으로 묶어서, **보기 음원이 나가는 동안에도 강사가 말하는 그림**(입이 움직이는
+     클립)이 돌고 아바타 둘레에 파형이 떴다. 소리의 주인이 강사가 아닌데 강사가 말하는 것처럼 보인다.
+       tutorSpeaking : 강사가 **자기 목소리로** 말하는 중 — 말하는 클립 + 파형
+       cuePlaying    : 강사가 **틀어준 자료 음원**이 나가는 중 — 끄덕임, 파형 없음
+     학생이 직접 튼 음원(selfPlaying)은 둘 다 아니다 — 그건 강사와 아무 상관이 없다. */
+  const tutorSpeaking = agentConnected ? conversation.isSpeaking : narrating
+  const cuePlaying = playingId !== null && !selfPlaying
 
   /* 대본 모드에서 마이크를 여는 때 — 학생 차례이고 강사가 말하지 않는 동안만.
      낭독 중에 열어 두면 강사 목소리를 학생 답으로 전사한다. */
-  const voiceOn = !!scripted && chatMode === 'voice' && !tutorSpeaking
+  const voiceOn = !!scripted && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
   const getScriptedMicFreq = useScriptedVoice(!!scripted && chatMode === 'voice', voiceOn, (text) => {
     if (asking) void askTutor(text)
@@ -2053,10 +2094,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      도착하자마자 닫으면 그 말이 중간에 잘린다. 말이 멎고 1.5초 조용하면 그때 닫는다. */
   useEffect(() => {
     if (!itemDone || phase !== 'lesson' || !agentConnected) return
-    if (tutorSpeaking) return
+    if (tutorSpeaking || cuePlaying) return
     const t = setTimeout(() => endAgent(), 1500)
     return () => clearTimeout(t)
-  }, [itemDone, phase, agentConnected, tutorSpeaking, endAgent])
+  }, [itemDone, phase, agentConnected, tutorSpeaking, cuePlaying, endAgent])
 
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
@@ -2356,10 +2397,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
-          poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking))}
+          poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
           /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(poseForTurn)은
              사진과 똑같이 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
-          clipSrc={instClip(instructor, poseForTurn(turn, tutorSpeaking))}
+          clipSrc={instClip(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
           allClips={instClips(instructor)}
           chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}

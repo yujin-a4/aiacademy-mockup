@@ -101,11 +101,16 @@ function normMode(raw) {
   return '듣기'
 }
 
-/** 예시 답변 칸 → [첫 답, …나머지]. 한 칸에 '-' 로 여러 답이 나열돼 있는 경우가 있다 */
+/** 예시 답변 칸 → [첫 답, …나머지]. 한 칸에 '-' 로 여러 답이 나열돼 있는 경우가 있다
+ *  ("-옷들이 옷걸이에 걸려 있어요 -모자가 벽에 걸려 있어요").
+ *
+ *  ⚠️ 붙임표를 무조건 자르면 안 된다 — **답 안에도 붙임표가 있다**: "be + -ing 진행형".
+ *  그렇게 자르면 첫 답이 "be +" 가 되고, 강사가 "이렇게 답하면 돼요. be +" 라고 말한다(실측).
+ *  목록 표시는 뒤에 **한글**이 바로 붙는다("-옷들이"). 영어·기호가 오면 목록이 아니라 답의 일부다. */
 function samples(raw) {
   const s = clean(raw)
   if (!s || s === '-' || s === '–') return []
-  return s.split(/(?:^|\s)[-·]\s*/).map((x) => clean(x)).filter(Boolean)
+  return s.split(/(?:^|\s)[-·](?=[가-힣])\s*/).map((x) => clean(x)).filter(Boolean)
 }
 
 /** 두 갈래의 낱말 수를 맞춘다 — "이번 사진도 사람이 중심인 사진" / "사물이 중심인 사진" 처럼
@@ -275,12 +280,56 @@ function labelsOf(t) {
   return Array.from(hit).sort()
 }
 
+/** 이 턴은 **보기 음원을 트는 자리**인가 — 시트에 이렇게 적혀 있다.
+ *
+ *    "정답 B를 다시 들어볼게요. The woman is painting a picture on an easel. 재생"
+ *
+ *  뒤의 영어와 '재생' 은 **읽으라는 말이 아니라 지시**다. 그대로 낭독하면 강사가 정답 문장을
+ *  한국어 목소리로 읽어버려서, 학생이 들어야 할 원어민 음원이 나가지 않는다(실측).
+ *  → 낭독은 앞의 한국어까지만, 뒤는 그 보기 mp3 재생으로 바꾼다.
+ *  '재생' 표시가 붙은 줄에서만 손댄다 — 다른 줄의 영어는 강사가 실제로 읽는 말이다. */
+/** 한 칸에 **두 갈래**가 적혀 있는가 — 정답일 때 / 오답일 때.
+ *
+ *    "풀이 결과가 정답일 때 이제 선택지 봐볼게요. 정답은 B죠? 잘 맞혔어요!
+ *     풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 B였어요. …"
+ *
+ *  그대로 읽으면 강사가 **두 경우를 다 읊는다**(실측). 갈라서 담고 화면이 하나만 고른다. */
+function branchOf(tutor) {
+  const t = clean(tutor)
+  const m = /풀이\s*결과가\s*정답일\s*때\s*(.+?)\s*풀이\s*결과가\s*오답일\s*때\s*(.+)$/.exec(t)
+  if (!m) return null
+  return { ok: clean(m[1]), wrong: clean(m[2]) }
+}
+
+function playCue(tutor) {
+  const t = clean(tutor)
+  if (!/재생\s*$/.test(t)) return null
+  const m = /정답\s*([A-D])\s*를/.exec(t)
+  if (!m) return null
+  const said = t
+    .replace(/재생\s*$/, '')                                   // 지시어를 뗀다
+    .replace(/\s*[A-Z][A-Za-z'’,.\-\s]{6,}[.!?]?\s*$/, '')     // 뒤에 붙은 영어 문장을 뗀다
+    .trim()
+  return { label: m[1], said: said || t.replace(/재생\s*$/, '').trim() }
+}
+
 function toTurn(t, qIdx, no, seq, kind) {
   /* 실전(리뷰)은 itemSeq 를 달지 않는다 — 아이템 표는 수업 문항 것이라
      실전 문항 번호로 되짚으면 엉뚱한 범위가 잡힌다. 화면은 focusQ 하나로 문항을 고른다. */
+  /* 한 칸에 정답·오답 두 갈래가 적혀 있으면 갈라 담는다(화면이 하나만 고른다) */
+  const branch = branchOf(t.tutor)
+  const said0 = branch ? branch.ok : t.tutor
+  /* '재생' 지시가 붙은 줄이면 낭독은 앞의 한국어까지만 하고, 그 보기 음원을 튼다 */
+  const cue = playCue(said0)
+  const tutor = cue ? cue.said : said0
   const base = kind === 'lesson'
-    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor: t.tutor, focusQ: qIdx }
-    : { no, stage: t.stage, tutor: t.tutor, focusQ: qIdx }
+    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx }
+    : { no, stage: t.stage, tutor, focusQ: qIdx }
+  if (cue) base.audio = { kind: 'option', qIdx, label: cue.label }
+  if (branch) {
+    const w = playCue(branch.wrong)
+    base.tutorIfWrong = w ? w.said : branch.wrong
+  }
   /* 지목한 보기가 있으면 그 스크립트를 연다. 공개는 누적이라 한 번 열린 보기는 계속 보인다.
      정답 고르기(A~D) 턴에는 붙이지 않는다 — 고르기도 전에 보기 글자가 열리면 듣기가 아니게 된다. */
   const labels = t.mode === 'A~D' ? [] : labelsOf(t)
@@ -346,7 +395,9 @@ function build(src) {
         ? ` [${turn.interaction.choices.map((c) => c.text + (c.correct ? '✓' : '')).join(' / ')}]`
         : k === 'subjective' && turn.interaction.accepts ? ` (예시 ${turn.interaction.accepts.length}개)` : ''
       const rv = turn.reveal ? `  스크립트 열림 ${turn.reveal.optionText[0].labels.join('')}` : ''
-      console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${rv}`)
+      const au = turn.audio?.kind === 'option' ? `  ♪ ${turn.audio.label} 보기 음원` : ''
+      const br = turn.tutorIfWrong ? '  ⑂ 정답/오답 갈래' : ''
+      console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${au}${br}${rv}`)
       target.push(turn)
     }
   }
