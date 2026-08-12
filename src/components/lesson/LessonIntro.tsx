@@ -59,7 +59,7 @@ export default function LessonIntro({
   onEnd,
   teacherImg = '/image_reference/park-3.jpg',
   teacherName = '박혜원 선생님',
-  phaseLabels = ['도입', '수업', '실전', '정리'],
+  phaseLabels = ['도입', '유형 학습', '실전 문제', '핵심 요약'],
 }: LessonIntroProps) {
   const [introTime, setIntroTime] = useState(0)
   const [speaking, setSpeaking] = useState(true)
@@ -128,7 +128,12 @@ export default function LessonIntro({
         <div className={`bg-[#2277F0] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${dark ? 'w-5 h-5 md:w-8 md:h-8' : 'w-7 h-7 lg:w-8 lg:h-8'}`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={dark ? 'w-2.5 h-2.5 md:w-4 md:h-4' : 'w-3.5 h-3.5 lg:w-4 lg:h-4'}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /></svg>
         </div>
-        <p className={`leading-relaxed ${dark ? 'text-sm md:text-lg text-white' : 'text-lg xl:text-xl text-gray-700'}`}>{script}</p>
+        {/* 도입 대본은 여러 문단이다(줄바꿈으로 나뉜다) — 한 덩어리로 흘리면 벽처럼 보여 안 읽힌다.
+            문단이 하나뿐인 옛 호출부는 그대로 한 줄이 된다. */}
+        {/* 한 문장짜리 도입이던 시절의 크기(lg/xl)는 문단 네 개를 담기엔 크다 — 한 단계씩 낮춘다 */}
+        <div className={`space-y-2 leading-relaxed ${dark ? 'text-[13px] md:text-base text-white' : 'text-base xl:text-lg text-gray-700'}`}>
+          {script.split('\n').map((para) => para.trim()).filter(Boolean).map((para) => <p key={para}>{para}</p>)}
+        </div>
       </div>
       <div className={`rounded-full overflow-hidden ${dark ? 'h-1 md:h-1.5 bg-white/20' : 'h-1.5 bg-gray-200'}`}>
         <div className={`h-full rounded-full transition-all duration-200 ${dark ? 'bg-white/70' : 'bg-[#2277F0]'}`} style={{ width: `${introTime}%` }} />

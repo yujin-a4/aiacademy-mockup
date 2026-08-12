@@ -805,7 +805,7 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
       <div className="flex items-center justify-between px-4 md:px-6 py-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2">
           <span className="bg-[#2277F0]/10 text-[#2277F0] text-xs font-bold px-3 py-1 rounded-full">{partName}</span>
-          <span className="text-[13px] font-bold text-gray-600">정리</span>
+          <span className="text-[13px] font-bold text-gray-600">핵심 요약</span>
         </div>
         <button onClick={onEnd} className="text-[13px] font-bold text-gray-400 hover:text-gray-600">수업 종료 ✕</button>
       </div>

@@ -28,6 +28,10 @@ export interface ContentState {
   /** 수업의 스캐폴딩 단계가 다 끝났는가. 이때부터 수업 화면의 음원 버튼이 눌린다 —
    *  실전으로 넘어가기 전에 학생이 혼자 다시 들어보는 구간. */
   audioFree?: boolean
+  /** 대본 수업인가 — 강사가 짚는 보기(reveal.optionText)의 스크립트를 **저절로 연다.**
+   *  대본은 "A를 볼게요. tie an apron은…" 처럼 특정 보기를 지목해 읽으므로, 그 문장이
+   *  화면에 없으면 무슨 말인지 따라갈 수 없다. 대본이 아닌 수업은 예전대로 버튼만 열린다. */
+  autoScript?: boolean
   /** 수업 화면에서 그 문항(P1·P2) 또는 담화 전체(P3·P4)를 재생한다. audioFree 일 때만 불린다 */
   onPlayAudio?: (qIdx: number) => void
   /** 이 음원을 더 들을 수 있는 횟수 (실전은 2회 제한). undefined면 무제한 */
@@ -265,8 +269,20 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const coached = graded || revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
           /* 실전은 채점하고 나면 스크립트가 열린 채로 시작한다(근거 확인 단계라 감출 이유가 없다).
              수업은 그 반대 — 버튼만 열리고 내용은 학생이 눌러야 열린다. */
-          const scriptShown = scriptOverride[o.label] ?? (optAudio ? (!!st.selfAudio && graded) : true)
+          /* 레일이 **이 보기를 지금 짚고 있는가** — 대본 수업은 강사가 "A를 볼게요" 하는 순간
+             그 보기의 스크립트를 연다(st.autoScript). 강사가 읽고 있는 문장을 학생이 눈으로도
+             따라갈 수 있어야 한다. 짚지 않은 보기는 그대로 닫혀 있다.
+             ⚠️ coached(버튼 열림)와는 다르다 — 그건 채점만 되면 네 개가 한꺼번에 열린다. */
+          const railOpened = revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
+          const scriptShown = scriptOverride[o.label]
+            ?? (optAudio ? (st.autoScript ? railOpened : (!!st.selfAudio && graded)) : true)
           const textHidden = !scriptShown
+          /* ── 보기별 음원을 학생이 틀 수 있는 때 ──
+             **수업 중에는 못 튼다.** 그 시간 음원의 주인은 강사다 — 학생이 아무 보기나 눌러
+             먼저 들어버리면 "듣고 고르는" 단계가 성립하지 않는다.
+             문제의 단계가 다 끝나 통음원 버튼과 [다음 문제] 가 열리는 그 시점(audioFree)에 같이 풀린다.
+             실전(selfAudio)은 시험 화면이라 자기 규칙(재생 횟수)을 따르므로 그대로 둔다. */
+          const optPlayable = optAudio && (!!st.selfAudio || !!st.audioFree)
           const playOpt = () => st.onPlaySentence?.(`opt:${qIdx}:${o.label}`, `${o.label}. ${o.text}`)
           return (
             <div key={o.label}>
@@ -512,7 +528,7 @@ function LessonAudioButton({ st, qIdx, playing, label = '음원 듣기' }: {
   return (
     <button type="button" disabled={!free} onClick={() => st.onPlayAudio?.(qIdx)}
       aria-label={free ? label : '강사가 들려주는 음원'}
-      title={free ? label : '수업 중에는 강사가 들려줍니다'}
+      title={free ? label : '유형 학습 중에는 강사가 들려줍니다'}
       className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
         playing ? 'border-[#93C5FD] bg-[#EFF6FF] text-[#2563EB]'
           : free ? 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
