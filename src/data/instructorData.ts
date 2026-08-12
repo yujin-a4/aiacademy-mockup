@@ -98,6 +98,15 @@ export const INST_CLIPS: Record<string, Partial<Record<InstPose, string>>> = {
     listen: '/instructor/lee_doyun/clips/nod.mp4',           // 끄덕임 — 강사가 말하지 않는 동안
     praise: '/instructor/lee_doyun/clips/praise.mp4',        // 박수 — 칭찬·마무리
   },
+  yun_daeun: {
+    /* 이도윤과 같은 4종·같은 배치. 다만 원본 프레이밍이 이도윤보다 타이트해(얼굴이 더 크다)
+       두 강사를 나란히 놓는 화면에서는 크기가 갈린다 — 맞추려면 더 넓게 재생성해야 한다. */
+    greeting: '/instructor/yun_daeun/clips/gesture-a.mp4',   // 인사·기본
+    explain: '/instructor/yun_daeun/clips/gesture-a.mp4',    // 설명하는 중
+    point: '/instructor/yun_daeun/clips/gesture-b.mp4',      // 짚어주는 중
+    listen: '/instructor/yun_daeun/clips/nod.mp4',           // 끄덕임 — 강사가 말하지 않는 동안
+    praise: '/instructor/yun_daeun/clips/praise.mp4',        // 박수 — 칭찬·마무리
+  },
 }
 
 /** 강사 × 포즈 → 영상 경로. 클립이 없으면 null (호출부가 사진으로 폴백한다). */
