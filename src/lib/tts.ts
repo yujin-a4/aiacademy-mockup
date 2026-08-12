@@ -183,6 +183,27 @@ export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
   })
 }
 
+/* ── 한국어 발화 안에 홀로 선 알파벳 ── */
+const LETTER_KO: Record<string, string> = {
+  A: '에이', B: '비', C: '씨', D: '디', E: '이', F: '에프', G: '지', H: '에이치', I: '아이',
+  J: '제이', K: '케이', L: '엘', M: '엠', N: '엔', O: '오', P: '피', Q: '큐', R: '알',
+  S: '에스', T: '티', U: '유', V: '브이', W: '더블유', X: '엑스', Y: '와이', Z: '지',
+}
+
+/**
+ * 한국어 문장 속 **홀로 선 대문자 한 글자**를 한글 음으로 바꾼다 — "D에서는" → "디에서는".
+ * 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다(실측: "B예요" 가 알아들을 수 없는 소리).
+ * **화면에 보이는 글자는 그대로 A·B·C·D 다** — 읽을 때만 바꾼다.
+ *
+ * 손대지 않는 것
+ *  · 영어 단어 속 글자 — 앞뒤에 알파벳이 붙어 있으면 건드리지 않는다("an easel", "AI")
+ *  · 소문자 — 영어 문장의 관사 'a' 가 "에이" 로 읽히면 안 된다("paint a picture")
+ * 그래서 이 함수는 **한국어 발화 전용**이다. 영어 지문·보기 낭독에는 쓰지 말 것.
+ */
+export function koLetters(text: string): string {
+  return text.replace(/(?<![A-Za-z])([A-Z])(?![A-Za-z])/g, (m) => LETTER_KO[m] ?? m)
+}
+
 /** fetchTTSAudio + playAndWait + speechSynthesis fallback.
  *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다. */
 export async function speakTTS(text: string, persona: string, instructor?: string): Promise<void> {
