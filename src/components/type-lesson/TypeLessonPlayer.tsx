@@ -3120,8 +3120,11 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                 <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 ml-1"><polygon points="5 3 19 12 5 21 5 3" /></svg>
               </span>
               <span className="text-[19px] font-black leading-none">시작하기</span>
+              {/* 한 판에 사진이 여러 장이면 끝까지 이어서 나간다(수업 실전).
+                  자율학습은 한 판이 사진 한 장이라 '마지막 문제까지' 라고 하면 거짓말이 된다. */}
               <span className="text-[12px] text-white/80 text-center leading-relaxed">
-                한 번 시작하면 마지막 문제까지 이어서 나가요<br />음원은 한 번만 재생돼요
+                {qs.length > 1 && <>한 번 시작하면 마지막 문제까지 이어서 나가요<br /></>}
+                음원은 한 번만 재생돼요
               </span>
             </button>
           </div>

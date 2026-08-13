@@ -207,6 +207,8 @@ export interface PassageGroup {
 const KIND_KO: Record<string, string> = {
   text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사',
   chat: '문자', table: '표', form: '양식',
+  // LC — 지문이 글이 아니라 음원이다
+  utterance: '발화', dialogue: '대화', talk: '담화',
 }
 
 export function groupByPassage(rows: UiDbQuestion[]): PassageGroup[] {
