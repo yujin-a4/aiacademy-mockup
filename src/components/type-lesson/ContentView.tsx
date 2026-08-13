@@ -135,12 +135,21 @@ function SentenceText({ text, st, focusBlank, scope = '' }: { text: string; st: 
         if (m || p === '______') {
           const n = m ? Number(m[1]) : undefined
           const focused = n !== undefined && focusBlank === n
+          /* ── 번호 없는 빈칸(P5)은 **시험지 그대로 밑줄 하나** ──
+             상자·배경을 씌우면 시험지가 아니라 입력폼처럼 보인다. inline-block 이라
+             밑줄이 줄 끝에서 두 동강 나지 않고 통째로 다음 줄로 내려간다. */
+          if (n === undefined) {
+            return (
+              <span key={i} aria-label="빈칸"
+                className="inline-block align-baseline w-[92px] mx-1 border-b-2 border-[#111] whitespace-nowrap" />
+            )
+          }
           return (
             <span key={i}
-              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 rounded-md border-b-2 text-[13px] font-black align-baseline ${
+              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 rounded-md border-b-2 text-[13px] font-black align-baseline whitespace-nowrap ${
                 focused ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
               }`}>
-              {n ? `(${n})` : '____'}
+              {`(${n})`}
             </span>
           )
         }
@@ -1333,7 +1342,9 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
     const sentences = (content.passages ?? []).flatMap((p) => p.sentences ?? [])
     const SentenceCard = ({ text }: { text: string }) => (
       <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
-        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
+        {/* 실제 시험지의 Part 5 는 **왼쪽 정렬**이다. 가운데로 모으면 한 줄짜리는 그럴듯해도
+            두 줄이 되는 순간 들쭉날쭉해져서 시험지로 안 보인다. */}
+        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-left">
           <SentenceText text={text} st={st} focusBlank={focusBlank} scope="p5" />
         </p>
       </div>

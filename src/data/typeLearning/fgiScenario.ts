@@ -2425,7 +2425,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             {
               "id": "s2_1",
               "en": "line up = ___",
-              "ko": "잘 했어요! 오늘 나온 어휘까지 다 확인했어요. Part 1은 단어를 듣자마자 뜻이 바로 떠올라야 빠르게 풀 수 있어요.. 특히 방금 틀린 어휘는 그냥 넘어가지 말고, 뜻이 바로 나올 때까지 달달 외워두세요. 어휘가 잡혀야 선택지도 훨씬 빨리 들립니다.",
+              "ko": "잘했어요! 오늘 나온 어휘까지 다 확인했어요. Part 1은 단어를 듣자마자 뜻이 바로 떠올라야 빠르게 풀 수 있어요.. 특히 방금 틀린 어휘는 그냥 넘어가지 말고, 뜻이 바로 나올 때까지 달달 외워두세요. 어휘가 잡혀야 선택지도 훨씬 빨리 들립니다.",
               "answer": "줄지어 놓다",
               "choices": [
                 "줄지어 놓다",
@@ -4176,7 +4176,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "tutor": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요.",
           "focusQ": 0,
           "interaction": {
-            "kind": "next"
+            "kind": "mark",
+            "prompt": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠?",
+            "targetWords": [
+              "are"
+            ]
           }
         },
         {
@@ -4184,7 +4188,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S2 유형·역할 판별",
-          "tutor": "잘 했어요. are이 있죠? be동사 뒤에 빈칸이 나오면 -ing, p.p., 명사 같은 형태가 올 수 있어요. 이럴 때는 are과 함께 동사 형태를 이루는 -ing와 p.p. 중 어떤 형태가 맞는지부터 확인하는 게 좋아요.",
+          "tutor": "잘했어요. are이 있죠? be동사 뒤에 빈칸이 나오면 -ing, p.p., 명사 같은 형태가 올 수 있어요. 이럴 때는 are과 함께 동사 형태를 이루는 -ing와 p.p. 중 어떤 형태가 맞는지부터 확인하는 게 좋아요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -4311,11 +4315,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S2 유형·역할 판별",
-          "tutor": "잘 했어요. 조동사 cannot이 있죠. 조동사 뒤에는 어떤 형태가 와야 하죠?",
+          "tutor": "잘했어요. 조동사 cannot이 있죠. 조동사 뒤에는 어떤 형태가 와야 하죠?",
           "focusQ": 1,
           "interaction": {
             "kind": "subjective",
-            "prompt": "잘 했어요. 조동사 cannot이 있죠. 조동사 뒤에는 어떤 형태가 와야 하죠?",
+            "prompt": "잘했어요. 조동사 cannot이 있죠. 조동사 뒤에는 어떤 형태가 와야 하죠?",
             "hint": "동사원형"
           }
         },
@@ -4600,7 +4604,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S2 유형·역할 판별",
-          "tutor": "잘 했어요. 빈칸 앞에 긴 주어 The layout of Pierce University's new residence hall 뒤에 동사가 없죠. 이번에도 마찬가지로 빈칸이 동사면 뭐부터 확인하라고 했죠?",
+          "tutor": "잘했어요. 빈칸 앞에 긴 주어 The layout of Pierce University's new residence hall 뒤에 동사가 없죠. 이번에도 마찬가지로 빈칸이 동사면 뭐부터 확인하라고 했죠?",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -5084,7 +5088,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "tutor": "문제 보자마자 빈칸 앞뒤 확인해서 빈칸이 무슨 자리인지 확인해야 한다고 했죠. 빈칸 앞에 that에 동그라미 치세요.",
           "focusQ": 4,
           "interaction": {
-            "kind": "next"
+            "kind": "mark",
+            "prompt": "문제 보자마자 빈칸 앞뒤 확인해서 빈칸이 무슨 자리인지 확인해야 한다고 했죠. 빈칸 앞에 that에 동그라미 치세요.",
+            "targetWords": [
+              "that"
+            ]
           }
         },
         {
