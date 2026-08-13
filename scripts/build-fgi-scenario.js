@@ -63,6 +63,10 @@ const SOURCES = [
 ]
 
 const go = process.argv.includes('--go')
+/* --json — 만들어진 대본을 JSON 으로만 뱉는다(검수 스크립트 audit-fgi.py 가 읽는다).
+   생성기가 정본이므로 만들어진 .ts 를 다시 파싱하지 않고 여기서 바로 받아 가게 한다. */
+const asJson = process.argv.includes('--json')
+if (asJson) console.log = () => {}
 
 const clean = (s) => String(s ?? '')
   /* 시트 대본은 통째로 겹따옴표(“ ”)로 감싸여 있다 — 낭독되는 문장이라 벗긴다.
@@ -70,6 +74,13 @@ const clean = (s) => String(s ?? '')
   .replace(/[“”″]/g, '')
   .replace(/[‘’]/g, "'")
   .replace(/\s+/g, ' ')
+  /* 맞장구 띄어쓰기를 한 벌로 — 시트가 "잘 했어요" 로 쓴 줄이 있다(이도윤 4곳).
+     화면은 다음 대본이 맞장구로 시작하면 앱 맞장구를 비켜서는데(ACK_OPENER), 규칙 쪽은
+     공백을 허용해 두었지만 **읽히는 말 자체도 한 벌이어야** 한다 — 강사가 어떤 줄에서는
+     "잘 했어요", 어떤 줄에서는 "잘했어요" 라고 하면 같은 사람 말로 안 들린다. */
+  .replace(/잘\s+했어요/g, '잘했어요')
+  .replace(/맞\s+아요/g, '맞아요')
+  .replace(/좋\s+아요/g, '좋아요')
   .replace(/^"|"$/g, '')
   .trim()
 
@@ -123,11 +134,25 @@ function pickedIndex(sample, choices) {
  *  → **가장 짧은 쪽**만 목표로 삼는다. 긴 쪽을 짚어도 그 안에 들어 있어 같이 완료된다.
  *  (덤으로 "Mr. Stepp's duties" 같은 아포스트로피 낱말을 피한다 — 시트의 ' 와 교재의 ’ 가
  *   서로 다른 글자라 정규화 뒤에도 안 맞는다) */
-function markTargets(raw) {
+function markTargets(raw, tutor, nextTutor) {
   const s = clean(raw).replace(/\s*(동그라미|밑줄|하이라이트|표시|치기|하기)\s*/g, ' ')
   const alts = s.split(/\s*또는\s*/).map(clean).filter((x) => x && x !== '-' && x !== '–')
-  if (!alts.length) return []
-  return [alts.reduce((a, b) => (b.length < a.length ? b : a))]
+  if (alts.length) return [alts.reduce((a, b) => (b.length < a.length ? b : a))]
+
+  /* ── 예시 답변에 낱말이 없으면 **발화에서 찾는다** ──
+     시트가 "동그라미 표시" 라고만 적어 둔 줄이 있다. 그대로 두면 짚을 것이 없어 그 턴이
+     '듣기'로 떨어지고, 강사는 "동그라미 쳐보세요" 라고 해놓고 화면은 그냥 넘어간다(실측).
+     짚을 낱말은 대개 말 안에 있다:
+       "빈칸 앞에 **that**에 동그라미 치세요"        → 이 턴 발화에서
+       "빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요" → 되묻는 꼴이라 **다음 턴**이 답을 말한다
+                                                       ("잘했어요. **are**이 있죠?") */
+  const inLine = /([A-Za-z][A-Za-z'’\- ]*[A-Za-z]|[A-Za-z])\s*(?:에|을|를)?\s*(?:동그라미|밑줄)/.exec(clean(tutor))
+  if (inLine) return [clean(inLine[1])]
+  if (/뭐가?\s*(나오|있)|어떤 (말|단어|표현)/.test(clean(tutor))) {
+    const ans = /(?:^|[.!?]\s*)[^.!?]*?([A-Za-z][A-Za-z'’\-]*)\s*(?:이|가|은|는)?\s*(?:있|나오)/.exec(clean(nextTutor || ''))
+    if (ans) return [clean(ans[1])]
+  }
+  return []
 }
 
 /** 예시 답변 칸 → [첫 답, …나머지]. 한 칸에 '-' 로 여러 답이 나열돼 있는 경우가 있다
@@ -443,7 +468,7 @@ function playCue(tutor) {
 }
 
 /** @param audible 보기를 **소리로** 듣는 강의인가 (LC). RC Part 5 는 보기가 글자라 음원이 없다 */
-function toTurn(t, qIdx, no, seq, kind, audible) {
+function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   /* 실전(리뷰)은 itemSeq 를 달지 않는다 — 아이템 표는 수업 문항 것이라
      실전 문항 번호로 되짚으면 엉뚱한 범위가 잡힌다. 화면은 focusQ 하나로 문항을 고른다. */
   /* 한 칸에 정답·오답 두 갈래가 적혀 있으면 갈라 담는다(화면이 하나만 고른다) */
@@ -499,7 +524,7 @@ function toTurn(t, qIdx, no, seq, kind, audible) {
     case '표시': {
       /* 시험지에 동그라미·밑줄을 치는 자리. 짚을 낱말이 없으면 표시할 것이 정해지지 않은
          것이라 그냥 넘긴다 — 판정할 수 없는 필기를 요구하면 학생이 갇힌다. */
-      const targets = markTargets(t.sampleRaw)
+      const targets = markTargets(t.sampleRaw, t.tutor, nextTutor)
       if (!targets.length) return { ...base, interaction: { kind: 'next' } }
       return { ...base, interaction: { kind: 'mark', prompt: askOf(t.tutor), targetWords: targets } }
     }
@@ -554,8 +579,8 @@ function build(src) {
     const target = lesson ? out.turns : out.review
     console.log(`\n[${lesson ? '유형 학습' : '실전'} ${qIdx + 1}] ${b.srcCode || '(코드 없음)'}`
       + `${b.answer ? `  정답 ${b.answer}` : ''} — ${b.turns.length}턴`)
-    for (const t of b.turns) {
-      const turn = toTurn(t, qIdx, ++no, qIdx + 1, b.kind, audible)
+    for (const [ti, t] of b.turns.entries()) {
+      const turn = toTurn(t, qIdx, ++no, qIdx + 1, b.kind, audible, b.turns[ti + 1]?.tutor)
       const k = turn.interaction.kind
       const extra = k === 'choice'
         ? ` [${turn.interaction.choices.map((c) => c.text + (c.correct ? '✓' : '')).join(' / ')}]`
@@ -629,6 +654,7 @@ export const scenarioFor = (instructor?: string, code?: string): ScriptedLesson 
   (instructor && code && FGI_SCENARIO[instructor]?.[code]) || undefined
 `
 
+  if (asJson) { process.stdout.write(JSON.stringify(byInstructor)); return }
   if (!go) { console.log('\n보여주기만 했다. 파일을 쓰려면 --go 를 붙일 것.'); return }
   fs.writeFileSync(OUT, body)
   console.log(`\n✅ ${path.relative(path.join(__dirname, '..'), OUT)}`)
