@@ -178,6 +178,63 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
   return attachPassageSets(ordered as UiDbQuestion[])
 }
 
+/** 한 파트의 문항 전체. 자율학습 '파트별 연습'이 여기서 문제를 받는다.
+ *  큐레이션(Q_CODES)이나 앵커(Q_ANCHORS)로 좁히지 않고 DB에 든 것을 다 가져온다. */
+export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('questions')
+    .select(Q_SELECT)
+    .eq('part', part)
+  if (error || !data) return []
+  return attachPassageSets((data as any[])
+    .map(mapQuestion)
+    .filter((q) => q.options.length > 0)
+    .sort((a, b) => a.code.localeCompare(b.code)))
+}
+
+/** 지문(또는 지문 세트) 하나 = 한 판. 파트별 연습에서 고를 목록을 만든다.
+ *  지문이 없는 파트(P5)는 묶을 것이 없어 빈 배열을 준다. */
+export interface PassageGroup {
+  /** 화면 상단에 띄울 이름 = 지문 종류('이메일'·'광고'). 지문 원문은 쓰지 않는다 —
+   *  잘라 붙인 첫 줄로는 무슨 글인지 알 수 없다. */
+  label: string
+  questions: UiDbQuestion[]
+}
+
+/** 지문 종류 한글 이름. fromDb 의 KIND_KO 와 같은 표 — 여기서 fromDb 를 부르면 참조가 서로 물린다 */
+const KIND_KO: Record<string, string> = {
+  text: '지문', email: '이메일', notice: '공지', ad: '광고', article: '기사',
+  chat: '문자', table: '표', form: '양식',
+}
+
+export function groupByPassage(rows: UiDbQuestion[]): PassageGroup[] {
+  const byKey = new Map<string, UiDbQuestion[]>()
+  for (const q of rows) {
+    /* 이중·삼중 지문은 문항마다 가리키는 지문(passage.code)이 달라서, 그걸로 묶으면 한 세트가
+       둘·셋으로 쪼개진다. 세트 코드가 있으면 그게 정본이다. 둘 다 없는 옛 적재분은 지문 원문으로. */
+    const key = q.passage?.setCode ?? q.passage?.code
+      ?? q.content.passage_text ?? q.content.passage_context ?? q.code
+    if (!byKey.has(key)) byKey.set(key, [])
+    byKey.get(key)!.push(q)
+  }
+  return Array.from(byKey.values()).map((questions) => {
+    const sorted = [...questions].sort((a, b) => a.code.localeCompare(b.code))
+    const first = sorted[0]
+    // 세트면 첫 지문(setSeq 순으로 정렬돼 있음)의 제목이 그 묶음의 이름이다
+    const head = first.passages?.[0] ?? first.passage
+    /* 교재 표기(passage_type)가 'ad' 보다 구체적이라 있으면 그걸 쓴다 — '영수증'·'일정표'·'보도문'.
+       다만 '이중 지문'처럼 지문 개수를 말하는 값이 섞여 있는데, 그건 종류가 아니라 아래 passageCount 로 낸다. */
+    const type = first.content.passage_type?.trim()
+    const label = type && !/지문$/.test(type)
+      ? type
+      : KIND_KO[head?.kind ?? ''] ?? '지문'
+    return { label, questions: sorted, sortKey: first.code }
+  }).sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .map(({ label, questions }) => ({ label, questions }))
+}
+
 /** 범용 훅: DB 로드 성공 시 adapt 결과, 실패 시 fallback */
 export function useDbQuestions<T>(codes: string[], adapt: (rows: UiDbQuestion[]) => T, fallback: T): T {
   const [data, setData] = useState<T>(fallback)

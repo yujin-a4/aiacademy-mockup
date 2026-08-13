@@ -845,6 +845,9 @@ function buildRcPracticeSets(part: number, group: UiDbQuestion[]): TypeLessonCon
 
     const from = questions.length
     g.forEach((q, i) => {
+      /* P6 는 실물 시험지에 문제 문장이 없다 — 지문의 번호 붙은 빈칸이 곧 문제다.
+         DB(교재)에는 "빈칸 (3)에 들어갈 문장으로…" 같은 한글 지시문이 있지만 시험지에는 없는 말이라 안 쓴다.
+         대신 지금 문항이 지문의 어느 빈칸인지는 화면이 강조로 알려준다(TypeLessonPlayer 의 focusQ). */
       const item = part === 6
         ? toQuestion(q, `빈칸 (${qNo(q) || i + 1})`)
         : withDoc(toQuestion(q), q, docs)
@@ -866,7 +869,15 @@ function buildRcPracticeSets(part: number, group: UiDbQuestion[]): TypeLessonCon
 function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | undefined {
   const ps = rows.filter((r) => r.content.stage === 'practice')
   if (ps.length === 0) return undefined
-  const group = [...ps].sort((a, b) => qNo(a) - qNo(b) || a.code.localeCompare(b.code))
+  return buildPracticeContent(part, ps)
+}
+
+/** 문항 묶음을 실전 화면(PracticeStage)이 먹는 content 로 바꾼다.
+ *  `buildPractice` 와 달리 stage 필터가 없다 — 넘긴 문항을 그대로 쓴다.
+ *  자율학습 '파트별 연습'이 이 경로로 들어온다(수업 레일 없이 실전 화면만 쓴다). */
+export function buildPracticeContent(part: number, rows: UiDbQuestion[]): TypeLessonContent | undefined {
+  if (rows.length === 0) return undefined
+  const group = [...rows].sort((a, b) => qNo(a) - qNo(b) || a.code.localeCompare(b.code))
 
   switch (part) {
     case 1:
@@ -946,6 +957,34 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
       return buildRcPracticeSets(part, group)
     default:
       return undefined
+  }
+}
+
+/* ═══════════ 자율학습 · 파트별 연습 ═══════════ */
+
+const PRACTICE_PART_NAME: Record<number, string> = {
+  5: '단문 빈칸', 6: '장문 빈칸', 7: '장문 독해',
+}
+
+/** 실전 화면에 넘길 최소 TypeLesson. 강사 레일과 세션 정리는 이 경로에서 안 쓰므로 비운다.
+ *  PracticeStage 는 `practice` 가 있으면 그걸 풀고, part·area 로 2분할과 적정 시간을 정한다. */
+export function practiceOnlyLesson(
+  part: number, title: string, content: TypeLessonContent,
+): TypeLesson {
+  return {
+    id: `part-practice-p${part}`,
+    typeNo: 0,
+    area: 'RC',
+    part,
+    partName: PRACTICE_PART_NAME[part] ?? `Part ${part}`,
+    typeLabel: '파트별 연습',
+    railCode: '',
+    title,
+    desc: '',
+    content,
+    practice: content,
+    turns: [],
+    recap: { sentences: [], closing: '' },
   }
 }
 

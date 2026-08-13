@@ -1,125 +1,114 @@
 'use client'
 import { useRouter, useParams } from 'next/navigation'
-import { useState, useMemo } from 'react'
-import { P5_QUESTIONS, P6_PASSAGES, P7_PASSAGES } from '@/data/rcData'
-import type { RCChoices } from '@/data/rcData'
-import { useDbQuestions, useDbQuestionsByPassage, toP5Questions, toP6Passage, toP7Passage, Q_CODES, Q_ANCHORS, useStableCodes } from '@/data/db/questionStore'
-import ExitConfirmModal from '@/components/ExitConfirmModal'
+import { useEffect, useState } from 'react'
+import { fetchQuestionsByPart, groupByPassage, type UiDbQuestion } from '@/data/db/questionStore'
+import { buildPracticeContent, practiceOnlyLesson } from '@/data/typeLearning/fromDb'
+import { PracticeStage, type PracticeResult } from '@/components/type-lesson/TypeLessonPlayer'
+import type { TypeLesson } from '@/data/typeLearning/types'
 import { useWrongAnswerStore } from '@/store/wrongAnswerStore'
-import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
 
-const PART_INFO: Record<string, { name: string; label: string }> = {
-  p5: { name: '단문 공란', label: 'Part 5' },
-  p6: { name: '장문 공란', label: 'Part 6' },
-  p7: { name: '장문 독해', label: 'Part 7' },
+const PART_INFO: Record<string, { part: number; name: string; label: string }> = {
+  p5: { part: 5, name: '단문 공란', label: 'Part 5' },
+  p6: { part: 6, name: '장문 공란', label: 'Part 6' },
+  p7: { part: 7, name: '장문 독해', label: 'Part 7' },
 }
 
-const LABELS = ['A', 'B', 'C', 'D']
+const BACK = '/my-learning?tab=part'
 
-interface PracticeItem {
-  choices: RCChoices
-  answer: number
-  explanation: string
-  category?: string
-  sentence?: string
-  blankNum?: number
-  question?: string
+/** 한 판에 낼 문항 묶음 */
+interface Round {
+  /** 상단에 띄울 이름. P5 는 파트 이름, P6·P7 은 지문 종류('이메일'·'광고') */
+  label: string
+  questions: UiDbQuestion[]
 }
 
-function P5Sentence({ sentence, filledWord }: { sentence: string; filledWord?: string }) {
-  const parts = sentence.split('_______')
-  return (
-    <p className="text-[15px] text-[#1C1B33] leading-[1.9] font-medium">
-      {parts[0]}
-      <span className={`inline-block border-b-2 min-w-[110px] text-center font-bold mx-1 px-2 py-0.5 rounded-sm transition-colors ${
-        filledWord ? 'border-[#2563EB] text-[#2563EB] bg-[#EFF6FF]' : 'border-[#D1D5DB] text-transparent'
-      }`}>
-        {filledWord || '　'}
-      </span>
-      {parts[1]}
-    </p>
-  )
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
 }
 
-function P6PassageView({ passage, currentBlankNum }: { passage: string; currentBlankNum: number }) {
-  const lines = passage.split('\n')
-  return (
-    <div className="text-[13px] text-[#374151] leading-[1.8] space-y-0.5">
-      {lines.map((line, lineIdx) => {
-        if (!line) return <div key={lineIdx} className="h-2" />
-        const parts = line.split(/(\(\d\)_+)/g)
-        return (
-          <p key={lineIdx}>
-            {parts.map((part, j) => {
-              const m = part.match(/^\((\d)\)(_+)$/)
-              if (!m) return <span key={j}>{part}</span>
-              const num = parseInt(m[1])
-              return (
-                <span key={j} className={`inline-block px-1.5 py-0.5 rounded text-[12px] font-bold mx-0.5 ${
-                  num === currentBlankNum
-                    ? 'bg-[#EFF6FF] text-[#2563EB] border-b-2 border-[#2563EB]'
-                    : num < currentBlankNum
-                      ? 'bg-[#F0FDF4] text-[#059669]'
-                      : 'bg-[#F3F4F6] text-[#9CA3AF]'
-                }`}>
-                  ({num})
-                </span>
-              )
-            })}
-          </p>
-        )
-      })}
-    </div>
-  )
-}
+const BackArrow = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15 18l-6-6 6-6"/>
+  </svg>
+)
 
 export default function PartPracticePage() {
   const params = useParams()
-  const partId = ((params?.partId as string) || '').toLowerCase()
   const router = useRouter()
+  const partId = ((params?.partId as string) || '').toLowerCase()
+  const info = PART_INFO[partId]
 
   const { addWrongAnswer } = useWrongAnswerStore()
 
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [selected, setSelected] = useState<number | null>(null)
-  const [evaluated, setEvaluated] = useState(false)
-  const [results, setResults] = useState<boolean[]>([])
-  const [showExitModal, setShowExitModal] = useState(false)
+  /* ── 한 판씩 이어서 푼다 ──
+     끝이 정해져 있지 않다. 채점하면 그 자리에서 해설을 보고, 버튼을 누르면 다음 판으로 넘어간다.
+     학습자가 그만두고 싶을 때 나간다.
+       P5      : 문항끼리 독립이라 한 판 = 문항 1개
+       P6·P7   : 지문 하나에 문항이 묶여 있어 한 판 = 지문 1개(이중·삼중이면 그 묶음)
+     섞어 둔 순서대로 꺼내므로 한 바퀴를 다 돌 때까지 같은 판이 두 번 나오지 않는다. */
+  const [rounds, setRounds] = useState<Round[]>([])
+  const [cursor, setCursor] = useState(0)
+  const [lesson, setLesson] = useState<TypeLesson | null>(null)
+  const [tally, setTally] = useState({ solved: 0, correct: 0 })
+  const [empty, setEmpty] = useState(false)
 
-  const drawing = useDrawingTool()
+  useEffect(() => {
+    if (!info) return
+    let alive = true
+    fetchQuestionsByPart(info.part).then((rows) => {
+      if (!alive) return
+      if (rows.length === 0) { setEmpty(true); return }
+      const next: Round[] = info.part === 5
+        ? rows.map((q) => ({ label: info.name, questions: [q] }))
+        : groupByPassage(rows).map((g) => ({ label: g.label, questions: g.questions }))
+      setRounds(shuffle(next))
+      setCursor(0)
+    }).catch(() => { if (alive) setEmpty(true) })
+    return () => { alive = false }
+  }, [info])
 
-  const partInfo = PART_INFO[partId]
+  useEffect(() => {
+    if (!info || rounds.length === 0) return
+    const r = rounds[cursor % rounds.length]
+    const content = buildPracticeContent(info.part, r.questions)
+    if (!content) return
+    setLesson(practiceOnlyLesson(info.part, `${info.label} · ${r.label}`, content))
+  }, [info, rounds, cursor])
 
-  // 문항 데이터는 Supabase DB에서 로드 (실패 시 rcData 하드코딩 폴백)
-  const p5Bank = useDbQuestions(useStableCodes(Q_CODES.p5Bank), (r) => toP5Questions(r, P5_QUESTIONS), P5_QUESTIONS)
-  const p6Passage = useDbQuestionsByPassage(Q_ANCHORS.p6Memo, (r) => toP6Passage(r, P6_PASSAGES[0]), P6_PASSAGES[0])
-  const p7Passage = useDbQuestionsByPassage(Q_ANCHORS.p7Greenwood, (r) => toP7Passage(r, P7_PASSAGES[0]), P7_PASSAGES[0])
+  const handleDone = (score: PracticeResult) => {
+    /* 틀린 문항을 오답노트로 넘긴다 — '파트별 연습을 풀면 틀린 문제가 자동으로 모입니다' */
+    const qs = lesson?.practice?.questions ?? lesson?.content.questions ?? []
+    score.results.forEach((ok, i) => {
+      if (ok) return
+      const q = qs[i]
+      if (!q) return
+      const chosen = q.options.findIndex((o) => o.label === score.answers[i])
+      const correct = q.options.findIndex((o) => o.correct)
+      if (chosen < 0 || correct < 0) return
+      addWrongAnswer({
+        partId,
+        partLabel: info?.label ?? partId.toUpperCase(),
+        questionText: q.q,
+        choices: q.options.map((o) => o.text),
+        chosenAnswer: chosen,
+        correctAnswer: correct,
+        explanation: q.options[correct]?.why ?? '',
+        passageTitle: lesson?.title,
+      })
+    })
 
-  const items: PracticeItem[] = useMemo(() => {
-    const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5)
+    setTally((t) => ({ solved: t.solved + score.total, correct: t.correct + score.correct }))
+    const next = cursor + 1
+    // 한 바퀴 다 돌면 순서를 다시 섞는다
+    if (next >= rounds.length) { setRounds((r) => shuffle(r)); setCursor(0) } else { setCursor(next) }
+  }
 
-    if (partId === 'p5') {
-      return shuffle(p5Bank).map(q => ({
-        choices: q.choices, answer: q.answer, explanation: q.explanation,
-        category: q.category, sentence: q.sentence,
-      }))
-    }
-    if (partId === 'p6') {
-      return shuffle(p6Passage.questions.map(q => ({
-        choices: q.choices, answer: q.answer, explanation: q.explanation,
-        category: q.category, blankNum: q.blankNum,
-      })))
-    }
-    if (partId === 'p7') {
-      return shuffle(p7Passage.questions.map(q => ({
-        choices: q.choices, answer: q.answer, explanation: q.explanation,
-        question: q.question,
-      })))
-    }
-    return []
-  }, [partId, p5Bank, p6Passage, p7Passage])
-
-  if (!partInfo || items.length === 0) {
+  if (!info) {
     return (
       <div className="min-h-screen flex items-center justify-center text-[#6B7280] font-sans">
         파트를 찾을 수 없습니다.
@@ -127,265 +116,36 @@ export default function PartPracticePage() {
     )
   }
 
-  const isFinished = currentIndex >= items.length
-  const current = items[currentIndex]
-
-  const handleSelect = (idx: number) => { if (!evaluated) setSelected(idx) }
-  const handleSubmit = () => {
-    if (selected === null) return
-    const isCorrect = selected === current.answer
-    setResults(prev => [...prev, isCorrect])
-    setEvaluated(true)
-
-    if (!isCorrect) {
-      const questionText =
-        current.sentence
-          ? current.sentence
-          : current.question
-            ? current.question
-            : `빈칸 (${current.blankNum}) 에 들어갈 알맞은 것은?`
-
-      addWrongAnswer({
-        partId,
-        partLabel: PART_INFO[partId]?.label ?? partId.toUpperCase(),
-        questionText,
-        choices: Array.from(current.choices),
-        chosenAnswer: selected,
-        correctAnswer: current.answer,
-        category: current.category,
-        explanation: current.explanation,
-        passageTitle:
-          partId === 'p6' ? p6Passage.title :
-          partId === 'p7' ? p7Passage.title : undefined,
-      })
-    }
-  }
-  const handleNext = () => { setSelected(null); setEvaluated(false); setCurrentIndex(p => p + 1) }
-  const handleRestart = () => { setCurrentIndex(0); setSelected(null); setEvaluated(false); setResults([]) }
-
-  const BackArrow = (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 18l-6-6 6-6"/>
-    </svg>
-  )
-
-  /* ── 결과 화면 ── */
-  if (isFinished) {
-    const correct = results.filter(Boolean).length
-    const pct = Math.round((correct / items.length) * 100)
-    const accentColor = pct >= 80 ? '#059669' : pct >= 60 ? '#B45309' : '#DC2626'
-    const bgColor    = pct >= 80 ? '#D1FAE5' : pct >= 60 ? '#FEF9C3' : '#FEE2E2'
+  if (empty) {
     return (
-      <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-10">
+      <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans">
         <header className="px-6 py-4 flex items-center justify-between shrink-0">
-          <button onClick={() => router.push('/my-learning?tab=part')} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
-          <div className="font-bold text-[#1C1B33] text-[15px]">{partInfo.label} · {partInfo.name} · 결과</div>
+          <button onClick={() => router.push(BACK)} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
+          <div className="font-bold text-[#1C1B33] text-[15px]">{info.label} · {info.name}</div>
           <div className="w-8" />
         </header>
-        <div className="px-6 max-w-[600px] mx-auto w-full mt-6">
-          <div className="bg-white rounded-3xl p-8 shadow-lg border border-[#DBEAFE] text-center">
-            <div className="w-24 h-24 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: bgColor }}>
-              <span className="text-[28px] font-black" style={{ color: accentColor }}>{pct}%</span>
-            </div>
-            <h2 className="text-[20px] font-bold text-[#1C1B33] mb-1">연습 완료!</h2>
-            <p className="text-[#6B7280] text-[14px]">{items.length}문제 중 {correct}개 정답</p>
-            <div className="mt-6 space-y-2 text-left">
-              {results.map((r, i) => (
-                <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] ${r ? 'bg-[#F0FDF4]' : 'bg-[#FEF2F2]'}`}>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${r ? 'bg-[#10B981] text-white' : 'bg-[#EF4444] text-white'}`}>
-                    {r ? '○' : '✕'}
-                  </span>
-                  <span className={`font-semibold ${r ? 'text-[#059669]' : 'text-[#DC2626]'}`}>Q{i + 1}</span>
-                  <span className={r ? 'text-[#059669]' : 'text-[#DC2626]'}>{r ? '정답' : '오답'}</span>
-                  {items[i].category && (
-                    <span className="ml-auto text-[11px] text-[#9CA3AF] bg-[#F3F4F6] px-2 py-0.5 rounded-md">{items[i].category}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={handleRestart} className="flex-1 border-2 border-[#2563EB] text-[#2563EB] py-3 rounded-2xl font-bold text-[14px] hover:bg-[#EFF6FF] transition-colors">
-                다시 풀기
-              </button>
-              <button onClick={() => router.push('/my-learning?tab=part')} className="flex-1 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-2xl font-bold text-[14px] transition-colors shadow-lg shadow-[#2563EB]/20">
-                돌아가기
-              </button>
-            </div>
-          </div>
-        </div>
+        <p className="text-center text-[#6B7280] text-[14px] mt-16">이 파트에 등록된 문제가 없습니다.</p>
       </div>
     )
   }
 
-  /* ── 연습 화면 공통 요소 ── */
-  const isCorrect = evaluated && selected === current.answer
-  const isSplit = partId === 'p6' || partId === 'p7'
-
-  const renderChoices = () => (
-    <div className="space-y-2">
-      {current.choices.map((choice, i) => {
-        const isSelected = selected === i
-        const showCorrect = evaluated && i === current.answer
-        const showWrong = evaluated && isSelected && i !== current.answer
-        return (
-          <button
-            key={i}
-            onClick={() => handleSelect(i)}
-            disabled={evaluated}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
-              showCorrect ? 'bg-[#D1FAE5] border-[#10B981]' :
-              showWrong   ? 'bg-[#FEE2E2] border-[#EF4444]' :
-              isSelected  ? 'bg-[#EFF6FF] border-[#2563EB]' :
-              'bg-white border-[#E5E7EB] hover:border-[#C7D2FE] hover:bg-[#EFF6FF]'
-            }`}
-          >
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
-              showCorrect ? 'bg-[#10B981] text-white' :
-              showWrong   ? 'bg-[#EF4444] text-white' :
-              isSelected  ? 'bg-[#2563EB] text-white' :
-              'bg-[#F3F4F6] text-[#6B7280]'
-            }`}>
-              {LABELS[i]}
-            </span>
-            <span className={`text-[14px] font-medium ${
-              showCorrect ? 'text-[#059669]' :
-              showWrong   ? 'text-[#DC2626]' :
-              isSelected  ? 'text-[#2563EB]' :
-              'text-[#374151]'
-            }`}>
-              {choice}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  const renderExplanation = () => evaluated ? (
-    <div className={`rounded-2xl px-4 py-3 border ${isCorrect ? 'bg-[#F0FDF4] border-[#BBF7D0]' : 'bg-[#FEF2F2] border-[#FECACA]'}`}>
-      <p className={`text-[12px] font-bold mb-1.5 ${isCorrect ? 'text-[#059669]' : 'text-[#DC2626]'}`}>
-        {isCorrect ? '정답입니다!' : `오답 — 정답: ${LABELS[current.answer]}`}
-      </p>
-      <p className="text-[#374151] text-[12px] leading-relaxed">{current.explanation}</p>
-    </div>
-  ) : null
-
-  const renderButton = () => !evaluated ? (
-    <button
-      onClick={handleSubmit}
-      disabled={selected === null}
-      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#D1D5DB] disabled:text-[#9CA3AF] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/20"
-    >
-      정답 확인
-    </button>
-  ) : (
-    <button
-      onClick={handleNext}
-      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/20"
-    >
-      {currentIndex < items.length - 1 ? '다음 문제' : '결과 보기'}
-    </button>
-  )
-
-  /* ── 연습 화면 렌더 ── */
-  return (
-    // 태블릿에서는 뷰포트 높이 고정, 모바일은 자연 스크롤
-    <div className={`bg-[#F8FAFF] flex flex-col font-sans min-h-screen ${isSplit ? 'md:h-screen md:overflow-hidden' : ''}`}>
-      <ExitConfirmModal
-        isOpen={showExitModal}
-        onContinue={() => setShowExitModal(false)}
-        onExit={() => router.push('/my-learning?tab=part')}
-      />
-
-      <header className="px-6 py-4 flex items-center justify-between shrink-0 bg-[#F8FAFF]">
-        <button onClick={() => setShowExitModal(true)} className="p-2 -ml-2 text-[#6B7280]">{BackArrow}</button>
-        <div className="font-bold text-[#1C1B33] text-[15px]">{partInfo.label} · {partInfo.name}</div>
-        <DrawToggleButton drawMode={drawing.drawMode} toggleDraw={drawing.toggleDraw} />
-      </header>
-
-      <DrawingOverlay {...drawing} />
-
-      {/* 진행 바 */}
-      <div className={`shrink-0 px-6 pb-3 mx-auto w-full ${isSplit ? 'md:px-8 md:max-w-none' : 'max-w-[600px]'}`}>
-        <div className="w-full bg-[#E5E7EB] rounded-full h-1.5 overflow-hidden">
-          <div className="bg-[#2563EB] h-full transition-all duration-300" style={{ width: `${((currentIndex + 1) / items.length) * 100}%` }} />
-        </div>
-        <p className="text-center text-[#6B7280] text-[12px] mt-2 font-medium">
-          {partId === 'p6' ? `빈칸 ${current.blankNum} / ${items.length}` : `Question ${currentIndex + 1} of ${items.length}`}
-        </p>
+  if (!lesson) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#6B7280] font-sans text-[14px]">
+        문제를 불러오는 중…
       </div>
+    )
+  }
 
-      {/* ── P5: 세로 레이아웃 ── */}
-      {partId === 'p5' && (
-        <div className="px-6 max-w-[600px] mx-auto w-full pb-10 space-y-4">
-          <div className="bg-white rounded-3xl p-6 shadow-lg border border-[#DBEAFE]">
-            {current.sentence && (
-              <P5Sentence
-                sentence={current.sentence}
-                filledWord={selected !== null ? current.choices[selected] : undefined}
-              />
-            )}
-          </div>
-          {renderChoices()}
-          {evaluated && <div>{renderExplanation()}</div>}
-          <div>{renderButton()}</div>
-        </div>
-      )}
-
-      {/* ── P6/P7: 태블릿 좌우 분할 / 모바일 세로 ── */}
-      {isSplit && (
-        <div className={`flex-1 min-h-0 px-4 md:px-6 mx-auto w-full pb-6 md:flex md:gap-5 ${isSplit ? 'md:max-w-none' : ''}`}>
-
-          {/* LEFT: 지문 영역 */}
-          <div className="md:flex-1 md:min-w-0 flex flex-col min-h-0">
-            <div className="bg-white rounded-3xl p-5 md:p-6 shadow-lg border border-[#DBEAFE] max-h-[40vh] md:max-h-none md:flex-1 md:overflow-y-auto overflow-y-auto">
-              <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-3">
-                {partId === 'p6' ? p6Passage.title : p7Passage.title}
-              </p>
-              {partId === 'p6' && current.blankNum !== undefined && (
-                <P6PassageView passage={p6Passage.passage} currentBlankNum={current.blankNum} />
-              )}
-              {partId === 'p7' && (
-                <p className="text-[13px] text-[#374151] leading-[1.8] whitespace-pre-line">
-                  {p7Passage.passage}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT: 문제 + 선택지 + 버튼 */}
-          <div className="mt-4 md:mt-0 md:w-[380px] md:shrink-0 md:flex md:flex-col md:min-h-0">
-            <div className="md:flex-1 md:overflow-y-auto md:flex md:flex-col">
-              {/* 문제 카드 */}
-              <div className="bg-white rounded-3xl p-5 shadow-lg border border-[#DBEAFE] mb-3">
-                {partId === 'p6' && current.blankNum !== undefined && (
-                  <p className="text-[13px] font-semibold text-[#374151]">
-                    빈칸 ({current.blankNum})에 들어갈 가장 적절한 것은?
-                  </p>
-                )}
-                {partId === 'p7' && (
-                  <p className="text-[14px] font-semibold text-[#1C1B33] leading-relaxed">
-                    {current.question}
-                  </p>
-                )}
-              </div>
-
-              {/* 선택지 */}
-              {renderChoices()}
-
-              {/* 해설 */}
-              {evaluated && <div className="mt-3">{renderExplanation()}</div>}
-
-              {/* 버튼 */}
-              <div className="mt-4 md:mt-auto md:pt-4">
-                {renderButton()}
-              </div>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-    </div>
+  return (
+    <PracticeStage
+      lesson={lesson}
+      /* 수업 흐름(도입·유형 학습·실전 문제·핵심 요약) 밖이라 자기 이름 하나만 세운다 */
+      steps={[lesson.title]}
+      solvingHint={tally.solved > 0 ? `${tally.solved}문제 중 ${tally.correct}개 정답` : '직접 풀기'}
+      nextLabel={info.part === 5 ? '다음 문제 →' : '다음 지문 →'}
+      onExit={() => router.push(BACK)}
+      onDone={handleDone}
+    />
   )
 }
