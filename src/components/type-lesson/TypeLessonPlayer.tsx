@@ -2652,6 +2652,8 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
   const [playingId, setPlayingId] = useState<string | null>(null)
   /* 지금 보고 있는 문항 — 실전은 한 문항씩 넘겨 푼다(아래 visibleQ 주석) */
   const [page, setPage] = useState(0)
+  /* P6 에서 학생이 고른 문항 탭 — 지문의 그 빈칸을 켜는 데 쓴다(아래 focusQ) */
+  const [tabQ, setTabQ] = useState(0)
   /* 비동기 재생 루프 안에서 '지금 몇 번째 화면인가' 를 최신값으로 읽는다 —
      state 를 클로저로 잡으면 판이 시작될 때의 값에 머문다 */
   const pageRef = useRef(0)
@@ -3023,8 +3025,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
     visibleQ: pagedBySet
       ? { from: sets[Math.min(page, sets.length - 1)].from, to: sets[Math.min(page, sets.length - 1)].to }
       : (multi ? { from: page, to: page + 1 } : undefined),
-    /* 짚는 문항 — LC 는 지금 읽어주는 문항. RC 세트는 짚을 게 없다(학생이 스스로 오간다) */
-    focusQ: setAudio ? (readingQ ?? undefined) : (pagedBySet ? undefined : (multi ? page : undefined)),
+    /* 짚는 문항 — LC 는 지금 읽어주는 문항.
+       P7 세트는 짚을 게 없다(문항마다 근거가 지문 여기저기라 학생이 스스로 찾는다).
+       **P6 는 다르다** — 문항 하나가 지문의 빈칸 하나다. 학생이 문항 탭을 옮기면 지문의 그 빈칸이
+       켜져야 어디를 채우는 건지 안다(그게 없으면 화면에 '빈칸 (2)' 라는 글자만 남는다). */
+    focusQ: setAudio ? (readingQ ?? undefined)
+      : pLesson.part === 6 ? tabQ
+      : (pagedBySet ? undefined : (multi ? page : undefined)),
+    onFocusQ: pLesson.part === 6 ? setTabQ : undefined,
     spotlightQ: spotQ ?? undefined,
   }
 
