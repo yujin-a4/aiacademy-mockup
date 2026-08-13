@@ -197,6 +197,24 @@ export function useLessonLog(
         })
       }
     },
+    /** 실전을 채점했다 — **문항별로 한 줄씩** 남긴다.
+     *
+     *  왜 따로 두는가: 복습 세션이 "무엇을 틀렸나"를 이 기록으로 고른다(reviewStore). 코칭 턴의
+     *  response 만으로는 모자란다 — 대본 코칭은 문항 자체가 아니라 보기 하나하나를 O/X 로 묻기
+     *  때문에, 실전에서 3번을 틀려도 코칭에서 O/X 를 맞히면 `is_correct=true` 만 남는다.
+     *  그러면 정작 틀린 문항의 짝이 복습에 안 나온다. 채점한 사실은 채점한 자리에서 남겨야 한다. */
+    practiceGraded(questions: { code?: string }[], results: boolean[], answers: Record<number, string>) {
+      if (!learnerId || !lectureCode) return
+      const ctx: LessonLogContext = {
+        learnerId, sessionId: sessionIdRef.current, lectureCode,
+        phase: 'practice', instructorCode, questionTypeId: null,
+      }
+      results.forEach((ok, i) => {
+        const code = questions[i]?.code
+        if (!code) return
+        logLearningEvent(ctx, { type: 'response', questionCode: code, response: answers[i] ?? null, isCorrect: ok })
+      })
+    },
     /** 수업을 끝냈다 — 진도·Fading 상태도 같이 올린다 */
     complete(turn?: Turn) {
       const ctx = ctxOf(turn)
