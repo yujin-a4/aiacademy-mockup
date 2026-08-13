@@ -46,11 +46,11 @@ const config: Config = {
         sans:    ['Pretendard', 'Noto Sans KR', 'Inter', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
         display: ['Barlow Condensed', 'sans-serif'],
-        /* 시험지 조판 — 실제 토익 시험지(YBM 실전토익 본권)의 본문 서체.
-           지문 본문은 세리프(Times 계열), 문자·웹·Part6 장문은 산세리프(Helvetica/Arial).
-           둘 다 iPad·윈도우 기본 탑재라 웹폰트 없이 실물과 거의 같게 나온다. */
-        'exam-serif': ['"Times New Roman"', 'Times', 'Georgia', 'serif'],
-        'exam-sans':  ['Arial', 'Helvetica', '"Liberation Sans"', 'sans-serif'],
+        /* 시험지 조판 — 실제 토익 시험지의 본문 서체는 Helvetica다.
+           Helvetica 는 아이패드·맥에만 있고 윈도우엔 Arial, 안드로이드엔 둘 다 없다. FGI 를 갤럭시탭으로
+           하는데 기기에 맡기면 Roboto 로 떨어져 자폭이 달라진다 → Arimo(Helvetica·Arial 과 자폭이 같은
+           서체)를 실어 보내 기기와 무관하게 같은 조판이 나오게 한다. 아래는 그 뒤의 폴백 순서. */
+        exam: ['var(--font-arimo)', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
       },
       borderRadius: {
         'sharp':   '6px',
