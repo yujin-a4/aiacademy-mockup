@@ -510,7 +510,7 @@ function VisualTable({ visual }: { visual: NonNullable<TypeLessonContent['visual
   return (
     <div className="mx-auto max-w-[560px] border-[1.5px] border-[#111] bg-white px-3 py-3 md:px-4 md:py-4">
       {visual.title && (
-        <p className="text-center font-exam-serif font-bold text-[15px] md:text-[17px] text-[#111] mb-2 tracking-wide">
+        <p className="text-center font-exam font-bold text-[15px] md:text-[17px] text-[#111] mb-2 tracking-wide">
           {visual.title}
         </p>
       )}
@@ -639,9 +639,10 @@ function ExamBody({ doc, st, focusBlank, sans }: {
   if (!ss.length) return null
   return (
     <>
-      <p className={`text-[#111] ${sans
-        ? 'font-exam-sans text-[13px] md:text-[14.5px] leading-[2.3]'
-        : 'font-exam-serif text-[14px] md:text-[16px] leading-[1.75]'}`}>
+      {/* 서체는 다 Helvetica(실물 시험지). 문자·웹 지문만 글자를 조금 줄이고 줄간을 넓힌다 */}
+      <p className={`text-[#111] font-exam ${sans
+        ? 'text-[13px] md:text-[14.5px] leading-[2.3]'
+        : 'text-[14px] md:text-[16px] leading-[1.75]'}`}>
         {ss.map((s) => <SentenceSpan key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />)}
       </p>
       {st.showKo && ss.some((s) => s.ko) && (
@@ -671,12 +672,12 @@ function MetaRow({ doc, m, st }: { doc: PassageDoc; m: { k: string; v: string };
   return (
     <div className="flex items-stretch gap-[5px]">
       <div className="w-[92px] md:w-[112px] shrink-0 bg-[#C6C6C6] border border-[#111] px-2 py-[3px]
-                      font-exam-sans font-black text-[11px] md:text-[12px] text-[#111]">
+                      font-exam font-black text-[11px] md:text-[12px] text-[#111]">
         {m.k}{m.k.endsWith(':') ? '' : ':'}
       </div>
       <div
         onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam-serif text-[13px] md:text-[14.5px] text-[#111] truncate ${
+        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[13px] md:text-[14.5px] text-[#111] truncate ${
           st.matchState ? 'cursor-pointer' : ''
         } ${matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : 'bg-white'}`}>
         {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{m.v}
@@ -696,7 +697,7 @@ function MetaLines({ doc, st, sans }: { doc: PassageDoc; st: ContentState; sans?
         return (
           <p key={m.k}
             onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-            className={`${sans ? 'font-exam-sans text-[12.5px] md:text-[13.5px]' : 'font-exam-serif text-[13px] md:text-[14.5px]'} text-[#111] ${
+            className={`font-exam ${sans ? 'text-[12.5px] md:text-[13.5px]' : 'text-[13px] md:text-[14.5px]'} text-[#111] ${
               st.matchState ? 'cursor-pointer' : ''
             } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] rounded-[2px]' : ''}`}>
             {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
@@ -713,7 +714,7 @@ function ExamTable({ table, docId, st }: { table: { headers: string[]; rows: str
   const active = !!(docId && st?.matchState)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse font-exam-serif text-[13px] md:text-[14.5px] text-[#111]">
+      <table className="w-full border-collapse font-exam text-[13px] md:text-[14.5px] text-[#111]">
         {table.headers.some(Boolean) && (
           <thead>
             <tr>
@@ -752,7 +753,7 @@ function ExamEmail({ doc, st }: { doc: PassageDoc; st: ContentState }) {
       {/* 타이틀 바 — 가운데 제목, 양옆 가로선 장식 */}
       <div className="flex items-center gap-2 pb-2">
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
-        <span className="font-exam-sans font-bold text-[12px] md:text-[13.5px] text-[#111] whitespace-nowrap">
+        <span className="font-exam font-bold text-[12px] md:text-[13.5px] text-[#111] whitespace-nowrap">
           {doc.title ?? '*E-Mail*'}
         </span>
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
@@ -776,8 +777,8 @@ function ExamWeb({ doc, st, url }: { doc: PassageDoc; st: ContentState; url: str
   return (
     <div className="border-[1.5px] border-[#111] bg-[#D6D6D6]">
       <div className="flex items-center gap-2 px-2 py-2">
-        <span className="shrink-0 font-exam-sans text-[11px] text-[#111] tracking-tighter">◀▶</span>
-        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam-sans text-[12px] md:text-[13px] text-[#111] truncate">
+        <span className="shrink-0 font-exam text-[11px] text-[#111] tracking-tighter">◀▶</span>
+        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam text-[12px] md:text-[13px] text-[#111] truncate">
           {url}
         </span>
         <span className="shrink-0 flex items-center gap-[3px] pl-1">
@@ -820,12 +821,12 @@ function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
                 className={`max-w-[84%] bg-white border border-[#111] rounded-[3px] px-2.5 py-1.5 ${
                   st.matchState ? 'cursor-pointer' : ''
                 } ${matched ? 'ring-2 ring-[#86EFAC]' : ''}`}>
-                <p className="font-exam-sans text-[12px] md:text-[13px] font-bold text-[#111] mb-0.5">
+                <p className="font-exam text-[12px] md:text-[13px] font-bold text-[#111] mb-0.5">
                   {matched && <span className="mr-1 text-[#16A34A]">✓</span>}
                   {c.speaker}
                   {c.time && <span className="ml-1.5">[{c.time}]</span>}
                 </p>
-                <p className="font-exam-sans text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
+                <p className="font-exam text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
                   <TapText text={c.text} st={st} scope={c.id} />
                 </p>
               </div>
@@ -844,8 +845,8 @@ function ExamDoc({ doc, st, focusBlank, sans }: {
   return (
     <div className="border-[1.5px] border-[#111] bg-white px-4 py-4 md:px-6 md:py-5">
       {doc.title && (
-        <p className={`text-center font-bold text-[#111] mb-2.5 ${
-          sans ? 'font-exam-sans text-[14px] md:text-[15px]' : 'font-exam-serif text-[16px] md:text-[19px]'}`}>
+        <p className={`text-center font-bold text-[#111] mb-2.5 font-exam ${
+          sans ? 'text-[14px] md:text-[15px]' : 'text-[16px] md:text-[19px]'}`}>
           {doc.title}
         </p>
       )}
