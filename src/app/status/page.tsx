@@ -226,7 +226,7 @@ function RankRow({ item }: { item: RankEntry }) {
 
 /* ── SVG 레이더 차트 ── */
 function RadarChart({ data }: { data: RadarPoint[] }) {
-  const CX = 100, CY = 112, R = 62, N = data.length
+  const CX = 110, CY = 118, R = 80, N = data.length
   const angles = data.map((_, i) => -Math.PI / 2 + (2 * Math.PI * i) / N)
   const pt = (angle: number, val: number): [number, number] => [
     CX + R * (val / 100) * Math.cos(angle),
@@ -250,7 +250,7 @@ function RadarChart({ data }: { data: RadarPoint[] }) {
   )
 
   return (
-    <svg viewBox="0 0 200 224" className="w-full max-w-[230px] mx-auto">
+    <svg viewBox="0 0 220 240" className="w-full max-w-[300px] mx-auto">
       {gridPaths.map((path, gi) => (
         <path key={gi} d={path} fill="none" stroke={gi === 3 ? '#D1D5DB' : '#E5E7EB'} strokeWidth={gi === 3 ? 0.8 : 0.5}/>
       ))}
@@ -258,14 +258,14 @@ function RadarChart({ data }: { data: RadarPoint[] }) {
         const [x, y] = axisPt(angle)
         return <line key={i} x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)} stroke="#E5E7EB" strokeWidth="0.5"/>
       })}
-      <path d={straightPath} fill="#2563EB" fillOpacity="0.1" stroke="#2563EB" strokeWidth="1" strokeLinejoin="round"/>
+      <path d={straightPath} fill="#2563EB" fillOpacity="0.1" stroke="#2563EB" strokeWidth="1.2" strokeLinejoin="round"/>
       {dataPoints.map(([x, y], i) => {
         const isStrong = data[i].value >= 70
-        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="0.8"/>
+        return <circle key={i} cx={x.toFixed(1)} cy={y.toFixed(1)} r="2.4" fill={isStrong ? '#10B981' : '#EF4444'} stroke="white" strokeWidth="0.9"/>
       })}
       {data.map((d, i) => {
-        const lx = CX + (R + 22) * Math.cos(angles[i])
-        const ly = CY + (R + 22) * Math.sin(angles[i])
+        const lx = CX + (R + 24) * Math.cos(angles[i])
+        const ly = CY + (R + 24) * Math.sin(angles[i])
         const labelColor = d.value >= 70 ? '#059669' : '#DC2626'
         return (
           <g key={i}>
@@ -514,6 +514,14 @@ export default function StatusPage() {
               ))}
             </div>
 
+            {/* FGI 안내 — 세 탭 다 데모 데이터로 채워 둔 화면이다.
+                리포트는 온보딩 때 심은 베이스라인 위에 참가자가 푼 답이 얹혀 숫자가 움직인다. */}
+            <div className="bg-[#EFF6FF] border border-[#DBEAFE] rounded-xl px-4 py-3 mb-5">
+              <p className="text-[12px] text-[#2563EB] leading-relaxed">
+                이 {tab === 'report' ? '리포트' : tab === 'badge' ? '배지' : '랭킹'} 화면은 이해를 돕기 위한 샘플 화면입니다.
+              </p>
+            </div>
+
             {/* ── 리포트 ── */}
             {tab === 'report' && (
               <div className="animate-fade-in space-y-5">
@@ -541,10 +549,10 @@ export default function StatusPage() {
                       { label: 'LC 정답률',  value: lcAccuracy != null ? String(lcAccuracy) : '-', unit: '%', color: '#2563EB' },
                       { label: 'RC 정답률',  value: rcAccuracy != null ? String(rcAccuracy) : '-', unit: '%', color: '#D97706' },
                     ].map(s => (
-                      <div key={s.label} className="bg-white border border-[#DBEAFE] rounded-xl px-3 py-2.5 shadow-[0_1px_6px_rgba(37,99,235,0.06)] h-full flex flex-col justify-center">
-                        <p className="text-[10px] text-[#9CA3AF] mb-0.5 whitespace-nowrap">{s.label}</p>
-                        <p className="text-[18px] font-bold leading-tight" style={{ color: s.color }}>
-                          {s.value}<span className="text-[10px] font-normal ml-0.5 text-[#9CA3AF]">{s.unit}</span>
+                      <div key={s.label} className="bg-white border border-[#DBEAFE] rounded-xl px-3.5 py-3 shadow-[0_1px_6px_rgba(37,99,235,0.06)] h-full flex flex-col justify-center">
+                        <p className="text-[11px] text-[#6B7280] mb-1 whitespace-nowrap">{s.label}</p>
+                        <p className="text-[28px] font-bold leading-none" style={{ color: s.color }}>
+                          {s.value}<span className="text-[11px] font-normal ml-0.5 text-[#9CA3AF]">{s.unit}</span>
                         </p>
                       </div>
                     ))}
