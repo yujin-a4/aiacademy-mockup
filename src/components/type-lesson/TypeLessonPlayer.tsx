@@ -1656,7 +1656,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          · 마지막 턴은 넘기지 않는다 — 실전 문제로 튀지 않고 [실전 문제 풀기] 버튼을 학생이 누르게 한다 */
       if (alive && !askingRef.current && (scripted || agentOnRef.current) && !needsAnswer(turn) && turnIdx < turns.length - 1 && !atItemEnd) {
         await new Promise((res) => setTimeout(res, 700))
-        if (alive && turnIdxRef.current === turnIdx) advanceByApp(turnIdx + 1)
+        /* 기다리는 **사이에** 학생이 물어봤을 수 있다 — 그 700ms 안에 들어온 질문을 놓치면
+           강사가 답하는 동안 화면이 다음 단계로 넘어간다(두 목소리가 겹친다). 한 번 더 본다. */
+        if (alive && !askingRef.current && turnIdxRef.current === turnIdx) advanceByApp(turnIdx + 1)
       }
     })().catch(() => {
       /* 낭독이나 음원이 실패해도 **선택지는 열어야 한다.** 안 열면 학생이 아무것도 못 누르는
@@ -1697,6 +1699,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const askingRef = useRef(false)
   askingRef.current = asking
   const [askBusy, setAskBusy] = useState(false)
+  /** 버튼을 안 누르고 **그냥 물어봐서** 들어온 질문인가.
+   *  멈춤·복귀는 버튼 모드와 **똑같은 장치를 쓴다**(asking) — 진행 게이트를 따로 만들면
+   *  질문에 답하는 동안 화면이 다음 단계로 넘어간다. 다른 것은 겉모습뿐이다:
+   *  노란 '수업 멈춤' 박스와 '돌아가기' 버튼을 띄우지 않고, 답이 끝나면 스스로 돌아온다. */
+  const [autoAsk, setAutoAsk] = useState(false)
   /* ── 말과 글자를 맞춘다 ──
      전에는 발화 전체가 한 번에 툭 떴다. 강사는 아직 첫 마디인데 화면에는 끝 문장까지 다 있으니
      학생은 글자를 먼저 읽고 소리를 기다린다 — 듣기 수업에서 그건 그냥 읽기다.
@@ -1867,18 +1874,31 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        뜻은 맞는데 말이 다를 뿐이다(실측). 이때만 한 번 물어보고 판정한다 —
        **낱말이 겹치면 묻지 않으므로**(위에서 끝난다) 대부분의 답은 예전처럼 즉시 반응한다. */
     void (async () => {
-      const ok = await judgeSubjective(text, it)
+      const v = await judgeSubjective(text, it)
+      /* ── 답이 아니라 **질문**이었다 ──
+         "easel이 무슨 뜻이에요?" 를 답으로 채점하면 "그건 조금 달라요" 가 나간다(실측).
+         답한 것으로 치지 말고 되돌린 뒤 답해 주고, 이 턴에 그대로 머문다 — 학생은 아직 답을
+         안 한 것이므로 다시 말할 수 있어야 한다.
+         ⚠️ 이 갈래는 **낱말이 하나도 안 겹친 답**에만 닿는다. 기대 답과 겹치면 위에서 이미
+         끝나므로, 진짜 답이 질문으로 오해될 자리는 애초에 없다. */
+      if (v === 'Q') {
+        setSubjSent(false); setSubjText('')
+        await askAside(text, true)      // 학생 말은 위에서 이미 대화에 남겼다
+        return
+      }
+      const ok = v === 'O'
       logResponse(text, ok)
       void handleScriptedAnswer(ok, text)
     })()
     return true
   }
 
-  /** 뜻으로 판정 — 실패하거나 느리면 **맞다고 본다.** 시연에서 맞은 답을 틀렸다고 하는 쪽이
-   *  훨씬 나쁘고, 판정을 기다리느라 침묵이 길어지는 것도 나쁘다(2.5초에서 끊는다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<boolean> => {
+  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 답이 아니라 강사에게 묻는 말.
+   *  실패하거나 느리면 **맞다고 본다(O).** 시연에서 맞은 답을 틀렸다고 하는 쪽이 훨씬 나쁘고,
+   *  판정을 기다리느라 침묵이 길어지는 것도 나쁘다(2.5초에서 끊는다). */
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'Q'> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
-    if (!expected) return true
+    if (!expected) return 'O'
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 2500)
     try {
@@ -1893,8 +1913,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       })
       const data = await res.json()
       const v = String(data.dialogue ?? '').trim().toUpperCase()
-      return !v.startsWith('X')          // 못 읽었으면 맞다고 본다
-    } catch { return true } finally { clearTimeout(timer) }
+      if (v.startsWith('Q')) return 'Q'
+      if (v.startsWith('X')) return 'X'
+      return 'O'                         // 못 읽었으면 맞다고 본다
+    } catch { return 'O' } finally { clearTimeout(timer) }
   }
 
   /* ── 학생 질문 (대본 밖) ──
@@ -1902,11 +1924,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      들고 있어서 답하다가 단계를 넘겨 버릴 수 있다(방금 고친 병이 그것이다).
      지금 단계에서 알아도 되는 사실만 실어 보낸다(buildLessonFacts + 게이트) — 그래야 질문에
      답하다 정답을 흘리지 않는다. */
-  const askTutor = async (question: string) => {
+  const askTutor = async (question: string, alreadyLogged = false) => {
     if (!question.trim() || askBusy) return
     setAskBusy(true)
     stopVoice()
-    setChatLog((prev) => [...prev, { role: 'user', text: question, aside: true }])
+    if (!alreadyLogged) setChatLog((prev) => [...prev, { role: 'user', text: question, aside: true }])
     try {
       /* ── 학생이 화면에 남긴 것도 같이 보낸다 ──
          질문은 대개 **화면의 무언가를 가리키며** 나온다("이거 왜 답이에요?"). 그 '이거' 를
@@ -1950,7 +1972,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
 `
             + '위 사실 범위에서 두 문장 안으로 짧게 답하라. 사실에 없으면 모른다고 하라. '
-            + '다음 단계로 넘어가자는 말은 하지 마라 — 진행은 화면이 한다.',
+            + '다음 단계로 넘어가자는 말은 하지 마라 — 진행은 화면이 한다. '
+            /* ⚠️ 되묻지 못하게 막는다. 답 끝에 물음표를 달면 학생이 거기에 대답하고, 그 대답이
+               또 질문으로 들어와 **대본으로 영영 못 돌아온다**(실측: 여덟 번을 주고받았다). */
+            + '**되묻지 마라.** 물어본 것에만 답하고 문장을 끝내라 — 답 끝에 질문을 달면 '
+            + '학생이 계속 대화하게 되어 수업으로 돌아오지 못한다.',
         }),
       })
       const data = await res.json()
@@ -1963,6 +1989,88 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     } finally {
       setAskBusy(false)
     }
+  }
+
+  /** 선택지 하나를 고른 결과를 처리한다 — **버튼과 타이핑이 같은 문을 지나야** 한다.
+   *  (두 군데로 나뉘면 통로에 따라 같은 답이 다르게 채점된다) */
+  const pickChoice = (c: { text: string; correct?: boolean }) => {
+    const it = turn.interaction
+    if (it.kind !== 'choice') return
+    if (scripted) {
+      /* 정답 표시가 있는 선택지면 맞고 틀림을 앱이 안다 — 에이전트에 물어볼 것이 없다.
+         정답 표시가 없는 선택지(양쪽 다 받아주는 질문)는 무엇을 골라도 통과시킨다. */
+      const isGraded = it.choices.some((ch) => !!ch.correct)
+      const ok = isGraded ? c.correct === true : true
+      setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
+      logResponse(c.text, isGraded ? ok : null)
+      /* 넘기는 것은 **학생이 고른 것** 이다 — 짚어줄 때 '방금 고른 X 는 답이 아니에요' 로 쓴다 */
+      void handleScriptedAnswer(ok, c.text)
+      return
+    }
+    /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
+       (틀린 선택지는 correct가 undefined라, 그대로 넘기면 '채점 없음'으로 흘러가 교정을 못 했다) */
+    const isGraded = it.choices.some((ch) => !!ch.correct)
+    const ok = isGraded ? c.correct === true : undefined
+    reportAction(`${turnIdx}:choice`, actionMessage(`'${it.prompt}'에 대해 '${c.text}'라고 답함`,
+      ok, ok === false ? it.feedback : undefined))
+    logResponse(c.text, ok ?? null)
+  }
+
+  /** 친 글자가 **이 턴의 선택지 중 하나인가.** 없으면 -1.
+   *
+   *  선택지 턴에서도 학생은 그냥 타이핑한다("사람", "인물", "1", "O"). 그걸 답으로 안 받으면
+   *  화면은 아무 반응이 없고, 질문으로 넘기면 강사가 대화만 이어가며 대본으로 못 돌아온다(실측).
+   *  버튼을 눌러야만 답이 되는 것은 앱의 사정이지 학생의 사정이 아니다. */
+  const matchTypedChoice = (text: string, choices: { text: string }[]): number => {
+    const norm = (s: string) => s.toLowerCase().replace(/[\s.,!?'"·]/g, '')
+    const t = norm(text)
+    if (!t) return -1
+    /* 번호로 답하는 꼴 — "1", "1번", "①" */
+    const n = /^([1-9])번?$/.exec(t)?.[1] ?? (t === '①' ? '1' : t === '②' ? '2' : null)
+    if (n && Number(n) <= choices.length) return Number(n) - 1
+    /* O/X 는 기호로도 말로도 온다 */
+    const ox = /^(o|ㅇ|네|응|맞아|맞아요|예)$/.test(t) ? 'O' : /^(x|ㅌ|아니|아니요|아니에요)$/.test(t) ? 'X' : null
+    if (ox) {
+      const at = choices.findIndex((c) => norm(c.text) === ox.toLowerCase())
+      if (at >= 0) return at
+    }
+    /* 글자로 — 완전히 같거나 한쪽이 다른 쪽을 품으면 그 선택지다.
+       **둘 이상 걸리면 고르지 않는다** — 애매한 것을 임의로 정하느니 질문으로 보내는 편이 낫다. */
+    const hits = choices
+      .map((c, i) => ({ i, c: norm(c.text) }))
+      .filter(({ c }) => c && (c === t || c.includes(t) || t.includes(c)))
+    return hits.length === 1 ? hits[0].i : -1
+  }
+
+  /** 버튼을 안 누르고 그냥 물어본 경우 — **묻고 답하고 스스로 수업으로 돌아온다.**
+   *
+   *  버튼 모드와 같은 `asking` 을 켠다. 이유는 하나다: 진행 게이트가 거기에 걸려 있다
+   *  (턴 효과의 자동 전진이 askingRef 를 본다). 따로 만들면 강사가 답하는 동안 화면이
+   *  다음 단계로 넘어가 버린다. state 반영 전에 ref 를 직접 올려 그 틈까지 막는다. */
+  const askAside = async (question: string, alreadyLogged = false) => {
+    const at = turnIdxRef.current
+    setAsking(true); setAutoAsk(true)
+    askingRef.current = true
+    try { await askTutor(question, alreadyLogged) }
+    finally { setAsking(false); setAutoAsk(false); askingRef.current = false }
+
+    /* ── 답했으면 **대본으로 데려다 놓는다** ──
+       이게 없으면 학생이 질문 자리에 갇힌다(실측): 강사는 계속 대화를 이어가고, 화면은
+       멈춘 채로 다음 단계로 가지 않는다. 답이 끝나는 곳이 곧 수업으로 돌아오는 곳이어야 한다. */
+    if (turnIdxRef.current !== at) return          // 그 사이 화면이 옮겨갔다면 둘 것이 없다
+    const t = turnsRef.current[at]
+    if (!t) return
+    if (needsAnswer(t)) {
+      /* 학생이 답할 차례였다 — **무엇을 물었는지 다시 말해 준다.** 질문에 답하는 동안
+         원래 물음이 대화 위로 밀려 올라가서, 그냥 돌아오면 뭘 하라는 건지 알 수 없다. */
+      const it = t.interaction
+      const again = (it.kind === 'choice' || it.kind === 'subjective' || it.kind === 'mark' || it.kind === 'match')
+        ? it.prompt : ''
+      await say(again ? `자, 다시 볼게요. ${again}` : '자, 다시 볼게요.')
+      return
+    }
+    /* 들려주고 넘어가는 턴이었다 — 자동 전진이 질문 때문에 멈춰 있다. 여기서 이어 준다 */
+    if (turnIdxRef.current === at && at < turnsRef.current.length - 1 && !atItemEnd) advanceByApp(at + 1)
   }
 
   /* 다시 들려준 턴 — **한 턴에 한 번뿐이다.** 못 들었다고 하면 한 번은 더 들려주는 게 맞지만,
@@ -2453,7 +2561,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           lastLine={tutorLine}
           /* 질문 버튼은 **입력칸 아래**에 둔다 — 수업 진행(선택지)과 층이 다르다 */
           footer={scripted && (
-  asking ? (
+  /* 그냥 물어봐서 들어온 질문(autoAsk)은 **수업을 세운 티를 내지 않는다** — 노란 '수업 멈춤'
+     박스와 '돌아가기' 버튼 없이, 답이 끝나면 스스로 돌아온다. 다만 답하는 동안 아무 표시도
+     없으면 "보낸 게 맞나" 를 알 수 없어서, 그 한 줄만 버튼 자리에 둔다. */
+  autoAsk ? (
+    <div className="w-full rounded-xl border border-[#FDE68A] bg-[#FFFBEB] py-2 text-center text-[12px] font-bold text-[#B45309]">
+      강사가 답하는 중…
+    </div>
+  ) : asking ? (
     <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 space-y-1.5">
       <p className="text-[12px] font-bold text-[#B45309]">
         {askBusy ? '강사가 생각하는 중…' : '궁금한 걸 말하거나 입력해 주세요'}
@@ -2487,10 +2602,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               if (answerSubjective(t)) { setInputText(''); return }
               /* 음원이 있는 턴에서 "다시 들려주세요" 는 답이 아니라 **부탁**이다 — 받아준다 */
               if (turn.audio && isReplayAsk(t)) { setInputText(''); void replayOnAsk(t); return }
-              const why = turn.interaction.kind === 'subjective'
-                ? '이 질문에는 이미 답했어요. 강사 말을 듣고 다음으로 넘어갈게요.'
-                : '지금은 말로 답하는 차례가 아니에요. 화면의 버튼으로 답해 주세요.'
-              setChatLog((prev) => (prev[prev.length - 1]?.text === why ? prev : [...prev, { role: 'ai', text: why, aside: true }]))
+              /* ── 선택지 턴에서 친 글자는 **답이 먼저다** ──
+                 "사람과 사물 중에서?" 에 학생이 '인물' 이라고 치면 그건 답이지 질문이 아니다.
+                 이걸 질문으로 넘기면 강사가 대화만 이어가고 대본으로 못 돌아온다(실측). */
+              {
+                const it = turn.interaction
+                if (it.kind === 'choice' && choicePicked === null) {
+                  const at = matchTypedChoice(t, it.choices)
+                  if (at >= 0) { setInputText(''); setChoicePicked(at); pickChoice(it.choices[at]); return }
+                }
+              }
+              /* ── 답을 받는 자리가 아니면, 그건 질문이다 ──
+                 예전에는 "지금은 말로 답하는 차례가 아니에요" 로 잘라냈다. 답이 아닌 게 확실한
+                 자리라서(듣기 턴, 이미 답한 주관식, 선택지에 없는 말) **되물을 것도 없이 질문이다.**
+                 '질문 있어요' 를 먼저 누르게 하는 것은 학생에게 앱의 사정을 시키는 일이다. */
+              setInputText('')
+              void askAside(t)
               return
             }
             if (!agentConnected) { setInputText(''); return }
@@ -2520,28 +2647,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 spoken={spokenTurn === turnIdx}
                 answers={answers} graded={graded} submitAll={submitAll}
                 choicePicked={choicePicked} setChoicePicked={setChoicePicked}
-                onChoicePick={(c) => {
-                  const it = turn.interaction
-                  if (it.kind !== 'choice') return
-                  if (scripted) {
-                    /* 정답 표시가 있는 선택지면 맞고 틀림을 앱이 안다 — 에이전트에 물어볼 것이 없다.
-                       정답 표시가 없는 선택지(양쪽 다 받아주는 질문)는 무엇을 골라도 통과시킨다. */
-                    const graded = it.choices.some((ch) => !!ch.correct)
-                    const ok = graded ? c.correct === true : true
-                    setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
-                    logResponse(c.text, graded ? ok : null)
-                    /* 넘기는 것은 **학생이 고른 것** 이다 — 짚어줄 때 '방금 고른 X 는 답이 아니에요' 로 쓴다 */
-                    void handleScriptedAnswer(ok, c.text)
-                    return
-                  }
-                  /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
-                     (틀린 선택지는 correct가 undefined라, 그대로 넘기면 '채점 없음'으로 흘러가 교정을 못 했다) */
-                  const graded = it.choices.some((ch) => !!ch.correct)
-                  const ok = graded ? c.correct === true : undefined
-                  const label = `'${it.prompt}'에 대해 '${c.text}'라고 답함`
-                  reportAction(`${turnIdx}:choice`, actionMessage(label, ok, ok === false ? it.feedback : undefined))
-                  logResponse(c.text, ok ?? null)
-                }}
+                onChoicePick={pickChoice}
                 subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
                 scripted={scripted}
                 /* 판정은 answerSubjective 한 곳에만 둔다 — 두 군데서 따로 판정하면
