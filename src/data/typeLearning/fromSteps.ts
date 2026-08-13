@@ -313,9 +313,10 @@ function optionVerdictChoice(
     kind: 'choice',
     prompt: `방금 들은 보기 ${label}, ${material}과 맞아?`,
     fixedPrompt: true,
+    /* 시험지에 치는 표시 그대로 O·X. 화면이 이 둘을 알아보고 좌우 큰 버튼으로 그린다 */
     choices: opt.correct
-      ? [{ text: '맞아요', correct: true }, { text: '아니에요' }]
-      : [{ text: '맞아요' }, { text: '아니에요', correct: true }],
+      ? [{ text: 'O', correct: true }, { text: 'X' }]
+      : [{ text: 'O' }, { text: 'X', correct: true }],
     feedback: opt.why ?? (opt.correct ? '맞습니다.' : '맞지 않아요.'),
   }
 }

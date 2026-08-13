@@ -182,7 +182,7 @@ function ClipStack({ clips, active, name }: { clips: string[]; active: string; n
   )
 }
 
-function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120 }: {
+export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120 }: {
   src: string; name: string; speaking: boolean; getFreq?: () => Uint8Array | undefined; size?: number
   /** 지금 상황에 맞는 영상 클립. 없으면 사진(src)을 그대로 쓴다 */
   clipSrc?: string | null
@@ -318,17 +318,25 @@ export default function TutorDock({
   /* ── 텍스트 모드에서 선택지·지시 카드가 앉을 자리 ──
      카드는 채팅 한 칸이다. 이번 단계의 지시가 나온 그 시점에 꽂히고, 뒤에 대화가 오면 위로 밀려 올라간다.
      (예전엔 늘 맨 끝에 렌더돼서 새 말이 와도 바닥에 눌러앉아 있었다)
-     꽂는 시점 = 단계가 바뀐 뒤 **강사가 그 단계를 말한 직후**. 그전까지는 맨 아래를 따라간다 —
-     강사의 지시 발화보다 카드가 먼저 뜨면 순서가 뒤집혀 보인다. */
+     꽂는 시점 = 단계가 바뀐 뒤 **강사가 그 단계를 말한 직후**. 그전까지는 맨 아래를 따라간다.
+
+     ⚠️ "마지막 말풍선이 강사 것인가" 만 보면 안 된다 — 단계가 넘어오는 순간 마지막 말풍선은
+     **직전 단계의 맞장구**("좋아요, 맞았어요.")라 이미 강사 것이다. 그래서 카드가 거기에 걸려
+     이번 단계 발화보다 **위에** 앉는다(실측). 단계가 바뀐 시점의 말풍선 수를 기억해 두고,
+     그보다 늘어난 강사 말풍선이 나왔을 때만 꽂는다. */
   const [anchor, setAnchor] = useState<number | null>(null)
-  const waitingRef = useRef(true)
-  useEffect(() => { waitingRef.current = true; setAnchor(null) }, [actionKey])
+  const baseRef = useRef(0)
   useEffect(() => {
-    if (!waitingRef.current) return
+    baseRef.current = messages.length
+    setAnchor(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionKey])
+  useEffect(() => {
+    if (anchor !== null) return
+    if (messages.length <= baseRef.current) return              // 이번 단계 말이 아직 안 나왔다
     if (messages[messages.length - 1]?.role !== 'ai') return
-    waitingRef.current = false
     setAnchor(messages.length)
-  }, [messages])
+  }, [messages, anchor])
   const cardAt = anchor ?? messages.length
 
   /* ── 최소화 — 얼굴을 끌어 원하는 자리에 두는 작은 창 ── */

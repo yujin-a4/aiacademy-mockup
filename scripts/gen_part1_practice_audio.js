@@ -49,7 +49,11 @@ async function main() {
     for (const r of rows) {
       // TOEIC Part 1 스타일: (A) 문장  (B) 문장  (C) 문장  (D) 문장
       const narration = r.opts.map((o) => `(${o.label}) ${o.text}`).join('  ');
-      const audioRel = r.image_url.replace(/\.jpg$/i, '.mp3'); // /part1/part1_1_p1.mp3
+      /* 사진 경로에서 음원 경로를 만든다. **확장자를 .jpg 만 보면 안 된다** —
+         교재에서 뽑은 사진은 .jpeg 라 치환이 안 먹고, mp3 를 그 .jpeg 위에 덮어써
+         사진 7장을 통째로 날린다(실측). 확장자가 무엇이든 잘라내고 .mp3 를 붙인다. */
+      const audioRel = r.image_url.replace(/\.[a-z0-9]+$/i, '.mp3'); // /part1/part1_1_p1.mp3
+      if (audioRel === r.image_url) throw new Error(`사진 경로에 확장자가 없다: ${r.image_url}`);
       const outPath = path.join(PUBLIC, audioRel.replace(/^\//, ''));
       const buf = await tts(narration);
       fs.writeFileSync(outPath, buf);
