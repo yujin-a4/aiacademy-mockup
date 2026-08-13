@@ -49,6 +49,9 @@ export interface ContentState {
    *  ⚠️ 인덱스는 그대로 둔다. 턴이 qIdx 로 문항을 가리키므로 배열을 자르면 어긋난다. */
   visibleQ?: { from: number; to: number }
   focusQ?: number
+  /** 학생이 문항 탭을 옮겼다 — 화면이 그 문항을 짚어야 하는 파트(P6: 지문의 그 빈칸)에서만 넘긴다.
+   *  넘겨받은 쪽이 focusQ 로 되돌려 줘야 지문 강조가 따라온다. */
+  onFocusQ?: (qIdx: number) => void
   /** 잠깐 짚어 보여줄 문항 — '안 푼 문제가 있어요' 로 데려간 자리. 화면에 스크롤해 올리고 표시를 단다.
    *  focusQ 를 쓰면 '지금 읽어주는 문항' 과 뜻이 섞여서 따로 둔다. */
   spotlightQ?: number
@@ -388,6 +391,12 @@ function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentSta
   const viewIdx = qs.map((_, i) => i).filter((i) => qInView(st, i))
   const idx = viewIdx.includes(active) ? active : (viewIdx[0] ?? 0)
   const q = qs[idx]
+
+  /* 지금 보는 문항을 위로 알린다 — P6 실전에서 지문의 그 빈칸을 짚는 데 쓴다.
+     훅은 조기 반환 위에 있어야 한다(문항이 비면 아래에서 null 로 빠진다). */
+  const onFocusQ = st.onFocusQ
+  useEffect(() => { onFocusQ?.(idx) }, [onFocusQ, idx])
+
   if (!q) return null
 
   return (
