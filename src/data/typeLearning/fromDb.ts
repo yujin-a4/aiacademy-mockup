@@ -79,6 +79,11 @@ function docOf(p: UiDbPassage | null | undefined, id: string): PassageDoc | null
 }
 
 const BLANK = '______'                       // ContentView가 렌더하는 단일 빈칸 마커
+/** 교재·시트가 빈칸을 적는 꼴 → 우리 마커로. **밑줄만이 아니라 붙임표도 쓴다**:
+ *  "the entry fee will be ------- for Cordell residents." (실측: DB blank_sentence 가 이 꼴이다)
+ *  안 바꾸면 화면에 붙임표가 글자 그대로 찍히고, 줄 끝에서 중간이 잘려 두 줄로 갈라진다.
+ *  ⚠️ 3개 이상만 본다 — "editor-in-chief" 같은 낱말의 붙임표를 빈칸으로 읽으면 안 된다. */
+const toBlank = (s: string) => s.replace(/_{2,}/g, BLANK).replace(/[-–—]{3,}/g, BLANK)
 const numBlank = (n: number) => `___(${n})___` // ContentView가 렌더하는 번호 빈칸 마커
 
 const qNo = (q: UiDbQuestion) => Number(q.content.question_number) || 0
@@ -476,7 +481,7 @@ function part5Recap(rows: UiDbQuestion[], anchor: UiDbQuestion, fallback: TypeLe
 function buildPart5(local: TypeLesson, rows: UiDbQuestion[], anchor: UiDbQuestion): TypeLesson {
   const raw = anchor.content.blank_sentence
   if (!raw) return local
-  const sentence = raw.replace(/_{2,}/g, BLANK)
+  const sentence = toBlank(raw)
   return {
     ...local,
     title: `단문 빈칸 — ${anchor.content.grammar_point ?? local.title}`,
@@ -933,7 +938,7 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
         passages: [{
           id: 'p1', kind: 'text',
           sentences: group.map((q, i) => ({
-            id: `s${i + 1}`, en: (q.content.blank_sentence ?? '').replace(/_{2,}/g, BLANK), blank: i + 1,
+            id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
           })),
         }],
         questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
@@ -978,7 +983,7 @@ export function buildReviewContent(part: number, rows: UiDbQuestion[]): TypeLess
       passages: [{
         id: 'p1', kind: 'text',
         sentences: group.map((q, i) => ({
-          id: `s${i + 1}`, en: (q.content.blank_sentence ?? '').replace(/_{2,}/g, BLANK), blank: i + 1,
+          id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
         })),
       }],
       questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
