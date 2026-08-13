@@ -8,6 +8,10 @@ const SCORE_OPTIONS = [
   { score: 850, emoji: '🏆', title: '850+', desc: '고득점을 집중 공략할 거예요' },
 ]
 
+/** FGI에서는 750+ 하나만 고르게 한다. 나머지는 화면에 두되 눌리지 않는다.
+ *  전부 열려면 SCORE_OPTIONS의 점수를 다 넣으면 된다. */
+const SELECTABLE_SCORES = [750]
+
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
 const TOEIC_DATES = [
@@ -247,13 +251,14 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
         <div className="flex flex-col gap-4">
           {SCORE_OPTIONS.map((opt) => {
             const isSelected = selectedScore === opt.score
-            const isDimmed = selectedScore !== null && !isSelected
+            const isLocked = !SELECTABLE_SCORES.includes(opt.score)
+            const isDimmed = (selectedScore !== null && !isSelected) || isLocked
             return (
               <button
                 key={opt.score}
-                disabled={selectedScore !== null}
+                disabled={selectedScore !== null || isLocked}
                 onClick={() => {
-                  if (selectedScore !== null) return
+                  if (selectedScore !== null || isLocked) return
                   setSelectedScore(opt.score)
                   setScore(opt.score)
                   store.setTargetScore(opt.score)
