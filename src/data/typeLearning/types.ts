@@ -182,6 +182,15 @@ export interface RecapSentence {
   keywords: string[]    // 음성 모드 매칭 키워드(소문자, 정답으로 인정할 표현들)
 }
 
+/** 정리 화면의 퀴즈 한 묶음.
+ *  시트가 정리를 **여러 묶음**으로 나눠 쓰기 시작했다(이도윤: 전략 정리 + 빈출 표현).
+ *  묶음마다 화면 제목과 강사 도입이 따로 붙는다. 묶음이 하나뿐이면 제목은 비어 있다. */
+export interface RecapGroup {
+  title: string
+  intro: string
+  items: RecapSentence[]
+}
+
 /** 세션 정리 — 핵심 문장 3개 + 강사 마무리 멘트 */
 export interface LessonRecap {
   sentences: RecapSentence[]   // 정확히 3개
