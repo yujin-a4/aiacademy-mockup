@@ -37,10 +37,15 @@ export async function saveProfileToSupabase(profile: UserProfile) {
   try { await ensureBaselineAnswerLog(user.id) } catch (e) { console.warn('[profile] baseline seed 실패', e) }
 }
 
-const BASELINE_TARGET: Record<number, number> = { 1: 0.9, 2: 0.83, 3: 0.74, 4: 0.7, 5: 0.61, 6: 0.52, 7: 0.48 }
+/** 파트별 베이스라인 정답률. 파트당 50건에서 정답 수가 정수로 떨어지는 값만 쓴다. */
+const BASELINE_TARGET: Record<number, number> = { 1: 0.9, 2: 0.86, 3: 0.76, 4: 0.7, 5: 0.6, 6: 0.5, 7: 0.46 }
+
+/** 최근 7일에 심을 파트당 건수. 나머지는 8~14일 전에 심는다. */
+const BASELINE_RECENT_PER_PART = 10
 
 /** 계정에 답안 로그가 없으면 파트별 데모 baseline을 그 계정 uid로 심는다(온보딩 1회).
- *  이후 그 계정으로 실제 문제를 풀면 같은 uid에 쌓여 리포트가 누적된다. */
+ *  이후 그 계정으로 실제 문제를 풀면 같은 uid에 쌓여 리포트가 누적된다.
+ *  FGI 참가자 전원이 같은 리포트로 시작해야 해서 정답 여부와 날짜를 난수로 뽑지 않는다. */
 export async function ensureBaselineAnswerLog(userId: string): Promise<void> {
   const supabase = createClient()
   const { count } = await supabase.from('learner_answer_log')
@@ -57,15 +62,26 @@ export async function ensureBaselineAnswerLog(userId: string): Promise<void> {
     if (arr.length < 10) { arr.push(q.id); byPart.set(q.part, arr) }
   }
 
-  const now = Date.now(), DAY = 86400000
+  const DAY = 86400000
+  // 심는 시각과 무관하게 최근 7일 경계가 흔들리지 않도록 정오로 맞춘다.
+  const noon = new Date(); noon.setHours(12, 0, 0, 0)
+
   const rows: Record<string, unknown>[] = []
-  byPart.forEach((ids, part) => {
-    const target = BASELINE_TARGET[part] ?? 0.7
-    for (const id of ids) for (let i = 0; i < 5; i++) {
+  Array.from(byPart.entries()).sort((a, b) => a[0] - b[0]).forEach(([part, ids]) => {
+    const total = ids.length * 5
+    const correctCount = Math.round(total * (BASELINE_TARGET[part] ?? 0.7))
+    const recent = Math.min(BASELINE_RECENT_PER_PART, total)
+    let i = 0
+    for (const id of ids) for (let r = 0; r < 5; r++, i++) {
+      // 정답을 앞쪽에 몰지 않고 전 구간에 고르게 흩는다. 총 개수는 correctCount로 딱 떨어진다.
+      const isCorrect =
+        Math.floor(((i + 1) * correctCount) / total) > Math.floor((i * correctCount) / total)
+      // 최근 7일(0~6일 전)에 recent건, 나머지는 8~14일 전. 7일 전은 경계라 비운다.
+      const daysAgo = i < total - recent ? 8 + (i % 7) : i % 7
       rows.push({
         learner_id: userId, question_id: id, selected_option_label: 'A',
-        is_correct: Math.random() < target,
-        answered_at: new Date(now - Math.random() * 13 * DAY).toISOString(),
+        is_correct: isCorrect,
+        answered_at: new Date(noon.getTime() - daysAgo * DAY).toISOString(),
       })
     }
   })
