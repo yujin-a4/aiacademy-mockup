@@ -56,11 +56,10 @@ const SOURCES = [
        · 도입이 '화면 텍스트 | AI 강사 대사' 두 칸이다 — 화면 텍스트가 곧 '오늘 배울 내용'.
        · 본편 사이에 곁가지가 섞여 있다('유형 학습 3 → 실전 문제 버전' = 시간 없을 때 쓰는 대체본,
          '실전 문제로 넘어갈 때 멘트'). parse 가 홀로 선 제목 줄에서 블록을 닫아 걸러낸다. */
-  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤', range: [0, 8] },
-  /* 24강은 **수업만** 대본이 있다. 실전은 1번만 쓰였고 2~5번은 아직 ID 줄만 있어서 통째로 버린다
-     — 첫 문항만 코칭하고 나머지 넷에서 강사가 말을 잃는 것보다, 화면이 틀린 문항을 골라
-     스스로 코칭하는 평소 경로가 낫다(TypeLessonPlayer:688 reviewTurns). 시트가 채워지면 지울 것. */
-  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤', range: [8], skipPractice: true },
+  /* ⚠️ 열 자리는 개정마다 밀린다. 08-13 최종본에서 한 칸씩 옮겨갔다(왼쪽 c0→c1, 오른쪽 c8→c9).
+     "블록을 하나도 못 찾는다" 는 대개 이것 — 덤프를 열어 제목이 몇 번째 열인지 먼저 볼 것. */
+  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤', range: [1, 9] },
+  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤', range: [9] },
 ]
 
 const go = process.argv.includes('--go')
@@ -263,9 +262,10 @@ function parse(tabName, range, section) {
     const head = /^유형 학습\s*\d+$/.test(c0) ? 'lesson'
       : /^실전(\s*문제)?\s*\d+$/.test(c0) ? 'practice'
       : /^도입$/.test(c0) ? 'intro'
-      /* 강의 끝의 정리 퀴즈 3개. 표 모양이 대본 표와 아주 달라(문항|퀴즈|보기|정답|피드백)
-         따로 받는다 — 대본 표로 읽으려 들면 머리 줄을 못 찾아 통째로 버려진다. */
-      : /^핵심\s*요약$/.test(c0) ? 'recap' : null
+      /* 강의 끝의 정리 퀴즈. 표 모양이 대본 표와 아주 달라(번호|퀴즈|보기|정답|피드백) 따로 받는다
+         — 대본 표로 읽으려 들면 머리 줄을 못 찾아 통째로 버려진다.
+         **묶음이 여럿일 수 있다**: 이도윤은 '핵심 요약 (1)' 전략 · '(2)' 빈출 표현 둘로 나눠 썼다. */
+      : /^핵심\s*요약(\s*\(\d+\))?$/.test(c0) ? 'recap' : null
     if (head) {
       cur = { kind: head, turns: [], script: [], points: [], quiz: [] }
       blocks.push(cur)
@@ -315,9 +315,12 @@ function parse(tabName, range, section) {
       continue
     }
 
-    /* ── 핵심요약도 표가 아니다 ── 문항 | 퀴즈 | 보기 | 정답 | 정답 후 강사 피드백 */
+    /* ── 핵심요약도 표가 아니다 ── 번호 | 퀴즈 | 보기 | 정답 | 정답 후 강사 피드백
+       묶음마다 '화면 제목' 과 'AI 강사 도입' 이 앞에 붙기도 한다(이도윤). 윤다은은 없다. */
     if (cur.kind === 'recap') {
-      if (!/^\d+$/.test(c0)) continue        // 표 머리('문항')와 빈 줄은 버린다
+      if (/^화면\s*제목$/.test(c0)) { cur.wantTitle = true; continue }
+      if (cur.wantTitle && c0) { cur.title = c0; cur.intro = clean(row[1]); cur.wantTitle = false; continue }
+      if (!/^\d+$/.test(c0)) continue        // 표 머리('문항'·'화면에 보여줄 내용')와 빈 줄은 버린다
       cur.quiz.push({ text: clean(row[1]), options: clean(row[2]), answer: clean(row[3]), feedback: clean(row[4]) })
       continue
     }
@@ -347,16 +350,23 @@ function parse(tabName, range, section) {
  *    "사람 중심 사진 → 사람의 (    ) 확인" | "① 위치 ② 동작 ③ 주변 사물" | "② 동작" | "맞아요. …"
  *  화면(RecapCard)은 빈칸을 '___' 로 찾고, 답을 맞히면 `ko` 를 아래에 띄운다 — 그 자리가
  *  시트의 '정답 후 강사 피드백' 과 정확히 같은 자리라 거기에 넣는다. */
-function toRecapCard(q, i) {
+function toRecapCard(q, id) {
   const num = (s) => clean(s).replace(/^[①②③④⑤]\s*/, '')
   const text = clean(q.text).replace(/\([\s　]*\)/g, '___')
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
-  if (!text.includes('___') || choices.length < 2 || !answer) return null
-  /* 정답이 보기에 없으면 카드가 영원히 안 풀린다 — 올리지 않는다 */
-  if (!choices.includes(answer)) return null
+  const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
+  if (!text.includes('___') || choices.length < 2 || !answer) return drop('빈칸·보기·정답이 모자람')
+  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다) */
+  if (text.split('___').length > 2) return drop('빈칸이 2개')
+  /* ── 정답이 보기에 없으면 올리지 않는다 ──
+     번호(①②)를 믿고 싶지만 **믿을 수 없다.** 실측으로 둘이 갈렸다:
+       "① 어디에 어떤 상태로 있는지" ← ①='위치와 상태'  뜻이 같다(패러프레이즈)
+       "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
+     번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
+  if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
   return {
-    id: `s${i + 1}`,
+    id: `s${id}`,
     en: text,
     ko: clean(q.feedback),
     answer,
@@ -522,11 +532,19 @@ function build(src) {
   console.log(`도입: ${fromSheet.length ? '시트' : src.intro ? '설정' : '없음'}`
     + `${out.intro ? ` · ${out.intro.script.length}자 · 오늘 배울 내용 ${out.intro.points.length}개` : ''}`)
 
-  /* 핵심요약 — 강의 끝 정리 화면. 없으면 화면이 예전대로 강의에 박아 둔 문장 3개를 쓴다 */
-  const cards = blocks.filter((b) => b.kind === 'recap')
-    .flatMap((b) => b.quiz).map(toRecapCard).filter(Boolean)
-  if (cards.length) out.summary = cards
-  console.log(`핵심요약: ${cards.length ? `${cards.length}개` : '없음(강의 기본값)'}`)
+  /* 핵심요약 — 강의 끝 정리 화면. 없으면 화면이 예전대로 강의에 박아 둔 문장 3개를 쓴다.
+     **묶음이 여럿일 수 있다**(이도윤: 전략 정리 + 빈출 표현). 묶음마다 제목·강사 도입이 붙는다. */
+  let dropped = 0
+  const groups = blocks.filter((b) => b.kind === 'recap').map((b, gi) => {
+    const items = b.quiz.map((q, i) => toRecapCard(q, `${gi + 1}_${i + 1}`))
+    dropped += items.filter((x) => !x).length
+    return { title: b.title || '', intro: b.intro || '', items: items.filter(Boolean) }
+  }).filter((g) => g.items.length)
+  if (groups.length) out.summary = groups
+  console.log(`핵심요약: ${groups.length
+    ? groups.map((g) => `${g.title || '(제목 없음)'} ${g.items.length}개`).join(' · ')
+    : '없음(강의 기본값)'}`
+    + (dropped ? `   ⚠️ 올리지 않은 ${dropped}개 — 시트를 고쳐야 한다(위 ✗ 참고)` : ''))
 
   for (const b of blocks) {
     if (b.kind === 'intro' || b.kind === 'recap') continue
@@ -589,8 +607,11 @@ export interface ScriptedLesson {
   intro?: { script: string; points: string[] }
   /** 마지막 정리 화면의 퀴즈 (시트 '핵심요약'). 없으면 강의에 박아 둔 기본 문장을 쓴다.
    *  대본 강의는 **영어 문장 빈칸이 아니라 한국어 전략 퀴즈**다 — 그 강의에서 세운 판단 순서를
-   *  되짚는 자리라 그렇다. ko 자리에는 '정답 후 강사 피드백' 이 들어 있다. */
-  summary?: RecapSentence[]
+   *  되짚는 자리라 그렇다. ko 자리에는 '정답 후 강사 피드백' 이 들어 있다.
+   *
+   *  **묶음이 여럿일 수 있다.** 이도윤은 전략 정리와 빈출 표현을 둘로 나눠 쓰고, 묶음마다
+   *  화면 제목과 강사 도입을 따로 달아 뒀다. 윤다은은 묶음 하나에 제목이 없다. */
+  summary?: { title: string; intro: string; items: RecapSentence[] }[]
 }
 
 /** 강사코드 → 강의코드 → 대본. 여기 있는 조합만 대본으로 돈다. */
