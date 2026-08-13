@@ -594,8 +594,11 @@ function SetAudioButton({ kind, st, from, to }: { kind: string; st: ContentState
         <span className={`block text-[13px] font-bold ${out ? 'text-[#C4C9D4]' : playing ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
           {playing ? '재생 중…' : run === 'idle' ? '시작하기' : run === 'running' ? '재생 중…' : '재생 완료'}
         </span>
+        {/* 세트에 문항이 하나뿐이면(자율학습 한 판) '마지막 문제까지' 가 가리킬 데가 없다 */}
         <span className="block text-[11px] text-[#9CA3AF] mt-0.5">
-          {run === 'idle' ? '한 번 시작하면 마지막 문제까지 이어서 나가요' : `${kind}를 듣고 이어지는 문항에 답하세요`}
+          {run !== 'idle' ? `${kind}를 듣고 이어지는 문항에 답하세요`
+            : to - from > 1 ? '한 번 시작하면 마지막 문제까지 이어서 나가요'
+              : '음원은 한 번만 재생돼요'}
         </span>
       </span>
     </button>

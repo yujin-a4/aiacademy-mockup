@@ -21,6 +21,7 @@ const PARTS = [
   { id: 'P6', name: '장문 공란',  type: 'RC', accuracy: 52, desc: '이메일·공지 등 지문 흐름 속 문장 삽입 연습', status: 'normal' },
   { id: 'P2', name: '질문 응답',  type: 'LC', accuracy: 83, desc: '다양한 의문문에 적절한 응답 고르기 연습', status: 'normal' },
   { id: 'P7', name: '장문 독해',  type: 'RC', accuracy: 48, desc: '단일 지문과 복수 지문 읽기 이해력 훈련', status: 'normal' },
+  { id: 'P4', name: '짧은 담화',  type: 'LC', accuracy: 70, desc: '안내·공지·광고 담화에서 목적·세부사항 파악', status: 'normal' },
 ]
 
 const VOCA_BOOKS_STATIC = [
@@ -346,8 +347,9 @@ function MyLearningInner() {
                       <p className="text-[#374151] text-[12px] leading-relaxed mb-3 line-clamp-2">{p.desc}</p>
                       <div className="flex items-center justify-between">
                         <button
-                          onClick={() => p.type === 'RC' && router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
-                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : p.type === 'RC' ? 'bg-[#EFF6FF] text-[#2563EB] hover:bg-[#E0E7FF]' : 'bg-[#EFF6FF] text-[#9CA3AF] cursor-not-allowed'}`}>
+                          /* LC 도 연다 — 음원·사진이 DB 에 다 있어 P1~P4 가 실제로 풀린다 */
+                          onClick={() => router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
+                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'bg-[#EFF6FF] text-[#2563EB] hover:bg-[#E0E7FF]'}`}>
                           {p.status === 'recommended' ? 'AI 맞춤 문제' : '문제 풀기'}
                         </button>
                         <span className={`text-[11px] font-semibold ${p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#9CA3AF]' : 'text-[#DC2626]'}`}>
