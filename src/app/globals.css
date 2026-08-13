@@ -171,3 +171,17 @@ body {
 .animate-logo-glow {
   animation: logo-glow 3s ease-in-out infinite;
 }
+
+
+/* ── 오답을 눌렀을 때 좌우로 짧게 튕긴다 ──
+   답이 입력되지 않았다는 것을 **글자 없이** 알리는 신호라 짧아야 한다(길면 학생이 기다린다).
+   tailwind.config 이 아니라 여기 두는 이유: 설정 파일을 고치면 dev 서버를 다시 띄워야
+   반영되는 경우가 있어, 고쳤는데 안 흔들리는 일이 생긴다(실측). CSS 는 바로 먹는다. */
+@keyframes recap-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 55% { transform: translateX(-5px); }
+  35%, 75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: recap-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
