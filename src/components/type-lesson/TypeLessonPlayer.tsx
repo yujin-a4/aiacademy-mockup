@@ -1694,15 +1694,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 직전 턴의 답이 맞았는가 — 다음 대본 첫머리의 맞장구를 뗄지 정한다.
    *  null 이면 판단할 것이 없다(들려주기 턴 등). 한 번 쓰고 비운다. */
   const prevOkRef = useRef<boolean | null>(null)
-  /* 질문 모드 — 대본을 잠시 세우고 학생이 묻는 자리. 진행은 이 동안 멈춘다 */
+  /* 질문에 답하는 동안 대본을 세워 두는 스위치. 학생이 켜는 것이 아니라(버튼은 없앴다)
+     대본 밖 질문이 들어오면 앱이 켠다 — 진행 게이트가 이 값을 본다 */
   const [asking, setAsking] = useState(false)
   const askingRef = useRef(false)
   askingRef.current = asking
   const [askBusy, setAskBusy] = useState(false)
-  /** 버튼을 안 누르고 **그냥 물어봐서** 들어온 질문인가.
-   *  멈춤·복귀는 버튼 모드와 **똑같은 장치를 쓴다**(asking) — 진행 게이트를 따로 만들면
-   *  질문에 답하는 동안 화면이 다음 단계로 넘어간다. 다른 것은 겉모습뿐이다:
-   *  노란 '수업 멈춤' 박스와 '돌아가기' 버튼을 띄우지 않고, 답이 끝나면 스스로 돌아온다. */
+  /** 지금 대본 밖 질문에 답하는 중인가.
+   *  멈춤은 `asking` 이 맡는다 — 진행 게이트(자동 전진 차단)가 거기 걸려 있어서 따로 만들면
+   *  질문에 답하는 동안 화면이 다음 단계로 넘어간다. 이 값은 **겉모습**만 정한다:
+   *  수업을 세운 티를 내지 않고, 답하는 동안 한 줄만 띄운다. */
   const [autoAsk, setAutoAsk] = useState(false)
   /* ── 말과 글자를 맞춘다 ──
      전에는 발화 전체가 한 번에 툭 떴다. 강사는 아직 첫 마디인데 화면에는 끝 문장까지 다 있으니
@@ -2044,9 +2045,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   /** 버튼을 안 누르고 그냥 물어본 경우 — **묻고 답하고 스스로 수업으로 돌아온다.**
    *
-   *  버튼 모드와 같은 `asking` 을 켠다. 이유는 하나다: 진행 게이트가 거기에 걸려 있다
-   *  (턴 효과의 자동 전진이 askingRef 를 본다). 따로 만들면 강사가 답하는 동안 화면이
-   *  다음 단계로 넘어가 버린다. state 반영 전에 ref 를 직접 올려 그 틈까지 막는다. */
+   *  `asking` 을 켜는 이유는 하나다: 진행 게이트가 거기에 걸려 있다(턴 효과의 자동 전진이
+   *  askingRef 를 본다). 따로 만들면 강사가 답하는 동안 화면이 다음 단계로 넘어가 버린다.
+   *  state 반영 전에 ref 를 직접 올려 그 틈까지 막는다. */
   const askAside = async (question: string, alreadyLogged = false) => {
     const at = turnIdxRef.current
     setAsking(true); setAutoAsk(true)
@@ -2559,33 +2560,15 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           isSpeaking={tutorSpeaking}
           /* 음성 모드 발화 박스 · 최소화 말풍선에 실시간으로 뜨는 "지금 하는 말" */
           lastLine={tutorLine}
-          /* 질문 버튼은 **입력칸 아래**에 둔다 — 수업 진행(선택지)과 층이 다르다 */
-          footer={scripted && (
-  /* 그냥 물어봐서 들어온 질문(autoAsk)은 **수업을 세운 티를 내지 않는다** — 노란 '수업 멈춤'
-     박스와 '돌아가기' 버튼 없이, 답이 끝나면 스스로 돌아온다. 다만 답하는 동안 아무 표시도
-     없으면 "보낸 게 맞나" 를 알 수 없어서, 그 한 줄만 버튼 자리에 둔다. */
-  autoAsk ? (
-    <div className="w-full rounded-xl border border-[#FDE68A] bg-[#FFFBEB] py-2 text-center text-[12px] font-bold text-[#B45309]">
-      강사가 답하는 중…
-    </div>
-  ) : asking ? (
-    <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 space-y-1.5">
-      <p className="text-[12px] font-bold text-[#B45309]">
-        {askBusy ? '강사가 생각하는 중…' : '궁금한 걸 말하거나 입력해 주세요'}
-      </p>
-      <p className="text-[11px] text-[#92400E] leading-relaxed">수업은 잠시 멈춰 있어요.</p>
-      <button onClick={() => setAsking(false)} disabled={askBusy}
-        className="w-full rounded-lg border border-[#FDE68A] bg-white py-1.5 text-[12px] font-bold text-[#B45309] disabled:opacity-50">
-        수업으로 돌아가기
-      </button>
-    </div>
-  ) : (
-    <button onClick={() => { stopVoice(); setAsking(true) }}
-      className="w-full rounded-xl border border-[#E5E7EB] bg-white py-2 text-[12px] font-bold text-[#6B7280] hover:border-[#FDE68A] hover:text-[#B45309] transition-colors">
-      질문 있어요
-    </button>
-  )
-)}
+          /* ── '질문 있어요' 버튼은 없앴다 ──
+             그냥 물어보면 알아서 답하고 대본으로 돌아오므로, 먼저 모드를 켜라고 시킬 이유가
+             없어졌다. 남은 것은 **답하는 동안의 한 줄**뿐이다 — 아무 표시도 없으면 학생이
+             "보낸 게 맞나" 를 알 수 없다. */
+          footer={scripted && autoAsk && (
+            <div className="w-full rounded-xl border border-[#FDE68A] bg-[#FFFBEB] py-2 text-center text-[12px] font-bold text-[#B45309]">
+              강사가 답하는 중…
+            </div>
+          )}
           /* 텍스트 모드 채팅 — 에이전트가 붙어 있으면 실제 대화, 아니면 레일 발화 + 이번 턴 응답 */
           messages={chatMessages}
           bodyRef={feedRef}
@@ -2594,11 +2577,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             const t = inputText.trim()
             if (!t) return
             if (scripted) {
+              /* 앞 질문에 아직 답하는 중이면 **입력칸을 비우지 않는다.** 비우면 askTutor 가
+                 askBusy 로 되돌아가면서 학생 문장만 조용히 사라진다("전송이 안 된다"). */
+              if (askBusy) return
               if (asking) { setInputText(''); void askTutor(t); return }
-              /* 지금 턴이 말로 받는 자리가 아니면(버튼 턴·듣기 턴) **입력칸을 비우지 않는다.**
-                 전에는 무조건 비워서, 학생이 보기엔 문장이 사라지고 강사는 반응이 없었다
-                 = "전송이 안 된다". 왜 안 갔는지도 한 줄 적어준다(낭독은 하지 않는다 —
-                 대본 밖 문장을 강사 목소리로 읽으면 수업이 어긋난다). */
               if (answerSubjective(t)) { setInputText(''); return }
               /* 음원이 있는 턴에서 "다시 들려주세요" 는 답이 아니라 **부탁**이다 — 받아준다 */
               if (turn.audio && isReplayAsk(t)) { setInputText(''); void replayOnAsk(t); return }
