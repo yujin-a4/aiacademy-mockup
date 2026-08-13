@@ -939,6 +939,15 @@ function DaySection({ day, bySeq, doneSeq }: {
   const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq) }))
   const ready = items.filter((i) => i.lec && isPlayable(i.lec)).length
   const reviewOpen = isReviewUnlocked(day, doneSeq)
+  /* 왜 잠겼는가 — **어느 강의를 끝내야 하는지 이름으로** 말한다. "이날 강의를 끝내면 열려요" 는
+     세 강의 중 무엇이 남았는지를 안 알려줘서, 다 했다고 생각한 학생이 잠긴 줄만 본다. */
+  const lockReason = (() => {
+    const need = (demoLecturesOf(day).length ? demoLecturesOf(day) : day.lectures)
+      .filter((s) => !doneSeq.has(s))
+      .map((s) => bySeq.get(s)?.title ?? `${s}강`)
+    if (!need.length) return ''
+    return `${need[0]}${need.length > 1 ? ` 외 ${need.length - 1}개` : ''} 끝내면 열려요`
+  })()
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
@@ -1060,13 +1069,14 @@ function DaySection({ day, bySeq, doneSeq }: {
             잠겨 있을 때도 **자리는 보인다** — 하루가 강의 셋으로 끝나는 게 아니라는 걸
             화면이 먼저 말해줘야 한다.
             색은 열렸을 때만 쓴다. 못 누르는 줄에 색을 주면 어디를 봐야 할지 흐려진다. */}
-        <div className={`relative flex items-center gap-2.5 py-2.5 border-t border-dashed mt-1 ${
-          reviewOpen ? 'border-[#DBEAFE]' : 'border-[#F1F5F9]'
+        {/* 열렸으면 **눌러서 들어간다.** 자리만 보여주고 못 누르면, 하루가 복습으로 닫힌다는
+            그림만 있고 실제로 닫아 볼 수는 없다 — FGI 는 흐름의 끝까지 보는 자리다. */}
+        <div onClick={reviewOpen ? () => router.push(`/review/${day.day}`) : undefined}
+          className={`relative flex items-center gap-2.5 py-2.5 border-t border-dashed mt-1 ${
+          reviewOpen ? 'border-[#DBEAFE] cursor-pointer group' : 'border-[#F1F5F9]'
         }`} title={reviewOpen
           ? '이날 강의에서 틀린 유형으로 새 문제를 냅니다'
-          : demoLecturesOf(day).length
-            ? '시연 강의를 끝내면 열려요'
-            : '이날 강의를 모두 끝내면 열려요'}>
+          : `${lockReason} (실전까지 풀고 '정리' 화면을 지나야 완료로 기록됩니다)`}>
           <div className={`relative z-10 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
             reviewOpen ? 'bg-[#EFF6FF]' : 'bg-[#F3F4F6]'
           }`}>
@@ -1075,10 +1085,26 @@ function DaySection({ day, bySeq, doneSeq }: {
           <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
             reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#6B7280]'
           }`}>복습</span>
-          <span className={`text-[13px] flex-1 min-w-0 truncate ${reviewOpen ? 'text-[#374151]' : 'text-[#6B7280]'}`}>{REVIEW_LABEL}</span>
+          {/* 잠겼으면 **무엇을 해야 열리는지 화면에 적는다.** 예전엔 그 말이 title 툴팁에만 있었는데,
+              FGI 는 iPad 로 본다 — 마우스 얹을 곳이 없어 이유가 어디에도 안 보였다.
+              '끝내다' 가 문제를 다 푼 것으로 읽히는 것도 문제다: 정리 화면까지 지나야 완료로 찍힌다. */}
+          <span className={`text-[13px] flex-1 min-w-0 truncate transition-colors ${
+            reviewOpen ? 'text-[#374151] group-hover:text-[#2563EB]' : 'text-[#6B7280]'
+          }`}>
+            {REVIEW_LABEL}
+            {!reviewOpen && (
+              <span className="text-[11px] text-[#9CA3AF] font-medium ml-1.5">
+                · {lockReason}
+              </span>
+            )}
+          </span>
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
             reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#9CA3AF]'
           }`}>{reviewOpen ? '열림' : '잠김'}</span>
+          {reviewOpen && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round"
+              className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6" /></svg>
+          )}
         </div>
       </div>
     </div>

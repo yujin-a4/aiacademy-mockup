@@ -952,6 +952,42 @@ function buildPractice(part: number, rows: UiDbQuestion[]): TypeLessonContent | 
 /* ═══════════ 진입점 ═══════════ */
 
 /**
+ * 복습 세션(하루의 마지막)이 낼 문항 → 실전 화면이 쓰는 콘텐츠.
+ *
+ * 실전과 **같은 화면으로 푼다** — 복습은 강사 코칭 없이 풀고 채점만 하는 자리라, 실전 문항을
+ * 담는 그릇을 그대로 쓰면 된다. 그래서 `buildPractice` 와 같은 모양을 만든다. 다르게 만들면
+ * 같은 Part 를 두 벌로 조판하게 되고 한쪽만 고쳐지는 일이 생긴다.
+ *
+ * 지금 복습 문항이 있는 것은 FGI 시연 두 강의(Part 1 · Part 5)뿐이다. 다른 파트는 null →
+ * 화면이 "낼 문제가 없다"고 말한다(엉뚱한 그릇에 담아 깨지는 것보다 낫다).
+ */
+export function buildReviewContent(part: number, rows: UiDbQuestion[]): TypeLessonContent | null {
+  /* 복습 코드(-R001, -R002 …)는 원문항 순서를 그대로 물려받았다 — 코드순이 곧 낼 순서다 */
+  const group = [...rows].sort((a, b) => a.code.localeCompare(b.code))
+  if (!group.length) return null
+
+  if (part === 1) {
+    return {
+      optionAudio: true,
+      photo: group[0].content.image_url,
+      questions: group.map((q) => ({ ...toQuestion(q, ''), photo: q.content.image_url })),
+    }
+  }
+  if (part === 5) {
+    return {
+      passages: [{
+        id: 'p1', kind: 'text',
+        sentences: group.map((q, i) => ({
+          id: `s${i + 1}`, en: (q.content.blank_sentence ?? '').replace(/_{2,}/g, BLANK), blank: i + 1,
+        })),
+      }],
+      questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
+    }
+  }
+  return null
+}
+
+/**
  * 앵커 문항 기준으로 로컬 lesson을 DB 콘텐츠·레일로 갈아끼운다.
  * rows는 같은 강의(또는 같은 지문)의 문항 전체 — 앵커가 속한 지문 묶음만 골라 쓴다.
  * 지원하지 않는 파트이거나 필수 필드가 비면 로컬 lesson을 그대로 반환(폴백).
