@@ -167,11 +167,20 @@ function subjectiveOk(said: string, expected?: string, accepts?: string[]): bool
     /* 조사를 뗀다 — "그림을" 과 "그림" 이 다른 낱말로 잡히면 맞은 답이 오답이 된다 */
     .map((w) => (w.length > 2 ? w.replace(/(으로|에서|에게|한테|까지|부터|을|를|이|가|은|는|에|와|과|도|의)$/, '') : w))
     .filter((w) => w.length >= 2 && !KO_STOP.has(w)))
+  /* ── 부정·포기가 섞인 답은 낱말이 겹쳐도 즉시 받지 않는다 ──
+     기대 "그림을 그리고 있어요" 에 "그림 몰라요" 를 치면 '그림' 이 겹쳐 정답이 됐다(실측).
+     기대 답에도 부정이 들어 있으면("없어요", "넘어져 있지 않고") 그건 정상이니 그대로 둔다.
+     여기 걸린 답은 틀렸다는 뜻이 아니라 **채점기가 뜻으로 봐야 한다**는 뜻이다. */
+  const NEG = /(몰라|모르|아니|없|안\s)/
+  if (NEG.test(said) && !wanted.some((w) => NEG.test(w))) return false
   const got = new Set(words(said))
   return wanted.some((one) => {
     const want = words(one)
     if (!want.length) return true
-    return want.some((w) => got.has(w) || Array.from(got).some((g) => g.includes(w) || w.includes(g)))
+    const hit = want.filter((w) => got.has(w) || Array.from(got).some((g) => g.includes(w) || w.includes(g))).length
+    /* 낱말 **하나가 스친 것**으로는 부족하다 — 기대 답이 여러 낱말이면 둘 이상 겹쳐야
+       즉시 받아준다. 못 미친 답은 틀린 것이 아니라 채점기로 넘어간다. */
+    return hit >= Math.min(2, want.length)
   })
 }
 
@@ -190,8 +199,12 @@ function stopVoice() {
  *
  *  ⚠️ **띄어쓰기를 사람이 맞춰 주지 않는다.** 시트에 "잘 했어요" 처럼 띄어 쓴 줄이 있어서
  *  "잘했어요" 만 보던 예전 목록이 그것들을 놓쳤고, 앱이 맞장구를 하나 더 얹어
- *  "잘했어요. 잘 했어요. are이 있죠?" 가 나갔다(실측). 낱말 사이 공백을 허용한다. */
-const ACK_OPENER = /^(맞\s*아요|맞\s*습니다|좋\s*아요|좋\s*습니다|그렇\s*죠|그래\s*요|정확\s*해요|잘\s*했어요|훌륭\s*해요|네[,\s])/
+ *  "잘했어요. 잘 했어요. are이 있죠?" 가 나갔다(실측). 낱말 사이 공백을 허용한다.
+ *
+ *  ⚠️ **목록에 없는 칭찬은 그대로 겹친다.** 24강 밑줄 턴 일곱 곳이 "잘 찾았어요." 로 시작하는데
+ *     그게 목록에 없어 앱이 "좋아요, 맞았어요." 를 또 얹었다(실측). 대본을 새로 받으면
+ *     **첫 문장의 칭찬 표현을 다시 훑어야 한다** — scripts 로 전수 확인하는 편이 빠르다. */
+const ACK_OPENER = /^(맞\s*아요|맞\s*습니다|좋\s*아요|좋\s*습니다|좋\s*네요|그렇\s*죠|그래\s*요|정확\s*해요|정확\s*합니다|잘\s*했어요|잘\s*찾았어요|잘\s*하셨어요|완벽\s*해요|훌륭\s*해요|바로\s*그거|네[,\s])/
 /** 대본 첫머리의 맞장구를 뗀다 — "맞아요. 인물이 …" → "인물이 …".
  *  뗄 것이 없거나 떼면 문장이 없어지는 줄은 그대로 둔다(맞장구만 있는 줄도 있다). */
 /** 맞았을 때 앱이 넣는 맞장구 — **돌려 쓴다.**
@@ -203,11 +216,19 @@ const ACKS = ['좋아요, 맞았어요.', '네, 맞아요.', '정확해요.', '�
 const ackLine = (n: number) => ACKS[n % ACKS.length]
 
 function stripAck(text: string): string {
-  const t = text.trim()
-  if (!ACK_OPENER.test(t)) return text
-  const cut = t.replace(/^[^.!?]*[.!?]\s*/, '').trim()
-  /* 너무 짧게 남으면 되돌린다 — 맞장구가 문장의 전부인 줄("좋아요, 잘했어요!")도 있다 */
-  return cut.length >= 10 ? cut : text
+  let t = text.trim()
+  /* **맞장구 한 마디만** 뗀다. 문장째로 자르면 맞장구 뒤에 붙은 내용까지 사라진다 —
+     "맞아요, is painting이 핵심이에요." 에서 답을 알려주는 말이 통째로 날아갔다(실측).
+     "네, 맞아요." 처럼 두 마디가 겹칠 수 있어 두 번까지 본다. */
+  for (let i = 0; i < 2; i++) {
+    const m = t.match(ACK_OPENER)
+    if (!m) break
+    const cut = t.slice(m[0].length).replace(/^[\s,.!?~…]+/, '')
+    /* 너무 짧게 남으면 되돌린다 — 맞장구가 문장의 전부인 줄("좋아요, 잘했어요!")도 있다 */
+    if (cut.length < 10) break
+    t = cut
+  }
+  return t === text.trim() ? text : t
 }
 
 /** 학생이 **모른다고 말한** 것인가 — 틀린 답과 다르게 다뤄야 한다.
@@ -229,6 +250,67 @@ function isReplayAsk(text: string): boolean {
 function isGiveUp(text: string): boolean {
   const t = text.replace(/[\s.,!?~·"'’”…]/g, '')
   return /^(잘|음|아|어)?(모르겠어요|모르겠는데요|모르겠다|모르겠어|모르겠네요|몰라요|몰라|모르겠습니다|글쎄요|글쎄|패스|스킵|넘어갈게요|넘어가요|안떠올라요|생각안나요|기억안나요)$/.test(t)
+}
+
+const normKo = (t: string) => t.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' ')
+
+/** 말이 아닌 입력인가 — 자판을 누른 자국("ㅇㅁㄴㄹㄹ"), 기호나 공백뿐인 줄.
+ *  자모(ㅇ·ㅁ)는 **음절이 아니다.** 마이크가 잡소리를 흘릴 때도 이런 꼴로 들어온다.
+ *  이런 건 채점기에 물어볼 것이 아니라 **못 알아들었다고 말하고 다시 받아야** 한다. */
+function isGibberish(text: string): boolean {
+  return !text.replace(/[^가-힣a-zA-Z0-9]/g, '')
+}
+
+/** 답에서 **찾아볼 낱말**만 뽑는다 (조사·정중어미·군말을 뗀 뒤 두 글자 이상). */
+function answerKeys(answer: string): string[] {
+  return normKo(answer).split(/\s+/)
+    .map((w) => (w.length > 2 ? w.replace(/(으로|에서|에게|한테|까지|부터|을|를|이|가|은|는|에|와|과|도|의)$/, '') : w))
+    .filter((w) => w.length >= 2 && !KO_STOP.has(w))
+}
+
+/** 다음 대본 줄이 **이 답을 이미 말하고 있는가.**
+ *
+ *  개념을 묻는 자리는 다음 줄이 곧 그 답의 설명이다 — "지금 하고 있는 동작은 어떤 형태로
+ *  표현할까요?" 다음에 "인물이 지금 하고 있는 동작은 주로 be + -ing 형태로 표현해요" 가 온다.
+ *  그 앞에 앱이 "답은 be + -ing 예요" 를 얹으면 학생은 같은 답을 두 번 듣는다(실측).
+ *
+ *  ⚠️ 낱말이 **다 들어 있기를** 요구하면 안 된다. 대본은 어미를 바꿔 쓴다 —
+ *     "놓여 있는 상태"(답) ↔ "놓여 있을 때"(대본). 대부분 겹치면 같은 말을 한 것으로 본다. */
+function lineCovers(line: string, keys: string[]): boolean {
+  if (!keys.length) return false
+  const hay = normKo(line)
+  return keys.filter((w) => hay.includes(w)).length / keys.length >= 0.6
+}
+
+/** 시트가 예시 답을 여러 줄 적어 둔 자리("- 남자가 있고 컵이 보여요. - 남자가 컵을…")에서
+ *  **하나만** 골라낸다. 사진 묘사에 정답이 하나일 수 없어 그렇게 쓴 것이니, 읽어 줄 때는 하나면 된다. */
+function firstExample(hint: string): string {
+  const t = hint.trim()
+  return t.startsWith('-') ? (t.replace(/^-\s*/, '').split(/\s+-\s+/)[0]?.trim() || t) : t
+}
+
+/** 낱말로 답하는 자리인가 — 맞으면 정중어미를 뗀 낱말, **문장으로 답하는 자리면 null.**
+ *  "동작이요." → "동작" / "위치나 상태요." → "위치나 상태" / "그림을 그리고 있어요." → null.
+ *  가르는 이유: 낱말 답에 "이렇게 답하면 돼요" 를 붙이면 말하기 연습처럼 들리고,
+ *  문장 답을 "답은 '…' 예요" 에 끼우면 문장이 겹쳐 읽힌다. */
+function bareWord(s: string): string | null {
+  /* 시트가 한 칸에 두 가지로 적어 둔 답("네 / 목적어예요")은 **긴 쪽**만 읽는다 —
+     빗금을 그대로 읽히면 "네 슬래시 목적어" 가 된다. */
+  const one = s.includes('/') ? s.split('/').map((p) => p.trim()).sort((a, b) => b.length - a.length)[0]! : s
+  const t = one.trim().replace(/[.!?…]+$/, '')
+  if (/(이에요|예요|이요)$/.test(t)) return t.replace(/(이에요|예요|이요)$/, '').trim() || null
+  /* '요' 앞 글자가 용언 어미면 문장이다("없어요"), 아니면 명사에 붙은 것이다("상태요") */
+  if (/요$/.test(t)) return /[어아해워려여세게죠네]요$/.test(t) ? null : (t.slice(0, -1).trim() || null)
+  if (/(습니다|합니다|입니다|이다|죠)$/.test(t)) return null
+  /* 정중어미가 아예 없는 답은 낱말로 본다 — 어절이 넷을 넘으면 사진 묘사 같은 문장이다 */
+  return t.split(/\s+/).length > 3 ? null : t
+}
+
+/** 받침이 있으면 '이에요', 없으면 '예요' — 읽어 주는 말이라 어긋나면 바로 들린다. */
+function koCopula(word: string): string {
+  const code = word.trim().slice(-1).charCodeAt(0)
+  if (!(code >= 0xac00 && code <= 0xd7a3)) return '예요'
+  return (code - 0xac00) % 28 ? '이에요' : '예요'
 }
 
 /** 보기 해석을 **인용문**으로 바꾼다 — "여자가 물감 한 개를 들고 있다." → "여자가 물감 한 개를 들고 있다고"
@@ -724,12 +806,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      말한다. 백엔드=머리 / 에이전트=입 (docs/tutor-engine.md).
      ⚠️ 정답 보기의 근거는 넣지 않는다. 넣으면 에이전트가 답을 흘린다 — 다시 풀릴 수가 없다. */
   const reviewTurns = useMemo<Turn[]>(() => {
-    /* 대본이 있으면 만들지 않는다 — 시트에 문항별 코칭이 이미 다 적혀 있다 */
-    if (scriptedReview?.length) return scriptedReview
     const results = practiceScore?.results ?? []
     const picked = practiceScore?.answers ?? {}
     const qs = practiceContent.questions
     const wrongIdx = results.map((ok, i) => (ok ? -1 : i)).filter((i) => i >= 0)
+    /* ── 대본이 있으면 만들지 않는다 — 시트에 문항별 코칭이 이미 다 적혀 있다 ──
+       다만 **틀린 문항만** 남긴다. 시트는 문항 전부를 짚도록 쓰여 있어서 그대로 틀면
+       맞힌 문제까지 보기 하나하나 O/X 로 다시 훑는다 — 이미 맞힌 학생에게 그건 해설이
+       아니라 벌이다(실측: 다 맞혀도 4문항 32턴을 그대로 지나갔다).
+       리뷰 턴은 **전부 focusQ 로 자기 문항을 가리킨다**(시트 4블록 138턴 전수 확인) —
+       그러니 focusQ 하나로 고를 수 있다. 새 대본을 받으면 그 전제를 다시 확인할 것.
+       채점 결과가 아직 없으면(실전을 건너뛴 진입) 고를 근거가 없으니 손대지 않는다. */
+    if (scriptedReview?.length) {
+      if (!results.length) return scriptedReview
+      const wrong = new Set(wrongIdx)
+      return scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+    }
     return wrongIdx.map((qIdx, n) => {
       const q = qs[qIdx]
       const myLabel = picked[qIdx]
@@ -1359,10 +1451,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  학생이 다 짚어 놓고도 화면이 멈춰 있었다(실측). 넘길 사람이 없으면 앱이 넘긴다.
    *  한 턴에 한 번만 — 필기 판정과 단어 탭이 같이 끝나면 두 번 넘어간다. */
   const markAdvancedRef = useRef(-1)
-  /** 이 턴에 들어설 때 **이미 칠해져 있던** 낱말. 표시는 턴을 넘어 쌓이므로(시험지에 그대로
-   *  남는다) 그것만 보고 판단하면, 앞 문항에서 짚어 둔 낱말 때문에 새 턴이 손도 대기 전에
-   *  넘어가 버린다. 들어설 때 이미 다 칠해져 있었다면 학생이 한 일이 아니다. */
-  const marksAtEnterRef = useRef<Set<string>>(new Set())
+  /** 이 턴에 들어설 때 **이미 있던 표시** — 형광펜으로 칠한 낱말과 필기 획 수.
+   *
+   *  표시는 턴을 넘어 쌓인다(시험지에 그대로 남는다). 지금 있는 것만 보고 판단하면
+   *  **앞 문항에서 한 표시 때문에 새 턴이 손도 대기 전에 넘어간다** — 24강 2·3번이
+   *  들어서자마자 넘어간 것이 이것이다(실측: 1번에서 한 번 그은 획을 계속 세고 있었다).
+   *
+   *  ⚠️ 기준선을 **턴 진입 효과에서 잡으면 한 박자 늦는다.** 아래 두 효과가 그것보다 먼저
+   *     돌기 때문이다(선언 순서대로 실행된다). 그래서 먼저 도는 쪽이 스스로 잡는다. */
+  const enterBaseRef = useRef({ turn: -1, marks: new Set<string>(), strokes: 0 })
+  const enterBase = () => {
+    if (enterBaseRef.current.turn !== turnIdx) {
+      enterBaseRef.current = { turn: turnIdx, marks: markedWords(marks), strokes: draw.strokeCount }
+    }
+    return enterBaseRef.current
+  }
   const finishMark = async (ok: boolean | null) => {
     if (!scripted || markAdvancedRef.current === turnIdx) return
     markAdvancedRef.current = turnIdx
@@ -1381,8 +1484,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 표시 키는 `자리|토큰번호|단어` 다(같은 단어가 여러 군데 있어도 짚은 자리만 칠하려고).
        완료 판정은 여전히 **단어** 기준이므로 키에서 단어만 뽑아 비교한다. */
     const words = markedWords(marks)
+    const base = enterBase()
     const allMarked = Array.from(targets).every((w) => words.has(w))
-    const alreadyAtEnter = Array.from(targets).every((w) => marksAtEnterRef.current.has(w))
+    const alreadyAtEnter = Array.from(targets).every((w) => base.marks.has(w))
     if (allMarked && !alreadyAtEnter) {
       setMarkDone(true)
       reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
@@ -1513,7 +1617,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      하면 흐름이 끊긴다. 획을 그을 때마다 타이머를 미루고, 1.2초 조용하면 그때 본다.
      (그리는 중에 보내면 반쯤 그린 동그라미를 판정한다) */
   useEffect(() => {
-    if (turn.interaction.kind !== 'mark' || !draw.strokeCount || markChecking) return
+    const base = enterBase()
+    if (turn.interaction.kind !== 'mark' || markChecking) return
+    /* ⚠️ 획 수는 **시험지 전체의 누적**이다. "획이 있으면" 으로 걸면 앞 문항에서 그은 획 때문에
+       이 턴에 손도 대기 전에 판정이 돈다 — 지문 화면은 판정할 사진이 없어 그대로 통과하고
+       다음 단계로 넘어가 버렸다(실측: 24강 2·3번). **이 턴에서 새로 그었을 때만** 본다. */
+    if (draw.strokeCount <= base.strokes) {
+      /* 지우개로 되돌렸으면 기준선도 내린다 — 안 내리면 다시 그어도 판정이 안 돈다 */
+      if (draw.strokeCount < base.strokes) base.strokes = draw.strokeCount
+      return
+    }
     const t = setTimeout(() => { void checkMark() }, 1200)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1620,7 +1733,6 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        (실전으로 바로 들어온 진입) 턴만 보면 효과가 안 돌고 **리뷰 첫 마디가 통째로 빈다**. */
     if (phase !== 'lesson' && phase !== 'review') return
     setChoicePicked(null); setSubjText(''); setSubjSent(false); setMarkDone(false); setMatchTapped(new Set())
-    marksAtEnterRef.current = markedWords(marks)
     setPlayingId(null)
     setReaskShown(reaskRef.current.get(turnIdx) ?? 0)
     setMarkVerdict(null); setMarkChecking(false)
@@ -1828,11 +1940,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** O/X 선택지는 **화면엔 기호, 입엔 말**이다. 'X' 를 그대로 읽히면 한국어 목소리가
    *  영어 알파벳으로 뭉개 읽는다(koLetters 는 A~D 만 한글 음으로 바꾼다). */
   const asWord = (t: string) => (t === 'O' ? '맞아요' : t === 'X' ? '아니에요' : t)
+  /** 답을 매듭짓는 한 마디. O/X 를 "답은 '아니에요' 예요" 로 만들면 말이 겹쳐 들린다 —
+   *  O/X 는 판정이지 낱말이 아니라서 그대로 서술형으로 말한다. */
+  const verdict = (t: string) => (t === 'X' ? '이건 아니에요.' : t === 'O' ? '이건 맞아요.'
+    : `답은 '${t}' ${koCopula(t)}.`)
 
   const closingLine = (picked?: string): string => {
     const it = turn.interaction
     if (it.kind === 'subjective') {
-      return it.hint ? `이렇게 답하면 돼요. ${it.hint}` : '이건 같이 보고 넘어갈게요.'
+      if (!it.hint) return '이건 같이 보고 넘어갈게요.'
+      /* 문장으로 답하는 자리와 낱말로 답하는 자리를 가른다 — 낱말 답에 "이렇게 답하면 돼요" 를
+         붙이면 말하기 연습처럼 들리고("이렇게 답하면 돼요. 동작이요."), 문장 답을
+         "답은 '…' 예요" 에 끼우면 문장이 겹쳐 읽힌다. */
+      const one = firstExample(it.hint)
+      const word = bareWord(one)
+      return word === null ? `이렇게 답하면 돼요. ${one}` : `답은 '${word}' ${koCopula(word)}.`
     }
     if (it.kind !== 'choice') return '이건 같이 보고 넘어갈게요.'
 
@@ -1848,12 +1970,38 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const no = right === 'X'
       /* 이어주는 말이 방향을 만든다 — 아닐 때는 '했는데'(반전), 맞을 때는 '했고'(순접) */
       const ground = no ? contraOf(lesson.part) : lesson.part === 1 ? '사진 그대로죠?' : '자료와 맞죠?'
-      return `${mine}${label}에서는 ${quoted(trans)} 했${no ? '는데' : '고'}, ${ground} 그래서 답은 '${asWord(right)}' 예요.`
+      return `${mine}${label}에서는 ${quoted(trans)} 했${no ? '는데' : '고'}, ${ground} 그래서 ${verdict(right)}`
     }
-    return `${mine}답은 '${asWord(right)}' 예요.`
+    return `${mine}${verdict(right)}`
   }
 
-  const handleScriptedAnswer = async (ok: boolean, picked?: string, gaveUp = false) => {
+  /** 붙잡기를 끝낼 때, **다음 대본이 답을 이미 말해 주는가.** 그러면 앱은 답을 얹지 않는다.
+   *
+   *  개념을 묻는 자리는 다음 줄이 곧 그 답의 설명이다 — "여자가 무엇을 하고 있나요?" 다음에
+   *  "여자가 앉아서 붓으로 그림을 그리고 있죠?" 가 온다. 그 앞에 앱이 "이렇게 답하면 돼요.
+   *  그림을 그리고 있어요" 를 얹으면 같은 답을 두 번 듣는다(실측).
+   *
+   *  대본이 답을 말하지 않고 지나가는 자리도 있다. 보기를 하나씩 지우는 O/X 턴이 그렇다 —
+   *  다음 줄이 곧장 다음 보기로 간다("이제 C를 볼게요"). 그런 자리에서만 앱이 답을 매듭짓는다. */
+  const scriptWillTell = (): boolean => {
+    /* ⚠️ 문제 끝에서는 다음 발화가 **바로 이어지지 않는다**([다음 문제] 버튼이 먼저 뜬다).
+       거기서 대본에 맡기면 학생은 답을 못 듣고 버튼만 본다 — 그 자리는 앱이 매듭짓는다. */
+    if (atItemEnd) return false
+    const it = turn.interaction
+    const answer = firstExample(it.kind === 'subjective' ? (it.hint ?? '')
+      : it.kind === 'choice' ? (it.choices.find((c) => c.correct)?.text ?? '')
+        : '')
+    const keys = answerKeys(answer)
+    /* 낱말이랄 게 없는 답("네", "X")은 대본에서 찾을 수가 없다. 말하기 답이면 다음 줄이
+       어차피 다 풀어 주므로 맡기고, O/X 는 앱이 말해 준다. */
+    if (!keys.length) return it.kind === 'subjective'
+    /* 다음 줄은 **맞장구를 뗀 뒤**의 모습으로 본다 — 못 맞힌 뒤라 그 줄은 stripAck 을
+       지나서 나간다. 떼기 전 문장으로 재면 이미 사라진 말을 "대본이 해 준다"고 착각한다. */
+    return lineCovers(stripAck(turnsRef.current[turnIdxRef.current + 1]?.tutor ?? ''), keys)
+  }
+
+  /** @param mode  'giveUp' 모른다고 했다 · 'unsure' **채점기가 판정을 못 했다** */
+  const handleScriptedAnswer = async (ok: boolean, picked?: string, mode?: 'giveUp' | 'unsure') => {
     await waitForCue()          // 들려주던 음원이 끝나고 나서 말한다(위 waitForCue)
     const tries = (triesRef.current.get(turnIdx) ?? 0) + 1
     triesRef.current.set(turnIdx, tries)
@@ -1863,11 +2011,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       goNext()
       return
     }
+    /* ── 판정을 못 했으면 **아무 판정도 하지 않는다** ──
+       맞다고 하면 틀린 답에 "좋습니다" 가 나가고, 틀렸다고 하면 맞은 답을 나무란다.
+       맞장구만 떼고(prevOk=false → stripAck) 대본으로 조용히 이어간다. */
+    if (mode === 'unsure') { goNext(); return }
     /* ── "몰라요" 는 오답이 아니다 ──
        모른다고 말한 학생에게 "그건 조금 달라요, 다시 생각해 볼까요?" 는 앞뒤가 안 맞고,
-       모르는 걸 한 번 더 물어봐야 나올 것도 없다. 바로 답을 보여주고 넘어간다. */
-    if (gaveUp) {
-      await say(`괜찮아요, 같이 볼게요. ${closingLine()}`)
+       모르는 걸 한 번 더 물어봐야 나올 것도 없다. 되묻지 않고 바로 넘어간다. */
+    if (mode === 'giveUp') {
+      /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다 */
+      await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
       goNext()
       return
     }
@@ -1884,7 +2037,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setDockTick((n) => n + 1)
       return
     }
-    await say(`제가 짚어 줄게요. ${closingLine(picked)}`)
+    /* 두 번째도 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
+       "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
+       "여자가 앉아서 붓으로 그림을 그리고 있죠?" 라고 하면 같은 답이 두 번이다. */
+    if (!scriptWillTell()) await say(`제가 짚어 줄게요. ${closingLine(picked)}`)
     goNext()
   }
 
@@ -1950,7 +2106,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     setChatLog((prev) => [...prev, { role: 'user', text }])
     setSubjSent(true)
     setSubjText(text)
-    if (isGiveUp(text)) { logResponse(text, false); void handleScriptedAnswer(false, text, true); return true }
+    if (isGiveUp(text)) { logResponse(text, false); void handleScriptedAnswer(false, text, 'giveUp'); return true }
+    /* ── 말이 아닌 입력은 **답으로 치지 않는다** ──
+       채점기에 보내 봐야 의미가 없고, 오답으로 몰면 "다시 생각해 볼까요?" 가 나가는데
+       생각이 아니라 입력이 문제다. 되돌려서 다시 받는다(질문 갈래와 같은 처리).
+       ⚠️ **되묻기는 이 턴에 한 번뿐이다.** 이 갈래가 횟수를 안 세는 바람에 자판을 계속 누르면
+          "잘 못 알아들었어요" 만 끝없이 나갔다(실측). 이미 한 번 되물었으면 짚고 넘어간다. */
+    if (isGibberish(text)) {
+      if ((triesRef.current.get(turnIdx) ?? 0) >= 1) {
+        logResponse(text, false); void handleScriptedAnswer(false, text); return true
+      }
+      triesRef.current.set(turnIdx, 1)
+      logResponse(text, null)
+      setSubjSent(false); setSubjText('')
+      void (async () => { await waitForCue(); await say('음, 잘 못 알아들었어요. 다시 한번 말해 줄래요?') })()
+      return true
+    }
     if (subjectiveOk(text, it.hint, it.accepts)) { logResponse(text, true); void handleScriptedAnswer(true, text); return true }
     /* ── 낱말이 안 겹친다고 바로 틀렸다고 하지 않는다 ──
        기대 답 "그림을 그리고 있어요" 에 학생이 "이젤 페인팅" 이라고 하면 겹치는 낱말이 없다.
@@ -1969,6 +2140,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         await askAside(text, true)      // 학생 말은 위에서 이미 대화에 남겼다
         return
       }
+      if (v === '?') { logResponse(text, null); void handleScriptedAnswer(false, text, 'unsure'); return }
       const ok = v === 'O'
       logResponse(text, ok)
       void handleScriptedAnswer(ok, text)
@@ -1976,14 +2148,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return true
   }
 
-  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 답이 아니라 강사에게 묻는 말.
-   *  실패하거나 느리면 **맞다고 본다(O).** 시연에서 맞은 답을 틀렸다고 하는 쪽이 훨씬 나쁘고,
-   *  판정을 기다리느라 침묵이 길어지는 것도 나쁘다(2.5초에서 끊는다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'Q'> => {
+  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 강사에게 묻는 말 · `?` **판정 못 함.**
+   *
+   *  ⚠️ 예전에는 실패·타임아웃을 **O 로 떨어뜨렸다.** 맞은 답을 틀렸다고 하는 것이 더 나쁘다는
+   *     이유였는데, 그 바람에 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 대본의 "좋습니다" 가 그대로
+   *     나갔다(실측). 못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
+   *  판정을 기다리느라 침묵이 길어지는 것도 나쁘므로 3.5초에서 끊는다(첫 호출이 느리다). */
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'Q' | '?'> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
-    if (!expected) return 'O'
+    if (!expected) return 'O'                // 기대 답이 없는 자리는 무엇을 말해도 받아준다
     const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 2500)
+    const timer = setTimeout(() => ctrl.abort(), 3500)
     try {
       const res = await fetch('/api/gemini', {
         method: 'POST',
@@ -1998,8 +2173,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const v = String(data.dialogue ?? '').trim().toUpperCase()
       if (v.startsWith('Q')) return 'Q'
       if (v.startsWith('X')) return 'X'
-      return 'O'                         // 못 읽었으면 맞다고 본다
-    } catch { return 'O' } finally { clearTimeout(timer) }
+      if (v.startsWith('O')) return 'O'
+      console.warn('[judge] 판정을 못 읽었다', data)
+      return '?'
+    } catch (e) { console.warn('[judge] 판정 실패', e); return '?' } finally { clearTimeout(timer) }
   }
 
   /* ── 학생 질문 (대본 밖) ──
@@ -2400,19 +2577,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       <PracticeStage
         lesson={lesson}
         onJumpPhase={jumpPhase}
-        nextLabel={scriptedReview?.length ? '강사와 문제 같이 보기 →' : undefined}
+        /* 버튼 문구는 넘기지 않는다 — PracticeStage 가 점수를 보고 고른다
+           ('틀린 문제 같이 보기 →' / 다 맞혔으면 '핵심 요약으로 →'). 대본이 있다고 해서
+           '강사와 문제 같이 보기' 로 덮으면, 다 맞혀 정리로 가는 학생에게도 그 문구가 뜬다. */
         onExit={() => { stopVoice(); router.push('/lessons') }}
         onDone={(score) => {
           setPracticeScore(score)
           /* 채점 결과를 문항별로 남긴다 — 하루 끝의 복습이 이 기록에서 틀린 문항을 고른다 */
           log.practiceGraded(practiceContent.questions, score.results, score.answers)
           /* ── 대본이 있는 실전 ──
-             시트가 문항 **전부**를 짚도록 써 있다(보기 하나하나 O/X). 그래서 다 맞혀도 지나간다.
+             **틀린 문항이 있을 때만** 코칭으로 넘어간다. 다 맞혔으면 짚을 것이 없어 정리로 간다
+             (아래 갈래가 그대로 받는다). 짚을 턴은 reviewTurns 가 틀린 문항만 남겨 준다.
              채점 상태(graded)는 전부 켠다 — 이미 풀고 결과까지 본 문항이라 감출 것이 없고,
              내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다.
              보기 **글자**는 미리 열지 않는다 — 강사가 "A를 볼게요" 하는 순간 그 보기만 열린다
              (턴의 reveal.optionText + st.autoScript). 네 개를 처음부터 펼치면 짚는 자리가 안 보인다. */
-          if (scriptedReview?.length) {
+          if (scriptedReview?.length && score.correct < score.total) {
             setTurnIdx(0)
             const all = practiceContent.questions.map((_, i) => i)
             setAnswers({ ...score.answers })
@@ -2674,6 +2854,29 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 if (it.kind === 'choice' && choicePicked === null) {
                   const at = matchTypedChoice(t, it.choices)
                   if (at >= 0) { setInputText(''); setChoicePicked(at); pickChoice(it.choices[at]); return }
+                  /* 선택지 턴의 "모르겠어요" 도 질문이 아니다 — 아래로 흘려보내면 강사가 대화로
+                     받아 대본이 멈춘다. 주관식과 똑같이 짚어주고 넘어간다. */
+                  if (isGiveUp(t)) {
+                    setInputText('')
+                    setChatLog((prev) => [...prev, { role: 'user', text: t }])
+                    logResponse(t, false)
+                    void handleScriptedAnswer(false, undefined, 'giveUp')
+                    return
+                  }
+                  /* 말이 아닌 입력도 질문이 아니다 — 주관식과 같게 한 번만 되묻고 넘어간다 */
+                  if (isGibberish(t)) {
+                    setInputText('')
+                    setChatLog((prev) => [...prev, { role: 'user', text: t }])
+                    if ((triesRef.current.get(turnIdx) ?? 0) >= 1) {
+                      logResponse(t, false)
+                      void handleScriptedAnswer(false, undefined, 'giveUp')
+                      return
+                    }
+                    triesRef.current.set(turnIdx, 1)
+                    logResponse(t, null)
+                    void (async () => { await waitForCue(); await say('음, 잘 못 알아들었어요. 보기 중에서 골라 볼래요?') })()
+                    return
+                  }
                 }
               }
               /* ── 답을 받는 자리가 아니면, 그건 질문이다 ──
