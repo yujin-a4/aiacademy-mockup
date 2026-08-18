@@ -242,6 +242,21 @@ export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, s
 /* 채팅 말풍선 — 강사=회색(왼쪽) / 나=파랑(오른쪽).
    질문(aside)은 노란 결로 묶는다: 수업 대본과 학생이 따로 물어본 것은 성격이 다른 대화라,
    같은 색으로 쌓이면 나중에 다시 읽을 때 어디까지가 수업이었는지 구분이 안 된다. */
+/** 강사가 말을 준비하는 동안 도는 점 세 개.
+ *  **글자가 비어 있는 것 자체가 신호다** — 화면은 소리가 나가기 전까지 한 글자도 내보내지
+ *  않으므로(TypeLessonPlayer 의 armReveal), 강사 자리가 비었다면 그건 곧 준비 중이라는 뜻이다.
+ *  그래서 "지금 기다리는 중인가" 를 따로 넘겨받지 않는다 — 두 곳이 어긋날 여지를 없앤다. */
+export function SpeechDots() {
+  return (
+    <span className="inline-flex items-center gap-1 py-1 align-middle" aria-label="강사가 말을 준비하는 중">
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-speech-dot"
+          style={{ animationDelay: `${i * 0.16}s` }} />
+      ))}
+    </span>
+  )
+}
+
 function Bubble({ role, text, aside }: ChatMsg) {
   const mine = role === 'user'
   return (
@@ -254,7 +269,7 @@ function Bubble({ role, text, aside }: ChatMsg) {
           : mine
             ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
             : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
-      }`}>{text}</div>
+      }`}>{text || (mine ? null : <SpeechDots />)}</div>
     </div>
   )
 }
@@ -281,7 +296,11 @@ export interface TutorDockProps {
   getMicFreq?: () => Uint8Array | undefined
   connected: boolean
   connecting: boolean
+  /** 강사가 **지금 소리를 내고 있는가.** 음원을 받는 동안은 false — 그동안 말하는 클립을
+   *  돌리면 소리 없이 입만 움직인다. 그 몇 초는 preparing 이 맡는다. */
   isSpeaking: boolean
+  /** 말할 것은 정해졌는데 소리가 아직 안 나가는 몇 초. 글자 대신 점 세 개가 도는 구간이다. */
+  preparing?: boolean
   /** 지금 강사가 하는 말 (음성 모드 박스 · 최소화 말풍선) */
   lastLine: string
   /** 지금 학생이 말해도 되는가 — 대본 수업에서 마이크가 열린 동안만 true.
@@ -308,7 +327,7 @@ export interface TutorDockProps {
 
 export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
-  chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking,
+  chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
   lastLine, messages, actions, hint, actionKey,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
 }: TutorDockProps) {
@@ -344,7 +363,7 @@ export default function TutorDock({
     return (
       <MiniDock
         faceSrc={faceSrc} clipSrc={clipSrc} allClips={allClips}
-        name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking}
+        name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking} preparing={preparing}
         getTutorFreq={getTutorFreq} lastLine={lastLine}
         chatMode={chatMode} setChatMode={setChatMode}
         inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
@@ -384,7 +403,7 @@ export default function TutorDock({
           <div className="shrink-0 px-3 md:px-4 pt-1">
             <div className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
               <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium whitespace-pre-wrap">
-                {lastLine || '…'}
+                {lastLine || <SpeechDots />}
               </p>
             </div>
           </div>
@@ -425,10 +444,10 @@ export default function TutorDock({
    · 얼굴을 끌면 창이 통째로 따라온다(끌지 않고 탭하면 원래 패널로 복원)
    · 말풍선은 **자르지 않는다** — 발화가 길면 박스가 커지고, 아주 길면 그 안에서 스크롤한다
    · 선택지·행동 지시도 이 안에서 작은 UI로 보인다 */
-function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, getTutorFreq, lastLine, chatMode, setChatMode,
+function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq, lastLine, chatMode, setChatMode,
   inputText, setInputText, onSend, onStartAgent, actions, hint, onRestore }: {
   faceSrc: string; clipSrc?: string | null; allClips?: string[]
-  name: string; connected: boolean; connecting: boolean; isSpeaking: boolean
+  name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
   getTutorFreq?: () => Uint8Array | undefined
   lastLine: string
   chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
@@ -474,13 +493,15 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
   return (
     <div ref={wrapRef} className="fixed z-40 flex flex-col items-end gap-2 w-[min(320px,80vw)]" style={style}>
       {/* 하얀 네모 — 발화 전체 + 선택지/지시 */}
-      {(lastLine || hint || actions) && (
+      {/* 말을 준비하는 중(isSpeaking 인데 글자가 아직 없다)에도 창을 띄워 둔다 —
+          조건에서 빼면 음원을 기다리는 몇 초 동안 창이 사라졌다가 다시 나타난다 */}
+      {(lastLine || isSpeaking || preparing || hint || actions) && (
         <div className="w-full rounded-2xl bg-white border border-gray-200 overflow-hidden"
           style={{ boxShadow: '0 6px 24px rgba(37,99,235,0.16), 0 1px 4px rgba(0,0,0,0.08)' }}>
           <div className="max-h-[46vh] overflow-y-auto px-3.5 py-2.5 space-y-2">
-            {lastLine && (
+            {lastLine ? (
               <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap">{lastLine}</p>
-            )}
+            ) : (isSpeaking || preparing) ? <SpeechDots /> : null}
             {/* 선택지·행동 지시 — 작은 창 안에서는 글자를 한 단계 줄여 보여준다 */}
             <div className="pt-2 border-t border-dashed border-[#E5E7EB] space-y-2 empty:hidden empty:border-0 empty:pt-0
                             [&_button]:text-[12px] [&_p]:text-[12px]">

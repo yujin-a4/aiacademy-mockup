@@ -13,11 +13,11 @@ import ContentView, { targetTokens, markedWords, type ContentState } from '@/com
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
-import { speakTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
+import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
 import { INST_NAME, INST_PERSONA, INST_THUMBS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import TutorDock, { PulseAvatar, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
+import TutorDock, { PulseAvatar, SpeechDots, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
@@ -756,6 +756,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [selfPlaying, setSelfPlaying] = useState(false)
   /* 대본을 읽는 중인가 — 에이전트가 없으면 아바타·파형이 볼 신호가 이것뿐이다 */
   const [narrating, setNarrating] = useState(false)
+  /** 말할 것은 정해졌는데 **소리가 아직 안 나가는** 동안 (음원을 받는 중, v3 는 몇 초 걸린다).
+   *
+   *  `narrating` 과 갈라 둔 이유: 이 시간은 **강사 차례이지만 강사가 말하고 있지는 않은** 상태라
+   *  두 가지가 서로 반대를 원한다.
+   *    · 마이크(voiceOn)  — 닫아 둬야 한다. 열면 곧 시작될 강사 목소리를 학생 답으로 전사한다
+   *    · 그림(포즈·파형)  — 말하는 클립을 돌리면 안 된다. 소리 없이 입만 움직이는 꼴이 된다
+   *  그래서 마이크는 `narrating`(차례)을, 그림은 `tutorVoicing`(실제 발성)을 본다. */
+  const [voiceLoading, setVoiceLoading] = useState(false)
   /** 강사가 **이 턴에서 할 말을 끝낸** 턴 번호. 선택지를 그 뒤에 내보내는 문이다.
    *
    *  `narrating` 을 그대로 보면 안 된다 — 턴이 바뀐 직후 발화가 시작되기 전까지 잠깐 false 라
@@ -931,6 +939,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 도입(LessonIntro) → 수업 진입 여부. 실전으로 바로 들어온 경우엔 도입을 지나온 것으로 본다
      (도입 화면이 실전 위에 다시 뜨면 "시작하기"가 수업으로 되돌린다) */
   const [started, setStarted] = useState(initialStage === 'practice')
+  /* ── 첫 마디를 도입 화면에서 미리 받아둔다 ──
+     둘째 줄부터는 앞 발화가 대기를 가려 주지만(say 안의 prefetch), **첫 마디는 가려 줄 것이 없다.**
+     학생이 도입 화면을 읽고 [시작하기]를 누르기까지 몇 초가 그냥 비어 있으므로 그동안 받아둔다.
+     시작하지 않고 나가면 한 번 버려지는 셈이지만, 첫 인상이 걸린 자리라 그 값은 싸다. */
+  const warmedRef = useRef(false)
+  useEffect(() => {
+    if (started || warmedRef.current) return
+    const first = turns[0]?.tutor
+    if (!first) return
+    warmedRef.current = true
+    prefetchTTS(koLetters(first), ttsPersona, instructor)
+  }, [started, turns, ttsPersona, instructor])
   /* 수업 한 판 시작 — 몇 번째 수업인지, 앱을 처음 연 뒤 얼마 만인지가 여기서 붙는다
      (두 번째 수업으로 이어지는지 = FGI 규모에서 리텐션의 유일한 실물) */
   const lessonStartSentRef = useRef(false)
@@ -1878,7 +1898,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      않는다: 문장이 길든 짧든, 목소리가 빠르든 느리든 글자는 정확히 소리를 따라온다.
      음원이 없을 때(브라우저 TTS 폴백)만 글자 수로 대략 잡는다. */
   const revealRef = useRef<number | null>(null)
-  const startReveal = (text: string) => {
+  /** 글자를 **0에 세워 둔다.** 음원을 받는 동안 말풍선이 비어 있어야 그 자리에 점 세 개가 돈다.
+   *  흘리기 시작하는 것은 소리가 나가는 순간(speakTTS 의 onStart)이지 이때가 아니다. */
+  const armReveal = (text: string) => {
+    if (revealRef.current) cancelAnimationFrame(revealRef.current)
+    revealRef.current = null
+    setTyped({ text, shown: 0 })
+  }
+  /** @param hasAudio 강사 음원인가(false = 브라우저 TTS). 음원이면 재생 위치를 따라가고,
+   *    아니면 읽을 위치가 없으니 글자 수로 흘린다. */
+  const startReveal = (text: string, hasAudio: boolean) => {
     if (revealRef.current) cancelAnimationFrame(revealRef.current)
     const t0 = Date.now()
     let sawAudio = false
@@ -1888,9 +1917,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       let ratio: number
       if (p) { sawAudio = true; ratio = p.current / p.duration }
       else if (sawAudio) ratio = 1                       // 재생이 끝났다
-      /* 음원을 받아오는 동안(0.5~1.5초)은 한 글자도 내보내지 않는다 — 소리 없이 글자만 흐르면
-         그게 제일 이상하다. 그 시간이 지나도 소리가 없으면 브라우저 TTS 로 떨어진 것으로 본다. */
-      else if (Date.now() - t0 > 1500) ratio = (Date.now() - t0 - 1500) / Math.max(900, text.length * 95)
+      /* 음원이 있는데 아직 길이를 못 읽는 동안(메타데이터 로딩·autoplay 차단 해제 대기)은
+         한 글자도 내보내지 않는다. 소리 없이 글자만 흐르면 그게 제일 이상하다.
+         ⚠️ 예전에는 여기가 "1.5초 지나면 음원이 없는 것으로 친다" 였다 — v3 목소리는 받는 데
+            그보다 오래 걸려서, 글자가 먼저 흐르고 소리가 뒤늦게 따라붙었다(실측).
+            지금은 **소리가 나가기 시작한 뒤에야** 이 루프가 도니까 추측할 이유가 없다.
+            8초는 재생이 영영 안 시작되는 경우(제스처 대기)에 글자가 갇히지 않게 하는 안전판. */
+      else if (!hasAudio || Date.now() - t0 > 8000) {
+        const base = hasAudio ? 8000 : 0
+        ratio = (Date.now() - t0 - base) / Math.max(900, text.length * 95)
+      }
       else ratio = 0
       const want = Math.round(text.length * Math.min(1, Math.max(0, ratio)))
       /* 값이 그대로면 **같은 객체를 돌려준다** — 안 그러면 프레임마다 리렌더가 돈다 */
@@ -1912,11 +1948,31 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        낭독·피드백·질문 답변이 전부 이 문을 지나므로 여기 한 곳에서만 쌓으면 된다. */
     setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside }]))
     setNarrating(true)
-    const stopReveal = startReveal(text)
+    /* 말풍선은 **비어 있는 채로** 먼저 세운다(자리는 잡되 글자는 없다) — 그 사이 점 세 개가 돈다.
+       글자는 소리가 나가는 순간부터 흐른다. 이 순서가 뒤집히면 학생이 글자를 먼저 읽어 버려서
+       듣기 수업이 읽기 수업이 된다. 아바타도 같은 시점에 맞춘다(voiceLoading). */
+    setVoiceLoading(true)
+    armReveal(text)
     /* 채팅·화면에는 시트 문장 그대로, **읽을 때만** 홀로 선 알파벳을 한글 음으로 바꾼다
        ("D에서는" → "디에서는"). 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다. */
-    try { await speakTTS(koLetters(text), ttsPersona, instructor) }
-    finally { stopReveal(); setTyped(null); setNarrating(false) }
+    try {
+      await speakTTS(koLetters(text), ttsPersona, instructor, (hasAudio) => {
+        setVoiceLoading(false)
+        startReveal(text, hasAudio)
+        /* ── 다음 줄을 지금 받아둔다 ──
+           소리가 나가기 시작한 이 순간부터 몇 초는 **네트워크가 놀고 있다.** 그동안 다음 턴의
+           발화를 받아두면 다음 대기가 0이 된다. 발화가 음원 받는 시간보다 길기만 하면 그렇다.
+           ⚠️ koLetters 를 여기서도 거쳐야 한다 — 실제로 보내는 문자열과 한 글자라도 다르면
+              캐시가 빗나가서 미리 받은 것이 버려진다. */
+        const next = turnsRef.current[turnIdxRef.current + 1]?.tutor
+        if (next) prefetchTTS(koLetters(next), ttsPersona, instructor)
+      })
+    }
+    finally {
+      if (revealRef.current) cancelAnimationFrame(revealRef.current)
+      revealRef.current = null
+      setTyped(null); setVoiceLoading(false); setNarrating(false)
+    }
   }
 
   /** 맞았을 때 앱이 추임새를 넣어야 하는가 — **다음 대본이 이미 받아주면 넣지 않는다.**
@@ -2474,6 +2530,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      학생이 직접 튼 음원(selfPlaying)은 둘 다 아니다 — 그건 강사와 아무 상관이 없다. */
   const tutorSpeaking = agentConnected ? conversation.isSpeaking : narrating
   const cuePlaying = playingId !== null && !selfPlaying
+  /** 강사가 **지금 실제로 소리를 내고 있는가.** 그림(포즈·클립·파동)은 전부 이걸 본다.
+   *  `tutorSpeaking` 은 "강사 차례" 라서 음원을 받는 몇 초 동안에도 켜져 있다 — 그걸 그대로
+   *  그림에 물리면 소리도 없이 손짓하며 말하는 클립이 돈다. 그동안은 듣는 자세(끄덕임)로 둔다. */
+  const tutorVoicing = tutorSpeaking && !voiceLoading
 
   /* 대본 모드에서 마이크를 여는 때 — 학생 차례이고 강사가 말하지 않는 동안만.
      낭독 중에 열어 두면 강사 목소리를 학생 답으로 전사한다. */
@@ -2803,10 +2863,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
-          poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
+          poseSrc={instPose(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
           /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(poseForTurn)은
              사진과 똑같이 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
-          clipSrc={instClip(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
+          clipSrc={instClip(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
           allClips={instClips(instructor)}
           chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
@@ -2819,7 +2879,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 대본 모드는 **학생 차례에만** 마이크가 열린다 — 아래 입력칸도 그때만 살아 있어야
              "지금 말해도 되는가"가 화면에서 읽힌다(강사가 말하는 동안 파형이 뛰면 거짓말이다) */
           micActive={scripted ? voiceOn : undefined}
-          isSpeaking={tutorSpeaking}
+          isSpeaking={tutorVoicing}
+          /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
+          preparing={voiceLoading}
           /* 음성 모드 발화 박스 · 최소화 말풍선에 실시간으로 뜨는 "지금 하는 말" */
           lastLine={tutorLine}
           /* ── '질문 있어요' 버튼은 없앴다 ──
@@ -3809,10 +3871,14 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const say = async (text: string) => {
     if (!text) return
     stopCurrentAudio()                    // 앞 칸 피드백이 남아 있으면 끊는다
-    setLine(text)
-    setSpeaking(true)
-    try { await speakTTS(koLetters(text), ttsPersona, instructor) }
-    finally { setSpeaking(false) }
+    /* 글자는 **소리가 나갈 때** 띄운다(onStart) — 먼저 띄우면 학생이 읽어 버린 뒤에 강사가
+       같은 말을 시작한다. 비워 둔 동안에는 그 자리에 점 세 개가 돈다.
+       finally 에서 다시 넣는 이유: 화면 전환 등으로 소리가 아예 안 나가도 글자는 남아야 한다. */
+    setLine('')
+    /* 아바타도 **소리가 나갈 때** 말하는 클립으로 바뀐다. 먼저 켜면 음원을 받는 몇 초 동안
+       소리 없이 입만 움직인다 — 그동안은 끄덕임(listen)이 돈다. */
+    try { await speakTTS(koLetters(text), ttsPersona, instructor, () => { setLine(text); setSpeaking(true) }) }
+    finally { setLine(text); setSpeaking(false) }
   }
 
   /* ── 정리는 **다 채운 뒤 한 번에** 듣는다 ──
@@ -3936,7 +4002,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-bold text-[#6B7280]">{teacherName} 강사</span>
             <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium mt-0.5 max-h-[7.5em] overflow-y-auto">
-              {line}
+              {line || <SpeechDots />}
             </p>
           </div>
         </div>
