@@ -139,7 +139,7 @@ export const INST_PERSONA: Record<string, string> = {
    전용 목소리가 아직 없는 강사(서지안·오정자)는 박혜원 것으로 폴백한다. */
 export const INST_VOICE: Record<string, string> = {
   park_hyewon: 'aKMUzTQk58byFPNhpATt',
-  yun_daeun: 'QPFsEL6IBxlT15xfiD6C',
+  yun_daeun: 'xA5124tsajl7VRTHpFxg', // 한·영 발음용으로 새로 뽑은 목소리 (이전 QPFsEL6IBxlT15xfiD6C)
   lee_doyun: 'DTEeVx29gq12EJ7qBYaP', // 억양을 살려 다시 뽑은 목소리 (앞선 후보 1HhRIC9l… 은 단조로웠다)
 }
 
@@ -150,6 +150,7 @@ export const INST_VOICE: Record<string, string> = {
       대신 v3 은 응답이 느리고 한 번에 보낼 수 있는 글자도 절반(5,000자)이다. */
 export const INST_TTS_MODEL: Record<string, string> = {
   lee_doyun: 'eleven_v3',
+  yun_daeun: 'eleven_v3',
 }
 
 /* ── 문장 사이 휴지를 조금 벌릴 강사 ──
@@ -170,6 +171,9 @@ export const INST_SENTENCE_PAUSE: Record<string, boolean> = {
    ※ 글자 흐름은 따라온다 — 재생 위치를 보고 있어서(playbackProgress) 느려지면 같이 느려진다. */
 export const INST_TTS_RATE: Record<string, number> = {
   lee_doyun: 0.93,
+  /* v3 로 오면서 speed 1.1 을 잃었다(jang 파라미터). 그만큼은 아니고 조금만 되돌린다 —
+     새 목소리가 예전 것보다 원래 밝고 빠르게 말해서 1.1 까지 가면 들뜬다. */
+  yun_daeun: 1.05,
 }
 
 /** 이 강사가 영상 클립을 갖고 있는가 (없으면 사진 아바타 그대로) */

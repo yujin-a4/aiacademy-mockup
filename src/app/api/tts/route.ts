@@ -38,6 +38,23 @@ function spaceSentences(raw: string): string {
   return raw.replace(/([.!?])[ \t]+(?=[^\s\d])/g, '$1\n\n')
 }
 
+/* ── 발음 사전 ──
+   강사가 자꾸 틀리게 읽는 낱말을 여기 적는다. v3 는 **슬래시로 감싼 IPA 를 그대로 알아듣는다**
+   (`/ˈiːzəl/`) — 일레븐랩스에 사전 파일을 올리거나 API 로 등록할 필요가 없다.
+   ⚠️ v3 전용이다. 다른 모델(박혜원 = multilingual v2)은 IPA 를 못 알아들어 슬래시째 읽거나
+      뭉갠다. 그래서 아래에서 **모델을 보고** 건다.
+   ⚠️ 화면 글자는 그대로 'easel' 이다 — 읽을 때만 바꾼다(koLetters 와 같은 규칙). */
+const IPA: Record<string, string> = {
+  easel: '/ˈiːzəl/',
+}
+
+function applyPronunciation(raw: string): string {
+  return Object.entries(IPA).reduce(
+    (s, [word, ipa]) => s.replace(new RegExp(`\\b${word}\\b`, 'gi'), ipa),
+    raw,
+  )
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { text: rawText, persona = 'mentor', instructor } = await req.json()
@@ -71,9 +88,11 @@ export async function POST(req: NextRequest) {
 
     /* 문장 사이를 한 박자 벌린다 — 이 강사에게 켜져 있을 때만(듣기 음원은 대상이 아니다).
        `text` 는 그대로 둔다 — 브라우저 TTS 폴백으로 돌려보내는 값이라 손대면 그쪽까지 바뀐다. */
-    const speech = !isListening && instructor && INST_SENTENCE_PAUSE[instructor]
+    let speech = !isListening && instructor && INST_SENTENCE_PAUSE[instructor]
       ? spaceSentences(text)
       : text
+    /* 발음 교정은 강사 발화에만, 그리고 IPA 를 알아듣는 모델에만 건다 */
+    if (!isListening && modelId === 'eleven_v3') speech = applyPronunciation(speech)
 
     const res = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
       method: 'POST',
