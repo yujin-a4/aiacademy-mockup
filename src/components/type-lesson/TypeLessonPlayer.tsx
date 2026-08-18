@@ -14,7 +14,7 @@ import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { PulseAvatar, SpeechDots, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
@@ -214,6 +214,25 @@ const ACK_OPENER = /^(맞\s*아요|맞\s*습니다|좋\s*아요|좋\s*습니다|
  *     (scriptWillAck), 그 판단이 이 목록과 같은 낱말을 본다. */
 const ACKS = ['좋아요, 맞았어요.', '네, 맞아요.', '정확해요.', '그렇죠.', '잘했어요.', '맞습니다.'] as const
 const ackLine = (n: number) => ACKS[n % ACKS.length]
+
+/* ── 답 문장을 **확인하듯** 바꾼다 ── "그림을 그리고 있어요" → "그림을 그리고 있죠?"
+   오답 뒤에 "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요." 를 얹으면 받아쓰기를
+   시키는 것처럼 들린다(실측). 답은 알려주되 강사가 짚어 주는 말투로 둔다 — 두 강사 대본 다
+   "~죠?" 를 즐겨 쓴다.
+   ⚠️ 한국어 어미 변환을 일반 규칙으로 만들면 틀린 말이 나온다("그려요" → "그려죠?").
+      **시트에 실제로 있는 끝맺음만** 바꾼다(있어요 12 · 없어요 4 · 보여요 2 = 문장형 답의 대부분).
+      모르는 꼴은 그대로 둔다 — 어색한 것보다 틀린 말이 나쁘다. */
+const CONFIRM_TAIL: Array<[RegExp, string]> = [
+  [/있어요$/, '있죠?'],
+  [/없어요$/, '없죠?'],
+  [/보여요$/, '보이죠?'],
+]
+
+function asConfirm(s: string): string {
+  const t = s.trim().replace(/[.!?]+$/, '')
+  for (const [re, rep] of CONFIRM_TAIL) if (re.test(t)) return t.replace(re, rep)
+  return `${t}.`
+}
 
 function stripAck(text: string): string {
   let t = text.trim()
@@ -2010,7 +2029,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          "답은 '…' 예요" 에 끼우면 문장이 겹쳐 읽힌다. */
       const one = firstExample(it.hint)
       const word = bareWord(one)
-      return word === null ? `이렇게 답하면 돼요. ${one}` : `답은 '${word}' ${koCopula(word)}.`
+      return word === null ? asConfirm(one) : `답은 '${word}' ${koCopula(word)}.`
     }
     if (it.kind !== 'choice') return '이건 같이 보고 넘어갈게요.'
 
@@ -2075,12 +2094,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        모른다고 말한 학생에게 "그건 조금 달라요, 다시 생각해 볼까요?" 는 앞뒤가 안 맞고,
        모르는 걸 한 번 더 물어봐야 나올 것도 없다. 되묻지 않고 바로 넘어간다. */
     if (mode === 'giveUp') {
-      /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다 */
-      await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
+      /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다.
+         다독이지 않는 강사(INST_SCRIPT_ONLY)는 그냥 다음 단계를 말한다 — prevOk 가 false 라
+         대본이 맞장구로 시작해도 stripAck 이 떼어 주므로, 모른다는 학생에게 맞았다고 하지 않는다. */
+      if (!INST_SCRIPT_ONLY[instructor]) {
+        await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
+      }
       goNext()
       return
     }
-    if (tries === 1) {
+    /* 되묻지 않는 강사면(INST_SCRIPT_ONLY) 이 갈래를 건너뛰고 바로 아래로 간다 — 짚어 주고 넘어간다.
+       대본이 다음 줄에서 답을 풀어 주면 앱은 거기서도 비켜선다(scriptWillTell). */
+    if (tries === 1 && !INST_SCRIPT_ONLY[instructor]) {
       /* "음, 그건 조금 달라요." 는 뺐다 — 틀렸다는 것은 화면이 이미 말하고 있고,
          말로 한 번 더 얹으면 나무라는 것처럼 들린다. 다시 해보자는 말만 남긴다. */
       await say('다시 한번 생각해 볼까요?')
@@ -2093,10 +2118,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setDockTick((n) => n + 1)
       return
     }
-    /* 두 번째도 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
+    /* 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
        "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
-       "여자가 앉아서 붓으로 그림을 그리고 있죠?" 라고 하면 같은 답이 두 번이다. */
-    if (!scriptWillTell()) await say(`제가 짚어 줄게요. ${closingLine(picked)}`)
+       "여자가 앉아서 붓으로 그림을 그리고 있죠?" 라고 하면 같은 답이 두 번이다.
+       ⚠️ scriptWillTell 은 다음 줄이 답을 말하는지를 **글자로** 가늠하는 어림짐작이라 놓칠 때가
+          있다(실측: "뭐가 보이나요?" → 앱이 "제가 짚어 줄게요. 옷장, 행거에 걸린 옷, 선반" 을
+          얹고 곧바로 대본이 "행거에 옷이 걸려있고 …" 를 말했다). 대본만 읽는 강사는
+          (INST_SCRIPT_ONLY) 가늠하지 말고 언제나 비켜선다 — 답은 대본이 말한다. */
+    /* "제가 짚어 줄게요." 는 뗐다 — 짚어 주겠다고 예고하는 말은 그 자체로 내용이 없고,
+       뒤에 붙는 답까지 훈수처럼 들리게 만든다. 답만 강사 말투로 바로 말한다(asConfirm). */
+    if (!scriptWillTell() && !INST_SCRIPT_ONLY[instructor]) await say(closingLine(picked))
     goNext()
   }
 
@@ -2145,31 +2176,25 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const tries = (triesRef.current.get(key) ?? 0) + 1
     triesRef.current.set(key, tries)
     prevOkRef.current = ok
+
+    /* ── 학생 풀이 단계에서 앱은 **아무 말도 하지 않는다** ──
+       정오답 확인은 대본이 정해 둔 자리에서 한다 — "S5 정답 근거 연결" 이 두 갈래를 다 갖고
+       있다("정답은 B죠? 잘 맞혔어요!" / tutorIfWrong "정답은 B였어요…"). 문제를 풀자마자 앱이
+       한 마디 얹으면 같은 자리가 두 번이 되고, 사이에 낀 S3 개념 코칭을 지나기도 전에 답을
+       알아 버린다 — 개념을 짚는 단계가 통째로 김이 샌다.
+       ⚠️ 맞장구도 안 된다. "맞아요" 한 마디가 곧 정답 공개다.
+       prevOkRef 는 남겨 둔다 — 다음 대본이 맞장구로 시작하면 stripAck 이 떼어 준다. */
+    if (phase !== 'review') { goNext(); return }
+
     if (ok) {
       if (!scriptWillAck()) await say(ackLine(ackNoRef.current++))
       goNext()
       return
     }
 
-    /* ── 수업의 학생 풀이 단계는 **다시 고르게 하지 않는다** ──
-       스캐폴딩 질문은 생각을 고쳐 잡는 자리라 되묻는 값이 있지만(handleScriptedAnswer 가 그쪽),
-       문항 정답 고르기는 실제 시험과 같은 자리다. 한 번 고르면 그걸로 끝낸다.
-       **정답이 무엇인지도 말하지 않는다** — 여기서 답을 알려주면 뒤따르는 풀이 단계에서 같이
-       볼 것이 없어진다. 학생이 답을 아는 채로 설명을 듣게 되면 그 단계가 빈다.
-       화면도 정오답 색을 내지 않는다(ContentView 의 hideVerdict) — 강사는 입을 다물었는데
-       보기가 초록·빨강으로 칠해지면 감춘 것이 없다. 고른 보기만 파랗게 남는다.
-       ⚠️ 코칭(실전 오답 리뷰)은 아래 예전 규칙 그대로다 — 거긴 이미 채점 결과를 본 자리라
-          감출 것이 없고, 한 번 더 고쳐 볼 기회를 주는 것이 그 단계의 목적이다. */
-    if (phase !== 'review') {
-      /* 고른 보기를 되짚어 준다 — "아니에요." 만 하면 무엇이 아니라는 건지 붕 뜬다.
-         조사는 언제나 **는** 이다: A~D 는 읽을 때 에이·비·씨·디 로 모두 모음(이)으로 끝난다
-         (koLetters 가 낭독 직전에 바꾼다. 화면 글자는 A~D 그대로다).
-         라벨이 A~D 가 아닌 자료가 섞이면 조사가 어긋나므로 그때는 붙이지 않는다. */
-      await say(label && /^[A-Z]$/.test(label) ? `${label}는 아니에요.` : '아니에요.')
-      goNext()
-      return
-    }
-
+    /* ── 여기부터는 코칭(실전 오답 리뷰)뿐이다 ──
+       수업은 위에서 이미 되돌아갔다. 코칭은 이미 채점 결과를 본 자리라 감출 것이 없고,
+       한 번 더 고쳐 볼 기회를 주는 것이 그 단계의 목적이다. */
     if (tries === 1) {
       /* **고른 보기가 무슨 말이었는지**를 학생 말로 되짚고, 자료에 그게 없다는 것만 짚는다.
          정답이 무엇인지는 아직 말하지 않는다 — 말해 버리면 다시 고를 것이 없다. */
