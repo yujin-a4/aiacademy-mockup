@@ -8,7 +8,7 @@ const PUBLIC_PATHS = ['/']
    프로덕션에서는 페이지·API 가 스스로 404 를 내므로(app/lipsync-test/page.tsx) 여기서도 빼둔다. */
 const DEV_PATHS =
   process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_LIPSYNC_TEST === '1'
-    ? ['/lipsync-test']
+    ? ['/lipsync-test', '/lipsync-test/klleon', '/lipsync-test/simli']
     : []
 
 export async function middleware(request: NextRequest) {

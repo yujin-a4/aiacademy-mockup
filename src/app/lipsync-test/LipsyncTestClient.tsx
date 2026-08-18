@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@anam-ai/js-sdk'
+import { SENTENCES, INSTRUCTORS, mp3ToPcm16k, toBase64 } from './sentences'
 
 /**
  * 립싱크 실측 하네스 (문서: playground works/ai-human-vendors/ai-human-test-guide.html)
@@ -13,84 +15,6 @@ import { createClient } from '@anam-ai/js-sdk'
  *
  * 업체 비교가 목적이므로 **문장·음성을 고정**하는 것이 핵심이다. 프리셋 4개를 박아둔 이유.
  */
-
-const SENTENCES: { id: string; label: string; hint: string; text: string }[] = [
-  {
-    id: '1',
-    label: '① 기준선 — 한국어와 짧은 반응',
-    hint: '여기서 어색하면 나머지는 볼 필요가 없다. 뒤쪽 짧은 말에서 입이 아예 안 열리는지 본다.',
-    text: '자, 이 문제 같이 볼까요?\n사진 속 남자가 무엇을 하고 있는지 먼저 보세요.\n네.\n좋아요.\n맞아요.',
-  },
-  {
-    id: '2',
-    label: '② 핵심 — 한 문장 안에서 영어로 바뀜',
-    hint: 'phone 의 f 발음에서 아랫입술이 윗니에 닿는지가 판별점. 한국어에 없는 입 모양이라 여기가 제일 잘 깨진다.',
-    text:
-      '이 문장에서 answer the phone이 정답이에요.\n남자가 전화를 받고 있으니까, pick up the phone도 같은 뜻이죠.\n' +
-      '하지만 hang up은 반대예요. 전화를 끊는다는 뜻이니까요.\n그래서 정답은 answer the phone, 세 번째 보기입니다.',
-  },
-  {
-    id: '3',
-    label: '③ 숫자와 보기',
-    hint: '수업에서 가장 자주 나오는 말인데 짧고 발음이 튀어서 잘 깨진다.',
-    text: '3번 문제입니다.\n보기 A, B, C, D 중에서 골라 보세요.\n정답은 B, 42번 줄에 나와 있어요.',
-  },
-  {
-    id: '4',
-    label: '④ 긴 설명 — 30초 이상',
-    hint: '뒤로 갈수록 입이 소리보다 밀리는지(드리프트)를 본다.',
-    text:
-      'Part 7 지문은 길어 보이지만 다 읽을 필요가 없어요.\n먼저 질문을 읽고, 무엇을 묻는지 확인한 다음에 지문으로 돌아가는 순서예요.\n' +
-      '예를 들어 What is the purpose of the e-mail? 이라고 물으면,\n목적을 묻는 거니까 지문 맨 앞 두세 줄만 봐도 답이 나오는 경우가 많아요.\n' +
-      '반대로 According to the article, when will the store reopen? 처럼\n구체적인 정보를 물으면, 그때는 키워드를 잡고 지문에서 그 부분만 찾으면 됩니다.\n' +
-      '이렇게 질문 유형에 따라 읽는 방법이 달라지는 거예요.',
-  },
-]
-
-const INSTRUCTORS = [
-  { id: 'yun_daeun', name: '윤다은' },
-  { id: 'lee_doyun', name: '이도윤' },
-  { id: 'park_hyewon', name: '박혜원' },
-]
-
-/** mp3(base64) → PCM 16bit·16kHz·모노.
- *  Anam 이 요구하는 형식이 pcm_s16le/16000/1 인데, 형식이 어긋나면 립싱크가 통째로 밀린다(공식 문서 경고).
- *  OfflineAudioContext 가 디코딩과 리샘플링을 한 번에 해주므로 ffmpeg 없이 브라우저에서 끝난다. */
-async function mp3ToPcm16k(base64: string): Promise<Int16Array> {
-  const bin = atob(base64)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-
-  const tmp = new AudioContext()
-  const decoded = await tmp.decodeAudioData(bytes.buffer)
-  void tmp.close()
-
-  // 16kHz 모노로 다시 렌더 — 채널 합치기와 리샘플링을 브라우저가 알아서 한다
-  const frames = Math.ceil(decoded.duration * 16000)
-  const off = new OfflineAudioContext(1, frames, 16000)
-  const src = off.createBufferSource()
-  src.buffer = decoded
-  src.connect(off.destination)
-  src.start()
-  const rendered = await off.startRendering()
-
-  const f32 = rendered.getChannelData(0)
-  const pcm = new Int16Array(f32.length)
-  for (let i = 0; i < f32.length; i++) {
-    const s = Math.max(-1, Math.min(1, f32[i]))
-    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-  }
-  return pcm
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let s = ''
-  const STEP = 0x8000 // 한 번에 넘기면 인자 개수 한계로 터진다
-  for (let i = 0; i < bytes.length; i += STEP) {
-    s += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + STEP)))
-  }
-  return btoa(s)
-}
 
 type Phase = 'idle' | 'connecting' | 'live' | 'speaking'
 
@@ -206,7 +130,11 @@ export default function LipsyncTestClient() {
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-bold">립싱크 실측 하네스 — Anam × ElevenLabs</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">립싱크 실측 — Anam × ElevenLabs</h1>
+          <Link href="/lipsync-test/klleon" className="text-sm text-blue-600 underline">클레온 패널 →</Link>
+          <Link href="/lipsync-test/simli" className="text-sm text-blue-600 underline">Simli 패널 →</Link>
+        </div>
         <p className="mt-2 text-sm text-slate-600">
           강사 음성을 그대로 아바타에 흘려 <b>한국어·한영 혼용에서 입 모양이 맞는지</b>를 본다.
           키는 서버에만 있고 브라우저에는 단기 세션 토큰만 내려온다.
