@@ -2127,7 +2127,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const handleScriptedPick = async (qIdx: number, ok: boolean, why?: string, label?: string) => {
     const token = ++pickTokenRef.current
     await waitForCue()
+    /* 음원이 나가는 동안 학생이 몇 번을 고쳐 골랐든, **여기까지 온 것은 마지막 클릭뿐이다.**
+       앞선 클릭들은 토큰이 밀려 여기서 되돌아간다. 그래서 채점·기록·대화를 이 자리에서 한다 —
+       클릭마다 하면 보기가 잠기고, 말풍선이 쌓이고, 학습 기록에 중간에 눌러 본 답이 다 남는다. */
     if (pickTokenRef.current !== token) return
+    /* 대화에 남기는 것은 두 경로 공통 — 다만 여기서 해야 고쳐 고른 흔적이 쌓이지 않는다 */
+    const optText = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)?.text ?? ''
+    setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${optText}`.trim() }])
+    /* 채점·학습기록은 **수업에서만** 여기로 미뤘다. 코칭은 되묻는 자리라 클릭 즉시 해야 하고
+       (onSelect), 여기서 또 하면 두 번 기록된다. */
+    if (phase !== 'review') {
+      setGraded((p) => new Set(p).add(qIdx))
+      if (!ok && label) setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+      logResponse(label ?? '', ok)
+    }
     const key = turnIdx
     const tries = (triesRef.current.get(key) ?? 0) + 1
     triesRef.current.set(key, tries)
@@ -2137,6 +2150,26 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       goNext()
       return
     }
+
+    /* ── 수업의 학생 풀이 단계는 **다시 고르게 하지 않는다** ──
+       스캐폴딩 질문은 생각을 고쳐 잡는 자리라 되묻는 값이 있지만(handleScriptedAnswer 가 그쪽),
+       문항 정답 고르기는 실제 시험과 같은 자리다. 한 번 고르면 그걸로 끝낸다.
+       **정답이 무엇인지도 말하지 않는다** — 여기서 답을 알려주면 뒤따르는 풀이 단계에서 같이
+       볼 것이 없어진다. 학생이 답을 아는 채로 설명을 듣게 되면 그 단계가 빈다.
+       화면도 정오답 색을 내지 않는다(ContentView 의 hideVerdict) — 강사는 입을 다물었는데
+       보기가 초록·빨강으로 칠해지면 감춘 것이 없다. 고른 보기만 파랗게 남는다.
+       ⚠️ 코칭(실전 오답 리뷰)은 아래 예전 규칙 그대로다 — 거긴 이미 채점 결과를 본 자리라
+          감출 것이 없고, 한 번 더 고쳐 볼 기회를 주는 것이 그 단계의 목적이다. */
+    if (phase !== 'review') {
+      /* 고른 보기를 되짚어 준다 — "아니에요." 만 하면 무엇이 아니라는 건지 붕 뜬다.
+         조사는 언제나 **는** 이다: A~D 는 읽을 때 에이·비·씨·디 로 모두 모음(이)으로 끝난다
+         (koLetters 가 낭독 직전에 바꾼다. 화면 글자는 A~D 그대로다).
+         라벨이 A~D 가 아닌 자료가 섞이면 조사가 어긋나므로 그때는 붙이지 않는다. */
+      await say(label && /^[A-Z]$/.test(label) ? `${label}는 아니에요.` : '아니에요.')
+      goNext()
+      return
+    }
+
     if (tries === 1) {
       /* **고른 보기가 무슨 말이었는지**를 학생 말로 되짚고, 자료에 그게 없다는 것만 짚는다.
          정답이 무엇인지는 아직 말하지 않는다 — 말해 버리면 다시 고를 것이 없다. */
@@ -2422,27 +2455,35 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const ok = !!opt?.correct
       setAnswers((p) => ({ ...p, [qIdx]: label }))
       setAnsweredQ((p) => new Set(p).add(qIdx))
-      /* ⚠️ 오답이면 **채점하지 않는다.**
-         채점(graded)은 두 가지를 동시에 한다 — 보기를 잠그고, 정답을 초록으로 공개한다.
-         그래서 첫 클릭에 채점하면 강사가 "다시 골라봐" 해도 학생은 누를 수 없고,
-         이미 정답이 화면에 드러나 있다(실측). 맞혔을 때만 채점하고, 틀린 보기는 따로 표시한다. */
-      if (ok) setGraded((p) => new Set(p).add(qIdx))
-      else {
-        setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
-        /* 리뷰는 무한정 붙잡지 않는다 — 한 번 더 기회를 주고, 그래도 틀리면 정답을 열고 넘어간다.
-           못 하는 학생을 계속 세워두는 게 더 나쁘다(MAX_REASK 와 같은 판단). */
-        if (phase === 'review') {
-          const tries = (reviewTriesRef.current.get(qIdx) ?? 0) + 1
-          reviewTriesRef.current.set(qIdx, tries)
-          if (tries >= REVIEW_MAX_TRIES) setGraded((p) => new Set(p).add(qIdx))
+      /* ── 수업의 학생 풀이 단계는 **채점을 클릭 시점에 하지 않는다** ──
+         채점(graded)은 보기를 잠근다. 클릭 즉시 켜면 음원이 아직 나가는 중인데 답을 고칠 수
+         없다 — 실제 시험은 네 보기를 다 듣고 바꾼다. 게다가 잠기는 건 **정답을 눌러 본 학생만**
+         이라(오답은 graded 를 안 켰다) 먼저 맞힌 쪽이 손해를 보는 이상한 규칙이 된다(실측).
+         채점·기록은 강사가 반응하는 시점으로 미룬다(handleScriptedPick, 음원이 끝난 뒤).
+         그때까지는 파란 선택만 보기 사이를 옮겨 다닌다.
+         ⚠️ 코칭(실전 오답 리뷰)은 예전 그대로다 — 음원을 듣는 자리가 아니라 이미 채점된 것을
+            짚는 자리라, 고른 즉시 표시해 주지 않으면 같은 보기를 또 누른다. */
+      const deferVerdict = scripted && phase !== 'review'
+      if (!deferVerdict) {
+        if (ok) setGraded((p) => new Set(p).add(qIdx))
+        else {
+          setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+          /* 리뷰는 무한정 붙잡지 않는다 — 한 번 더 기회를 주고, 그래도 틀리면 정답을 열고 넘어간다.
+             못 하는 학생을 계속 세워두는 게 더 나쁘다(MAX_REASK 와 같은 판단). */
+          if (phase === 'review') {
+            const tries = (reviewTriesRef.current.get(qIdx) ?? 0) + 1
+            reviewTriesRef.current.set(qIdx, tries)
+            if (tries >= REVIEW_MAX_TRIES) setGraded((p) => new Set(p).add(qIdx))
+          }
         }
+        // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
+        logResponse(label, ok)
       }
-      // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
-      logResponse(label, ok)
       /* 대본 수업은 에이전트가 없다 — reportAction 은 에이전트로 가는 통로라 아무 데도 닿지 않는다.
-         정오답 반응을 여기서 직접 말하고 진행까지 한다. */
+         정오답 반응을 여기서 직접 말하고 진행까지 한다.
+         ⚠️ 대화에 남기는 것도 handleScriptedPick 이 한다 — 여기서 남기면 고쳐 고를 때마다
+            말풍선이 쌓여서 "A. …" "C. …" "B. …" 가 줄줄이 남는다. 보낸 것은 마지막 하나다. */
       if (scripted) {
-        setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${opt?.text ?? ''}`.trim() }])
         void handleScriptedPick(qIdx, ok, opt?.why, label)
         return
       }
@@ -2504,6 +2545,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
     answers, graded, wrongPicks, onSelect, showKo: false,
+    /* 수업에서는 정오답을 색으로 내지 않는다 — 고른 보기가 파랗게만 남고, 맞고 틀림은 강사가
+       말로만 짚는다. 코칭(실전 오답 리뷰)은 이미 채점 결과를 본 자리라 색을 그대로 낸다 —
+       "내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다"(아래 review 진입부). */
+    hideVerdict: phase !== 'review',
     matchState,
   }
 

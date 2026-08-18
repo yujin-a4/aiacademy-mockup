@@ -59,6 +59,11 @@ export interface ContentState {
   /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전이라도 "이건 아니다"를 남겨둔다.
    *  (오답이면 다시 고를 수 있어야 하는데, 표시가 없으면 같은 걸 또 누른다) */
   wrongPicks?: Set<string>
+  /** 정오답을 **색으로 보여주지 않는다.** 채점 여부(graded)와는 다른 축이다 —
+   *  수업의 학생 풀이 단계는 채점은 하되(잠금·진행) 색은 내지 않는다: 피드백은 강사 말로만
+   *  하고, 화면에는 고른 보기가 파랗게만 남는다. 정답은 뒤따르는 풀이 단계에서 같이 연다.
+   *  실전 채점 화면과 코칭(오답 리뷰)은 결과를 보는 자리라 색을 낸다(이 값을 켜지 않는다). */
+  hideVerdict?: boolean
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
   /** 근거 연결(match) 진행 중일 때만 존재 — 지문의 문장/메타/표 행을 직접 탭하는 상호작용 상태.
@@ -260,9 +265,11 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const chosen = st.answers[qIdx] === o.label
           const isCorrect = o.label === correctLabel
           const playing = st.playingId === `opt:${qIdx}:${o.label}`
-          const showResult = graded
+          /* 채점됐다고 색을 내는 것이 아니다 — 수업의 학생 풀이 단계는 채점하되 색을 감춘다
+             (hideVerdict). 그때 보기는 아래 `chosen` 갈래로 떨어져 파랗게만 남는다. */
+          const showResult = graded && !st.hideVerdict
           // 채점 전이라도 이미 틀린 보기는 표시해 둔다 (정답은 공개하지 않는다)
-          const wrongTried = !showResult && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
+          const wrongTried = !showResult && !st.hideVerdict && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
           const rowCls = showResult
             ? isCorrect ? 'border-[#86EFAC] bg-[#F0FDF4]'
               : chosen ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E5E7EB] bg-white opacity-70'
