@@ -188,7 +188,26 @@ export async function fetchTTSAudio(text: string, persona: string, instructor?: 
     audio.preservesPitch = true
     audio.playbackRate = rate
   }
+  /* 디코더가 준비되기 전에 play() 하면 **첫 음절이 얇게 날아간다.** data URI 라 대개 즉시
+     끝나지만, 재생 속도를 바꾼 목소리는 시간을 늘였다 줄이는 처리가 앞에 붙어 더 걸린다.
+     기다리다 못 듣는 게 더 나쁘므로 상한을 두고, 넘으면 그냥 재생한다. */
+  await waitReady(audio)
   return audio
+}
+
+/** 소리 앞뒤가 잘려 들리지 않도록 두는 여유 (ms) */
+const HEAD_WAIT_MS = 400
+const TAIL_HOLD_MS = 220
+
+function waitReady(audio: HTMLAudioElement): Promise<void> {
+  if (audio.readyState >= 3 /* HAVE_FUTURE_DATA */) return Promise.resolve()
+  return new Promise((resolve) => {
+    let settled = false
+    const done = () => { if (settled) return; settled = true; clearTimeout(timer); resolve() }
+    const timer = setTimeout(done, HEAD_WAIT_MS)
+    audio.addEventListener('canplaythrough', done, { once: true })
+    audio.addEventListener('error', done, { once: true })
+  })
 }
 
 /** fetch 완료 후 재생 전에 취소 여부를 확인하고 싶을 때 사용. */
@@ -215,7 +234,12 @@ export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
       settled = true
       cleanupUnlock()
       if (_currentAudio === audio && _playbackToken === token) _currentAudio = null
-      resolve()
+      /* ── 꼬리 여유 ──
+         onended 는 **미디어 시계** 기준이라 소리가 실제로 스피커에서 사라지기 전에 온다.
+         재생 속도를 바꾼 목소리(INST_TTS_RATE)는 시간을 늘였다 줄이는 처리가 파이프라인에
+         남아 있어 그 차이가 더 벌어진다. 곧바로 다음 동작으로 넘어가면 꼬리가 잘린 것처럼
+         들린다 — 말과 말 사이에 숨 쉴 자리를 두는 뜻도 겸한다. */
+      setTimeout(resolve, TAIL_HOLD_MS)
     }
 
     const tryUnlock = () => {
