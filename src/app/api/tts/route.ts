@@ -19,6 +19,9 @@ const DEFAULT_TTS = { speed: 1.0, stability: 0.50, similarity_boost: 0.75 }
 function sanitizeForTts(raw: string): string {
   return raw
     .replace(/_{4,}/g, '빈칸')
+    /* 화면에서 핵심을 굵게 하려고 시트가 찍는 표시다(TutorText). 소리에는 아무 뜻이 없으니
+       뗀다 — 두면 강사가 "별표별표" 를 읽는다. 작은따옴표는 그대로 둔다(읽어도 문제없다). */
+    .replace(/\*\*/g, '')
     .replace(/['']/g, "'")
     .replace(/[""]/g, '"')
     .replace(/'/g, "'")

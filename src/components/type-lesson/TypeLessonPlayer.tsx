@@ -14,10 +14,10 @@ import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import TutorDock, { PulseAvatar, SpeechDots, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
+import TutorDock, { PulseAvatar, SpeechDots, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
@@ -1736,13 +1736,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 이 문항을 다루는 마지막 턴인가 — 다음 턴이 다른 문항으로 넘어가면 여기서 끝난 것이다.
        수업의 '마무리 멘트'·실전 코칭의 'S7 표현 정리' 가 여기 걸린다([다음 문제] 가 열리는 그 시점). */
     const lastOfQ = !!cur && (!turns[turnIdx + 1] || turns[turnIdx + 1].focusQ !== cur.focusQ)
-    if (!scripted || lastOfQ || freePlay) answeredQ.forEach((q) => { options[q] = 'all' })
+    /* 강사에 따라 **답을 고른 즉시** 네 개를 여는 경우가 있다(INST_OPEN_ALL_OPTIONS — 윤다은).
+       강사 설명이 진행되는 동안 보기 네 문장을 같이 보라는 뜻이다. */
+    if (!scripted || lastOfQ || freePlay || INST_OPEN_ALL_OPTIONS[instructor]) {
+      answeredQ.forEach((q) => { options[q] = 'all' })
+    }
     if (scripted && (lastOfQ || freePlay) && cur?.focusQ !== undefined) {
       /* 다시 고르지 않는 단계(실전 코칭)는 answeredQ 가 비어 있어 위에서 안 열린다 — 여기서 연다 */
       options[cur.focusQ] = 'all'
     }
     return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
-  }, [turns, turnIdx, answeredQ, scripted, freePlay])
+  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor])
 
   /** 앱이 턴을 넘길 때 — 에이전트에도 다음 단계 지시를 밀어준다.
    *  이걸 안 하면 진행 주체가 앱인 턴에서 에이전트가 지시를 못 받아 그냥 침묵한다
@@ -1794,15 +1798,26 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
            그런데 학생이 "몰라" 라고 해서 답을 알려주고 넘어온 자리에서도 그 "맞아요" 가 그대로
            나간다(실측). 방금 못 맞힌 학생에게 맞았다고 하는 셈이라 수업이 거짓말이 된다.
            **문장을 새로 짓지는 않는다** — 첫머리 한 마디만 떼고 나머지는 시트 그대로 읽는다. */
-        /* ── 정답·오답 갈래 ──
-           시트가 한 칸에 두 경우를 다 적어 둔 줄이 있다(tutorIfWrong). 지금 학생이 이 문항을
-           맞혔는지로 하나만 고른다. 판단 근거는 **화면에 남은 사실**이다 — 고른 보기가
-           정답인가. 직전 턴의 결과(prevOk)로 보면 사이에 들려주는 턴이 끼는 순간 어긋난다. */
+        /* ── 정답·오답 갈래 (tutorIfWrong) ──
+           시트가 한 칸에 두 경우를 다 적어 둔 줄이 있다. **무엇을 기준으로 고르느냐가 갈린다.**
+
+             · 문항 정오답을 알려주는 자리(S5 정답 근거 연결) → **그 문항을 맞혔는가**
+               근거는 화면에 남은 사실이다(고른 보기가 정답인가). 사이에 들려주는 턴이 껴도
+               흔들리지 않는다.
+             · 그 밖의 스캐폴딩 응답            → **직전 답을 맞혔는가**(prevOk)
+               "(오답) 다시 한번 봐보세요. 빈칸 바로 앞에 단어에 동그라미 쳐보세요." 같은 줄은
+               바로 앞 단계(필기·2지선다)에 대한 대답이지 문항 정답과는 상관이 없다. 문항 기준으로
+               고르면 문항을 맞힌 학생이 스캐폴딩을 틀려도 "잘했어요" 를 듣는다. */
         const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
         const picked = turn.focusQ !== undefined ? answers[turn.focusQ] : undefined
         const gotIt = !!picked && picked === q?.options.find((o) => o.correct)?.label
-        const scripted0 = turn.tutorIfWrong && picked && !gotIt ? turn.tutorIfWrong : turn.tutor
-        const line = prevOkRef.current === false ? stripAck(scripted0) : scripted0
+        const verdictTurn = /S5|정답\s*근거/.test(turn.stage) && picked !== undefined
+        const wrongNow = verdictTurn ? !gotIt : prevOkRef.current === false
+        const useWrong = !!turn.tutorIfWrong && wrongNow
+        const scripted0 = useWrong ? turn.tutorIfWrong! : turn.tutor
+        /* 오답 갈래를 골랐으면 맞장구를 떼지 않는다 — 그 줄은 이미 못 맞힌 학생에게 쓴 문장이라
+           첫머리를 자르면 시트가 의도한 말이 사라진다("아쉽지만 아니에요. 다시 봐볼게요."). */
+        const line = !useWrong && prevOkRef.current === false ? stripAck(scripted0) : scripted0
         prevOkRef.current = null
         await say(line)
         if (!alive) return
@@ -4087,7 +4102,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-bold text-[#6B7280]">{teacherName} 강사</span>
             <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium mt-0.5 max-h-[7.5em] overflow-y-auto">
-              {line || <SpeechDots />}
+              {line ? <TutorText text={line} /> : <SpeechDots />}
             </p>
           </div>
         </div>

@@ -179,6 +179,16 @@ export const INST_SCRIPT_ONLY: Record<string, boolean> = {
   lee_doyun: true,
 }
 
+/* ── 답을 고른 뒤 보기 **네 개 글자를 한꺼번에** 열 것인가 ──
+   윤다은은 콘텐츠팀 지정이다(시트 FGI_윤다은 A2 공통사항):
+     "학생 문제 풀이 후 강사 설명이 진행되는 동안 보기 4개의 문장이 모두 보이도록 함"
+   이도윤은 켜지 않는다 — "이번에는 A를 볼게요" 하며 하나씩 짚어가는 구성이라, 네 개가 미리
+   열려 있으면 지금 어느 보기 이야기인지 화면에서 읽히지 않는다(실측).
+   ※ 켜지 않아도 그 문항의 **마지막 턴**에서는 네 개가 다 열린다 — 혼자 다시 보라고 여는 자리다. */
+export const INST_OPEN_ALL_OPTIONS: Record<string, boolean> = {
+  yun_daeun: true,
+}
+
 /* ── 강사별 말 속도 (1 = 원래 속도) ──
    ⚠️ 이건 ElevenLabs 의 `speed` 가 **아니다.** v3 는 speed 를 받지 않아서(넣으면 400) 이도윤은
       그쪽으로 늦출 방법이 없다. 그래서 **받아온 음원을 느리게 재생**한다(lib/tts 의 fetchTTSAudio).
