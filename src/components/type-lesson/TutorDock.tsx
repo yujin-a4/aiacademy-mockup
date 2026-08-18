@@ -257,6 +257,58 @@ export function SpeechDots() {
   )
 }
 
+/* ── 강사 말에서 **핵심**을 굵게 ──
+   발화가 평균 99자라 통으로 흘러가면 무엇이 중요한지 눈에 안 들어온다(실측 지적).
+   두 가지를 굵게 잡는다:
+     · '…'   — 시트가 이미 뜻풀이·핵심 표현에 쓰고 있다(발화 291개 중 91개). 따옴표는 남긴다.
+     · **…** — 콘텐츠팀이 따로 찍고 싶을 때. 별표는 화면에서 감추고, 읽을 때도 뗀다(api/tts).
+   ⚠️ 영어 축약형을 강조로 오해하면 안 된다("He's reviewing" → 여기서 굵어지기 시작한다).
+      그래서 따옴표는 **앞이 글자가 아닐 때만** 여는 것으로 본다.
+   ⚠️ 글자는 소리에 맞춰 하나씩 드러나므로 **잘린 문자열이 들어온다.** 여는 표시만 오고 닫는
+      표시가 아직 안 온 토막도 굵게 보여야 강조가 뒤늦게 튀어 들어오지 않는다. */
+type Seg = { t: string; b: boolean }
+
+function parseEmphasis(src: string): Seg[] {
+  const segs: Seg[] = []
+  const push = (t: string, b: boolean) => { if (t) segs.push({ t, b }) }
+  const isWord = (c: string | undefined) => !!c && /[A-Za-z0-9]/.test(c)
+  let buf = ''
+  let i = 0
+  while (i < src.length) {
+    if (src.startsWith('**', i)) {
+      push(buf, false); buf = ''
+      const end = src.indexOf('**', i + 2)
+      if (end === -1) { push(src.slice(i + 2), true); return segs }
+      push(src.slice(i + 2, end), true)
+      i = end + 2
+      continue
+    }
+    if (src[i] === "'" && !isWord(src[i - 1])) {
+      const end = src.indexOf("'", i + 1)
+      push(buf, false); buf = ''
+      if (end === -1) { push(src.slice(i), true); return segs }
+      push(src.slice(i, end + 1), true)      // 따옴표째 굵게 — 길이가 그대로라 글자 흐름이 안 어긋난다
+      i = end + 1
+      continue
+    }
+    buf += src[i]
+    i += 1
+  }
+  push(buf, false)
+  return segs
+}
+
+/** 강사 말 한 줄 — 핵심만 굵게. 학생 말·일반 글자에는 쓰지 않는다. */
+export function TutorText({ text }: { text: string }) {
+  return (
+    <>
+      {parseEmphasis(text).map((s, i) => (
+        s.b ? <strong key={i} className="font-bold text-[#111827]">{s.t}</strong> : <span key={i}>{s.t}</span>
+      ))}
+    </>
+  )
+}
+
 function Bubble({ role, text, aside }: ChatMsg) {
   const mine = role === 'user'
   return (
@@ -269,7 +321,7 @@ function Bubble({ role, text, aside }: ChatMsg) {
           : mine
             ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
             : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
-      }`}>{text || (mine ? null : <SpeechDots />)}</div>
+      }`}>{text ? (mine ? text : <TutorText text={text} />) : (mine ? null : <SpeechDots />)}</div>
     </div>
   )
 }
@@ -403,7 +455,7 @@ export default function TutorDock({
           <div className="shrink-0 px-3 md:px-4 pt-1">
             <div className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
               <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium whitespace-pre-wrap">
-                {lastLine || <SpeechDots />}
+                {lastLine ? <TutorText text={lastLine} /> : <SpeechDots />}
               </p>
             </div>
           </div>
@@ -500,7 +552,7 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
           style={{ boxShadow: '0 6px 24px rgba(37,99,235,0.16), 0 1px 4px rgba(0,0,0,0.08)' }}>
           <div className="max-h-[46vh] overflow-y-auto px-3.5 py-2.5 space-y-2">
             {lastLine ? (
-              <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap">{lastLine}</p>
+              <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap"><TutorText text={lastLine} /></p>
             ) : (isSpeaking || preparing) ? <SpeechDots /> : null}
             {/* 선택지·행동 지시 — 작은 창 안에서는 글자를 한 단계 줄여 보여준다 */}
             <div className="pt-2 border-t border-dashed border-[#E5E7EB] space-y-2 empty:hidden empty:border-0 empty:pt-0
