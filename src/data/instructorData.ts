@@ -140,7 +140,36 @@ export const INST_PERSONA: Record<string, string> = {
 export const INST_VOICE: Record<string, string> = {
   park_hyewon: 'aKMUzTQk58byFPNhpATt',
   yun_daeun: 'QPFsEL6IBxlT15xfiD6C',
-  lee_doyun: 'MpbDJfQJUYUnp0i1QvOZ',
+  lee_doyun: 'DTEeVx29gq12EJ7qBYaP', // 억양을 살려 다시 뽑은 목소리 (앞선 후보 1HhRIC9l… 은 단조로웠다)
+}
+
+/* ── 강사 → ElevenLabs TTS 모델 ──
+   목소리마다 잘 맞는 모델이 다르다. 이도윤은 한 문장 안에서 한국어↔영어를 오가는 대본이 많아
+   코드스위칭이 나은 v3 을 쓴다. 적어두지 않은 강사는 api/tts 의 기본(multilingual v2).
+   ⚠️ v3 은 voice_settings.speed 를 받지 않는다(에러) — api/tts 가 v3 일 때 speed 를 빼고 보낸다.
+      대신 v3 은 응답이 느리고 한 번에 보낼 수 있는 글자도 절반(5,000자)이다. */
+export const INST_TTS_MODEL: Record<string, string> = {
+  lee_doyun: 'eleven_v3',
+}
+
+/* ── 문장 사이 휴지를 조금 벌릴 강사 ──
+   이도윤 목소리는 문장을 거의 붙여 읽는다. 설명이 몰아쳐서 학생이 한 문장을 소화할 틈이 없다.
+   ⚠️ 전 강사에게 켜면 안 된다 — 박혜원은 "랩하듯 빠르게" 가 페르소나라 벌리면 그 사람이 아니게 된다.
+   ⚠️ v3 는 `<break time=…>` 를 받지 않는다(v2 계열만 된다). `[pause]` 같은 태그는 모델이
+      **그대로 소리내어 읽어 버리는** 사고가 있어 쓰지 않는다. 줄바꿈은 그냥 글자라 그 사고가 없다.
+   실제 처리는 api/tts 가 한다 — **읽을 때만** 벌리고 화면 글자는 그대로다. */
+export const INST_SENTENCE_PAUSE: Record<string, boolean> = {
+  lee_doyun: true,
+}
+
+/* ── 강사별 말 속도 (1 = 원래 속도) ──
+   ⚠️ 이건 ElevenLabs 의 `speed` 가 **아니다.** v3 는 speed 를 받지 않아서(넣으면 400) 이도윤은
+      그쪽으로 늦출 방법이 없다. 그래서 **받아온 음원을 느리게 재생**한다(lib/tts 의 fetchTTSAudio).
+   음정은 브라우저가 유지해 준다(preservesPitch) — 그냥 느리게 틀면 목소리가 굵어진다.
+   0.85 아래로 내려가면 늘린 티(금속성)가 들리기 시작한다. 0.9~0.95 가 안전한 구간.
+   ※ 글자 흐름은 따라온다 — 재생 위치를 보고 있어서(playbackProgress) 느려지면 같이 느려진다. */
+export const INST_TTS_RATE: Record<string, number> = {
+  lee_doyun: 0.93,
 }
 
 /** 이 강사가 영상 클립을 갖고 있는가 (없으면 사진 아바타 그대로) */

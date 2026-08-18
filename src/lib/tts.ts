@@ -1,3 +1,5 @@
+import { INST_TTS_RATE } from '@/data/instructorData'
+
 /** 현재 재생 중인 오디오 인스턴스 (전역 추적) */
 let _currentAudio: HTMLAudioElement | null = null
 let _currentUnlockCleanup: (() => void) | null = null
@@ -121,21 +123,72 @@ export async function speakTurn(
   // videoSrc가 있거나 오디오 파일이 없으면 TTS 없이 즉시 종료
 }
 
+/* ── 받아둔 음원 ──
+   같은 문장을 두 번 만들지 않는다. 이게 있어서 **다음 줄을 미리 받아두는 것**(prefetchTTS)이
+   가능해진다 — 지금 줄이 나가는 동안 받아두면 다음 턴의 대기가 0이 된다.
+   ⚠️ Audio 객체가 아니라 **주소(data URL)** 를 담는다. Audio 를 재사용하면 이미 끝까지 재생된
+      상태(currentTime=끝)가 남아 두 번째 재생이 소리 없이 즉시 끝난다.
+   메모리 상한을 두는 이유: 한 줄이 수백 KB 라 수업 한 바퀴를 다 담으면 태블릿에서 부담이 된다. */
+const _ttsCache = new Map<string, string>()
+const _ttsInflight = new Map<string, Promise<string | null>>()
+const TTS_CACHE_MAX = 10
+
+function ttsKey(text: string, persona: string, instructor?: string): string {
+  return `${instructor ?? ''}|${persona}|${text}`
+}
+
+function loadTTS(text: string, persona: string, instructor?: string): Promise<string | null> {
+  const k = ttsKey(text, persona, instructor)
+  const hit = _ttsCache.get(k)
+  if (hit) return Promise.resolve(hit)
+  const flying = _ttsInflight.get(k)
+  if (flying) return flying          // 미리 받는 중이면 **그 요청에 올라탄다**(두 번 만들지 않는다)
+
+  const p = (async () => {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, persona, instructor }),
+      })
+      const data = await res.json()
+      if (!data.useNativeTts && data.audioContent) {
+        const src = `data:audio/mp3;base64,${data.audioContent}`
+        if (_ttsCache.size >= TTS_CACHE_MAX) _ttsCache.delete(_ttsCache.keys().next().value as string)
+        _ttsCache.set(k, src)
+        return src
+      }
+    } catch { /* fall through */ }
+    return null
+  })()
+  _ttsInflight.set(k, p)
+  void p.finally(() => { _ttsInflight.delete(k) })
+  return p
+}
+
+/** 이 문장을 **미리 받아둔다.** 지금 나가는 발화가 끝나기 전에 다음 발화를 받아두는 용도라
+ *  결과를 기다리지 않는다(실패해도 조용히 넘어간다 — 그때 가서 정상 경로로 다시 받는다).
+ *  ⚠️ `speakTTS` 에 넘기는 것과 **똑같은 문자열**을 줘야 한다(koLetters 를 거쳤다면 그것까지) —
+ *     한 글자라도 다르면 캐시가 빗나가서 미리 받은 보람이 없다. */
+export function prefetchTTS(text: string, persona: string, instructor?: string): void {
+  void loadTTS(text, persona, instructor)
+}
+
 /** TTS 오디오를 미리 fetch해서 Audio 객체로 반환. 실패 시 null. */
 /** @param instructor 강사 id — 주면 **그 강사 목소리**로 읽는다(없으면 기본 목소리) */
 export async function fetchTTSAudio(text: string, persona: string, instructor?: string): Promise<HTMLAudioElement | null> {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, persona, instructor }),
-    })
-    const data = await res.json()
-    if (!data.useNativeTts && data.audioContent) {
-      return new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-    }
-  } catch { /* fall through */ }
-  return null
+  const src = await loadTTS(text, persona, instructor)
+  if (!src) return null
+  const audio = new Audio(src)
+  /* 이 강사가 느리게 말하기로 돼 있으면 여기서 늦춘다 — v3 는 생성 단계에서 속도를 못 준다.
+     preservesPitch 를 켜지 않으면 목소리가 굵어져 다른 사람이 된다.
+     **강사 목소리에만** 건다 — 문제 음원(playLocalAudio)은 시험 자료라 손대면 안 된다. */
+  const rate = instructor ? INST_TTS_RATE[instructor] : undefined
+  if (rate && rate !== 1) {
+    audio.preservesPitch = true
+    audio.playbackRate = rate
+  }
+  return audio
 }
 
 /** fetch 완료 후 재생 전에 취소 여부를 확인하고 싶을 때 사용. */
@@ -214,15 +267,26 @@ export function koLetters(text: string): string {
 }
 
 /** fetchTTSAudio + playAndWait + speechSynthesis fallback.
- *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다. */
-export async function speakTTS(text: string, persona: string, instructor?: string): Promise<void> {
+ *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다.
+ *
+ *  @param onStart **소리가 나가기 직전**에 한 번 불린다 — 화면이 글자를 내보내기 시작하는 신호다.
+ *    이게 없으면 화면은 "음원이 언제 오는가"를 시간으로 추측할 수밖에 없고, 모델이 느려지면
+ *    (v3) 추측이 빗나가 글자가 소리보다 먼저 흐른다. 받는 데 걸린 시간과 무관하게 정확하다.
+ *    `hasAudio` 는 강사 음원으로 나가는지(true) 브라우저 TTS 로 떨어졌는지(false)를 알려준다 —
+ *    브라우저 TTS 는 재생 위치를 읽을 수 없어 화면이 글자를 흘리는 방식을 갈라야 한다. */
+export async function speakTTS(
+  text: string, persona: string, instructor?: string,
+  onStart?: (hasAudio: boolean) => void,
+): Promise<void> {
   const token = _playbackToken
   const audio = await fetchTTSAudio(text, persona, instructor)
   if (_playbackToken !== token) return  // fetch 중 stopCurrentAudio 호출됨
   if (audio) {
+    onStart?.(true)
     await playAndWait(audio)
   } else {
     if (_playbackToken !== token) return
+    onStart?.(false)
     await new Promise<void>((resolve) => {
       if (!('speechSynthesis' in window)) { resolve(); return }
       window.speechSynthesis.cancel()
