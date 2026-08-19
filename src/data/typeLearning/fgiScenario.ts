@@ -48,19 +48,15 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       },
       summary: [
         {
-          "title": "핵심 빈출 표현 정리",
-          "intro": "마지막으로 오늘 문제에서 나온 토익 빈출 표현만 확인해볼게요. 영어 표현을 보고 알맞은 뜻을 골라보세요.",
+          "title": "Part 1 사람·사물 사진 핵심 정리",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
               "en": "사람 중심 사진 → 사람의 ___ 확인",
               "ko": "맞아요. 사람 중심 사진은 사람이 지금 무엇을 하고 있는지부터 확인하는 게 핵심이에요.",
               "answer": "동작",
-              "choices": [
-                "위치",
-                "동작",
-                "주변 사물"
-              ],
+              "choices": [],
               "keywords": [
                 "동작"
               ]
@@ -70,11 +66,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "사물 중심 사진 → 사물의 ___ 확인",
               "ko": "정확해요. 사물이 보이는 것만으로는 부족하고, 어디에 있고 어떤 상태인지까지 확인해야 해요.",
               "answer": "위치와 상태",
-              "choices": [
-                "이름",
-                "위치와 상태",
-                "개수"
-              ],
+              "choices": [],
               "keywords": [
                 "위치와 상태"
               ]
@@ -84,17 +76,19 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "is/are being + p.p. → 동작이 실제로 ___인지 확인",
               "ko": "좋아요. be + being + p.p.가 나오면 사진에서 그 동작이 실제로 진행되고 있는지 꼭 확인해야 해요.",
               "answer": "진행 중",
-              "choices": [
-                "진행 중",
-                "이미 끝난 상태",
-                "가능한 동작"
-              ],
+              "choices": [],
               "keywords": [
                 "진행 중"
               ]
-            },
+            }
+          ]
+        },
+        {
+          "title": "핵심 빈출 표현 정리",
+          "intro": "마지막으로 오늘 문제에서 나온 토익 빈출 표현만 확인해볼게요. 영어 표현을 보고 알맞은 뜻을 골라보세요.",
+          "items": [
             {
-              "id": "s1_4",
+              "id": "s2_1",
               "en": "rinse = ___",
               "ko": "수고했어요! Part 1에서 나온 어휘까지 모두 확인했어요. Part 1은 사진 속 사람의 동작, 사물의 위치와 상태를 정확히 표현하는 단어를 아는 게 중요해요. 특히 헷갈렸던 표현은 뜻이 바로 떠오를 수 있도록 한 번 더 복습해두세요.",
               "answer": "헹구다",
@@ -108,7 +102,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_5",
+              "id": "s2_2",
               "en": "line up = ___",
               "ko": "",
               "answer": "줄을 세우다",
@@ -122,7 +116,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_6",
+              "id": "s2_3",
               "en": "fold = ___",
               "ko": "",
               "answer": "접다",
@@ -136,7 +130,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_7",
+              "id": "s2_4",
               "en": "stack = ___",
               "ko": "",
               "answer": "쌓다",
@@ -150,7 +144,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_8",
+              "id": "s2_5",
               "en": "shovel = ___",
               "ko": "",
               "answer": "삽",
@@ -164,7 +158,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_9",
+              "id": "s2_6",
               "en": "prop A against B = ___",
               "ko": "",
               "answer": "A를 B에 기대어 세워두다",
@@ -178,7 +172,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_10",
+              "id": "s2_7",
               "en": "pour A into B = ___",
               "ko": "",
               "answer": "A를 B 안에 붓다",
@@ -192,7 +186,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_11",
+              "id": "s2_8",
               "en": "hand A to B = ___",
               "ko": "",
               "answer": "A를 B에게 건네다",
@@ -206,7 +200,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_12",
+              "id": "s2_9",
               "en": "reach into = ___",
               "ko": "",
               "answer": "~안으로 손을 뻗다",
@@ -220,7 +214,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_13",
+              "id": "s2_10",
               "en": "rest one's arm on = ___",
               "ko": "",
               "answer": "팔을 ~에 기대다",
@@ -1579,25 +1573,20 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         "script": "이번에는 Part 5에서 능동태와 수동태를 빠르게 구분하는 방법을 연습해 볼게요.\nPart 5는 보기를 하나씩 해석하기보다, 빈칸 앞뒤의 문장 구조를 먼저 보는 것이 중요해요.\n먼저 빈칸이 동사 자리인지 확인하고, 주어가 직접 행동하는지 아니면 행동을 받는지를 살펴볼 거예요.\n여기에 빈칸 뒤에 목적어가 있는지, by + 행위자 같은 표현이 있는지도 같이 확인하면 능동태와 수동태를 훨씬 쉽게 구분할 수 있어요.\n그리고 능동·수동만 맞는다고 끝나는 건 아니에요. 시제나 주어의 수까지 확인해서 보기의 형태를 하나씩 줄이고, 마지막에는 문장 뜻까지 자연스러운지 확인할게요.\n그럼 첫 번째 유형부터 시작해 볼까요?",
         "points": [
           "주어가 동작을 하는지·받는지 보고 능동태와 수동태 구분하기",
-          "목적어·시제·by 표현을 확인해 알맞은 동사 형태 고르기",
-          "> 1번으로 적었던 내용 삭제함"
+          "목적어·시제·by 표현을 확인해 알맞은 동사 형태 고르기"
         ]
       },
       summary: [
         {
-          "title": "핵심 빈출 표현 정리",
-          "intro": "마지막으로 오늘 문제에서 나온 토익 빈출 표현만 확인해볼게요. 영어 표현을 보고 알맞은 뜻을 골라보세요.",
+          "title": "Part 5 능동태·수동태 핵심 정리",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
               "en": "능동·수동 판단 → 주어가 동작을 하는지, 또는 ___ 확인",
               "ko": "맞아요. 주어가 직접 행동하면 능동태, 행동을 받으면 수동태예요. 먼저 주어와 동사의 관계부터 보는 게 중요해요.",
               "answer": "받는지",
-              "choices": [
-                "복수인지",
-                "과거인지",
-                "받는지"
-              ],
+              "choices": [],
               "keywords": [
                 "받는지"
               ]
@@ -1607,11 +1596,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "동사 뒤에 목적어가 바로 이어짐 → 먼저 ___ 가능성 확인",
               "ko": "정확해요. 동사 뒤에 목적어가 바로 나오면 주어가 직접 행동하는 능동 구조인지 먼저 확인해볼 수 있어요.",
               "answer": "능동태",
-              "choices": [
-                "능동태",
-                "수동태",
-                "명사"
-              ],
+              "choices": [],
               "keywords": [
                 "능동태"
               ]
@@ -1621,17 +1606,19 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "능동·수동 판단 후 → ___까지 확인해 동사 형태 결정",
               "ko": "좋아요. 능동·수동을 정했다고 끝이 아니에요. yesterday 같은 시제 단서와 주어의 단수·복수까지 확인해야 정확한 동사 형태를 고를 수 있어요.",
               "answer": "시제와 주어의 수",
-              "choices": [
-                "문장의 길이",
-                "시제와 주어의 수",
-                "단어의 위치"
-              ],
+              "choices": [],
               "keywords": [
                 "시제와 주어의 수"
               ]
-            },
+            }
+          ]
+        },
+        {
+          "title": "핵심 빈출 표현 정리",
+          "intro": "마지막으로 오늘 문제에서 나온 토익 빈출 표현만 확인해볼게요. 영어 표현을 보고 알맞은 뜻을 골라보세요.",
+          "items": [
             {
-              "id": "s1_4",
+              "id": "s2_1",
               "en": "standardize = ___",
               "ko": "수고했어요! 오늘 나온 어휘까지 모두 확인했어요. 문제를 풀 때는 문법만 보는 게 아니라 동사의 뜻을 정확히 아는 것도 정말 중요해요. 특히 헷갈렸던 단어는 그냥 넘어가지 말고, 뜻이 바로 떠오를 때까지 꼭 반복해서 외워주세요.",
               "answer": "표준화하다",
@@ -1645,7 +1632,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_5",
+              "id": "s2_2",
               "en": "replacement = ___",
               "ko": "",
               "answer": "교체",
@@ -1659,7 +1646,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_6",
+              "id": "s2_3",
               "en": "direct A to do = ___",
               "ko": "",
               "answer": "A에게 ~하도록 지시하다",
@@ -1673,7 +1660,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_7",
+              "id": "s2_4",
               "en": "take over = ___",
               "ko": "",
               "answer": "맡다",
@@ -1687,7 +1674,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_8",
+              "id": "s2_5",
               "en": "input = ___",
               "ko": "",
               "answer": "의견, 조언",
@@ -1701,7 +1688,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_9",
+              "id": "s2_6",
               "en": "waive = ___",
               "ko": "",
               "answer": "면제하다",
@@ -1715,7 +1702,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_10",
+              "id": "s2_7",
               "en": "appoint A as B = ___",
               "ko": "",
               "answer": "A를 B로 임명하다",
@@ -1729,7 +1716,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_11",
+              "id": "s2_8",
               "en": "assemble = ___",
               "ko": "",
               "answer": "조립하다",
@@ -1743,7 +1730,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_12",
+              "id": "s2_9",
               "en": "assume duties = ___",
               "ko": "",
               "answer": "업무를 맡다",
@@ -1757,7 +1744,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               ]
             },
             {
-              "id": "s1_13",
+              "id": "s2_10",
               "en": "construct = ___",
               "ko": "",
               "answer": "건설하다",
@@ -2688,20 +2675,36 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 1 사람·사물 사진 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 골라서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
           "items": [
+            {
+              "id": "s1_1",
+              "en": "인물 사진에서는 가장 먼저 ___ 을 확인한다.",
+              "ko": "맞아요. 인물 사진에서는 먼저 사람이 무엇을 하고 있는지, 핵심 동작을 확인하세요.",
+              "answer": "인물의 동작",
+              "choices": [],
+              "keywords": [
+                "인물의 동작"
+              ]
+            },
             {
               "id": "s1_2",
               "en": "인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
               "ko": "그렇죠. is painting, is holding처럼 인물이 지금 하고 있는 동작은 be + -ing 형태로 자주 나와요.",
               "answer": "be + -ing",
-              "choices": [
-                "be + -ing",
-                "be + p.p.",
-                "have + p.p."
-              ],
+              "choices": [],
               "keywords": [
                 "be + -ing"
+              ]
+            },
+            {
+              "id": "s1_3",
+              "en": "사물·풍경 사진에서는 사물의 ___를 먼저 확인한다.",
+              "ko": "맞아요. 사물 사진에서는 무엇이 어디에 있고, 어떤 상태인지를 먼저 확인하는 게 중요해요.",
+              "answer": "위치와 상태",
+              "choices": [],
+              "keywords": [
+                "위치와 상태"
               ]
             },
             {
@@ -2709,10 +2712,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "동사 뜻을 정확히 몰라도 사진에 ___ 사물·사람·장소가 들리면 오답으로 빠르게 제거할 수 있다.",
               "ko": "맞아요. 선택지에 모르는 단어가 나와도 사진에 아예 없는 핵심 사물·사람·장소가 들리면 빠르게 X 하고 넘어가세요.",
               "answer": "없는",
-              "choices": [
-                "있는",
-                "없는"
-              ],
+              "choices": [],
               "keywords": [
                 "없는"
               ]
@@ -2866,7 +2866,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           ]
         }
       ],
-      practiceOutro: "실전처럼 잘 풀었나요? {전체수} 문제 중 {맞은수} 문제 맞혔어요. 틀린 문제 한번 같이 보러 가볼까요?",
+      practiceOutro: "실전처럼 잘 풀었나요? {전체수} 문제 중 {맞은수} 문제 맞혔어요. 틀린 문제 한번 같이 볼게요.",
       turns: [
         {
           "no": 1,
@@ -2932,7 +2932,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S3 개념 코칭",
           "tutor": "맞아요.",
           "focusQ": 0,
-          "tutorIfWrong": "아니에요.",
+          "tutorIfWrong": "아쉽지만 아니에요.",
           "interaction": {
             "kind": "next"
           }
@@ -3025,23 +3025,13 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S5 정답 근거 연결",
           "tutor": "맞아요. is painting이 여자의 핵심 동작을 나타내는 표현이에요.",
           "focusQ": 0,
+          "tutorIfWrong": "다시 생각해보세요. 지금 여자가 그림을 그리는 동작이 핵심이죠? 따라서 is painting이 핵심 동사예요.",
           "interaction": {
             "kind": "next"
           }
         },
         {
           "no": 10,
-          "itemSeq": 1,
-          "occurrence": 1,
-          "stage": "S5 정답 근거 연결",
-          "tutor": "(오답이거나 잘 모르겠다고 했을 때) 다시 생각해보세요. 지금 여자가 그림을 그리는 동작이 핵심이죠? 따라서 is painting이 핵심 동사예요.",
-          "focusQ": 0,
-          "interaction": {
-            "kind": "next"
-          }
-        },
-        {
-          "no": 11,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S5 정답 근거 연결",
@@ -3052,7 +3042,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 12,
+          "no": 11,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (A)",
@@ -3078,7 +3068,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 13,
+          "no": 12,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (A)",
@@ -3110,7 +3100,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 14,
+          "no": 13,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (A)",
@@ -3131,7 +3121,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 15,
+          "no": 14,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (C)",
@@ -3157,7 +3147,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 16,
+          "no": 15,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (C)",
@@ -3178,7 +3168,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 17,
+          "no": 16,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (D)",
@@ -3204,7 +3194,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 18,
+          "no": 17,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (D)",
@@ -3236,7 +3226,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 19,
+          "no": 18,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거 (D)",
@@ -3258,7 +3248,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 20,
+          "no": 19,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S7 표현 정리",
@@ -3269,7 +3259,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 21,
+          "no": 20,
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "마무리 멘트",
@@ -3280,7 +3270,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 22,
+          "no": 21,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S1 핵심 단서 찾기",
@@ -3293,7 +3283,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 23,
+          "no": 22,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "학생 풀이",
@@ -3315,7 +3305,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 24,
+          "no": 23,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S3 개념 코칭",
@@ -3337,7 +3327,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 25,
+          "no": 24,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S3 개념 코칭",
@@ -3349,7 +3339,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 26,
+          "no": 25,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S3 개념 코칭",
@@ -3360,7 +3350,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 27,
+          "no": 26,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
@@ -3382,7 +3372,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 28,
+          "no": 27,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
@@ -3408,7 +3398,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 29,
+          "no": 28,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
@@ -3430,7 +3420,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 30,
+          "no": 29,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
@@ -3441,7 +3431,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 31,
+          "no": 30,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S5 정답 근거 연결",
@@ -3452,7 +3442,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 32,
+          "no": 31,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (B)",
@@ -3478,7 +3468,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 33,
+          "no": 32,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (B)",
@@ -3499,7 +3489,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 34,
+          "no": 33,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (C)",
@@ -3525,7 +3515,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 35,
+          "no": 34,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (C)",
@@ -3546,7 +3536,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 36,
+          "no": 35,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
@@ -3572,7 +3562,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 37,
+          "no": 36,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
@@ -3604,7 +3594,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 38,
+          "no": 37,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
@@ -3626,7 +3616,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 39,
+          "no": 38,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
@@ -3647,7 +3637,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 40,
+          "no": 39,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S7 표현 정리",
@@ -3658,7 +3648,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 41,
+          "no": 40,
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "마무리 멘트",
@@ -3669,7 +3659,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 42,
+          "no": 41,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S1 핵심 단서 찾기",
@@ -3678,11 +3668,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "interaction": {
             "kind": "subjective",
             "prompt": "사진에서 눈에 띄는 사물과 위치를 말해볼까요?",
-            "hint": "화분, 식물, 선반 등 화분이 선반 위에 있고 식물이 있어요"
+            "hint": "화분이 있어요 선반 위에 화분이 있어요 식물이 있어요 화분이 선반 위에 있고 식물이 있어요"
           }
         },
         {
-          "no": 43,
+          "no": 42,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "학생 풀이",
@@ -3704,7 +3694,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 44,
+          "no": 43,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S3 개념 코칭",
@@ -3715,7 +3705,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 45,
+          "no": 44,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
@@ -3737,7 +3727,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 46,
+          "no": 45,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
@@ -3763,7 +3753,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 47,
+          "no": 46,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
@@ -3785,7 +3775,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 48,
+          "no": 47,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
@@ -3797,7 +3787,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 49,
+          "no": 48,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
@@ -3808,7 +3798,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 50,
+          "no": 49,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (A)",
@@ -3834,7 +3824,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 51,
+          "no": 50,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (A)",
@@ -3866,7 +3856,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 52,
+          "no": 51,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (A)",
@@ -3888,7 +3878,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 53,
+          "no": 52,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (A)",
@@ -3909,7 +3899,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 54,
+          "no": 53,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (B)",
@@ -3935,7 +3925,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 55,
+          "no": 54,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (B)",
@@ -3967,7 +3957,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 56,
+          "no": 55,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (B)",
@@ -3989,7 +3979,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 57,
+          "no": 56,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (B)",
@@ -4010,7 +4000,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 58,
+          "no": 57,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (C)",
@@ -4036,7 +4026,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 59,
+          "no": 58,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 오답 제거 (C)",
@@ -4057,7 +4047,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 60,
+          "no": 59,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S7 표현 정리",
@@ -4068,7 +4058,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 61,
+          "no": 60,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "마무리 멘트",
@@ -4079,7 +4069,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 102,
+          "no": 101,
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "실전 안내",
@@ -4092,7 +4082,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       ],
       review: [
         {
-          "no": 62,
+          "no": 61,
           "stage": "S5 정답 근거 연결",
           "tutor": "인물이 나오는 사진이었죠? 정답 D를 다시 들어볼게요.",
           "focusQ": 0,
@@ -4116,7 +4106,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 63,
+          "no": 62,
           "stage": "S5 정답 근거 연결",
           "tutor": "is picking up, 집어 들고 있다, an empty cup, 빈 컵을이라고 했죠. 사진에서 남자가 빈 컵을 집어 들고 있나요?",
           "focusQ": 0,
@@ -4136,7 +4126,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 64,
+          "no": 63,
           "stage": "S5 정답 근거 연결",
           "tutor": "그렇죠.",
           "focusQ": 0,
@@ -4146,7 +4136,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 65,
+          "no": 64,
           "stage": "S5 정답 근거 연결",
           "tutor": "인물 사진에서는 가장 먼저 사람이 실제로 하고 있는 동작을 확인해야 해요. 사진에서 남자가 커피 머신 위에 있는 빈 컵을 집어 들고 있어요. is picking up 동사 표현이 사진과 정확히 맞죠? pick up은 '집어 들다'라는 뜻이에요.",
           "focusQ": 0,
@@ -4155,7 +4145,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 66,
+          "no": 65,
           "stage": "S6 오답 제거 (A)",
           "tutor": "A는 He's tying a cloth apron.이에요. tie는 '매다, 묶다', apron은 '앞치마'라는 뜻이에요. 일단 사진에서 남자가 앞치마를 하고 있긴 하지만, 지금 앞치마를 묶는 동작을 하고 있는 건 아니죠. 사진에 앞치마가 있다고 해서 apron만 듣고 고르면 안 되고, tying이라는 동작까지 봐야 해요.",
           "focusQ": 0,
@@ -4174,7 +4164,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 67,
+          "no": 66,
           "stage": "S6 오답 제거 (B)",
           "tutor": "B의 pouring beans into a coffee machine은 커피 머신에 원두를 붓고 있다는 뜻이에요. 사진에는 이런 동작이 없으니까 바로 X 하면 됩니다.",
           "focusQ": 0,
@@ -4193,7 +4183,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 68,
+          "no": 67,
           "stage": "S6 오답 제거 (C)",
           "tutor": "C는 handing a beverage to a customer, 손님에게 음료를 건네고 있다고 했어요. 그런데 사진에 손님이 보이나요?",
           "focusQ": 0,
@@ -4223,7 +4213,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 69,
+          "no": 68,
           "stage": "S6 오답 제거 (C)",
           "tutor": "맞아요.",
           "focusQ": 0,
@@ -4243,7 +4233,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 70,
+          "no": 69,
           "stage": "S6 오답 제거 (C)",
           "tutor": "customer가 사진에 아예 없죠. 이렇게 사진에 없는 사람이나 사물이 나오면 빠르게 오답으로 지울 수 있어요.",
           "focusQ": 0,
@@ -4262,7 +4252,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 71,
+          "no": 70,
           "stage": "S7 표현 정리",
           "tutor": "마지막으로 표현만 정리할게요. pick up은 집어 들다, pour은 붓다, hand는 건네주다 예요.",
           "focusQ": 0,
@@ -4271,7 +4261,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 72,
+          "no": 71,
           "stage": "S5 정답 근거 연결",
           "tutor": "사물이랑 풍경만 나오는 사진이었죠? 정답 A를 다시 들어볼게요.",
           "focusQ": 1,
@@ -4295,7 +4285,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 73,
+          "no": 72,
           "stage": "S5 정답 근거 연결",
           "tutor": "Some artwork, 일부 미술품이, is hanging, 걸려 있다, on a wall, 벽에라고 했죠. 사진에서 미술품이 벽에 걸려 있나요?",
           "focusQ": 1,
@@ -4315,7 +4305,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 74,
+          "no": 73,
           "stage": "S5 정답 근거 연결",
           "tutor": "맞아요.",
           "focusQ": 1,
@@ -4325,7 +4315,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 75,
+          "no": 74,
           "stage": "S5 정답 근거 연결",
           "tutor": "hang은 '걸다'라는 뜻도 있지만, 그림이나 물건이 이미 걸려 있는 상태를 말할 때 be hanging 형태로 표현할 수도 있어요.",
           "focusQ": 1,
@@ -4334,7 +4324,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 76,
+          "no": 75,
           "stage": "S6 오답 제거 (B)",
           "tutor": "B. Reading materials have been left on a sofa. 에서 reading materials 읽을거리는 사진에 있지만 소파 위가 아니라 탁자 위에 있죠? 선택지에 사물은 맞아도 위치가 다르면 오답이에요.",
           "focusQ": 1,
@@ -4353,7 +4343,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 77,
+          "no": 76,
           "stage": "S6 오답 제거 (C)",
           "tutor": "C. Some windows are being installed. 에서 are being installed는 창문이 지금 설치되고 있는 중이라는 뜻이에요. 사진에서 창문이 설치되고 있나요?",
           "focusQ": 1,
@@ -4383,7 +4373,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 78,
+          "no": 77,
           "stage": "S6 오답 제거 (C)",
           "tutor": "그렇죠.",
           "focusQ": 1,
@@ -4403,7 +4393,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 79,
+          "no": 78,
           "stage": "S6 오답 제거 (C)",
           "tutor": "창문이 이미 설치되어있는 상태이죠? 이렇게 이미 설치된 상태일 때는 are installed나 have been installed라고 해야 맞아요. are being installed가 맞으려면 창문을 설치하는 작업이 실제로 진행 중인 모습이 보여야 해요. 꼭 주의하세요!",
           "focusQ": 1,
@@ -4422,7 +4412,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 80,
+          "no": 79,
           "stage": "S6 오답 제거 (D)",
           "tutor": "D는 Some potted plants 화분이, have fallen 떨어져 있다고 했어요, on the floor 바닥에. 아니죠? 화분이 있긴 하지만 바닥에 떨어져 있지는 않아서 오답이죠.",
           "focusQ": 1,
@@ -4441,7 +4431,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 81,
+          "no": 80,
           "stage": "S7 표현 정리",
           "tutor": "마지막으로 핵심 정리할게요. is hanging on a wall은 '벽에 걸려 있다', have been left는 '놓여 있다, 남겨져 있다', are being installed는 '설치되고 있는 중이다'라는 뜻이에요.",
           "focusQ": 1,
@@ -4450,7 +4440,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 82,
+          "no": 81,
           "stage": "S5 정답 근거 연결",
           "tutor": "사람 두 명이 나오는 사진이죠? 이런 사진은 각 인물의 동작을 잘 봐야 해요. 정답 B를 다시 들어볼게요.",
           "focusQ": 2,
@@ -4474,7 +4464,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 83,
+          "no": 82,
           "stage": "S5 정답 근거 연결",
           "tutor": "여자들 중 한 명이, is resting her arm, 팔을 기대고 있다, on a glass counter, 유리 진열대에라고 했어요. 사진에서 한 여자가 유리 진열대에 팔을 기대고 있나요?",
           "focusQ": 2,
@@ -4494,7 +4484,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 84,
+          "no": 83,
           "stage": "S5 정답 근거 연결",
           "tutor": "그렇죠.",
           "focusQ": 2,
@@ -4504,7 +4494,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 85,
+          "no": 84,
           "stage": "S5 정답 근거 연결",
           "tutor": "여러 사람이 등장하는 사진에서는 누가 어떤 동작을 하고 있는지 정확하게 연결해야 해요. 한 여자가 유리 진열대에 팔을 기대고 있죠? 따라서 B가 정답이에요.",
           "focusQ": 2,
@@ -4523,7 +4513,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 86,
+          "no": 85,
           "stage": "S6 오답 제거 (A)",
           "tutor": "A는 여자 중 한 명이 is reaching into a shopping cart. 쇼핑 카트 안으로 손을 뻗고 있다고 했어요. 사진 속 여자가 손을 뻗고 있기는 하지만 쇼핑 카트 안으로 뻗는 거는 아니죠? 이렇게 사진에 없는 단어가 나오면 빠르게 X하고 넘어가요.",
           "focusQ": 2,
@@ -4542,7 +4532,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 87,
+          "no": 86,
           "stage": "S6 오답 제거 (C)",
           "tutor": "C에는 pushing a button on a cash register가 나왔는데, 사진에 계산대 버튼 없죠? 오답으로 바로 넘겨버리면 돼요.",
           "focusQ": 2,
@@ -4561,7 +4551,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 88,
+          "no": 87,
           "stage": "S6 오답 제거 (D)",
           "tutor": "D의 여자 중 한 명이 opening a display case, 진열장을 열고 있다고 했어요. 사진 대충 보면 헷갈릴 수 있어서 주의해야 해요. 여자가 진열장을 여는 동작이 사진에 있나요?",
           "focusQ": 2,
@@ -4591,7 +4581,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 89,
+          "no": 88,
           "stage": "S6 오답 제거 (D)",
           "tutor": "그렇죠.",
           "focusQ": 2,
@@ -4611,7 +4601,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 90,
+          "no": 89,
           "stage": "S6 오답 제거 (D)",
           "tutor": "여자가 진열장에 손을 뻗고 있지만, 열고 있는 건 아니죠. 이렇게 핵심 동작을 정확히 확인해야 해요.",
           "focusQ": 2,
@@ -4630,7 +4620,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 91,
+          "no": 90,
           "stage": "S7 표현 정리",
           "tutor": "마지막으로 표현 정리하고 갈게요. rest one's arm on 은 '무엇무엇에 팔을 기대다', reach into 는 '뭐뭐 안으로 손을 뻗다' 예요.",
           "focusQ": 2,
@@ -4639,7 +4629,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 92,
+          "no": 91,
           "stage": "S5 정답 근거 연결",
           "tutor": "사물이랑 풍경이 나오는 사진이죠? 정답 C를 다시 들어볼게요.",
           "focusQ": 3,
@@ -4663,7 +4653,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 93,
+          "no": 92,
           "stage": "S5 정답 근거 연결",
           "tutor": "Some desktops, 일부 책상이, have been divided, 나뉘어 있다, with partitions, 파티션으로 라는 의미예요. 사진에서 책상이 파티션으로 나뉘어 있나요?",
           "focusQ": 3,
@@ -4683,7 +4673,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 94,
+          "no": 93,
           "stage": "S5 정답 근거 연결",
           "tutor": "그렇죠.",
           "focusQ": 3,
@@ -4693,7 +4683,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 95,
+          "no": 94,
           "stage": "S5 정답 근거 연결",
           "tutor": "사진에서 책상 상판이 파티션으로 나뉘어 있는 상태이죠? 사물 사진에서는 이렇게 사물이 어떤 상태로 배치돼 있는지를 정확하게 들어야 해요.",
           "focusQ": 3,
@@ -4702,7 +4692,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 96,
+          "no": 95,
           "stage": "S6 오답 제거 (A)",
           "tutor": "A. Trash bins are being emptied. 에서 are being emptied는 쓰레기통이 비워지고 있는 중이라는 뜻이에요. 사진에서 쓰레기통이 비워지는 중인가요?",
           "focusQ": 3,
@@ -4732,7 +4722,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 97,
+          "no": 96,
           "stage": "S6 오답 제거 (A)",
           "tutor": "맞아요.",
           "focusQ": 3,
@@ -4752,7 +4742,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 98,
+          "no": 97,
           "stage": "S6 오답 제거 (A)",
           "tutor": "쓰레기통이 있지만 누군가에 의해 비워지고 있지는 않죠? be being p.p.가 들리면 실제 그 행동이 진행 되는 중인지 꼭 확인하세요.",
           "focusQ": 3,
@@ -4771,7 +4761,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 99,
+          "no": 98,
           "stage": "S6 오답 제거 (B)",
           "tutor": "B는 Chairs have been positioned, 의자들이 놓여있다, along a wall. 벽을 따라서 라고 했어요. along은 '뭐뭐를 따라서'라는 의미예요. 의자들이 벽을 따라 놓여 있다는 뜻인데, 사진의 의자 위치와 다르죠? 이렇게 위치를 나타내는 전치사 표현 잘 알아두어야 함정에 안넘어갑니다.",
           "focusQ": 3,
@@ -4790,7 +4780,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 100,
+          "no": 99,
           "stage": "S6 오답 제거 (D)",
           "tutor": "D는 There is a stack of documents 서류 더미가 있다, at each workstation. 각 업무공간마다 라고 했죠. 그런데 사진에 a stack of documents, 서류 더미가 보이지 않죠? 사진에 없는 사물이 나온 선택지는 바로 X 하면 돼요.",
           "focusQ": 3,
@@ -4809,7 +4799,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 101,
+          "no": 100,
           "stage": "S7 표현 정리",
           "tutor": "마지막으로 표현 정리하고 갈게요. partition은 '칸막이', be positioned는 '배치되어 있다', along a wall은 '벽을 따라'라는 뜻이에요.",
           "focusQ": 3,
@@ -4831,20 +4821,17 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 5 능동태·수동태 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 골라서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_2",
-              "en": "수동태의 기본 형태는 be + ___이다.",
+              "en": "수동태의 기본 형태는 ___이다.",
               "ko": "그렇죠. 수동태의 기본 형태는 'be + p.p.'예요.",
-              "answer": "p.p.",
-              "choices": [
-                "-ing",
-                "p.p.",
-                "동사원형"
-              ],
+              "answer": "be p.p.",
+              "choices": [],
               "keywords": [
-                "p.p."
+                "be p.p.",
+                "be + p.p."
               ]
             },
             {
@@ -4852,11 +4839,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "능동·수동을 판단할 때 첫째, ___을 확인한다.",
               "ko": "맞아요. 주어가 행동하는 쪽인지, 받는 쪽인지 먼저 확인한다고 했죠?",
               "answer": "주어와 동사의 관계",
-              "choices": [
-                "동사의 위치",
-                "주어의 역할",
-                "주어와 동사의 관계"
-              ],
+              "choices": [],
               "keywords": [
                 "주어와 동사의 관계"
               ]
@@ -4866,11 +4849,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "주어와 동사의 관계가 헷갈리면 두 번째로, 동사 뒤에 ___가 있는지 확인한다.",
               "ko": "맞아요. 동사 뒤 목적어 유무까지 보면 능수동을 더 정확하게 판단할 수 있어요.",
               "answer": "목적어",
-              "choices": [
-                "형용사",
-                "목적어",
-                "접속사"
-              ],
+              "choices": [],
               "keywords": [
                 "목적어"
               ]
@@ -4880,27 +4859,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "en": "능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
               "ko": "그렇죠. yesterday 같은 시제 단서나 주어의 수까지 마지막으로 확인하세요.",
               "answer": "수·시제",
-              "choices": [
-                "동사 개수",
-                "수·시제",
-                "품사"
-              ],
+              "choices": [],
               "keywords": [
                 "수·시제"
-              ]
-            },
-            {
-              "id": "s1_6",
-              "en": "'~되고 있는 중이다'라는 진행 수동태는 ___ 형태이다.",
-              "ko": "맞아요. is being designed처럼 어떤 행위가 진행되고 있는 수동태예요.",
-              "answer": "be being + p.p.",
-              "choices": [
-                "be + -ing",
-                "be being + p.p.",
-                "have + p.p."
-              ],
-              "keywords": [
-                "be being + p.p."
               ]
             }
           ]
@@ -5052,7 +5013,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           ]
         }
       ],
-      practiceOutro: "실전처럼 잘 풀었나요? {전체수} 문제 중 {맞은수} 문제 맞혔어요. 틀린 문제 한번 같이 보러 가볼까요?",
+      practiceOutro: "실전처럼 잘 풀었나요? {전체수} 문제 중 {맞은수} 문제 맞혔어요. 틀린 문제 한번 같이 볼게요.",
       turns: [
         {
           "no": 1,

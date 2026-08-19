@@ -378,10 +378,32 @@ function parse(tabName, range, section) {
     /* ── 핵심요약도 표가 아니다 ── 번호 | 퀴즈 | 보기 | 정답 | 정답 후 강사 피드백
        묶음마다 '화면 제목' 과 'AI 강사 도입' 이 앞에 붙기도 한다(이도윤). 윤다은은 없다. */
     if (cur.kind === 'recap') {
-      if (/^화면\s*제목$/.test(c0)) { cur.wantTitle = true; continue }
+      /* ── '화면 제목' 이 또 나오면 **새 묶음**이다 ──
+         이도윤은 '핵심 요약 (1)/(2)' 로 머리를 달지만 윤다은은 제목 줄만 하나 더 둔다.
+         안 나누면 전략 정리와 어휘가 한 판에 섞이고 제목도 뒤엣것으로 덮인다
+         (실측: 윤다은 13문항이 통째로 '핵심 빈출 표현 정리' 한 판이었다). */
+      if (/^화면\s*제목$/.test(c0)) {
+        if (cur.quiz.length) { cur = { kind: 'recap', turns: [], script: [], points: [], quiz: [] }; blocks.push(cur) }
+        cur.wantTitle = true
+        continue
+      }
       if (cur.wantTitle && c0) { cur.title = c0; cur.intro = clean(row[1]); cur.wantTitle = false; continue }
-      if (!/^\d+$/.test(c0)) continue        // 표 머리('문항'·'화면에 보여줄 내용')와 빈 줄은 버린다
-      cur.quiz.push({ text: clean(row[1]), options: clean(row[2]), answer: clean(row[3]), feedback: clean(row[4]) })
+      /* ── 표 머리에서 **칸 자리를 읽는다** ──
+         묶음마다 다르다. 어휘 정리는 '보기'(또는 '선택지') 칸이 있고, 전략 정리는 08-19 개정에서
+         보기 칸이 통째로 빠졌다 — 문장 빈칸은 주관식으로 가기로 했기 때문이다.
+         자리를 고정으로 박아 두면 칸 하나가 빠진 순간 정답 자리에서 피드백을 읽는다(실측: 10문항 전멸). */
+      if (!/^\d+$/.test(c0)) {
+        const at = (re) => row.findIndex((x) => re.test(clean(x)))
+        if (at(/^정답$/) >= 0) cur.cols = { options: at(/^(보기|선택지)$/), answer: at(/^정답$/), feedback: at(/AI\s*강사|피드백/) }
+        continue        // 표 머리와 빈 줄은 여기서 끝
+      }
+      const rc = cur.cols || { options: 2, answer: 3, feedback: 4 }
+      cur.quiz.push({
+        text: clean(row[1]),
+        options: rc.options >= 0 ? clean(row[rc.options]) : '',
+        answer: clean(row[rc.answer]),
+        feedback: rc.feedback >= 0 ? clean(row[rc.feedback]) : '',
+      })
       continue
     }
 
@@ -417,22 +439,38 @@ function toRecapCard(q, id) {
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
-  if (!text.includes('___') || choices.length < 2 || !answer) return drop('빈칸·보기·정답이 모자람')
-  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다) */
+  if (!text.includes('___') || !answer) return drop('빈칸이나 정답이 없음')
+  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다).
+     정답도 한 칸에 둘이 들어가 있어 어느 것이 앞 빈칸인지 알 수 없다 — 시트에서 두 줄로 나눠야 한다. */
   if (text.split('___').length > 2) return drop('빈칸이 2개')
-  /* ── 정답이 보기에 없으면 올리지 않는다 ──
-     번호(①②)를 믿고 싶지만 **믿을 수 없다.** 실측으로 둘이 갈렸다:
-       "① 어디에 어떤 상태로 있는지" ← ①='위치와 상태'  뜻이 같다(패러프레이즈)
-       "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
-     번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
-  if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
+
+  /* ── 어휘 확인만 보기를 쓴다 ──
+     "line up = ( )" 처럼 뜻을 고르는 자리는 세 갈래에서 고르는 것이 문제 자체다.
+     반대로 **문장 사이 빈칸**(전략 정리)은 08-19 결정으로 **보기 없이 주관식**이다 —
+     배운 말을 스스로 꺼내는 자리라 보기를 주면 눈으로 찍고 지나간다.
+     ⚠️ 시트에 보기가 남아 있어도 쓰지 않는다(윤다은 탭은 아직 안 고쳐졌다). */
+  const isVocab = /=\s*___\s*$/.test(text)
+  if (isVocab) {
+    if (choices.length < 2) return drop('어휘 문항인데 보기가 모자람')
+    /* ── 정답이 보기에 없으면 올리지 않는다 ──
+       번호(①②)를 믿고 싶지만 **믿을 수 없다.** 실측으로 둘이 갈렸다:
+         "① 어디에 어떤 상태로 있는지" ← ①='위치와 상태'  뜻이 같다(패러프레이즈)
+         "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
+       번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
+    if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
+    return { id: `s${id}`, en: text, ko: clean(q.feedback), answer, choices, keywords: [answer.toLowerCase()] }
+  }
+
+  /* 주관식은 **받아 줄 말을 넉넉히** 들고 간다. 시트가 "be p.p. 또는 be + p.p." 처럼
+     같은 답을 두 가지로 적어 두기도 하고, 학생은 조사나 기호를 빼고 쓴다("be ing"). */
+  const alts = answer.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
   return {
     id: `s${id}`,
     en: text,
     ko: clean(q.feedback),
-    answer,
-    choices,
-    keywords: [answer.toLowerCase()],
+    answer: alts[0],
+    choices: [],                                   // 빈 배열 = 주관식 (화면이 입력칸을 낸다)
+    keywords: Array.from(new Set(alts.map((x) => x.toLowerCase()))),
   }
 }
 
@@ -614,7 +652,17 @@ function build(src) {
   const groups = blocks.filter((b) => b.kind === 'recap').map((b, gi) => {
     const items = b.quiz.map((q, i) => toRecapCard(q, `${gi + 1}_${i + 1}`))
     dropped += items.filter((x) => !x).length
-    return { title: b.title || '', intro: b.intro || '', items: items.filter(Boolean) }
+    const kept = items.filter(Boolean)
+    /* ── 보기가 없어진 묶음은 도입도 그렇게 말해야 한다 ──
+       시트 도입이 아직 "빈칸에 들어갈 말을 **골라서**" 다(네 강의 모두). 보기를 없앤 화면에서
+       고르라고 하면 학생이 없는 버튼을 찾는다 — 강사 말과 화면이 어긋나는 그 문제다.
+       낱말 하나만 바꾼다. **시트도 고쳐야 한다**(고치면 이 자리는 저절로 안 걸린다). */
+    let intro = b.intro || ''
+    if (kept.length && !kept[0].choices.length && /골라/.test(intro)) {
+      intro = intro.replace(/골라서/g, '직접 적어서').replace(/골라\s*보세요/g, '적어 보세요').replace(/골라보세요/g, '적어보세요')
+      console.log(`   ✎ "${b.title}" 도입의 '골라서' 를 '직접 적어서' 로 바꿨다(주관식 묶음) — 시트도 고칠 것`)
+    }
+    return { title: b.title || '', intro, items: kept }
   }).filter((g) => g.items.length)
   if (groups.length) out.summary = groups
   console.log(`핵심요약: ${groups.length
