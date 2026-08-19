@@ -90,7 +90,11 @@ for inst, byCode in sc.items():
 
         # ② 대본 턴
         turns = (les.get('turns') or []) + (les.get('review') or [])
-        miss = [t for t in turns if norm(t['tutor']) not in hay]
+        # '실전 안내' 의 문항 수만 예외 — 시트가 두 강의에 같은 문장을 복사해 둬서 LC 는 수가 틀리다.
+        # 생성기가 실제 실전 문항 수로 바꿔 넣는다(build-fgi-scenario.js '총 N 문제'). 그 자리를
+        # 지우고 대조한다 — 나머지 글자가 한 자라도 다르면 여전히 걸린다.
+        drop_count = lambda x: re.sub(r'총\d+문제', '총문제', x)
+        miss = [t for t in turns if drop_count(norm(t['tutor'])) not in drop_count(hay)]
         print('   턴: 수업 %d · 실전 %d' % (len(les.get('turns') or []), len(les.get('review') or [])))
         for t in miss[:6]:
             flag('발화가 시트에 없다 [%s] %s…' % (t.get('stage', ''), t['tutor'][:46]))

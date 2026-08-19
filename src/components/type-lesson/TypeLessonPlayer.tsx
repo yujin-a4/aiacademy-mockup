@@ -731,7 +731,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   )
 }
 
-export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedIntro, scriptedSummary }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedPracticeOutro, scriptedIntro, scriptedSummary }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과. 지금은 화면에 쓰지 않는다 —
@@ -748,9 +748,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  에이전트에 맡기면 학생 답을 못 받아들이고 같은 요구를 반복하다 대본을 벗어난다(실측). */
   scripted?: boolean
   /** 실전 뒤 코칭도 대본이 있는가 (시트 '실전 1~4' 블록).
-   *  있으면 **틀린 문항만 고르지 않는다** — 시트가 문항 전부를 짚도록 써 있고, 다 맞혀도 지나간다.
-   *  없으면 예전대로 화면이 틀린 문항만 골라 턴을 만든다(reviewTurns). */
+   *  대본은 문항 전부를 짚도록 쓰여 있지만, **트는 것은 틀린 문항뿐이다** — 시트 진행 규칙이
+   *  "맞은 문제는 pass, 틀린 문제만 진행"(두 강사 공통)이라 reviewTurns 가 focusQ 로 걸러낸다.
+   *  대본이 없으면 예전대로 화면이 틀린 문항을 골라 턴을 스스로 만든다(reviewTurns). */
   scriptedReview?: Turn[]
+  /** 실전을 풀고 난 뒤 **오답이 있을 때만** 코칭 첫 마디로 하는 말 (시트 '실전 문제 풀이 후 멘트').
+   *  '{전체수}'·'{맞은수}' 는 여기서 채점 결과로 채운다 — 대본에 박아 둘 수 없는 숫자다.
+   *  다 맞히면 코칭 단계 자체가 열리지 않으므로 따로 막지 않는다. */
+  scriptedPracticeOutro?: string
   /** 도입 화면 대본 — 강사 발화와 '오늘 배울 내용'. 없으면 단계명에서 뽑는다 */
   scriptedIntro?: { script: string; points: string[] }
   /** 마지막 정리 화면의 퀴즈 대본 (시트 '핵심요약'). 없으면 강의에 박아 둔 문장 3개를 쓴다.
@@ -847,7 +852,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (scriptedReview?.length) {
       if (!results.length) return scriptedReview
       const wrong = new Set(wrongIdx)
-      return scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+      const only = scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+      /* ── 실전 결과 한 마디 ──
+         시트 '실전 문제 풀이 후 멘트' — "5문제 중 3문제 맞혔어요. 틀린 문제 같이 보러 갈까요?".
+         점수가 들어가야 해서 대본에 박아 둘 수 없다. 여기서 채워 **코칭 첫 마디**로 붙인다.
+         실전 화면에는 강사 자리가 없어 결과를 말할 데가 여기뿐이고, 다 맞히면 이 단계로
+         오지 않으므로 "오답 없으면 하지 않는다" 는 저절로 지켜진다. */
+      if (!scriptedPracticeOutro || !only.length) return only
+      const said = scriptedPracticeOutro
+        .replace('{전체수}', String(results.length))
+        .replace('{맞은수}', String(results.filter(Boolean).length))
+      return [{ no: 0, stage: '실전 결과', tutor: said, focusQ: only[0].focusQ, interaction: { kind: 'next' } }, ...only]
     }
     return wrongIdx.map((qIdx, n) => {
       const q = qs[qIdx]
@@ -869,7 +884,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         interaction: { kind: 'pickAnswer', qIdx, prompt: '다시 골라보세요' },
       } as Turn
     })
-  }, [practiceScore, practiceContent, scriptedReview])
+  }, [practiceScore, practiceContent, scriptedReview, scriptedPracticeOutro])
 
   /* 리뷰 단계에서는 **수업 렌더 경로를 그대로 재사용**한다 — 강사 창·에이전트·진행 게이트가
      이미 거기 붙어 있다. 콘텐츠와 턴만 갈아끼우면 되므로 lesson 자체를 바꿔치기한다. */
