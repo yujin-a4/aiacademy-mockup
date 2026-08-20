@@ -3860,6 +3860,38 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
 const VOCAB_RE = /^(.+?)\s*=\s*___\s*$/
 const isVocabGroup = (items: RecapSentence[]) => items.length >= 3 && items.every((s) => VOCAB_RE.test(s.en))
 
+/** ── 말한 문장 안에서 답 하나를 찾는다 ──
+ *  받아쓰기가 아니다. **한국어 STT 는 문장을 통째로 받으면 낱말을 흘린다** — 실측(08-20):
+ *    말한 것: "사물·풍경 사진에서는 사물의 위치와 상태를 먼저 확인한다"
+ *    들은 것: "서울 풍경 사진에서는 3월의 위치를 먼저 확인한다"   ← '와 상태' 가 통째로 날아갔다
+ *  그래서 답을 통째로 대조하면 제대로 말한 학생이 계속 튕긴다.
+ *
+ *  ① 답이 그대로 들어 있으면 그것으로 끝(가장 확실하다).
+ *  ② 아니면 답을 낱말로 쪼개 **조사를 떼고**('위치와'→'위치') 순서대로 찾아, **절반 이상**이
+ *     들어 있으면 맞은 것으로 본다. 한 낱말짜리 답('능동태')은 절반이 곧 전부라 느슨해지지 않는다.
+ *  어느 쪽이든 **찾은 자리**를 돌려준다 — 빈칸이 여럿일 때 순서를 따져야 하기 때문이다. */
+const PARTICLE = /(와|과|를|을|이|가|은|는|의|로|으로)$/
+function findAnswer(hay: string, from: number, answer: string): { at: number; len: number } | null {
+  const whole = answer.toLowerCase().replace(/[\s+·・.,()~]/g, '')
+  if (whole) {
+    const at = hay.indexOf(whole, from)
+    if (at >= 0) return { at, len: whole.length }
+  }
+  const parts = answer.split(/[\s·・/]+/).map((w) => w.replace(PARTICLE, '').toLowerCase().replace(/[+.,()~]/g, '')).filter((w) => w.length >= 1)
+  if (parts.length < 2) return null
+  const need = Math.ceil(parts.length / 2)
+  let cur = from, got = 0, first = -1, last = -1
+  for (const p of parts) {
+    const at = hay.indexOf(p, cur)
+    if (at < 0) continue
+    got += 1
+    if (first < 0) first = at
+    last = at + p.length
+    cur = last
+  }
+  return got >= need && first >= 0 ? { at: first, len: last - first } : null
+}
+
 /** 정리 화면에서 **글자로 답을 받는가.**
  *  08-20 결정으로 껐다 — 빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메운다. 지금은 빈칸을
  *  채운 문장 전체를 소리 내어 읽게 한다. 되돌리려면 이 한 줄을 true 로. */
@@ -3950,7 +3982,7 @@ function RecapAnswerInput({ onSubmit, shaking, order }: {
    **정답을 눌러야 입력된다.** 오답을 누르면 그 버튼만 빨갛게 흔들리고 아무것도 기록되지 않는다.
    그래서 빈칸에는 **정답만** 들어간다 — 틀린 답이 문장에 박히는 일도, 정답 글자를 초록으로
    칠할지 빨강으로 칠할지 고민할 일도 없어진다(색이 두 뜻을 지던 문제가 사라진다). */
-function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, active }: {
+function RecapCard({ index, sentence, filled, corrects, wrong, heard, onPick, onSpeak, active }: {
   index: number; sentence: RecapSentence
   /** 칸마다 학생이 넣은 말 — 빈칸이 하나면 길이 1이다 */
   filled?: (string | undefined)[]
@@ -3961,6 +3993,8 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
   corrects?: (boolean | undefined)[]
   /** 방금 넣은 오답 — 잠깐 흔들리고 스스로 사라진다 */
   wrong?: string
+  /** 못 채웠을 때 그때 들린 말 — 인식이 흘린 것인지 내가 틀린 것인지 학생이 스스로 안다 */
+  heard?: string
   /** 강사가 **지금 이 칸을 짚고 있는가** — 말과 화면이 같은 곳을 가리켜야 따라갈 수 있다 */
   active?: boolean
 }) {
@@ -4034,6 +4068,13 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
           label={!sentence.choices.length ? '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요' : undefined}
           onResult={(t) => onSpeak(t, at)} />}
       </div>
+
+      {/* 들린 말 — 인식이 흘렸는지 내가 틀렸는지 학생이 스스로 가린다 */}
+      {heard && at >= 0 && (
+        <p className="pl-9 mt-2 text-[11.5px] text-[#94A3B8]">
+          들린 말 <span className="text-[#64748B] font-semibold">“{heard}”</span> · 한 번 더 또박또박 말해 보세요
+        </p>
+      )}
     </div>
   )
 }
@@ -4075,6 +4116,8 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const vocabPage = isVocabGroup(items)
   /** 방금 누른 오답 (칸 id → 그 보기). 잠깐 흔들리고 스스로 사라진다 */
   const [wrong, setWrong] = useState<Record<string, string>>({})
+  /** 못 채웠을 때 **그때 들린 말** (칸 id → 전사). 흔들림과 달리 남겨 둔다 — 다시 말할 때까지 본다 */
+  const [heard, setHeard] = useState<Record<string, string>>({})
   const shakeTimers = useRef<number[]>([])
 
   /** 이 답이 맞는가 — 클릭이면 정답과 같은지, 음성이면 정답 표현이 들어 있는지 */
@@ -4266,10 +4309,8 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
     for (const b of blanksOf(s)) {
       let hit: { at: number; len: number } | null = null
       for (const k of (b.keywords.length ? b.keywords : [b.answer])) {
-        const needle = loose(k)
-        if (!needle) continue
-        const at = hay.indexOf(needle, from)
-        if (at >= 0 && (hit === null || at < hit.at)) hit = { at, len: needle.length }
+        const at = findAnswer(hay, from, k)
+        if (at && (hit === null || at.at < hit.at)) hit = at
       }
       if (hit) { out.push(b.answer); from = hit.at + hit.len } else out.push(undefined)
     }
@@ -4293,6 +4334,11 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
     /* 한 칸이라도 못 찾았으면 흔들고 강사가 한 마디 한다 — 찾은 칸은 그대로 남는다(다시 읽으면
        나머지가 채워진다). 무엇이 비었는지는 문장의 빈칸이 보여 준다. */
     const missed = found.some((v, i) => v === undefined && fills[s.id]?.[i] === undefined)
+    /* ── 무엇으로 들렸는지 보여 준다 ──
+       한국어 STT 는 문장을 통째로 받으면 낱말을 흘린다("사물의 위치와 상태를" → "3월의 위치를").
+       그때 "다시 말해 보세요" 만 뜨면 학생은 **자기가 틀린 줄 안다.** 들린 말을 그대로 보여주면
+       한 번 더 또박또박 말하면 된다는 것이 바로 보인다. */
+    setHeard((p) => { const n = { ...p }; if (missed) n[s.id] = transcript; else delete n[s.id]; return n })
     if (missed) {
       shake(s.id, transcript)
       if (!speaking) void say(RETRY_LINE)
@@ -4351,7 +4397,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="space-y-3">
             {items.map((s, i) => (
               <RecapCard key={s.id} index={i} sentence={s} filled={fills[s.id]}
-                corrects={correctsOf(s)}
+                corrects={correctsOf(s)} heard={heard[s.id]}
                 wrong={wrong[s.id]} active={activeIdx === i}
                 onPick={(c, b) => pick(s, c, b)} onSpeak={(t, b) => speakAnswer(s, t, b)} />
             ))}
