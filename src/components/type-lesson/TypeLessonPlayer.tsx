@@ -3982,7 +3982,7 @@ function RecapAnswerInput({ onSubmit, shaking, order }: {
    **정답을 눌러야 입력된다.** 오답을 누르면 그 버튼만 빨갛게 흔들리고 아무것도 기록되지 않는다.
    그래서 빈칸에는 **정답만** 들어간다 — 틀린 답이 문장에 박히는 일도, 정답 글자를 초록으로
    칠할지 빨강으로 칠할지 고민할 일도 없어진다(색이 두 뜻을 지던 문제가 사라진다). */
-function RecapCard({ index, sentence, filled, corrects, wrong, heard, onPick, onSpeak, active }: {
+function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, active }: {
   index: number; sentence: RecapSentence
   /** 칸마다 학생이 넣은 말 — 빈칸이 하나면 길이 1이다 */
   filled?: (string | undefined)[]
@@ -3993,8 +3993,6 @@ function RecapCard({ index, sentence, filled, corrects, wrong, heard, onPick, on
   corrects?: (boolean | undefined)[]
   /** 방금 넣은 오답 — 잠깐 흔들리고 스스로 사라진다 */
   wrong?: string
-  /** 못 채웠을 때 그때 들린 말 — 인식이 흘린 것인지 내가 틀린 것인지 학생이 스스로 안다 */
-  heard?: string
   /** 강사가 **지금 이 칸을 짚고 있는가** — 말과 화면이 같은 곳을 가리켜야 따라갈 수 있다 */
   active?: boolean
 }) {
@@ -4069,12 +4067,6 @@ function RecapCard({ index, sentence, filled, corrects, wrong, heard, onPick, on
           onResult={(t) => onSpeak(t, at)} />}
       </div>
 
-      {/* 들린 말 — 인식이 흘렸는지 내가 틀렸는지 학생이 스스로 가린다 */}
-      {heard && at >= 0 && (
-        <p className="pl-9 mt-2 text-[11.5px] text-[#94A3B8]">
-          들린 말 <span className="text-[#64748B] font-semibold">“{heard}”</span> · 한 번 더 또박또박 말해 보세요
-        </p>
-      )}
     </div>
   )
 }
@@ -4116,8 +4108,6 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const vocabPage = isVocabGroup(items)
   /** 방금 누른 오답 (칸 id → 그 보기). 잠깐 흔들리고 스스로 사라진다 */
   const [wrong, setWrong] = useState<Record<string, string>>({})
-  /** 못 채웠을 때 **그때 들린 말** (칸 id → 전사). 흔들림과 달리 남겨 둔다 — 다시 말할 때까지 본다 */
-  const [heard, setHeard] = useState<Record<string, string>>({})
   const shakeTimers = useRef<number[]>([])
 
   /** 이 답이 맞는가 — 클릭이면 정답과 같은지, 음성이면 정답 표현이 들어 있는지 */
@@ -4334,11 +4324,10 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
     /* 한 칸이라도 못 찾았으면 흔들고 강사가 한 마디 한다 — 찾은 칸은 그대로 남는다(다시 읽으면
        나머지가 채워진다). 무엇이 비었는지는 문장의 빈칸이 보여 준다. */
     const missed = found.some((v, i) => v === undefined && fills[s.id]?.[i] === undefined)
-    /* ── 무엇으로 들렸는지 보여 준다 ──
-       한국어 STT 는 문장을 통째로 받으면 낱말을 흘린다("사물의 위치와 상태를" → "3월의 위치를").
-       그때 "다시 말해 보세요" 만 뜨면 학생은 **자기가 틀린 줄 안다.** 들린 말을 그대로 보여주면
-       한 번 더 또박또박 말하면 된다는 것이 바로 보인다. */
-    setHeard((p) => { const n = { ...p }; if (missed) n[s.id] = transcript; else delete n[s.id]; return n })
+    /* 들린 말은 **화면에 띄우지 않는다**(08-20 결정) — 학생에게 보여줄 것이 아니다.
+       다만 인식이 낱말을 흘리는 일이 잦아(실측: "사물의 위치와 상태를" → "3월의 위치를")
+       못 채운 경우만 콘솔에 남긴다. 무엇 때문에 안 됐는지 확인할 자리가 없으면 손댈 수가 없다. */
+    if (missed) console.log('[정리] 못 채움 — 들린 말:', transcript)
     if (missed) {
       shake(s.id, transcript)
       if (!speaking) void say(RETRY_LINE)
@@ -4397,7 +4386,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="space-y-3">
             {items.map((s, i) => (
               <RecapCard key={s.id} index={i} sentence={s} filled={fills[s.id]}
-                corrects={correctsOf(s)} heard={heard[s.id]}
+                corrects={correctsOf(s)}
                 wrong={wrong[s.id]} active={activeIdx === i}
                 onPick={(c, b) => pick(s, c, b)} onSpeak={(t, b) => speakAnswer(s, t, b)} />
             ))}
