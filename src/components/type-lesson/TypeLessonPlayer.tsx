@@ -731,7 +731,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   )
 }
 
-export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedIntro, scriptedSummary }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedPracticeOutro, scriptedIntro, scriptedSummary }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과. 지금은 화면에 쓰지 않는다 —
@@ -748,9 +748,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  에이전트에 맡기면 학생 답을 못 받아들이고 같은 요구를 반복하다 대본을 벗어난다(실측). */
   scripted?: boolean
   /** 실전 뒤 코칭도 대본이 있는가 (시트 '실전 1~4' 블록).
-   *  있으면 **틀린 문항만 고르지 않는다** — 시트가 문항 전부를 짚도록 써 있고, 다 맞혀도 지나간다.
-   *  없으면 예전대로 화면이 틀린 문항만 골라 턴을 만든다(reviewTurns). */
+   *  대본은 문항 전부를 짚도록 쓰여 있지만, **트는 것은 틀린 문항뿐이다** — 시트 진행 규칙이
+   *  "맞은 문제는 pass, 틀린 문제만 진행"(두 강사 공통)이라 reviewTurns 가 focusQ 로 걸러낸다.
+   *  대본이 없으면 예전대로 화면이 틀린 문항을 골라 턴을 스스로 만든다(reviewTurns). */
   scriptedReview?: Turn[]
+  /** 실전을 풀고 난 뒤 **오답이 있을 때만** 코칭 첫 마디로 하는 말 (시트 '실전 문제 풀이 후 멘트').
+   *  '{전체수}'·'{맞은수}' 는 여기서 채점 결과로 채운다 — 대본에 박아 둘 수 없는 숫자다.
+   *  다 맞히면 코칭 단계 자체가 열리지 않으므로 따로 막지 않는다. */
+  scriptedPracticeOutro?: string
   /** 도입 화면 대본 — 강사 발화와 '오늘 배울 내용'. 없으면 단계명에서 뽑는다 */
   scriptedIntro?: { script: string; points: string[] }
   /** 마지막 정리 화면의 퀴즈 대본 (시트 '핵심요약'). 없으면 강의에 박아 둔 문장 3개를 쓴다.
@@ -847,7 +852,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (scriptedReview?.length) {
       if (!results.length) return scriptedReview
       const wrong = new Set(wrongIdx)
-      return scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+      const only = scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+      /* ── 실전 결과 한 마디 ──
+         시트 '실전 문제 풀이 후 멘트' — "5문제 중 3문제 맞혔어요. 틀린 문제 같이 보러 갈까요?".
+         점수가 들어가야 해서 대본에 박아 둘 수 없다. 여기서 채워 **코칭 첫 마디**로 붙인다.
+         실전 화면에는 강사 자리가 없어 결과를 말할 데가 여기뿐이고, 다 맞히면 이 단계로
+         오지 않으므로 "오답 없으면 하지 않는다" 는 저절로 지켜진다. */
+      if (!scriptedPracticeOutro || !only.length) return only
+      const said = scriptedPracticeOutro
+        .replace('{전체수}', String(results.length))
+        .replace('{맞은수}', String(results.filter(Boolean).length))
+      return [{ no: 0, stage: '실전 결과', tutor: said, focusQ: only[0].focusQ, interaction: { kind: 'next' } }, ...only]
     }
     return wrongIdx.map((qIdx, n) => {
       const q = qs[qIdx]
@@ -869,7 +884,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         interaction: { kind: 'pickAnswer', qIdx, prompt: '다시 골라보세요' },
       } as Turn
     })
-  }, [practiceScore, practiceContent, scriptedReview])
+  }, [practiceScore, practiceContent, scriptedReview, scriptedPracticeOutro])
 
   /* 리뷰 단계에서는 **수업 렌더 경로를 그대로 재사용**한다 — 강사 창·에이전트·진행 게이트가
      이미 거기 붙어 있다. 콘텐츠와 턴만 갈아끼우면 되므로 lesson 자체를 바꿔치기한다. */
@@ -3840,6 +3855,29 @@ function RecapBlankSentence({ text, filled, correct, graded, answer }: {
   )
 }
 
+/** 주관식 답 한 칸 — 문장 사이 빈칸을 직접 적는 자리.
+ *  틀리면 **지우지 않는다.** 적은 말을 남겨 둬야 무엇을 고쳐야 할지 보인다(흔들림으로만 알린다). */
+function RecapAnswerInput({ onSubmit, shaking }: { onSubmit: (said: string) => void; shaking?: boolean }) {
+  const [text, setText] = useState('')
+  const send = () => { const t = text.trim(); if (t) onSubmit(t) }
+  return (
+    <div className={`flex items-center gap-2 ${shaking ? 'animate-shake' : ''}`}>
+      <input value={text} onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+        placeholder="빈칸에 들어갈 말을 적어 보세요"
+        aria-label="빈칸에 들어갈 말"
+        className={`w-[220px] max-w-full text-[13px] font-semibold rounded-lg border px-3 py-1.5 outline-none transition-colors
+                    placeholder:text-[#9CA3AF] placeholder:font-medium
+                    ${shaking ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                              : 'border-[#E5E7EB] bg-white text-[#1C1B33] focus:border-[#2563EB]'}`} />
+      <button onClick={send} disabled={!text.trim()}
+        className={`text-[12px] font-bold rounded-lg px-3 py-1.5 border transition-colors ${
+          text.trim() ? 'border-[#2563EB] bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
+                      : 'border-[#E5E7EB] bg-white text-[#CBD5E1]'}`}>확인</button>
+    </div>
+  )
+}
+
 /* ── 정리 카드 하나 ──
    **정답을 눌러야 입력된다.** 오답을 누르면 그 버튼만 빨갛게 흔들리고 아무것도 기록되지 않는다.
    그래서 빈칸에는 **정답만** 들어간다 — 틀린 답이 문장에 박히는 일도, 정답 글자를 초록으로
@@ -3879,6 +3917,13 @@ function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, on
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pl-9">
+        {/* ── 보기가 없으면 직접 적는다 ──
+            문장 사이 빈칸(전략 정리)은 08-19 결정으로 **주관식**이다. 배운 말을 스스로 꺼내는
+            자리라, 세 갈래를 깔아 두면 문장을 읽지 않고 눈으로 찍고 지나간다.
+            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다. */}
+        {sentence.choices.length === 0 && !done && (
+          <RecapAnswerInput shaking={!!wrong} onSubmit={onPick} />
+        )}
         {sentence.choices.map((c) => {
           const isAnswer = c === sentence.answer
           const shaking = wrong === c
@@ -3946,8 +3991,20 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const shakeTimers = useRef<number[]>([])
 
   /** 이 답이 맞는가 — 클릭이면 정답과 같은지, 음성이면 정답 표현이 들어 있는지 */
-  const isRight = (s: RecapSentence, said: string) =>
-    said === s.answer || s.keywords.some((k) => said.toLowerCase().includes(k))
+  /** 이 답이 맞는가 — 보기를 누른 것이면 정답과 같은지, 직접 적거나 말한 것이면 넉넉히 본다.
+   *  ⚠️ 넉넉한 비교는 **주관식(보기 없는 칸)에만** 쓴다. 어휘 확인에 걸면 뜻이 겹치는 보기끼리
+   *     서로 정답으로 통과한다 — 거기는 고른 그대로 채점해야 무엇을 모르는지 보인다. */
+  const loose = (x: string) => x.toLowerCase().replace(/[\s+·・.,()~]/g, '')
+  const isRight = (s: RecapSentence, said: string) => {
+    if (said === s.answer) return true
+    if (s.choices.length) return s.keywords.some((k) => said.toLowerCase().includes(k))
+    /* 적은 말은 기호·띄어쓰기가 제각각이다("be + -ing" ↔ "be ing"). 조사만 붙여 쓴 답
+       ("동작이요")과 핵심만 쓴 답("동작")도 받아 준다 — 여기는 배운 말을 꺼내는 자리지
+       받아쓰기가 아니다. */
+    const a = loose(said)
+    if (a.length < 1) return false
+    return s.keywords.some((k) => { const b = loose(k); return !!b && (a.includes(b) || (b.includes(a) && a.length >= 2)) })
+  }
 
   /** 채운 답이 맞았는가 — 전략 정리는 정답만 입력되므로 늘 true, 어휘 확인은 갈린다 */
   const correctOf = (s: RecapSentence): boolean | undefined => {
@@ -3964,7 +4021,14 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
      ⚠️ 목소리는 반드시 speakTTS(강사) 다. 예전 speakKorean 은 브라우저 TTS 라, 수업 내내
      강사 목소리로 듣다가 **마지막 화면에서만 기계 음성**으로 바뀌었다(실측). */
   const ttsPersona = INST_PERSONA[instructor] ?? 'park'
-  const FILL_HINT = '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+  /* 시트에 도입 문구가 없을 때만 쓰는 기본 안내 — 보기가 있으면 '골라', 없으면 '적어' 다.
+     화면에 없는 조작을 시키면 학생이 없는 버튼을 찾는다. */
+  const FILL_HINT = items[0]?.choices.length
+    ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+    : '빈칸에 들어갈 말을 직접 적어 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+  /** 주관식 칸을 틀렸을 때 강사가 하는 한 마디 (시트 진행 규칙). 고를 보기가 없어진 자리라
+   *  '선택해보세요' 대신 '답해 보세요' 로 둔다 — 화면에 고를 것이 없는데 고르라고 할 수는 없다. */
+  const RETRY_LINE = '다시 생각하고 답해 보세요.'
   const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
@@ -4079,7 +4143,13 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const answerOne = (s: RecapSentence, said: string) => {
     if (!said.trim()) return
     if (vocabPage) { setFills((p) => ({ ...p, [s.id]: said })); return }
-    if (!isRight(s, said)) { shake(s.id, said); return }
+    if (!isRight(s, said)) {
+      shake(s.id, said)
+      /* 보기가 없는 칸은 흔들림만으로는 무슨 일이 일어났는지 모른다 — 시트가 정한 대로
+         강사가 한 마디 한다("정답 틀리면 … AI 강사 문구"). 말하는 중이면 얹지 않는다. */
+      if (!s.choices.length && !speaking) void say(RETRY_LINE)
+      return
+    }
     setFills((p) => ({ ...p, [s.id]: s.answer }))
   }
   const pick = (s: RecapSentence, choice: string) => answerOne(s, choice)

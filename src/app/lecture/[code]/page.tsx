@@ -164,6 +164,8 @@ export default function LecturePage() {
   return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} scripted={!!scenario}
     /* 실전을 푼 뒤의 코칭도 대본이 있다 — 틀린 문항만이 아니라 시트에 적힌 문항 전부를 짚는다 */
     scriptedReview={scenario?.review}
+    /* 실전 뒤 결과 멘트 — 오답이 있을 때만 코칭 첫 마디로 나간다(점수는 화면이 채운다) */
+    scriptedPracticeOutro={scenario?.practiceOutro}
     scriptedIntro={scenario?.intro}
     /* 마지막 정리 퀴즈도 시트에 있다 — 강의에 박아 둔 영어 문장 대신 그 강의의 판단 순서를
        되짚는다. 묶음이 여럿일 수 있다(전략 정리 + 빈출 표현) */
