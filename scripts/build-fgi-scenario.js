@@ -432,6 +432,21 @@ function parse(tabName, range, section) {
   return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length || b.text)
 }
 
+/** ── 영문 문법 용어를 **한국어로 말했을 때** ──
+ *  정리 화면은 빈칸을 채운 문장 전체를 소리 내어 읽게 한다(08-20 결정). 그런데 문장은 한국어라
+ *  STT 를 ko-KR 로 돌리고, 그러면 "have been + p.p." 가 영문 그대로 올 리가 없다.
+ *  **답이 영문인 자리는 네 곳뿐**이라(이도윤 LC 2 · RC 1) 통째로 적어 둔다 — 낱말 단위로
+ *  ('be'→'비') 풀면 한 글자짜리 열쇠말이 생겨 아무 말에나 걸린다.
+ *  ⚠️ 실제 STT 가 무엇을 뱉는지는 **브라우저에서 확인해야 한다.** 여기 적힌 것은 예상형이고,
+ *     확인되면 그대로 고칠 것. 영문으로 오는 기기는 위 alts 로 이미 걸린다. */
+const SPOKEN_KO = {
+  'be + -ing': ['비 아이엔지', '비잉', 'be ing', 'be -ing'],
+  'be p.p.': ['비 피피', '비피피'],
+  'be + p.p.': ['비 피피', '비피피'],
+  'have been + p.p.': ['해브 빈 피피', '해브빈 피피', '해브 빈 피 피'],
+  'be being + p.p.': ['비 비잉 피피', '비빙 피피', '비 빙 피피'],
+}
+
 /** 핵심요약 한 줄 → 정리 카드 하나.
  *    "사람 중심 사진 → 사람의 (    ) 확인" | "① 위치 ② 동작 ③ 주변 사물" | "② 동작" | "맞아요. …"
  *  화면(RecapCard)은 빈칸을 '___' 로 찾고, 답을 맞히면 `ko` 를 아래에 띄운다 — 그 자리가
@@ -467,7 +482,8 @@ function toRecapCard(q, id) {
   const altsOf = (a) => a.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
   const blankOf = (a) => {
     const alts = altsOf(a)
-    return { answer: alts[0], keywords: Array.from(new Set(alts.map((x) => x.toLowerCase()))) }
+    const spoken = alts.flatMap((x) => SPOKEN_KO[x.toLowerCase()] || [])
+    return { answer: alts[0], keywords: Array.from(new Set([...alts.map((x) => x.toLowerCase()), ...spoken])) }
   }
 
   /* ── 빈칸이 둘 이상인 문항 ──
@@ -490,14 +506,14 @@ function toRecapCard(q, id) {
     }
   }
 
-  const alts = altsOf(answer)
+  const one = blankOf(answer)
   return {
     id: `s${id}`,
     en: text,
     ko: clean(q.feedback),
-    answer: alts[0],
-    choices: [],                                   // 빈 배열 = 주관식 (화면이 입력칸을 낸다)
-    keywords: Array.from(new Set(alts.map((x) => x.toLowerCase()))),
+    answer: one.answer,
+    choices: [],                                   // 빈 배열 = 주관식 (화면이 마이크를 낸다)
+    keywords: one.keywords,
   }
 }
 
@@ -699,13 +715,16 @@ function build(src) {
     dropped += items.filter((x) => !x).length
     const kept = items.filter(Boolean)
     /* ── 보기가 없어진 묶음은 도입도 그렇게 말해야 한다 ──
-       시트 도입이 아직 "빈칸에 들어갈 말을 **골라서**" 다(네 강의 모두). 보기를 없앤 화면에서
-       고르라고 하면 학생이 없는 버튼을 찾는다 — 강사 말과 화면이 어긋나는 그 문제다.
-       낱말 하나만 바꾼다. **시트도 고쳐야 한다**(고치면 이 자리는 저절로 안 걸린다). */
+       시트 도입은 "빈칸에 들어갈 말을 **골라서** 배운 내용을 정리해보세요" 다(네 강의 모두).
+       그런데 이 묶음은 보기도 없고 적을 칸도 없다 — **빈칸을 채워 문장 전체를 소리 내어 읽는**
+       자리다(08-20 결정). 강사가 고르라고 하면 학생이 없는 버튼을 찾는다.
+       뒷문장은 시트 그대로 두고 **시키는 동작만** 바꿔 끼운다. */
     let intro = b.intro || ''
-    if (kept.length && !kept[0].choices.length && /골라/.test(intro)) {
-      intro = intro.replace(/골라서/g, '직접 적어서').replace(/골라\s*보세요/g, '적어 보세요').replace(/골라보세요/g, '적어보세요')
-      console.log(`   ✎ "${b.title}" 도입의 '골라서' 를 '직접 적어서' 로 바꿨다(주관식 묶음) — 시트도 고칠 것`)
+    if (kept.length && !kept[0].choices.length && /골라|적어/.test(intro)) {
+      intro = intro
+        .replace(/빈칸에 들어갈 말을 (골라서|직접 적어서)/g, '빈칸을 채워서 문장 전체를 소리 내어 읽으면서')
+        .replace(/골라\s*보세요/g, '말해 보세요').replace(/골라보세요/g, '말해보세요')
+      console.log(`   ✎ "${b.title}" 도입을 '빈칸을 채워서 문장 전체를 읽으면서' 로 바꿨다(음성으로 받는 묶음)`)
     }
     return { title: b.title || '', intro, items: kept }
   }).filter((g) => g.items.length)

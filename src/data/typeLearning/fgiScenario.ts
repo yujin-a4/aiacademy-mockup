@@ -49,7 +49,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 1 사람·사물 사진 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸을 채워서 문장 전체를 소리 내어 읽으면서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
@@ -1579,7 +1579,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 5 능동태·수동태 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸을 채워서 문장 전체를 소리 내어 읽으면서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
@@ -2675,7 +2675,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 1 사람·사물 사진 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸을 채워서 문장 전체를 소리 내어 읽으면서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
@@ -2694,7 +2694,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "answer": "be + -ing",
               "choices": [],
               "keywords": [
-                "be + -ing"
+                "be + -ing",
+                "비 아이엔지",
+                "비잉",
+                "be ing",
+                "be -ing"
               ]
             },
             {
@@ -2714,19 +2718,28 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "answer": "have been + p.p.",
               "choices": [],
               "keywords": [
-                "have been + p.p."
+                "have been + p.p.",
+                "해브 빈 피피",
+                "해브빈 피피",
+                "해브 빈 피 피"
               ],
               "blanks": [
                 {
                   "answer": "have been + p.p.",
                   "keywords": [
-                    "have been + p.p."
+                    "have been + p.p.",
+                    "해브 빈 피피",
+                    "해브빈 피피",
+                    "해브 빈 피 피"
                   ]
                 },
                 {
                   "answer": "be being + p.p.",
                   "keywords": [
-                    "be being + p.p."
+                    "be being + p.p.",
+                    "비 비잉 피피",
+                    "비빙 피피",
+                    "비 빙 피피"
                   ]
                 }
               ]
@@ -5166,7 +5179,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
       summary: [
         {
           "title": "Part 5 능동태·수동태 핵심 정리",
-          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 직접 적어서 배운 내용을 정리해보세요!",
+          "intro": "오늘 배운 내용 빠르게 정리해볼게요. 빈칸을 채워서 문장 전체를 소리 내어 읽으면서 배운 내용을 정리해보세요!",
           "items": [
             {
               "id": "s1_1",
@@ -5200,7 +5213,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "choices": [],
               "keywords": [
                 "be p.p.",
-                "be + p.p."
+                "be + p.p.",
+                "비 피피",
+                "비피피"
               ]
             },
             {

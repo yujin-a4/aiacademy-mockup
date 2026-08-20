@@ -3851,6 +3851,11 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
 const VOCAB_RE = /^(.+?)\s*=\s*___\s*$/
 const isVocabGroup = (items: RecapSentence[]) => items.length >= 3 && items.every((s) => VOCAB_RE.test(s.en))
 
+/** 정리 화면에서 **글자로 답을 받는가.**
+ *  08-20 결정으로 껐다 — 빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메운다. 지금은 빈칸을
+ *  채운 문장 전체를 소리 내어 읽게 한다. 되돌리려면 이 한 줄을 true 로. */
+const RECAP_TEXT_INPUT = false
+
 /** 이 문항의 빈칸들 — 하나뿐이면 `answer`/`keywords` 가 그 칸이다.
  *  화면·채점·강사 멘트가 전부 이 배열 하나만 보게 해서, 칸이 하나든 둘이든 길이 갈리지 않는다. */
 const blanksOf = (s: RecapSentence) => s.blanks?.length ? s.blanks : [{ answer: s.answer, keywords: s.keywords }]
@@ -3980,11 +3985,14 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pl-9">
-        {/* ── 보기가 없으면 직접 적는다 ──
-            문장 사이 빈칸(전략 정리)은 08-19 결정으로 **주관식**이다. 배운 말을 스스로 꺼내는
-            자리라, 세 갈래를 깔아 두면 문장을 읽지 않고 눈으로 찍고 지나간다.
-            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다. */}
-        {sentence.choices.length === 0 && at >= 0 && (
+        {/* ── 보기가 없으면 **문장을 통째로 말한다** ──
+            문장 사이 빈칸(전략 정리)은 주관식인데, 08-20 결정으로 **글자 입력을 받지 않는다.**
+            빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메우게 된다 — 배운 말을 문장 안에서
+            꺼내 쓰는 것까지가 이 자리의 목적이라, 빈칸을 채운 **문장 전체**를 소리 내어 읽게 한다.
+            한 번 말하면 칸을 순서대로 찾아 한꺼번에 채운다(fillFromSpeech).
+            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다.
+            ⚠️ 글자 입력은 지운 것이 아니라 꺼 둔 것이다(RECAP_TEXT_INPUT) — 되돌리려면 여기 한 줄. */}
+        {RECAP_TEXT_INPUT && sentence.choices.length === 0 && at >= 0 && (
           <RecapAnswerInput shaking={!!wrong} onSubmit={(said) => onPick(said, at)}
             order={blanks.length > 1 ? at : undefined} />
         )}
@@ -4009,8 +4017,14 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
           )
         })}
         {/* 받아쓸 말이 어느 나라 말인가 — 기본 정리는 영어 문장 빈칸이지만, 대본 강의의 핵심요약은
-            "사람의 (___) 확인" 같은 **한국어 전략 퀴즈**다. en-US 로 받으면 한 마디도 못 알아듣는다. */}
-        {at >= 0 && <MicButton lang={/[가-힣]/.test(sentence.answer) ? 'ko-KR' : 'en-US'}
+            "사람의 (___) 확인" 같은 **한국어 전략 퀴즈**다. en-US 로 받으면 한 마디도 못 알아듣는다.
+            ⚠️ 문장을 통째로 말하는 자리는 **다 말한 뒤 한 번만** 받는다(finalOnly) — 중간 토막마다
+               판정이 돌면 문장을 반쯤 읽은 자리에서 "다시 말해 보세요" 가 끼어든다. */}
+        {at >= 0 && <MicButton lang={/[가-힣]/.test(sentence.en + sentence.answer) ? 'ko-KR' : 'en-US'}
+          finalOnly={!sentence.choices.length}
+          label={!sentence.choices.length
+            ? (blanks.length > 1 ? '빈칸을 채워서 문장 전체를 말해 보세요' : '빈칸을 채워서 문장을 말해 보세요')
+            : undefined}
           onResult={(t) => onSpeak(t, at)} />}
       </div>
     </div>
@@ -4096,10 +4110,10 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
      화면에 없는 조작을 시키면 학생이 없는 버튼을 찾는다. */
   const FILL_HINT = items[0]?.choices.length
     ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
-    : '빈칸에 들어갈 말을 직접 적어 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
-  /** 주관식 칸을 틀렸을 때 강사가 하는 한 마디 (시트 진행 규칙). 고를 보기가 없어진 자리라
-   *  '선택해보세요' 대신 '답해 보세요' 로 둔다 — 화면에 고를 것이 없는데 고르라고 할 수는 없다. */
-  const RETRY_LINE = '다시 생각하고 답해 보세요.'
+    : '마이크를 누르고 빈칸을 채워서 문장 전체를 읽어 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+  /** 못 채웠을 때 강사가 하는 한 마디 (시트 진행 규칙). 고를 보기도 적을 칸도 없는 자리라
+   *  '선택해보세요' 가 아니라 **무엇을 해야 하는지** 그대로 말한다. */
+  const RETRY_LINE = '다시 한번, 빈칸을 채워서 문장 전체를 읽어 보세요.'
   const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
@@ -4230,7 +4244,53 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
     put(blanksOf(s)[blank]?.answer ?? s.answer)
   }
   const pick = (s: RecapSentence, choice: string, blank = 0) => answerOne(s, choice, blank)
-  const speakAnswer = (s: RecapSentence, transcript: string, blank = 0) => answerOne(s, transcript, blank)
+
+  /** ── 말한 문장 하나에서 칸을 **순서대로** 찾는다 ──
+   *  학생은 빈칸을 채운 문장 전체를 읽는다("주어가 동작을 직접 하는 주체이면 능동태, …").
+   *  칸마다 따로 듣지 않고 그 한 번의 말에서 앞 칸부터 차례로 찾아 나간다.
+   *
+   *  ⚠️ **순서를 지켜야 한다.** 찾은 자리 뒤에서만 다음 칸을 찾는다 — 그냥 "들어 있는가" 로
+   *     보면 능동태·수동태를 **바꿔 말해도** 둘 다 통과한다. 그 문항이 잡으려는 실수가 바로
+   *     그것이라, 자리가 어긋나면 못 맞힌 것으로 본다. */
+  const fillFromSpeech = (s: RecapSentence, said: string): (string | undefined)[] => {
+    const hay = loose(said)
+    const out: (string | undefined)[] = []
+    let from = 0
+    for (const b of blanksOf(s)) {
+      let hit: { at: number; len: number } | null = null
+      for (const k of (b.keywords.length ? b.keywords : [b.answer])) {
+        const needle = loose(k)
+        if (!needle) continue
+        const at = hay.indexOf(needle, from)
+        if (at >= 0 && (hit === null || at < hit.at)) hit = { at, len: needle.length }
+      }
+      if (hit) { out.push(b.answer); from = hit.at + hit.len } else out.push(undefined)
+    }
+    return out
+  }
+
+  /** 음성 답. 보기가 있는 자리(어휘)는 예전처럼 한 칸을 받고,
+   *  보기가 없는 자리(전략 정리)는 **문장 하나로 칸을 한꺼번에** 채운다. */
+  const speakAnswer = (s: RecapSentence, transcript: string, blank = 0) => {
+    if (!transcript.trim()) return
+    if (s.choices.length) { answerOne(s, transcript, blank); return }
+    const found = fillFromSpeech(s, transcript)
+    /* 칸이 하나뿐이면 예전 판정도 한 번 더 본다 — 답의 일부만 말한 경우까지 받아 주던 자리다
+       ("be + -ing" 를 "비 아이엔지" 로 말하는 식). 칸이 여럿이면 자리를 따져야 해서 쓰지 않는다. */
+    if (found.length === 1 && found[0] === undefined && isRight(s, transcript, 0)) found[0] = blanksOf(s)[0].answer
+    setFills((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as string | undefined)
+      found.forEach((v, i) => { if (v !== undefined) cur[i] = v })
+      return { ...p, [s.id]: cur }
+    })
+    /* 한 칸이라도 못 찾았으면 흔들고 강사가 한 마디 한다 — 찾은 칸은 그대로 남는다(다시 읽으면
+       나머지가 채워진다). 무엇이 비었는지는 문장의 빈칸이 보여 준다. */
+    const missed = found.some((v, i) => v === undefined && fills[s.id]?.[i] === undefined)
+    if (missed) {
+      shake(s.id, transcript)
+      if (!speaking) void say(RETRY_LINE)
+    }
+  }
 
   return (
     <div className="h-dvh flex flex-col bg-[#F5F8FE] overflow-hidden">
