@@ -4022,9 +4022,7 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
                판정이 돌면 문장을 반쯤 읽은 자리에서 "다시 말해 보세요" 가 끼어든다. */}
         {at >= 0 && <MicButton lang={/[가-힣]/.test(sentence.en + sentence.answer) ? 'ko-KR' : 'en-US'}
           finalOnly={!sentence.choices.length}
-          label={!sentence.choices.length
-            ? (blanks.length > 1 ? '빈칸을 채워서 문장 전체를 말해 보세요' : '빈칸을 채워서 문장을 말해 보세요')
-            : undefined}
+          label={!sentence.choices.length ? '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요' : undefined}
           onResult={(t) => onSpeak(t, at)} />}
       </div>
     </div>
@@ -4110,10 +4108,10 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
      화면에 없는 조작을 시키면 학생이 없는 버튼을 찾는다. */
   const FILL_HINT = items[0]?.choices.length
     ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
-    : '마이크를 누르고 빈칸을 채워서 문장 전체를 읽어 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+    : '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
   /** 못 채웠을 때 강사가 하는 한 마디 (시트 진행 규칙). 고를 보기도 적을 칸도 없는 자리라
    *  '선택해보세요' 가 아니라 **무엇을 해야 하는지** 그대로 말한다. */
-  const RETRY_LINE = '다시 한번, 빈칸을 채워서 문장 전체를 읽어 보세요.'
+  const RETRY_LINE = '다시 한번, 빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요.'
   const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
