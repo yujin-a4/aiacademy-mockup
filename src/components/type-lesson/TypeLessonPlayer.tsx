@@ -1686,6 +1686,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draw.strokeCount, turnIdx])
 
+  /* 문제가 바뀌면 필기를 지운다 — **턴이 아니라 문제 단위다.**
+     한 문제 안에서는 시험지처럼 그대로 남아야 한다(위 enterBase 주석). 그런데 다음 사진·문장으로
+     넘어간 뒤에도 남아 있으면 앞 문제에 친 동그라미가 새 사진 위에 떠 있다(실측 보고 08-18).
+     필기 도구를 껐다 켜면 다시 보이는 것도 같은 뿌리다 — 획이 ref 에 그대로 있어서다. */
+  const drawnItemRef = useRef<number | null>(null)
+  const curNavKey = navKeyOf(turn) ?? null
+  useEffect(() => {
+    if (drawnItemRef.current !== null && drawnItemRef.current !== curNavKey) draw.clearCanvas()
+    drawnItemRef.current = curNavKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curNavKey])
+
   /* ── 음원 재생 토큰 ──
      학생이 직접 돌린 재생(문장/보기)과 턴이 트는 음원이 겹치지 않게 세대를 센다.
      전체 재생 바는 없앴다 — "지금 어디가 나오는지"는 음원이 나오는 곳(보기·문항 옆 스피커)에서 보여준다. */
@@ -3209,6 +3221,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
   pageRef.current = page
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
+
+  /* 문항을 넘기면 필기를 지운다 — 획은 판 하나짜리 캔버스에 쌓이므로, 안 지우면 앞 문항에 친
+     동그라미가 다음 문항 위에 그대로 떠 있다(실측 보고 08-18). 음원이 자동으로 넘긴 경우도 같다. */
+  const drawnPageRef = useRef(0)
+  useEffect(() => {
+    if (drawnPageRef.current !== page) { draw.clearCanvas(); drawnPageRef.current = page }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   /* ── 풀이 시간 ──
      실전은 시험처럼 푸는 단계라 "얼마나 걸렸는지"가 곧 실력의 일부다. 초 단위로 올라가다가
