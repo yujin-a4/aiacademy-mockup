@@ -178,7 +178,10 @@ export interface RecapSentence {
   en: string
   ko: string           // 한국어 뜻(빈칸 채운 뒤 나란히 보여줌)
   answer: string        // 빈칸 정답(표시용)
-  choices: string[]     // 클릭 모드 선택지(정답 포함, 순서 섞어서 저장)
+  /** 클릭 모드 선택지(정답 포함, 순서 섞어서 저장).
+   *  **비어 있으면 주관식**이다 — 화면이 보기 대신 입력칸을 낸다. 문장 사이 빈칸(전략 정리)이
+   *  그쪽이고, 뜻 고르기(어휘)는 보기를 그대로 쓴다(08-19 결정). */
+  choices: string[]
   keywords: string[]    // 음성 모드 매칭 키워드(소문자, 정답으로 인정할 표현들)
 }
 

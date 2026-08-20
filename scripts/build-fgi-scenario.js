@@ -19,7 +19,7 @@
  *   강사마다 표 머리 낱말이 다르다(`스캐폴딩`/`AI 강사`/`학생 답변 방식`…) → 이름으로 찾는다.
  *
  * 학생 방식 → 화면 상호작용
- *   2지선다 → choice(2개)   말하기·음성 → subjective   A~D·선택형 → pickAnswer
+ *   2·3지 선다 → choice   말하기·음성 → subjective   A~D·선택형 → pickAnswer
  *   O/X → choice(맞아요/아니에요)   듣기·'-' → next
  *
  * 2지선다는 시트에 보기가 따로 없다 — 강사 발화에서 뽑는다. 세 가지 꼴을 안다.
@@ -92,7 +92,10 @@ function normMode(raw) {
   const m = clean(raw).replace(/\s/g, '').toUpperCase()
   if (!m || m === '-' || m === '–' || m === '—') return '듣기'
   if (m.includes('O/X') || m.includes('OX')) return 'O/X'
-  if (m.includes('2지선다') || m.includes('양자')) return '2지선다'
+  /* **몇 갈래인지는 시트가 정한다.** 08-19 최종본에서 '3지 선다' 가 6줄 들어왔다(이도윤).
+     숫자를 박아 두면 새 갈래 수를 만났을 때 조용히 듣기로 떨어지고, 학생은 답할 자리를 잃은 채
+     바로 뒤 '(정답)/(오답)' 줄만 듣는다(실측). 그래서 N 을 가리지 않고 받는다. */
+  if (/[0-9]지선다/.test(m) || m.includes('양자')) return '선다'
   if (m.includes('A~D') || m.includes('A-D') || m.includes('선택형')) return 'A~D'
   if (m.includes('말하기') || m.includes('음성') || m.includes('주관')) return '말하기'
   /* 시험지에 동그라미·밑줄을 치게 하는 자리. 이도윤은 '필기', 윤다은은 '표시' 라고 적는다 */
@@ -271,9 +274,26 @@ function sliceSection(values, section) {
  * @param range   읽을 **열** 구간 [from, to) — 강의가 좌우로 둘 있는 탭(FGI_이도윤)
  * @param section 읽을 **행** 구간을 여는 제목 줄 — 강의가 위아래로 둘 있는 탭(FGI_윤다은)
  */
+/** 취소선 그은 줄 = **지운 단계**. 값만 받는 덤프로는 안 보여서 따로 받아 둔다.
+ *  없으면 그냥 지나간다(예전처럼 동작) — 다만 지운 단계가 수업에 남으므로,
+ *  대본을 새로 받을 때 `python scripts/fetch-fgi-struck.py` 를 같이 돌릴 것. */
+const STRUCK = (() => {
+  const p = path.join(__dirname, 'fgi_struck.json')
+  if (!fs.existsSync(p)) {
+    console.log('⚠️ fgi_struck.json 이 없다 — 취소선(삭제) 줄을 거르지 못한다')
+    return {}
+  }
+  return JSON.parse(fs.readFileSync(p, 'utf8'))
+})()
+
 function parse(tabName, range, section) {
   const tab = JSON.parse(fs.readFileSync(DUMP, 'utf8')).sheets.find((s) => s.name === tabName)
   if (!tab) throw new Error(`시트에 "${tabName}" 탭이 없다 — 콘텐츠팀이 탭 이름을 바꿨는지 볼 것`)
+
+  /* 지운 줄은 **자르지 않고 비운다** — 행을 빼면 뒤 행 번호가 밀려 취소선 목록과 어긋난다 */
+  for (const r of STRUCK[tabName] || []) {
+    if (tab.values[r]) tab.values[r] = []
+  }
 
   const blocks = []
   let cur = null
@@ -290,7 +310,13 @@ function parse(tabName, range, section) {
       /* 강의 끝의 정리 퀴즈. 표 모양이 대본 표와 아주 달라(번호|퀴즈|보기|정답|피드백) 따로 받는다
          — 대본 표로 읽으려 들면 머리 줄을 못 찾아 통째로 버려진다.
          **묶음이 여럿일 수 있다**: 이도윤은 '핵심 요약 (1)' 전략 · '(2)' 빈출 표현 둘로 나눠 썼다. */
-      : /^핵심\s*요약(\s*\(\d+\))?$/.test(c0) ? 'recap' : null
+      : /^핵심\s*요약(\s*\(\d+\))?$/.test(c0) ? 'recap'
+      /* 실전 앞뒤에서 강사가 한 번씩 하는 말. 문항에 매이지 않아 표가 아니라 **한 줄**이다.
+           preface — "실전 문제로 넘어갈 때 멘트" → 유형 학습 맨 끝에서 한다
+           result  — "실전 문제 풀이 후 멘트"   → 오답 코칭을 열면서 한다(다 맞히면 안 한다)
+         이 둘은 예전에 곁가지로 보고 통째로 버렸다 — 그래서 실전 화면이 무음이었다. */
+      : /^실전\s*문제로\s*넘어갈\s*때\s*멘트$/.test(c0) ? 'preface'
+      : /^실전\s*문제\s*풀이\s*후\s*멘트$/.test(c0) ? 'result' : null
     if (head) {
       cur = { kind: head, turns: [], script: [], points: [], quiz: [] }
       blocks.push(cur)
@@ -304,6 +330,12 @@ function parse(tabName, range, section) {
       continue
     }
 
+    /* preface·result 본문은 **홀로 선 한 줄**이다. 아래 lone 처리로 내려가면 블록이 닫혀
+       사라지므로 여기서 먼저 받는다. 다음 제목 줄(…멘트/…버전)이 오면 받기를 멈춘다. */
+    if (cur && (cur.kind === 'preface' || cur.kind === 'result')) {
+      if (c0 && !/멘트$|버전$|^\[/.test(c0)) { cur.script.push(c0); continue }
+    }
+
     /* ── 홀로 선 제목 줄은 앞 블록을 **닫는다** ──
        'FGI_이도윤' 에는 본편 말고도 '유형 학습 3 → 실전 문제 버전'(시간이 없을 때 쓰는 대체본),
        '실전 문제로 넘어갈 때 멘트' 같은 곁가지가 사이사이 들어 있다. 닫지 않으면 그것들이
@@ -312,6 +344,9 @@ function parse(tabName, range, section) {
        빠뜨리면 블록이 여기서 끊겨 그 문항 대본이 통째로 사라진다(실측: 24강 전체가 빈 채로 나왔다). */
     const lone = c0 && !row.slice(1).some((x) => clean(x))
     const meta = /^(ID:|사진:|정답:|문항:|보기:)/.test(c0) || /^YBM_[A-Z0-9_]+$/i.test(c0)
+    /* '[공통사항] … 실전 문제 풀이 전에 강사가 "…" 라고 안내하도록 함' — 윤다은은 실전 안내
+       문구를 따로 블록으로 두지 않고 이 메모 안에 따옴표로 적어 뒀다. 그래서 메모도 들고 간다. */
+    if (lone && /^\[/.test(c0)) blocks.push({ kind: 'note', text: c0, turns: [], script: [], points: [], quiz: [] })
     if (lone && !meta) { cur = null; cols = null; continue }
 
     if (!cur) continue
@@ -343,10 +378,32 @@ function parse(tabName, range, section) {
     /* ── 핵심요약도 표가 아니다 ── 번호 | 퀴즈 | 보기 | 정답 | 정답 후 강사 피드백
        묶음마다 '화면 제목' 과 'AI 강사 도입' 이 앞에 붙기도 한다(이도윤). 윤다은은 없다. */
     if (cur.kind === 'recap') {
-      if (/^화면\s*제목$/.test(c0)) { cur.wantTitle = true; continue }
+      /* ── '화면 제목' 이 또 나오면 **새 묶음**이다 ──
+         이도윤은 '핵심 요약 (1)/(2)' 로 머리를 달지만 윤다은은 제목 줄만 하나 더 둔다.
+         안 나누면 전략 정리와 어휘가 한 판에 섞이고 제목도 뒤엣것으로 덮인다
+         (실측: 윤다은 13문항이 통째로 '핵심 빈출 표현 정리' 한 판이었다). */
+      if (/^화면\s*제목$/.test(c0)) {
+        if (cur.quiz.length) { cur = { kind: 'recap', turns: [], script: [], points: [], quiz: [] }; blocks.push(cur) }
+        cur.wantTitle = true
+        continue
+      }
       if (cur.wantTitle && c0) { cur.title = c0; cur.intro = clean(row[1]); cur.wantTitle = false; continue }
-      if (!/^\d+$/.test(c0)) continue        // 표 머리('문항'·'화면에 보여줄 내용')와 빈 줄은 버린다
-      cur.quiz.push({ text: clean(row[1]), options: clean(row[2]), answer: clean(row[3]), feedback: clean(row[4]) })
+      /* ── 표 머리에서 **칸 자리를 읽는다** ──
+         묶음마다 다르다. 어휘 정리는 '보기'(또는 '선택지') 칸이 있고, 전략 정리는 08-19 개정에서
+         보기 칸이 통째로 빠졌다 — 문장 빈칸은 주관식으로 가기로 했기 때문이다.
+         자리를 고정으로 박아 두면 칸 하나가 빠진 순간 정답 자리에서 피드백을 읽는다(실측: 10문항 전멸). */
+      if (!/^\d+$/.test(c0)) {
+        const at = (re) => row.findIndex((x) => re.test(clean(x)))
+        if (at(/^정답$/) >= 0) cur.cols = { options: at(/^(보기|선택지)$/), answer: at(/^정답$/), feedback: at(/AI\s*강사|피드백/) }
+        continue        // 표 머리와 빈 줄은 여기서 끝
+      }
+      const rc = cur.cols || { options: 2, answer: 3, feedback: 4 }
+      cur.quiz.push({
+        text: clean(row[1]),
+        options: rc.options >= 0 ? clean(row[rc.options]) : '',
+        answer: clean(row[rc.answer]),
+        feedback: rc.feedback >= 0 ? clean(row[rc.feedback]) : '',
+      })
       continue
     }
 
@@ -368,7 +425,8 @@ function parse(tabName, range, section) {
       samples: samples(sampleRaw),
     })
   }
-  return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length)
+  /* 빈 껍데기는 버린다. note 는 turns·script 가 없지만 text 하나로 뜻이 있으므로 남긴다 */
+  return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length || b.text)
 }
 
 /** 핵심요약 한 줄 → 정리 카드 하나.
@@ -381,22 +439,38 @@ function toRecapCard(q, id) {
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
-  if (!text.includes('___') || choices.length < 2 || !answer) return drop('빈칸·보기·정답이 모자람')
-  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다) */
+  if (!text.includes('___') || !answer) return drop('빈칸이나 정답이 없음')
+  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다).
+     정답도 한 칸에 둘이 들어가 있어 어느 것이 앞 빈칸인지 알 수 없다 — 시트에서 두 줄로 나눠야 한다. */
   if (text.split('___').length > 2) return drop('빈칸이 2개')
-  /* ── 정답이 보기에 없으면 올리지 않는다 ──
-     번호(①②)를 믿고 싶지만 **믿을 수 없다.** 실측으로 둘이 갈렸다:
-       "① 어디에 어떤 상태로 있는지" ← ①='위치와 상태'  뜻이 같다(패러프레이즈)
-       "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
-     번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
-  if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
+
+  /* ── 어휘 확인만 보기를 쓴다 ──
+     "line up = ( )" 처럼 뜻을 고르는 자리는 세 갈래에서 고르는 것이 문제 자체다.
+     반대로 **문장 사이 빈칸**(전략 정리)은 08-19 결정으로 **보기 없이 주관식**이다 —
+     배운 말을 스스로 꺼내는 자리라 보기를 주면 눈으로 찍고 지나간다.
+     ⚠️ 시트에 보기가 남아 있어도 쓰지 않는다(윤다은 탭은 아직 안 고쳐졌다). */
+  const isVocab = /=\s*___\s*$/.test(text)
+  if (isVocab) {
+    if (choices.length < 2) return drop('어휘 문항인데 보기가 모자람')
+    /* ── 정답이 보기에 없으면 올리지 않는다 ──
+       번호(①②)를 믿고 싶지만 **믿을 수 없다.** 실측으로 둘이 갈렸다:
+         "① 어디에 어떤 상태로 있는지" ← ①='위치와 상태'  뜻이 같다(패러프레이즈)
+         "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
+       번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
+    if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
+    return { id: `s${id}`, en: text, ko: clean(q.feedback), answer, choices, keywords: [answer.toLowerCase()] }
+  }
+
+  /* 주관식은 **받아 줄 말을 넉넉히** 들고 간다. 시트가 "be p.p. 또는 be + p.p." 처럼
+     같은 답을 두 가지로 적어 두기도 하고, 학생은 조사나 기호를 빼고 쓴다("be ing"). */
+  const alts = answer.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
   return {
     id: `s${id}`,
     en: text,
     ko: clean(q.feedback),
-    answer,
-    choices,
-    keywords: [answer.toLowerCase()],
+    answer: alts[0],
+    choices: [],                                   // 빈 배열 = 주관식 (화면이 입력칸을 낸다)
+    keywords: Array.from(new Set(alts.map((x) => x.toLowerCase()))),
   }
 }
 
@@ -450,21 +524,36 @@ function labelsOf(t) {
  *  그대로 읽으면 강사가 **두 경우를 다 읊는다**(실측). 갈라서 담고 화면이 하나만 고른다. */
 function branchOf(tutor) {
   const t = clean(tutor)
-  const m = /풀이\s*결과가\s*정답일\s*때\s*(.+?)\s*풀이\s*결과가\s*오답일\s*때\s*(.+)$/.exec(t)
-  if (!m) return null
-  return { ok: clean(m[1]), wrong: clean(m[2]) }
+  /* ① 옛 표기 — 시트가 한 칸에 두 경우를 문장으로 적던 때 */
+  const old = /풀이\s*결과가\s*정답일\s*때\s*(.+?)\s*풀이\s*결과가\s*오답일\s*때\s*(.+)$/.exec(t)
+  if (old) return { ok: clean(old[1]), wrong: clean(old[2]) }
+  /* ② 지금 표기 — "(정답) …" 줄바꿈 "(오답) …" 을 한 칸에 적는다.
+     ⚠️ 이 갈래를 몰라서 오답 문구 21개가 통째로 버려지고 있었다(08-18 실측). 시트가 표기를
+        바꾸면 여기가 조용히 새므로, 아래 출력의 '⑂ 정답/오답 갈래' 개수를 시트와 대조할 것. */
+  const cur = /\(\s*정답\s*\)\s*([\s\S]+?)\s*\(\s*오답\s*\)\s*([\s\S]+)$/.exec(t)
+  if (cur) return { ok: clean(cur[1]), wrong: clean(cur[2]) }
+  /* ③ 한쪽만 적힌 칸 — 표시만 떼고 그대로 쓴다. 그냥 두면 강사가 "정답" 을 소리내어 읽는다. */
+  const lone = /^\(\s*(?:정답|오답)\s*\)\s*([\s\S]+)$/.exec(t)
+  if (lone) return { ok: clean(lone[1]), wrong: null }
+  return null
 }
 
 function playCue(tutor) {
   const t = clean(tutor)
-  if (!/재생\s*$/.test(t)) return null
-  const m = /정답\s*([A-D])\s*를/.exec(t)
+  if (!/재생\s*\.?\s*$/.test(t)) return null
+  /* **몇 번째 보기인가** — 줄 안에서 홀로 선 **첫** A~D 를 쓴다.
+     ⚠️ 뒤에서 찾으면 안 된다. 꼬리에 붙은 영어 보기 문장에도 홀로 선 글자가 있다
+        ("다음 선택지 C 볼게요. A handbag has been left…" → 뒤에서 찾으면 A 를 튼다). */
+  const m = /(?:^|[^A-Za-z])([A-D])(?![A-Za-z])/.exec(t)
   if (!m) return null
   const said = t
-    .replace(/재생\s*$/, '')                                   // 지시어를 뗀다
+    .replace(/재생\s*\.?\s*$/, '')                             // 지시어를 뗀다
     .replace(/\s*[A-Z][A-Za-z'’,.\-\s]{6,}[.!?]?\s*$/, '')     // 뒤에 붙은 영어 문장을 뗀다
+    /* "… 볼게요. 선택지 A" 처럼 **한국어로 적은 지시**도 뗀다 — 08-19 최종본에서 늘었다.
+       떼지 않으면 강사가 "선택지 A 재생" 을 소리내어 읽고, 정작 보기 음원은 안 나간다(실측 9줄). */
+    .replace(/([.!?])?[,\s]*(?:선택지\s*)?[A-D]\s*\.?\s*$/, (_, dot) => dot || '')   // 문장 끝 마침표는 남긴다
     .trim()
-  return { label: m[1], said: said || t.replace(/재생\s*$/, '').trim() }
+  return { label: m[1], said: said || t.replace(/재생\s*\.?\s*$/, '').trim() }
 }
 
 /** @param audible 보기를 **소리로** 듣는 강의인가 (LC). RC Part 5 는 보기가 글자라 음원이 없다 */
@@ -483,7 +572,7 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   if (cue) base.audio = { kind: 'option', qIdx, label: cue.label }
   if (branch) {
     const w = playCue(branch.wrong)
-    base.tutorIfWrong = w ? w.said : branch.wrong
+    if (branch.wrong) base.tutorIfWrong = w ? w.said : branch.wrong
   }
   /* 지목한 보기가 있으면 그 스크립트를 연다. 공개는 누적이라 한 번 열린 보기는 계속 보인다.
      정답 고르기(A~D) 턴에는 붙이지 않는다 — 고르기도 전에 보기 글자가 열리면 듣기가 아니게 된다. */
@@ -506,7 +595,7 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
         choices: [{ text: 'O', ...(yes ? { correct: true } : {}) },
                   { text: 'X', ...(yes ? {} : { correct: true })}] } }
     }
-    case '2지선다': {
+    case '선다': {
       /* ① 방식 칸에 선택지가 적혀 있으면 그것이 정본 — "2지선다 / 1) 표준화하는 쪽 2) 표준화되는 대상".
          정답은 예시 답변의 번호로 정한다("2) 표준화되는 대상"). */
       const written = modeChoices(t.modeRaw)
@@ -563,7 +652,17 @@ function build(src) {
   const groups = blocks.filter((b) => b.kind === 'recap').map((b, gi) => {
     const items = b.quiz.map((q, i) => toRecapCard(q, `${gi + 1}_${i + 1}`))
     dropped += items.filter((x) => !x).length
-    return { title: b.title || '', intro: b.intro || '', items: items.filter(Boolean) }
+    const kept = items.filter(Boolean)
+    /* ── 보기가 없어진 묶음은 도입도 그렇게 말해야 한다 ──
+       시트 도입이 아직 "빈칸에 들어갈 말을 **골라서**" 다(네 강의 모두). 보기를 없앤 화면에서
+       고르라고 하면 학생이 없는 버튼을 찾는다 — 강사 말과 화면이 어긋나는 그 문제다.
+       낱말 하나만 바꾼다. **시트도 고쳐야 한다**(고치면 이 자리는 저절로 안 걸린다). */
+    let intro = b.intro || ''
+    if (kept.length && !kept[0].choices.length && /골라/.test(intro)) {
+      intro = intro.replace(/골라서/g, '직접 적어서').replace(/골라\s*보세요/g, '적어 보세요').replace(/골라보세요/g, '적어보세요')
+      console.log(`   ✎ "${b.title}" 도입의 '골라서' 를 '직접 적어서' 로 바꿨다(주관식 묶음) — 시트도 고칠 것`)
+    }
+    return { title: b.title || '', intro, items: kept }
   }).filter((g) => g.items.length)
   if (groups.length) out.summary = groups
   console.log(`핵심요약: ${groups.length
@@ -572,7 +671,7 @@ function build(src) {
     + (dropped ? `   ⚠️ 올리지 않은 ${dropped}개 — 시트를 고쳐야 한다(위 ✗ 참고)` : ''))
 
   for (const b of blocks) {
-    if (b.kind === 'intro' || b.kind === 'recap') continue
+    if (['intro', 'recap', 'preface', 'result', 'note'].includes(b.kind)) continue
     const lesson = b.kind === 'lesson'
     if (!lesson && src.skipPractice) continue      // 실전 대본이 미완이라 통째로 버린다
     const qIdx = lesson ? lessonSeq++ : practiceSeq++
@@ -593,6 +692,39 @@ function build(src) {
       target.push(turn)
     }
   }
+  /* ── 실전 앞뒤 강사 멘트 ──
+     시트가 문항 표 밖에 한 줄씩 적어 둔 말이다. 놓치면 실전 화면이 통째로 무음이 된다.
+       · 실전 전 → **유형 학습 맨 끝 턴**으로 붙인다. 실전 화면에는 강사 자리가 없어서,
+         "이제 다섯 문제 풀어볼게요" 를 할 수 있는 마지막 자리가 여기다.
+       · 실전 후 → 문자열로만 넘긴다. 오답이 있을 때만, 코칭 첫 마디로 화면이 읽는다
+         (점수가 들어가야 해서 대본에 박아 둘 수 없다 — 아래 {전체수}/{맞은수}). */
+  const prefaceBlock = blocks.find((b) => b.kind === 'preface')
+  const noteText = blocks.filter((b) => b.kind === 'note').map((b) => b.text).join(' ')
+  /* 윤다은은 블록이 없고 [공통사항] 메모 안에 따옴표로만 적어 둑다 — "'…'라고 안내하도록 함" */
+  const fromNote = /실전\s*문제\s*풀이\s*전에\s*강사가\s*['‘"]([^'’"]+)['’"]/.exec(noteText)
+  let practiceIntro = clean(prefaceBlock ? prefaceBlock.script.join(' ') : (fromNote ? fromNote[1] : ''))
+  if (practiceIntro && practiceSeq) {
+    /* "총 5 문제" — 시트가 두 강의에 같은 문장을 복사해 놓아서 LC(4문항)에서는 숫자가 틀리다.
+       읽어 줄 수를 우리가 알고 있으니 맞춰 넣는다. 고친 자리는 아래에 찍어 눈으로 보게 한다. */
+    const fixed = practiceIntro.replace(/총\s*\d+\s*문제/, `총 ${practiceSeq} 문제`)
+    if (fixed !== practiceIntro) console.log(`
+  ✎ 실전 안내의 문항 수를 ${practiceSeq}개로 맞췄다(시트는 다른 수를 적어 두었다)`)
+    practiceIntro = fixed
+  }
+  if (practiceIntro) {
+    out.turns.push({ no: ++no, itemSeq: lessonSeq, occurrence: lessonSeq, stage: '실전 안내',
+      tutor: practiceIntro, focusQ: Math.max(0, lessonSeq - 1), interaction: { kind: 'next' } })
+    console.log(`
+  ▶ 실전 전 멘트(유형 학습 끝) — ${practiceIntro.slice(0, 60)}…`)
+  }
+  const resultBlock = blocks.find((b) => b.kind === 'result')
+  if (resultBlock && resultBlock.script.length) {
+    /* 점수는 그때 가서 채운다 — 시트는 '5 문제 중 0 문제 맞혔어요' 처럼 예시 숫자로 적어 두었다 */
+    out.practiceOutro = clean(resultBlock.script.join(' '))
+      .replace(/\d+\s*문제\s*중\s*\d+\s*문제/, '{전체수} 문제 중 {맞은수} 문제')
+    console.log(`  ▶ 실전 후 멘트(오답 코칭 첫 마디) — ${out.practiceOutro.slice(0, 60)}…`)
+  }
+
   if (src.skipPractice) console.log('\n  ⚠️ 실전 대본은 미완이라 올리지 않았다 — 화면이 틀린 문항만 골라 스스로 코칭한다')
   console.log(`\n  수업 ${out.turns.length}턴 · 실전 코칭 ${out.review.length}턴`)
   return out
@@ -637,13 +769,18 @@ export interface ScriptedLesson {
    *  **묶음이 여럿일 수 있다.** 이도윤은 전략 정리와 빈출 표현을 둘로 나눠 쓰고, 묶음마다
    *  화면 제목과 강사 도입을 따로 달아 뒀다. 윤다은은 묶음 하나에 제목이 없다. */
   summary?: { title: string; intro: string; items: RecapSentence[] }[]
+  /** 실전을 풀고 난 뒤, **틀린 문항이 있을 때만** 코칭 첫 마디로 하는 말 (시트 '실전 문제 풀이 후 멘트').
+   *  {전체수}·{맞은수} 자리는 화면이 채점 결과로 채운다. 다 맞히면 코칭 자체가 없어 쓰이지 않는다.
+   *  실전 **전** 멘트는 여기 없다 — 유형 학습 마지막 턴('실전 안내')으로 이미 들어가 있다. */
+  practiceOutro?: string
 }
 
 /** 강사코드 → 강의코드 → 대본. 여기 있는 조합만 대본으로 돈다. */
 export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
 ${Object.entries(byInstructor).map(([inst, byCode]) => `  ${inst}: {
 ${Object.entries(byCode).map(([code, s]) => `    '${code}': {
-${s.intro ? `      intro: ${ind(JSON.stringify(s.intro, null, 2), '      ')},\n` : ''}${s.summary ? `      summary: ${ind(JSON.stringify(s.summary, null, 2), '      ')},\n` : ''}      turns: ${ind(JSON.stringify(s.turns, null, 2), '      ')},
+${s.intro ? `      intro: ${ind(JSON.stringify(s.intro, null, 2), '      ')},\n` : ''}${s.summary ? `      summary: ${ind(JSON.stringify(s.summary, null, 2), '      ')},\n` : ''}${s.practiceOutro ? `      practiceOutro: ${JSON.stringify(s.practiceOutro)},
+` : ''}      turns: ${ind(JSON.stringify(s.turns, null, 2), '      ')},
       review: ${ind(JSON.stringify(s.review, null, 2), '      ')},
     },`).join('\n')}
   },`).join('\n')}
