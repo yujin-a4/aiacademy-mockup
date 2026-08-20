@@ -205,6 +205,11 @@ function stopVoice() {
  *     그게 목록에 없어 앱이 "좋아요, 맞았어요." 를 또 얹었다(실측). 대본을 새로 받으면
  *     **첫 문장의 칭찬 표현을 다시 훑어야 한다** — scripts 로 전수 확인하는 편이 빠르다. */
 const ACK_OPENER = /^(맞\s*아요|맞\s*습니다|좋\s*아요|좋\s*습니다|좋\s*네요|그렇\s*죠|그래\s*요|정확\s*해요|정확\s*합니다|잘\s*했어요|잘\s*찾았어요|잘\s*하셨어요|완벽\s*해요|훌륭\s*해요|바로\s*그거|네[,\s])/
+
+/** **학생에게 무엇을 물은** 턴들 — 이 뒤에 오는 대본 줄은 그 대답에 대한 반응이다.
+ *  (여기 있는 종류는 전부 답을 받을 때 `prevOkRef` 를 채운다: choice·subjective →
+ *   handleScriptedAnswer, mark·match → finishMark, pickAnswer → handleScriptedPick) */
+const ASKING_KINDS = new Set(['choice', 'pickAnswer', 'subjective', 'mark', 'match'])
 /** 대본 첫머리의 맞장구를 뗀다 — "맞아요. 인물이 …" → "인물이 …".
  *  뗄 것이 없거나 떼면 문장이 없어지는 줄은 그대로 둔다(맞장구만 있는 줄도 있다). */
 /** 맞았을 때 앱이 넣는 맞장구 — **돌려 쓴다.**
@@ -1838,7 +1843,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
         const picked = turn.focusQ !== undefined ? answers[turn.focusQ] : undefined
         const gotIt = !!picked && picked === q?.options.find((o) => o.correct)?.label
-        const verdictTurn = /S5|정답\s*근거/.test(turn.stage) && picked !== undefined
+        /* ⚠️ 단계 이름만 보면 안 된다 — **바로 앞 턴이 학생에게 무엇을 물었는지**가 먼저다.
+           S5 안에도 스캐폴딩 질문이 있다("여기서 핵심 동작을 나타내는 표현이 뭐였죠? 1) is painting
+           2) on an easel"). 그 대답에 붙는 반응 줄까지 문항 기준으로 고르는 바람에, 문항을 틀린
+           학생이 스캐폴딩을 **맞혀도** 오답 갈래를 들었다(실측 보고 08-20, 이도윤 LC 1번).
+           앞 턴이 물어본 턴이면 이 줄은 그 대답에 대한 반응이다 — prevOk 로 고른다. */
+        const askedJustBefore = ASKING_KINDS.has(turns[turnIdx - 1]?.interaction.kind ?? '')
+        const verdictTurn = !askedJustBefore && /S5|정답\s*근거/.test(turn.stage) && picked !== undefined
         const wrongNow = verdictTurn ? !gotIt : prevOkRef.current === false
         const useWrong = !!turn.tutorIfWrong && wrongNow
         const scripted0 = useWrong ? turn.tutorIfWrong! : turn.tutor
