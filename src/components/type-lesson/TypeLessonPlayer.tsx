@@ -2675,9 +2675,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   /* 대본 모드에서 마이크를 여는 때 — 학생 차례이고 강사가 말하지 않는 동안만.
      낭독 중에 열어 두면 강사 목소리를 학생 답으로 전사한다. */
-  const voiceOn = !!scripted && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
+  /** ── 마이크를 여는 **단계** ──
+   *  ⚠️ 이 조건이 없어서 수업 마이크가 **실전·정리 화면에서도 계속 열려 있었다.**
+   *     단계를 넘어가도 `turn` 은 수업에서 멈춘 자리에 그대로라, 그 턴이 주관식이면 조건이
+   *     계속 참이다. 그러면 정리 화면에서 학생이 말한 문장을 **수업 쪽 인식기가 먼저 먹고**
+   *     (거기서는 쓸 데가 없어 그냥 버려진다), 정리 화면 마이크는 같은 마이크를 두고 다툰다.
+   *     "음성으로 답해도 하나도 입력이 안 된다" 가 이것이었다(실측 08-20).
+   *  말로 답하는 자리는 수업(스캐폴딩)과 오답 코칭뿐이다. 실전은 보기를 누르고, 정리는
+   *  자기 마이크 버튼을 쓴다. */
+  const voicePhase = phase === 'lesson' || phase === 'review'
+  const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
-  const getScriptedMicFreq = useScriptedVoice(!!scripted && chatMode === 'voice', voiceOn, (text) => {
+  const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
     if (asking) void askTutor(text)
     else answerSubjective(text)
   })
