@@ -402,6 +402,9 @@ function parse(tabName, range, section) {
         text: clean(row[1]),
         options: rc.options >= 0 ? clean(row[rc.options]) : '',
         answer: clean(row[rc.answer]),
+        /* 빈칸이 둘 이상인 문항은 **줄바꿈이 곧 칸 구분**이다 — clean() 이 그걸 공백으로
+           눌러 버리므로 날것 그대로도 같이 들고 간다(toRecapCard 가 여기서 칸을 가른다). */
+        answerRaw: String((rc.answer >= 0 ? row[rc.answer] : '') ?? ''),
         feedback: rc.feedback >= 0 ? clean(row[rc.feedback]) : '',
       })
       continue
@@ -429,6 +432,21 @@ function parse(tabName, range, section) {
   return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length || b.text)
 }
 
+/** ── 영문 문법 용어를 **한국어로 말했을 때** ──
+ *  정리 화면은 빈칸을 채운 문장 전체를 소리 내어 읽게 한다(08-20 결정). 그런데 문장은 한국어라
+ *  STT 를 ko-KR 로 돌리고, 그러면 "have been + p.p." 가 영문 그대로 올 리가 없다.
+ *  **답이 영문인 자리는 네 곳뿐**이라(이도윤 LC 2 · RC 1) 통째로 적어 둔다 — 낱말 단위로
+ *  ('be'→'비') 풀면 한 글자짜리 열쇠말이 생겨 아무 말에나 걸린다.
+ *  ⚠️ 실제 STT 가 무엇을 뱉는지는 **브라우저에서 확인해야 한다.** 여기 적힌 것은 예상형이고,
+ *     확인되면 그대로 고칠 것. 영문으로 오는 기기는 위 alts 로 이미 걸린다. */
+const SPOKEN_KO = {
+  'be + -ing': ['비 아이엔지', '비잉', 'be ing', 'be -ing'],
+  'be p.p.': ['비 피피', '비피피'],
+  'be + p.p.': ['비 피피', '비피피'],
+  'have been + p.p.': ['해브 빈 피피', '해브빈 피피', '해브 빈 피 피'],
+  'be being + p.p.': ['비 비잉 피피', '비빙 피피', '비 빙 피피'],
+}
+
 /** 핵심요약 한 줄 → 정리 카드 하나.
  *    "사람 중심 사진 → 사람의 (    ) 확인" | "① 위치 ② 동작 ③ 주변 사물" | "② 동작" | "맞아요. …"
  *  화면(RecapCard)은 빈칸을 '___' 로 찾고, 답을 맞히면 `ko` 를 아래에 띄운다 — 그 자리가
@@ -440,9 +458,7 @@ function toRecapCard(q, id) {
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
   if (!text.includes('___') || !answer) return drop('빈칸이나 정답이 없음')
-  /* 빈칸이 둘인 문항은 화면이 못 그린다(RecapBlankSentence 는 '___' 하나를 앞뒤로 가른다).
-     정답도 한 칸에 둘이 들어가 있어 어느 것이 앞 빈칸인지 알 수 없다 — 시트에서 두 줄로 나눠야 한다. */
-  if (text.split('___').length > 2) return drop('빈칸이 2개')
+  const nBlanks = text.split('___').length - 1
 
   /* ── 어휘 확인만 보기를 쓴다 ──
      "line up = ( )" 처럼 뜻을 고르는 자리는 세 갈래에서 고르는 것이 문제 자체다.
@@ -463,15 +479,60 @@ function toRecapCard(q, id) {
 
   /* 주관식은 **받아 줄 말을 넉넉히** 들고 간다. 시트가 "be p.p. 또는 be + p.p." 처럼
      같은 답을 두 가지로 적어 두기도 하고, 학생은 조사나 기호를 빼고 쓴다("be ing"). */
-  const alts = answer.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
+  const altsOf = (a) => a.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
+  const blankOf = (a) => {
+    const alts = altsOf(a)
+    const spoken = alts.flatMap((x) => SPOKEN_KO[x.toLowerCase()] || [])
+    return { answer: alts[0], keywords: Array.from(new Set([...alts.map((x) => x.toLowerCase()), ...spoken])) }
+  }
+
+  /* ── 빈칸이 둘 이상인 문항 ──
+     "주어가 하는 주체이면 ( ), 받는 대상이면 ( )를 쓴다" 처럼 한 문장이 두 개념을 짝지어 묻는
+     줄이 있다. 예전에는 화면이 '___' 하나만 앞뒤로 갈라서 이런 문항을 통째로 버렸다.
+     **정답 칸이 줄바꿈으로 나뉘어 있고, 그 순서가 곧 빈칸 순서다.** */
+  if (nBlanks > 1) {
+    /* ⚠️ clean() 은 줄바꿈을 공백으로 눌러 버린다 — 나누는 것이 먼저다 */
+    const parts = String(q.answerRaw ?? q.answer ?? '').split(/[\r\n]+/).map((x) => num(x)).filter(Boolean)
+    if (parts.length !== nBlanks) return drop(`빈칸 ${nBlanks}개인데 정답은 ${parts.length}개`)
+    const ordered = reorderBlankAnswers(text, parts)
+    return {
+      id: `s${id}`,
+      en: text,
+      ko: clean(q.feedback),
+      answer: ordered[0].split(/\s*(?:또는|\/|,)\s*/)[0],   // 첫 칸 — 마이크 언어 판별 등이 본다
+      choices: [],
+      keywords: blankOf(ordered[0]).keywords,
+      blanks: ordered.map(blankOf),
+    }
+  }
+
+  const one = blankOf(answer)
   return {
     id: `s${id}`,
     en: text,
     ko: clean(q.feedback),
-    answer: alts[0],
-    choices: [],                                   // 빈 배열 = 주관식 (화면이 입력칸을 낸다)
-    keywords: Array.from(new Set(alts.map((x) => x.toLowerCase()))),
+    answer: one.answer,
+    choices: [],                                   // 빈 배열 = 주관식 (화면이 마이크를 낸다)
+    keywords: one.keywords,
   }
+}
+
+/** ── 시트가 정답을 **문장과 반대 순서**로 적어 둔 자리 하나 ──
+ *  이도윤 LC 핵심요약: 문장은 "이미 놓여 있을 때 ( ) … 진행되는 중일 때 ( )" 인데
+ *  정답 칸은 "be being + p.p. / have been + p.p." 로 뒤집혀 있다(바로 옆 피드백 칸에는
+ *  "have/has been + p.p. 는 사물이 이미 …" 라고 제대로 적혀 있다).
+ *  코드가 알아낼 수 있는 종류의 오류가 아니라서 **이 짝이 이 순서로 나올 때만** 바로잡는다 —
+ *  시트를 고치면 짝의 순서가 달라져 이 함수는 저절로 아무 일도 안 한다. **시트도 고쳐야 한다.** */
+function reorderBlankAnswers(text, answers) {
+  const has = (x) => text.includes(x)
+  if (answers.length === 2
+      && /^be being \+ p\.?p\.?$/i.test(answers[0].trim())
+      && /^have been \+ p\.?p\.?$/i.test(answers[1].trim())
+      && has('이미 어떤 상태로 놓여 있을 때') && has('진행되는 중일 때')) {
+    console.log('   ✎ 핵심요약 정답 순서를 문장에 맞춰 뒤집었다(시트 오기) — "이미 놓여 있을 때"가 have been + p.p.')
+    return [answers[1], answers[0]]
+  }
+  return answers
 }
 
 /** 이 턴이 **어느 보기를 지목하고 있는가** — "이번에는 A를 볼게요", "D에서는 …",
@@ -654,13 +715,18 @@ function build(src) {
     dropped += items.filter((x) => !x).length
     const kept = items.filter(Boolean)
     /* ── 보기가 없어진 묶음은 도입도 그렇게 말해야 한다 ──
-       시트 도입이 아직 "빈칸에 들어갈 말을 **골라서**" 다(네 강의 모두). 보기를 없앤 화면에서
-       고르라고 하면 학생이 없는 버튼을 찾는다 — 강사 말과 화면이 어긋나는 그 문제다.
-       낱말 하나만 바꾼다. **시트도 고쳐야 한다**(고치면 이 자리는 저절로 안 걸린다). */
+       시트 도입은 "빈칸에 들어갈 말을 **골라서** 배운 내용을 정리해보세요" 다(네 강의 모두).
+       그런데 이 묶음은 보기도 없고 적을 칸도 없다 — **빈칸을 채운 문장을 소리 내어 말하는**
+       자리다(08-20 결정). 강사가 고르라고 하면 학생이 없는 버튼을 찾는다.
+       앞머리("빈칸에 들어갈 말을")는 시트 그대로 두고 **시키는 동작만** 갈아 끼운다.
+         → "오늘 배운 내용 빠르게 정리해볼게요. 빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요!" */
     let intro = b.intro || ''
-    if (kept.length && !kept[0].choices.length && /골라/.test(intro)) {
-      intro = intro.replace(/골라서/g, '직접 적어서').replace(/골라\s*보세요/g, '적어 보세요').replace(/골라보세요/g, '적어보세요')
-      console.log(`   ✎ "${b.title}" 도입의 '골라서' 를 '직접 적어서' 로 바꿨다(주관식 묶음) — 시트도 고칠 것`)
+    if (kept.length && !kept[0].choices.length && /골라|적어/.test(intro)) {
+      intro = intro
+        .replace(/빈칸에 들어갈 말을 (골라서|직접 적어서)/g, '빈칸에 들어갈 말을 채워서')
+        .replace(/채워서\s*배운 내용을 정리해\s*보세요/g, '채워서 문장을 소리 내어 말해 보세요')
+        .replace(/골라\s*보세요/g, '소리 내어 말해 보세요').replace(/골라보세요/g, '소리 내어 말해보세요')
+      console.log(`   ✎ "${b.title}" 도입을 '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요' 로 바꿨다`)
     }
     return { title: b.title || '', intro, items: kept }
   }).filter((g) => g.items.length)
