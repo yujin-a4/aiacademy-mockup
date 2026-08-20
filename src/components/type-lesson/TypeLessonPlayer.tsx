@@ -3840,41 +3840,75 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
 const VOCAB_RE = /^(.+?)\s*=\s*___\s*$/
 const isVocabGroup = (items: RecapSentence[]) => items.length >= 3 && items.every((s) => VOCAB_RE.test(s.en))
 
-/* 빈칸 포함 문장 렌더 */
-function RecapBlankSentence({ text, filled, correct, graded, answer }: {
-  text: string; filled?: string; correct?: boolean; graded?: boolean; answer: string
+/** 이 문항의 빈칸들 — 하나뿐이면 `answer`/`keywords` 가 그 칸이다.
+ *  화면·채점·강사 멘트가 전부 이 배열 하나만 보게 해서, 칸이 하나든 둘이든 길이 갈리지 않는다. */
+const blanksOf = (s: RecapSentence) => s.blanks?.length ? s.blanks : [{ answer: s.answer, keywords: s.keywords }]
+
+/* 빈칸 포함 문장 렌더 — 빈칸은 **여러 개일 수 있다.**
+   "주어가 하는 주체이면 ( ), 받는 대상이면 ( )를 쓴다" 처럼 한 문장이 두 개념을 짝지어
+   묻는 줄이 시트에 있다. 예전에는 '___' 하나만 앞뒤로 갈라서 그런 문항을 통째로 버렸다. */
+function RecapBlankSentence({ text, filled, corrects, answers, activeBlank }: {
+  text: string
+  /** 칸마다 학생이 넣은 말 (아직이면 undefined) */
+  filled?: (string | undefined)[]
+  /** 칸마다 맞았는가 */
+  corrects?: (boolean | undefined)[]
+  /** 칸마다 정답 */
+  answers: string[]
+  /** 지금 답할 차례인 칸 — 한 칸씩 순서대로 받으므로 그 자리를 파랗게 띄운다 */
+  activeBlank?: number
 }) {
   /* ── 무엇을 빈칸에 넣을 것인가 ──
-     전략 정리(correct 가 늘 true)는 **정답을 눌러야만** 입력되므로 빈칸에는 늘 정답이 들어간다.
+     전략 정리(correct 가 늘 true)는 **정답을 넣어야만** 입력되므로 빈칸에는 늘 정답이 들어간다.
      어휘 확인은 틀려도 그대로 채점하므로 **내가 고른 답**이 들어가고 빨갛게 칠해진다 —
      "line up = 흩어 놓다" 는 틀린 말이니 빨강이 맞고, 진짜 답은 아래 초록 버튼이 알려준다.
      (정답을 빈칸에 초록으로 넣으면 틀렸는데 맞은 것처럼 보인다 — 예전에 그래서 이상했다) */
-  const shown = graded ? (correct === false ? filled : answer) : filled
-  const [pre, post] = text.split('___')
+  const parts = text.split('___')
   return (
     <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed">
-      {pre}
-      <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 rounded-md border-b-2 font-black align-baseline transition-colors ${
-        shown === undefined ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
-          : correct === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
-            : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-      }`}>{shown ?? '____'}</span>
-      {post}
+      {parts.map((part, i) => {
+        if (i === parts.length - 1) return <span key={i}>{part}</span>
+        const mine = filled?.[i]
+        const ok = corrects?.[i]
+        const shown = mine === undefined ? undefined : ok === false ? mine : answers[i]
+        return (
+          <span key={i}>
+            {part}
+            <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 rounded-md border-b-2 font-black align-baseline transition-colors ${
+              shown === undefined
+                ? activeBlank === i ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]'
+                  : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
+                : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                  : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
+            }`}>{shown ?? '____'}</span>
+          </span>
+        )
+      })}
     </p>
   )
 }
 
 /** 주관식 답 한 칸 — 문장 사이 빈칸을 직접 적는 자리.
  *  틀리면 **지우지 않는다.** 적은 말을 남겨 둬야 무엇을 고쳐야 할지 보인다(흔들림으로만 알린다). */
-function RecapAnswerInput({ onSubmit, shaking }: { onSubmit: (said: string) => void; shaking?: boolean }) {
+function RecapAnswerInput({ onSubmit, shaking, order }: {
+  onSubmit: (said: string) => void; shaking?: boolean
+  /** 빈칸이 여럿인 문항에서 **지금 몇 번째 칸을 받는가** (0-based). 하나뿐이면 넘기지 않는다.
+   *  칸을 한꺼번에 늘어놓지 않고 순서대로 받는다 — 입력칸 두 개를 나란히 두면 어느 것이
+   *  어느 빈칸인지 알 수 없다(문장 안 빈칸에는 번호가 없다). */
+  order?: number
+}) {
   const [text, setText] = useState('')
-  const send = () => { const t = text.trim(); if (t) onSubmit(t) }
+  const send = () => { const t = text.trim(); if (t) { onSubmit(t); setText('') } }
+  const nth = order === undefined ? '' : `${['첫', '두', '세', '네', '다섯'][order] ?? String(order + 1)} 번째 `
   return (
     <div className={`flex items-center gap-2 ${shaking ? 'animate-shake' : ''}`}>
+      {order !== undefined && (
+        <span className="text-[11.5px] font-bold text-[#2563EB] bg-[#EFF6FF] rounded-md px-2 py-1 whitespace-nowrap">{nth}빈칸</span>
+      )}
       <input value={text} onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
-        placeholder="빈칸에 들어갈 말을 적어 보세요"
-        aria-label="빈칸에 들어갈 말"
+        placeholder={`${nth}빈칸에 들어갈 말을 적어 보세요`}
+        aria-label={`${nth}빈칸에 들어갈 말`}
         className={`w-[220px] max-w-full text-[13px] font-semibold rounded-lg border px-3 py-1.5 outline-none transition-colors
                     placeholder:text-[#9CA3AF] placeholder:font-medium
                     ${shaking ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
@@ -3891,25 +3925,33 @@ function RecapAnswerInput({ onSubmit, shaking }: { onSubmit: (said: string) => v
    **정답을 눌러야 입력된다.** 오답을 누르면 그 버튼만 빨갛게 흔들리고 아무것도 기록되지 않는다.
    그래서 빈칸에는 **정답만** 들어간다 — 틀린 답이 문장에 박히는 일도, 정답 글자를 초록으로
    칠할지 빨강으로 칠할지 고민할 일도 없어진다(색이 두 뜻을 지던 문제가 사라진다). */
-function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, onSpeak, active }: {
-  index: number; sentence: RecapSentence; filled?: string
-  onPick: (choice: string) => void; onSpeak: (transcript: string) => void
-  /** 맞았는가 — 전략 정리는 늘 true(정답만 입력된다), 어휘 확인은 틀리면 false */
-  correct?: boolean
-  /** 이 칸이 채워졌는가 */
-  graded?: boolean
-  /** 방금 누른 오답 — 잠깐 흔들리고 스스로 사라진다 */
+function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, active }: {
+  index: number; sentence: RecapSentence
+  /** 칸마다 학생이 넣은 말 — 빈칸이 하나면 길이 1이다 */
+  filled?: (string | undefined)[]
+  /** 답한다 — `blank` 는 몇 번째 빈칸인가(하나뿐이면 0) */
+  onPick: (choice: string, blank: number) => void
+  onSpeak: (transcript: string, blank: number) => void
+  /** 칸마다 맞았는가 — 전략 정리는 늘 true(정답만 입력된다), 어휘 확인은 틀리면 false */
+  corrects?: (boolean | undefined)[]
+  /** 방금 넣은 오답 — 잠깐 흔들리고 스스로 사라진다 */
   wrong?: string
   /** 강사가 **지금 이 칸을 짚고 있는가** — 말과 화면이 같은 곳을 가리켜야 따라갈 수 있다 */
   active?: boolean
 }) {
-  const done = filled !== undefined
+  const blanks = blanksOf(sentence)
+  const answers = blanks.map((b) => b.answer)
+  /** 지금 받을 빈칸 — 앞에서부터 아직 안 찬 칸. 다 찼으면 -1 */
+  const at = blanks.findIndex((_, i) => filled?.[i] === undefined)
+  const done = at === -1
+  /** 한 칸이라도 틀렸는가 — 칸 색·테두리를 정한다 */
+  const anyWrong = corrects?.some((c) => c === false)
   return (
     /* 짚는 중인 칸은 파란 링으로 띄운다 — 어느 것을 말하는지 한눈에 보인다 */
     <div className={`rounded-2xl border bg-white p-4 transition-all ${
       active ? 'border-[#2563EB] ring-2 ring-[#BFDBFE] shadow-[0_2px_14px_rgba(37,99,235,0.14)] scale-[1.01]'
         : !done ? 'border-[#E5E7EB]'
-          : correct === false ? 'border-[#FCA5A5]' : 'border-[#86EFAC]'
+          : anyWrong ? 'border-[#FCA5A5]' : 'border-[#86EFAC]'
     }`}>
       <div className="flex items-start gap-2.5 mb-2.5">
         {/* ── 번호는 ✓ 로 바뀌지 않는다 ──
@@ -3920,9 +3962,10 @@ function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, on
             대신 색만 초록으로 바꿔 채워진 칸을 알린다. */}
         <span className={`shrink-0 w-7 h-7 rounded-full text-[12px] font-black flex items-center justify-center transition-colors ${
           !done ? 'bg-[#EFF6FF] text-[#2563EB]'
-            : correct === false ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
+            : anyWrong ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
         }`}>{index + 1}</span>
-        <RecapBlankSentence text={sentence.en} filled={filled} correct={correct} graded={graded} answer={sentence.answer} />
+        <RecapBlankSentence text={sentence.en} filled={filled} corrects={corrects} answers={answers}
+          activeBlank={blanks.length > 1 && at >= 0 ? at : undefined} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pl-9">
@@ -3930,8 +3973,9 @@ function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, on
             문장 사이 빈칸(전략 정리)은 08-19 결정으로 **주관식**이다. 배운 말을 스스로 꺼내는
             자리라, 세 갈래를 깔아 두면 문장을 읽지 않고 눈으로 찍고 지나간다.
             뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다. */}
-        {sentence.choices.length === 0 && !done && (
-          <RecapAnswerInput shaking={!!wrong} onSubmit={onPick} />
+        {sentence.choices.length === 0 && at >= 0 && (
+          <RecapAnswerInput shaking={!!wrong} onSubmit={(said) => onPick(said, at)}
+            order={blanks.length > 1 ? at : undefined} />
         )}
         {sentence.choices.map((c) => {
           const isAnswer = c === sentence.answer
@@ -3941,12 +3985,12 @@ function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, on
              "빨강 → 하늘색" 으로 읽혀 무슨 뜻인지 알 수 없다(실측). 채워진 칸(초록)과도
              헷갈린다. hover 는 테두리로만 알린다. */
           return (
-            <button key={c} disabled={done} onClick={() => onPick(c)}
+            <button key={c} disabled={done} onClick={() => onPick(c, 0)}
               className={`text-[12px] font-semibold border rounded-lg px-3 py-1.5 transition-colors ${shaking ? 'animate-shake' : ''} ${
                 done
                   /* 다 고른 뒤 — 정답은 초록, 내가 고른 오답은 빨강 취소선, 나머지는 흐림 */
                   ? isAnswer ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                    : filled === c ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
+                    : filled?.[0] === c ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
                       : 'border-[#E5E7EB] text-[#CBD5E1]'
                   : shaking ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
                     : 'border-[#E5E7EB] bg-white text-[#374151] hover:border-[#2563EB] hover:text-[#1D4ED8]'
@@ -3955,7 +3999,8 @@ function RecapCard({ index, sentence, filled, correct, graded, wrong, onPick, on
         })}
         {/* 받아쓸 말이 어느 나라 말인가 — 기본 정리는 영어 문장 빈칸이지만, 대본 강의의 핵심요약은
             "사람의 (___) 확인" 같은 **한국어 전략 퀴즈**다. en-US 로 받으면 한 마디도 못 알아듣는다. */}
-        {!graded && <MicButton lang={/[가-힣]/.test(sentence.answer) ? 'ko-KR' : 'en-US'} onResult={onSpeak} />}
+        {at >= 0 && <MicButton lang={/[가-힣]/.test(sentence.answer) ? 'ko-KR' : 'en-US'}
+          onResult={(t) => onSpeak(t, at)} />}
       </div>
     </div>
   )
@@ -3976,7 +4021,8 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   /** 정리 정답률 — 완료 화면의 성취 배지에 쓴다 */
   onDone: (recap: { correct: number; total: number }) => void
 }) {
-  const [fills, setFills] = useState<Record<string, string>>({})
+  /** 문항 id → **칸별** 학생 답. 빈칸이 하나면 길이 1이다 */
+  const [fills, setFills] = useState<Record<string, (string | undefined)[]>>({})
 
   /* 대본 강의는 정리 퀴즈도 시트가 정본이다 — 없으면 강의에 박아 둔 기본 문장 3개 */
   const scripted = !!scriptedSummary?.length
@@ -3992,7 +4038,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const items = group.items
   const lastPage = page >= groups.length - 1
 
-  const allDone = items.every((s) => fills[s.id] !== undefined)
+  const allDone = items.every((s) => blanksOf(s).every((_, i) => fills[s.id]?.[i] !== undefined))
   /** 이 장이 어휘 확인인가 — 그러면 **틀려도 그대로 채점한다**(전략 정리는 정답만 입력된다) */
   const vocabPage = isVocabGroup(items)
   /** 방금 누른 오답 (칸 id → 그 보기). 잠깐 흔들리고 스스로 사라진다 */
@@ -4004,21 +4050,26 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
    *  ⚠️ 넉넉한 비교는 **주관식(보기 없는 칸)에만** 쓴다. 어휘 확인에 걸면 뜻이 겹치는 보기끼리
    *     서로 정답으로 통과한다 — 거기는 고른 그대로 채점해야 무엇을 모르는지 보인다. */
   const loose = (x: string) => x.toLowerCase().replace(/[\s+·・.,()~]/g, '')
-  const isRight = (s: RecapSentence, said: string) => {
-    if (said === s.answer) return true
-    if (s.choices.length) return s.keywords.some((k) => said.toLowerCase().includes(k))
+  const isRight = (s: RecapSentence, said: string, blank = 0) => {
+    const b = blanksOf(s)[blank] ?? blanksOf(s)[0]
+    if (said === b.answer) return true
+    if (s.choices.length) return b.keywords.some((k) => said.toLowerCase().includes(k))
     /* 적은 말은 기호·띄어쓰기가 제각각이다("be + -ing" ↔ "be ing"). 조사만 붙여 쓴 답
        ("동작이요")과 핵심만 쓴 답("동작")도 받아 준다 — 여기는 배운 말을 꺼내는 자리지
        받아쓰기가 아니다. */
     const a = loose(said)
     if (a.length < 1) return false
-    return s.keywords.some((k) => { const b = loose(k); return !!b && (a.includes(b) || (b.includes(a) && a.length >= 2)) })
+    return b.keywords.some((k) => { const c = loose(k); return !!c && (a.includes(c) || (c.includes(a) && a.length >= 2)) })
   }
 
   /** 채운 답이 맞았는가 — 전략 정리는 정답만 입력되므로 늘 true, 어휘 확인은 갈린다 */
+  const correctsOf = (s: RecapSentence): (boolean | undefined)[] =>
+    blanksOf(s).map((_, i) => { const f = fills[s.id]?.[i]; return f === undefined ? undefined : isRight(s, f, i) })
+  /** 문항 하나가 맞았는가 — **칸이 전부 맞아야** 맞은 것이다(아직 덜 찼으면 undefined) */
   const correctOf = (s: RecapSentence): boolean | undefined => {
-    const f = fills[s.id]
-    return f === undefined ? undefined : isRight(s, f)
+    const cs = correctsOf(s)
+    if (cs.some((c) => c === undefined)) return undefined
+    return cs.every((c) => c === true)
   }
   /* 완료 화면에 넘기는 성적 — 전체 장을 합친다 */
   const allItems = groups.flatMap((g) => g.items)
@@ -4149,20 +4200,26 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
    *  · 전략 정리 — 정답을 눌러야 입력된다. 배운 것을 되짚는 자리라 틀린 문장이 화면에
    *    남으면 안 되고, 오답은 흔들림으로만 알린다.
    *  어느 쪽이든 마지막 칸이 채워지면 강사가 알아서 짚기 시작한다. */
-  const answerOne = (s: RecapSentence, said: string) => {
+  const answerOne = (s: RecapSentence, said: string, blank = 0) => {
     if (!said.trim()) return
-    if (vocabPage) { setFills((p) => ({ ...p, [s.id]: said })); return }
-    if (!isRight(s, said)) {
+    /** 칸 하나만 갈아 끼운다 — 나머지 칸에 이미 넣은 답은 그대로 둔다 */
+    const put = (v: string) => setFills((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as string | undefined)
+      cur[blank] = v
+      return { ...p, [s.id]: cur }
+    })
+    if (vocabPage) { put(said); return }
+    if (!isRight(s, said, blank)) {
       shake(s.id, said)
       /* 보기가 없는 칸은 흔들림만으로는 무슨 일이 일어났는지 모른다 — 시트가 정한 대로
          강사가 한 마디 한다("정답 틀리면 … AI 강사 문구"). 말하는 중이면 얹지 않는다. */
       if (!s.choices.length && !speaking) void say(RETRY_LINE)
       return
     }
-    setFills((p) => ({ ...p, [s.id]: s.answer }))
+    put(blanksOf(s)[blank]?.answer ?? s.answer)
   }
-  const pick = (s: RecapSentence, choice: string) => answerOne(s, choice)
-  const speakAnswer = (s: RecapSentence, transcript: string) => answerOne(s, transcript)
+  const pick = (s: RecapSentence, choice: string, blank = 0) => answerOne(s, choice, blank)
+  const speakAnswer = (s: RecapSentence, transcript: string, blank = 0) => answerOne(s, transcript, blank)
 
   return (
     <div className="h-dvh flex flex-col bg-[#F5F8FE] overflow-hidden">
@@ -4216,9 +4273,9 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="space-y-3">
             {items.map((s, i) => (
               <RecapCard key={s.id} index={i} sentence={s} filled={fills[s.id]}
-                correct={correctOf(s)} graded={fills[s.id] !== undefined}
+                corrects={correctsOf(s)}
                 wrong={wrong[s.id]} active={activeIdx === i}
-                onPick={(c) => pick(s, c)} onSpeak={(t) => speakAnswer(s, t)} />
+                onPick={(c, b) => pick(s, c, b)} onSpeak={(t, b) => speakAnswer(s, t, b)} />
             ))}
           </div>
         </div>
