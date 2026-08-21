@@ -2629,7 +2629,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 수업에서는 정오답을 색으로 내지 않는다 — 고른 보기가 파랗게만 남고, 맞고 틀림은 강사가
        말로만 짚는다. 코칭(실전 오답 리뷰)은 이미 채점 결과를 본 자리라 색을 그대로 낸다 —
        "내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다"(아래 review 진입부). */
-    hideVerdict: phase !== 'review',
+    /* S5(정답 근거 연결)에 들어서면 **정답 보기를 색으로 열어 준다** — 콘텐츠 파트 요청
+       (구현 중 메모 9행). 그 단계는 "왜 이것이 답인가" 를 짚는 자리라, 무엇이 답인지 화면에
+       보이지 않으면 강사 말만 따라가야 한다. 그 앞 단계(학생 풀이·개념 코칭)는 그대로 감춘다 —
+       거기서 정답이 보이면 학생이 풀 이유가 없다. */
+    hideVerdict: phase !== 'review' && !/^S5|정답\s*근거/.test(turn.stage),
     matchState,
   }
 
