@@ -1689,6 +1689,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curNavKey])
 
+  /* ── 필기 도구를 턴에 맞춰 여닫는다 (구현 중 메모 21·22행) ──
+       · 사진에 동그라미를 치라는 턴 → **켠다.** 펜 말고는 표시할 방법이 없는데, 학생이
+         팔레트를 먼저 찾아 눌러야 했다.
+       · 보기를 고르라는 턴 → **끈다.** 켜져 있으면 캔버스가 화면을 덮어 **보기 클릭을 먹는다.**
+         앞 표시 턴에서 켠 채로 넘어오면 학생은 "눌러도 안 된다" 를 겪는다.
+     ⚠️ **지문에서 낱말을 탭하는 표시 턴은 건드리지 않는다** — 거기서 펜을 켜면 탭이 캔버스로
+        가서 오히려 막힌다. 그 턴은 탭이 정본이고 펜은 거들 뿐이다. */
+  useEffect(() => {
+    if (phase !== 'lesson' && phase !== 'review') return
+    const it = turn.interaction
+    const byTap = it.kind === 'mark' && !!it.targetWords?.length
+    const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
+    if (it.kind === 'mark' && !byTap && onPhoto) draw.setDrawMode(true)
+    else if (it.kind === 'choice' || it.kind === 'pickAnswer' || it.kind === 'solveAll') draw.setDrawMode(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnIdx, phase])
+
   /* ── 음원 재생 토큰 ──
      학생이 직접 돌린 재생(문장/보기)과 턴이 트는 음원이 겹치지 않게 세대를 센다.
      전체 재생 바는 없앴다 — "지금 어디가 나오는지"는 음원이 나오는 곳(보기·문항 옆 스피커)에서 보여준다. */
