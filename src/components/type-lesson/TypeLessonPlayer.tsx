@@ -21,6 +21,8 @@ import TutorDock, { PulseAvatar, SpeechDots, TutorText, type DockMode, type Chat
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
+/* 맞장구·대본 첫머리 떼기 — 미리 음원을 만드는 생성기와 나눠 쓴다(scriptedSpeech.ts 머리말) */
+import { ACK_OPENER, ackLine, stripAck } from '@/data/typeLearning/scriptedSpeech'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useLessonLog } from '@/data/db/learningEventStore'
 import { useCurriculumLectures } from '@/data/db/questionStore'
@@ -193,32 +195,11 @@ function stopVoice() {
   stopCurrentAudio()
 }
 
-/** 대본 발화가 **앞의 답을 받아주는 말로 시작하는가** ("맞아요. 사람이 중심인 사진이니까…").
- *  콘텐츠팀은 강사가 학생 답을 받아주고 이어가도록 쓴다 — 시트 42개 답하는 턴 중 25개가 이 꼴이다.
- *  그 앞에 앱이 "좋아요, 맞았어요." 를 또 붙이면 강사가 같은 말을 두 번 한다.
- *
- *  ⚠️ **띄어쓰기를 사람이 맞춰 주지 않는다.** 시트에 "잘 했어요" 처럼 띄어 쓴 줄이 있어서
- *  "잘했어요" 만 보던 예전 목록이 그것들을 놓쳤고, 앱이 맞장구를 하나 더 얹어
- *  "잘했어요. 잘 했어요. are이 있죠?" 가 나갔다(실측). 낱말 사이 공백을 허용한다.
- *
- *  ⚠️ **목록에 없는 칭찬은 그대로 겹친다.** 24강 밑줄 턴 일곱 곳이 "잘 찾았어요." 로 시작하는데
- *     그게 목록에 없어 앱이 "좋아요, 맞았어요." 를 또 얹었다(실측). 대본을 새로 받으면
- *     **첫 문장의 칭찬 표현을 다시 훑어야 한다** — scripts 로 전수 확인하는 편이 빠르다. */
-const ACK_OPENER = /^(맞\s*아요|맞\s*습니다|좋\s*아요|좋\s*습니다|좋\s*네요|그렇\s*죠|그래\s*요|정확\s*해요|정확\s*합니다|잘\s*했어요|잘\s*찾았어요|잘\s*하셨어요|완벽\s*해요|훌륭\s*해요|바로\s*그거|네[,\s])/
 
 /** **학생에게 무엇을 물은** 턴들 — 이 뒤에 오는 대본 줄은 그 대답에 대한 반응이다.
  *  (여기 있는 종류는 전부 답을 받을 때 `prevOkRef` 를 채운다: choice·subjective →
  *   handleScriptedAnswer, mark·match → finishMark, pickAnswer → handleScriptedPick) */
 const ASKING_KINDS = new Set(['choice', 'pickAnswer', 'subjective', 'mark', 'match'])
-/** 대본 첫머리의 맞장구를 뗀다 — "맞아요. 인물이 …" → "인물이 …".
- *  뗄 것이 없거나 떼면 문장이 없어지는 줄은 그대로 둔다(맞장구만 있는 줄도 있다). */
-/** 맞았을 때 앱이 넣는 맞장구 — **돌려 쓴다.**
- *  한 수업에서 답하는 턴이 스무 번 넘는데 매번 "좋아요, 맞았어요." 면 녹음을 트는 것처럼 들린다.
- *  ⚠️ 지어낸 칭찬을 늘리지 않는다: 다 짧은 맞장구뿐이고, **내용은 대본이 말한다.**
- *  ⚠️ 여기 문구는 ACK_OPENER 로 시작해야 한다 — 다음 대본이 같은 말로 시작하면 앱이 비켜서는데
- *     (scriptWillAck), 그 판단이 이 목록과 같은 낱말을 본다. */
-const ACKS = ['좋아요, 맞았어요.', '네, 맞아요.', '정확해요.', '그렇죠.', '잘했어요.', '맞습니다.'] as const
-const ackLine = (n: number) => ACKS[n % ACKS.length]
 
 /* ── 답 문장을 **확인하듯** 바꾼다 ── "그림을 그리고 있어요" → "그림을 그리고 있죠?"
    오답 뒤에 "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요." 를 얹으면 받아쓰기를
@@ -239,21 +220,6 @@ function asConfirm(s: string): string {
   return `${t}.`
 }
 
-function stripAck(text: string): string {
-  let t = text.trim()
-  /* **맞장구 한 마디만** 뗀다. 문장째로 자르면 맞장구 뒤에 붙은 내용까지 사라진다 —
-     "맞아요, is painting이 핵심이에요." 에서 답을 알려주는 말이 통째로 날아갔다(실측).
-     "네, 맞아요." 처럼 두 마디가 겹칠 수 있어 두 번까지 본다. */
-  for (let i = 0; i < 2; i++) {
-    const m = t.match(ACK_OPENER)
-    if (!m) break
-    const cut = t.slice(m[0].length).replace(/^[\s,.!?~…]+/, '')
-    /* 너무 짧게 남으면 되돌린다 — 맞장구가 문장의 전부인 줄("좋아요, 잘했어요!")도 있다 */
-    if (cut.length < 10) break
-    t = cut
-  }
-  return t === text.trim() ? text : t
-}
 
 /** 학생이 **모른다고 말한** 것인가 — 틀린 답과 다르게 다뤄야 한다.
  *  "몰라요" 에 "그건 조금 달라요, 다시 생각해 볼까요?" 로 답하면 말이 안 되고, 다시 물어도
