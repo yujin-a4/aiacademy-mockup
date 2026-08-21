@@ -1585,7 +1585,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
       /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다 */
       setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
-      void finishMark(false, read ? `'${read}' 는 짚어야 할 곳이 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}' 는 아니에요.` : undefined)
     }, 800)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1746,7 +1746,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setMarkVerdict({ read: read || null, ok: false, hint: '' })
       reportAction(`${turnIdx}:mark`,
         actionMessage(`화면에 "${read}"를 표시했습니다`, false))
-      void finishMark(false, read ? `'${read}' 는 짚어야 할 곳이 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}' 는 아니에요.` : undefined)
       return
     }
     setMarkChecking(true)
