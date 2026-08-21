@@ -38,7 +38,7 @@ import { INST_PERSONA, INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from '.
 import { ACKS, stripAck } from '../src/data/typeLearning/scriptedSpeech.ts'
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
-  applyPronunciation, koLetters, sanitizeForTts, spaceSentences, ttsCacheKey,
+  applyPronunciation, koLetters, sanitizeForTts, sayableTerms, spaceSentences, ttsCacheKey,
 } from '../src/lib/ttsText.ts'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -106,6 +106,7 @@ function requestFor(spoken, instructor) {
 
   const text = sanitizeForTts(spoken)
   let speech = INST_SENTENCE_PAUSE[instructor] ? spaceSentences(text) : text
+  speech = sayableTerms(speech)
   if (modelId === 'eleven_v3') speech = applyPronunciation(speech)
 
   return {

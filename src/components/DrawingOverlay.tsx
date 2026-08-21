@@ -249,9 +249,9 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
   const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw } = props
   const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
 
-  // 필기 영역 계산 (bounds 지정 시 그 영역만, 아니면 전체 화면)
+  /* 필기 영역 계산 (bounds 지정 시 그 영역만, 아니면 전체 화면)
+     ⚠️ **필기 도구를 껐다고 멈추면 안 된다** — 아래 머리말대로 꺼도 그린 것은 계속 보여야 한다. */
   useEffect(() => {
-    if (!drawMode) return
     const el = bounds?.current ?? null
     const update = () => {
       if (el) { const r = el.getBoundingClientRect(); setRect({ left: r.left, top: r.top, width: r.width, height: r.height }) }
@@ -266,7 +266,7 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
 
   // 영역에 맞춰 캔버스 크기 지정 후 다시 그림
   useEffect(() => {
-    if (!drawMode || !rect) return
+    if (!rect) return
     const c = canvasRef.current
     if (!c) return
     c.width = rect.width
@@ -274,7 +274,15 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
     redraw()
   }, [drawMode, rect, canvasRef, redraw])
 
-  if (!drawMode || !rect) return null
+  /* ── 꺼도 **그린 것은 보인다** ──
+     예전에는 필기 도구를 끄면 캔버스를 통째로 걷어냈다. 그래서 동그라미를 치고 도구를 닫으면
+     표시가 사라지고, 다시 켜면 되살아났다(콘텐츠 파트 보고). 시험지에 연필로 그은 자국이
+     연필을 내려놓는다고 사라지지 않는 것처럼, **그은 것은 남아 있어야 한다.**
+     특히 "표시해 보세요" 다음에 "이제 골라보세요" 가 오는 자리에서, 방금 친 동그라미를 보면서
+     골라야 하는데 화면에서 사라져 버렸다.
+     끄면 달라지는 것은 **입력을 받지 않는 것뿐**이다(pointerEvents) — 그래야 밑에 있는 보기가
+     눌린다. 팔레트도 켜져 있을 때만 뜬다. */
+  if (!rect) return null
 
   return (
     <>
@@ -284,9 +292,10 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
         style={{
           position: 'fixed',
           left: rect.left, top: rect.top, width: rect.width, height: rect.height,
-          cursor: tool === 'cursor' ? 'default' : tool === 'eraseStroke' || tool === 'erasePixel' ? 'cell' : 'crosshair',
+          cursor: !drawMode || tool === 'cursor' ? 'default'
+            : tool === 'eraseStroke' || tool === 'erasePixel' ? 'cell' : 'crosshair',
           touchAction: 'none',
-          pointerEvents: tool === 'cursor' ? 'none' : 'auto',
+          pointerEvents: !drawMode || tool === 'cursor' ? 'none' : 'auto',
         }}
         onMouseDown={startDraw}
         onMouseMove={doDraw}
@@ -296,7 +305,7 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
         onTouchMove={doDraw}
         onTouchEnd={endDraw}
       />
-      {!hidePalette && (
+      {drawMode && !hidePalette && (
         <div
           className="z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
           style={{ position: 'fixed', left: '50%', bottom: 32 }}
