@@ -61,6 +61,12 @@ export function spaceSentences(raw: string): string {
    ⚠️ 화면 글자는 그대로 'easel' 이다 — 읽을 때만 바꾼다(koLetters 와 같은 규칙). */
 const IPA: Record<string, string> = {
   easel: '/ˈiːzəl/',
+  /* 구현 중 메모 59·60·63·67행 — 한국어 문장에 섞인 영어를 한글로 읽어 버렸다
+     ("are" → [아레], "be" → [베], "tie" → [티]). 문법 설명에 계속 나오는 낱말들이라 그때마다
+     귀에 걸린다. 화면 글자는 그대로 are·be·tie 다 — 읽을 때만 바꾼다. */
+  are: '/ɑːr/',
+  be: '/biː/',
+  tie: '/taɪ/',
 }
 
 export function applyPronunciation(raw: string): string {
@@ -68,6 +74,39 @@ export function applyPronunciation(raw: string): string {
     (s, [word, ipa]) => s.replace(new RegExp(`\\b${word}\\b`, 'gi'), ipa),
     raw,
   )
+}
+
+/* ── 읽는 법을 정해 둔 말 ──
+   IPA 와 달리 **모델을 가리지 않는다.** 한국어를 이상하게 읽거나(세는 말), 기호를 제멋대로
+   읽는 것(`+`, `~`)을 글자 단계에서 바로잡는다. 구현 중 메모 61·62·65·66·69~73행.
+   ⚠️ 화면 글자는 그대로다 — 읽는 문자열에만 손댄다. */
+const TERM_KO: Array<[RegExp, string]> = [
+  /* 문법 용어 'ing' 를 [잉] 으로 붙여 읽는다.
+  * ⚠️ **낱말 속 ing 는 절대 건드리면 안 된다** — 낱말 경계를 빼면 "painting" 이 "pa아이엔쥐" 가 된다. */
+  [/\bing\b/gi, '아이엔쥐'],
+  /* "be + p.p." 의 `+` 를 세 가지로 읽었다(안 읽음 / 플러스 / 플러) — 하나로 고정한다 */
+  [/\s*\+\s*/g, ' 플러스 '],
+]
+
+/** 세는 말은 고유어로 — "5문제"를 [오 문제] 로 읽었다 (메모 66·69행) */
+const KO_COUNT = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱', '여덟', '아홉', '열']
+
+export function sayableTerms(raw: string): string {
+  let t = raw
+  for (const [re, rep] of TERM_KO) t = t.replace(re, rep)
+  /* 뜻풀이의 물결표 — "~에 기대다" 의 `~` 를 얼버무리거나 이상하게 읽는다.
+     콘텐츠 파트가 적어 준 대로 [무엇무엇] 으로 읽힌다. `~로` 만 조사가 달라진다(무엇무엇으로). */
+  t = t.replace(/~\s*로(?![가-힣])/g, '무엇무엇으로').replace(/~\s*(?=[가-힣])/g, '무엇무엇')
+  /* 물결표에 붙어 있던 조사를 '무엇무엇' 뒤에 맞게 고친다 — 'be divided with ~는' 을
+     그대로 두면 "무엇무엇는" 이 된다(받침이 있으니 '은' 이라야 한다). */
+  t = t.replace(/무엇무엇(는|를|가|와)/g, (_m, jo) =>
+    '무엇무엇' + ({ 는: '은', 를: '을', 가: '이', 와: '과' } as Record<string, string>)[jo])
+  /* ⚠️ **파트 번호를 세는 말로 바꾸면 안 된다** — "Part 1 문제" 가 "Part 한 문제" 가 된다(실측). */
+  t = t.replace(/(?<!Part\s)(?<!파트\s)(\d+)\s*(문제|자리)/g, (m, n, unit) => {
+    const i = Number(n)
+    return i >= 1 && i <= 10 ? `${KO_COUNT[i]} ${unit}` : m
+  })
+  return t
 }
 
 /**
