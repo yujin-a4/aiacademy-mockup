@@ -123,7 +123,11 @@ function TapText({ text, st, className, scope = '' }: { text: string; st: Conten
         const key = markKey(scope, i, word)
         const marked = st.marks.has(key)
         return (
-          <span key={i} onClick={() => st.onTapWord(key)}
+          /* data-mk — **필기가 어느 낱말 위를 지나갔는지** 화면이 되짚을 수 있게 자리를 남긴다.
+             지문은 글자라 사진처럼 캔버스와 합성해 판정할 수가 없다. 이게 없으면 밑줄을 아무 데나
+             그어도 통과했다(실측: Part 5 에서 'easy' 에 밑줄을 그어도 "잘했어요"). 보기(data-opt)와
+             같은 방식이다. */
+          <span key={i} data-mk={key} onClick={() => st.onTapWord(key)}
             className={`cursor-pointer rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
               marked ? 'bg-[#FDE68A]' : tMarked ? 'bg-[#DBEAFE] text-[#1D4ED8] font-semibold' : 'hover:bg-[#F3F4F6]'
             } ${marked && tMarked ? 'underline decoration-[#2563EB] decoration-2 underline-offset-2' : ''}`}>
