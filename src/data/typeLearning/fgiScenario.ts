@@ -263,7 +263,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "interaction": {
             "kind": "subjective",
             "prompt": "맞아요. 사람이 중심인 사진이니까 사진 속 여자가 지금 무엇을 하고 있는지 한번 말해볼까요?",
-            "hint": "그림을 그리고 있어요."
+            "hint": "붓을 잡고 이젤 위에 무언가를 그리고 있어요."
           }
         },
         {
@@ -530,7 +530,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S3 개념 코칭",
-          "tutor": "A에 are lined up이 나왔죠. line up은 '줄을 세우다'이고, be + p.p. 형태인 are lined up은 '줄지어 놓여 있다'처럼 사물의 상태를 나타낼 수 있어요. 그러면 사진 속 신발들은 줄지어 놓여 있나요?",
+          "tutor": "A에 are lined up이 나왔죠. line up은 '줄을 세우다'이고, be + p.p. 형태인 are lined up은 '줄지어 놓여 있다'라는 뜻이에요. 그러면 사진 속 신발들은 줄지어 놓여 있나요?",
           "focusQ": 1,
           "reveal": {
             "optionText": [
@@ -544,7 +544,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           },
           "interaction": {
             "kind": "choice",
-            "prompt": "A에 are lined up이 나왔죠. line up은 '줄을 세우다'이고, be + p.p. 형태인 are lined up은 '줄지어 놓여 있다'처럼 사물의 상태를 나타낼 수 있어요. 그러면 사진 속 신발들은 줄지어 놓여 있나요?",
+            "prompt": "A에 are lined up이 나왔죠. line up은 '줄을 세우다'이고, be + p.p. 형태인 are lined up은 '줄지어 놓여 있다'라는 뜻이에요. 그러면 사진 속 신발들은 줄지어 놓여 있나요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -791,7 +791,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "interaction": {
             "kind": "subjective",
             "prompt": "A의 are being watered는 식물들이 지금 누군가에게 물을 받고 있는 중, 즉 누군가 식물에 물을 주는 동작이 진행 중이라는 뜻이에요. 반면 D의 have been lined up은 화분들이 이미 줄지어 놓인 결과 상태를 말해요. 사진에서는 식물에 물을 주는 동작이 보이나요, 아니면 화분들이 줄지어 놓여 있나요?",
-            "hint": "이미 줄지어 놓여 있어요."
+            "hint": "줄지어 놓여 있어요."
           }
         },
         {
@@ -1139,9 +1139,18 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             ]
           },
           "interaction": {
-            "kind": "subjective",
+            "kind": "choice",
             "prompt": "A는 사진과 일치하네요. 정답이라고 확정하기 전에 나머지 보기들도 끝까지 확인해볼게요. B의 reading materials는 책이나 잡지 같은 읽을거리예요. 사진에서는 reading materials가 소파 위에 있나요, 테이블 위에 있나요?",
-            "hint": "테이블 위에 있어요."
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "on a sofa"
+              },
+              {
+                "text": "on a table",
+                "correct": true
+              }
+            ]
           }
         },
         {
@@ -1186,7 +1195,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 46,
           "stage": "S6 오답 제거 - D",
-          "tutor": "D에서는 potted plants, 즉 화분에 심긴 식물들이 바닥에 넘어져 있다고 했어요. 사진 속 화분은 어떤 상태인가요?",
+          "tutor": "D에서는 potted plants, 즉 화분에 심긴 식물들이 have fallen on the floor 바닥에 넘어져 있다고 했어요. 사진 속 화분은 어떤 상태인가요?",
           "focusQ": 1,
           "reveal": {
             "optionText": [
@@ -1199,9 +1208,18 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             ]
           },
           "interaction": {
-            "kind": "subjective",
-            "prompt": "D에서는 potted plants, 즉 화분에 심긴 식물들이 바닥에 넘어져 있다고 했어요. 사진 속 화분은 어떤 상태인가요?",
-            "hint": "넘어져 있지 않고 세워져 있어요."
+            "kind": "choice",
+            "prompt": "D에서는 potted plants, 즉 화분에 심긴 식물들이 have fallen on the floor 바닥에 넘어져 있다고 했어요. 사진 속 화분은 어떤 상태인가요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "넘어져 있음"
+              },
+              {
+                "text": "세워져 있음",
+                "correct": true
+              }
+            ]
           }
         },
         {
@@ -1560,7 +1578,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 64,
           "stage": "S7 표현 정리",
-          "tutor": "이 문제에서 쓰인 be being emptied는 '지금 비워지고 있는 중', along a wall은 '벽을 따라서', partition은 '칸막이', a stack of documents는 '서류 한 더미'라는 뜻이에요. 같이 기억해둘게요!",
+          "tutor": "이 문제에서 쓰인 along a wall은 '벽을 따라서', partition은 '칸막이', a stack of documents는 '서류 한 더미'라는 뜻이에요. 같이 기억해둘게요!",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -2681,58 +2699,45 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "id": "s1_1",
               "en": "인물 사진에서는 가장 먼저 ___ 을 확인한다.",
               "ko": "맞아요. 인물 사진에서는 먼저 사람이 무엇을 하고 있는지, 핵심 동작을 확인하세요.",
-              "answer": "인물의 동작",
+              "answer": "인물의 동작 동작 행위",
               "choices": [],
               "keywords": [
-                "인물의 동작"
+                "인물의 동작 동작 행위"
               ]
             },
             {
               "id": "s1_2",
               "en": "인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
               "ko": "그렇죠. is painting, is holding처럼 인물이 지금 하고 있는 동작은 be + -ing 형태로 자주 나와요.",
-              "answer": "be + -ing",
+              "answer": "be + -ing be + ing be -ing be ing",
               "choices": [],
               "keywords": [
-                "be + -ing",
-                "비 아이엔지",
-                "비잉",
-                "be ing",
-                "be -ing"
+                "be + -ing be + ing be -ing be ing"
               ]
             },
             {
               "id": "s1_3",
               "en": "사물·풍경 사진에서는 사물의 ___를 먼저 확인한다.",
               "ko": "맞아요. 사물 사진에서는 무엇이 어디에 있고, 어떤 상태인지를 먼저 확인하는 게 중요해요.",
-              "answer": "위치와 상태",
+              "answer": "위치와 상태 위치 상태 배열",
               "choices": [],
               "keywords": [
-                "위치와 상태"
+                "위치와 상태 위치 상태 배열"
               ]
             },
             {
               "id": "s1_4",
               "en": "사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고, 사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
               "ko": "맞아요. have been lined up처럼 'have/has been + p.p.'는 사물이 이미 어떤 상태로 놓여 있을 때 자주 나오고, are being installed처럼 'be being + p.p.'는 누군가에 의해 사물이 놓이는 중일 때 써요.",
-              "answer": "have been + p.p.",
+              "answer": "be being + p.p.",
               "choices": [],
               "keywords": [
-                "have been + p.p.",
-                "해브 빈 피피",
-                "해브빈 피피",
-                "해브 빈 피 피"
+                "be being + p.p.",
+                "비 비잉 피피",
+                "비빙 피피",
+                "비 빙 피피"
               ],
               "blanks": [
-                {
-                  "answer": "have been + p.p.",
-                  "keywords": [
-                    "have been + p.p.",
-                    "해브 빈 피피",
-                    "해브빈 피피",
-                    "해브 빈 피 피"
-                  ]
-                },
                 {
                   "answer": "be being + p.p.",
                   "keywords": [
@@ -2741,6 +2746,15 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                     "비빙 피피",
                     "비 빙 피피"
                   ]
+                },
+                {
+                  "answer": "have been + p.p.",
+                  "keywords": [
+                    "have been + p.p.",
+                    "해브 빈 피피",
+                    "해브빈 피피",
+                    "해브 빈 피 피"
+                  ]
                 }
               ]
             },
@@ -2748,10 +2762,10 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "id": "s1_5",
               "en": "동사 뜻을 정확히 몰라도 사진에 ___ 사물·사람·장소가 들리면 오답으로 빠르게 제거할 수 있다.",
               "ko": "맞아요. 선택지에 모르는 단어가 나와도 사진에 아예 없는 핵심 사물·사람·장소가 들리면 빠르게 X 하고 넘어가세요.",
-              "answer": "없는",
+              "answer": "없는 나오지 않는",
               "choices": [],
               "keywords": [
-                "없는"
+                "없는 나오지 않는"
               ]
             }
           ]
@@ -2914,8 +2928,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "focusQ": 0,
           "interaction": {
             "kind": "subjective",
-            "prompt": "이렇게 인물이 나오는 사진에서는 인물이 어떤 동작을 하고 있는지, 무엇을 들고 있는지, 어떤 자세로 있는지 잘 봐야 해요. 여자가 무엇을 하고 있나요?",
-            "hint": "(붓으로) 그림을 그리고 있어요"
+            "prompt": "이렇게 인물이 나오는 사진에서는 인물이 어떤 동작을 하고 있는지, 무엇을 들고 있는지, 어떤 자세로 있는지 잘 봐야 해요. 여자가 무엇을 하고 있나요?"
           }
         },
         {
@@ -2953,8 +2966,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "be + -ing",
-                "correct": true
+                "text": "be + -ing"
               },
               {
                 "text": "be + p.p."
@@ -3046,8 +3058,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "is painting",
-                "correct": true
+                "text": "is painting"
               },
               {
                 "text": "on an easel"
@@ -3130,8 +3141,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "a paintbrush"
               },
               {
-                "text": "in a sink",
-                "correct": true
+                "text": "in a sink"
               }
             ]
           }
@@ -3337,8 +3347,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "focusQ": 1,
           "interaction": {
             "kind": "subjective",
-            "prompt": "이렇게 사물, 풍경만 나오는 사진에서는 사물의 위치와 배치를 잘 확인해야 해요. 뭐가 보이나요?",
-            "hint": "행거에 옷이 걸려 있어요 왼쪽 선반에는 물건이 놓여 있어요. 오른쪽 벽에는 모자가 있어요."
+            "prompt": "이렇게 사물, 풍경만 나오는 사진에서는 사물의 위치와 배치를 잘 확인해야 해요. 뭐가 보이나요?"
           }
         },
         {
@@ -3346,7 +3355,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "학생 풀이",
-          "tutor": "맞아요. 사진 자세히 보면 행거에 옷이 걸려있고 왼쪽에 선반에 물건이 쌓여있고 우측 벽에는 모자가 있어요. 이제 선택지 듣고 문제 풀어볼게요.",
+          "tutor": "맞아요. 사진 자세히 보면 행거에 옷이 걸려있고 왼쪽에 선반에 물건이 쌓여있고 우측 벽에는 모자가 걸려있죠? 이제 선택지 듣고 문제 풀어볼게요.",
           "focusQ": 1,
           "audio": {
             "kind": "options",
@@ -3379,8 +3388,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "사람이 사물을 놓는 중"
               },
               {
-                "text": "사물이 이미 놓인 상태",
-                "correct": true
+                "text": "사물이 이미 놓인 상태"
               }
             ]
           }
@@ -3469,11 +3477,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -3625,7 +3633,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
-          "tutor": "are being stored처럼 be being p.p. 가 나오면 사물에 어떤 동작이 지금 가해지고 있는 중이어야 해요. 사진에서 모자를 보관하는 동작이 진행되고 있나요?",
+          "tutor": "are being stored처럼 be being p.p. 가 나오면 사물에 어떤 동작이 지금 진행되고 있는 중이어야 해요. 사진에서 모자를 보관하는 동작이 진행되고 있나요?",
           "focusQ": 1,
           "reveal": {
             "optionText": [
@@ -3639,7 +3647,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           },
           "interaction": {
             "kind": "choice",
-            "prompt": "are being stored처럼 be being p.p. 가 나오면 사물에 어떤 동작이 지금 가해지고 있는 중이어야 해요. 사진에서 모자를 보관하는 동작이 진행되고 있나요?",
+            "prompt": "are being stored처럼 be being p.p. 가 나오면 사물에 어떤 동작이 지금 진행되고 있는 중이어야 해요. 사진에서 모자를 보관하는 동작이 진행되고 있나요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -3711,7 +3719,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "마무리 멘트",
-          "tutor": "그럼 이제 실전 문제로 넘어가볼게요.",
+          "tutor": "그럼 이제 다음 문제로 넘어가 볼게요.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -3726,8 +3734,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "focusQ": 2,
           "interaction": {
             "kind": "subjective",
-            "prompt": "사진에서 눈에 띄는 사물과 위치를 말해볼까요?",
-            "hint": "화분이 있어요 선반 위에 화분이 있어요 식물이 있어요 화분이 선반 위에 있고 식물이 있어요"
+            "prompt": "사진에서 눈에 띄는 사물과 위치를 말해볼까요?"
           }
         },
         {
@@ -3824,11 +3831,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -4121,7 +4128,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "마무리 멘트",
-          "tutor": "좋아요. 이제 실전 문제로 넘어가볼게요.",
+          "tutor": "좋아요. 이제 실전 문제로 넘어가 볼게요.",
           "focusQ": 2,
           "interaction": {
             "kind": "next"
@@ -4175,11 +4182,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -4426,11 +4433,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -4677,11 +4684,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -4938,11 +4945,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -5209,13 +5216,10 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "id": "s1_2",
               "en": "수동태의 기본 형태는 ___이다.",
               "ko": "그렇죠. 수동태의 기본 형태는 'be + p.p.'예요.",
-              "answer": "be p.p.",
+              "answer": "be p.p. be + p.p.",
               "choices": [],
               "keywords": [
-                "be p.p.",
-                "be + p.p.",
-                "비 피피",
-                "비피피"
+                "be p.p. be + p.p."
               ]
             },
             {
@@ -5242,10 +5246,10 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
               "id": "s1_5",
               "en": "능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
               "ko": "그렇죠. yesterday 같은 시제 단서나 주어의 수까지 마지막으로 확인하세요.",
-              "answer": "수·시제",
+              "answer": "수·시제 수와 시제 시제",
               "choices": [],
               "keywords": [
-                "수·시제"
+                "수·시제 수와 시제 시제"
               ]
             }
           ]
@@ -5407,11 +5411,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "tutor": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요.",
           "focusQ": 0,
           "interaction": {
-            "kind": "mark",
-            "prompt": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠?",
-            "targetWords": [
-              "are"
-            ]
+            "kind": "next"
           }
         },
         {
@@ -5464,8 +5464,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "표준화하는 주체"
               },
               {
-                "text": "표준화되는 대상",
-                "correct": true
+                "text": "표준화되는 대상"
               }
             ]
           }
@@ -5579,11 +5578,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "tutor": "이 문제도 먼저 빈칸 앞뒤를 확인해서 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요.",
           "focusQ": 1,
           "interaction": {
-            "kind": "mark",
-            "prompt": "이 문제도 먼저 빈칸 앞뒤를 확인해서 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠?",
-            "targetWords": [
-              "cannot"
-            ]
+            "kind": "next"
           }
         },
         {
@@ -5611,8 +5606,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "동사원형",
-                "correct": true
+                "text": "동사원형"
               },
               {
                 "text": "명사"
@@ -5673,8 +5667,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "변경하는 주체"
               },
               {
-                "text": "변경되는 대상",
-                "correct": true
+                "text": "변경되는 대상"
               }
             ]
           }
@@ -5796,8 +5789,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "보어 자리"
               },
               {
-                "text": "동사 자리",
-                "correct": true
+                "text": "동사 자리"
               },
               {
                 "text": "목적어 자리"
@@ -5812,7 +5804,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S2 유형·역할 판별",
           "tutor": "맞아요!",
           "focusQ": 2,
-          "tutorIfWrong": "아니에요.",
+          "tutorIfWrong": "아쉽지만 아니에요. 다시 같이 봐볼게요.",
           "interaction": {
             "kind": "next"
           }
@@ -5841,8 +5833,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "지시하는 주체",
-                "correct": true
+                "text": "지시하는 주체"
               },
               {
                 "text": "지시 받는 대상"
@@ -5875,11 +5866,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -5920,8 +5911,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "과거 시제",
-                "correct": true
+                "text": "과거 시제"
               },
               {
                 "text": "현재 시제"
@@ -6015,8 +6005,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "보어 자리"
               },
               {
-                "text": "동사 자리",
-                "correct": true
+                "text": "동사 자리"
               },
               {
                 "text": "목적어 자리"
@@ -6052,8 +6041,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "수"
               },
               {
-                "text": "태",
-                "correct": true
+                "text": "태"
               },
               {
                 "text": "시제"
@@ -6088,8 +6076,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "설계하는 주체"
               },
               {
-                "text": "설계되는 대상",
-                "correct": true
+                "text": "설계되는 대상"
               }
             ]
           }
@@ -6101,7 +6088,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S4 구조·흐름 파악",
           "tutor": "그렇죠. layout은 누군가에 의해 설계되는 대상이죠.",
           "focusQ": 3,
-          "tutorIfWrong": "아니에요. 배치는 스스로 무언가를 설계할 수 없고, 누군가에 의해 설계되는 대상이에요.",
+          "tutorIfWrong": "다시 생각해보세요. 배치는 스스로 무언가를 설계할 수 없고, 누군가에 의해 설계되는 대상이에요.",
           "interaction": {
             "kind": "next"
           }
@@ -6231,8 +6218,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "면제하는 주체"
               },
               {
-                "text": "면제되는 대상",
-                "correct": true
+                "text": "면제되는 대상"
               }
             ]
           }
@@ -6280,7 +6266,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 62,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "for Cordell residents는 전치사구라서 waive의 목적어가 아니에요. 주어가 동작의 대상이고, 동사 뒤에 목적어도 없으니까 수동태가 맞겠죠? 이렇게 수동태가 들어가야하는 거 확인했으면, 명사형 선택지만 한번 더 확인하고 가면 돼요.",
+          "tutor": "for Cordell residents는 전치사구라서 동사의 목적어가 될 수 없어요. 주어가 동작의 대상이고, 동사 뒤에 목적어도 없으니까 수동태가 맞겠죠? 이렇게 수동태가 들어가야하는 거 확인했으면, 명사형 선택지만 한번 더 확인하고 가면 돼요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -6327,7 +6313,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 65,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 C. waived예요. will be waived가 되어 '면제될 것이다'라는 미래를 나타내는 수동태가 돼죠. 문장 해석해보면, 코델 도자기 전시회 웹사이트에 따르면, 입장료는, 면제 될 것이다, 코델 주민들에게는 이라는 의미예요.",
+          "tutor": "그래서 정답은 C. waived예요. will be waived가 되어 '면제될 것이다'라는 미래를 나타내는 수동태가 돼죠. 문장 해석해보면, 'According to the Cordell Pottery Exhibition's Web site, 코델 도자기 전시회 웹사이트에 따르면, the entry fee, 입장료는, will be waived, 면제 될 것이다, for Cordell residents, 코델 주민들에게는' 이라는 의미예요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -6365,8 +6351,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "임명하는 주체"
               },
               {
-                "text": "임명되는 대상",
-                "correct": true
+                "text": "임명되는 대상"
               }
             ]
           }
@@ -6404,16 +6389,17 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 71,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "맞아요. 전치사구 as the editor-in-chief ~ 는 동사의 목적어가 아니죠. 그러면 이제 수동태인 거 확실해졌죠.",
+          "tutor": "맞아요!",
           "focusQ": 1,
+          "tutorIfWrong": "다시 잘 생각해보세요.",
           "interaction": {
             "kind": "next"
           }
         },
         {
           "no": 72,
-          "stage": "S6 오답 제거",
-          "tutor": "그럼 선택지 볼게요. 능동태인 선택지들 다 X 표시하면 되겠죠? B. appoints 는 3인칭 단수, C. is appointing 진행형 능동, D. appointed는 동사의 과거형이라서 모두 능동 형태이니까 오답으로 X 하고 넘어가요.",
+          "stage": "S4 구조·흐름 파악",
+          "tutor": "전치사구 as the editor-in-chief ~ 는 동사의 목적어가 될 수 없어요. 그러면 이제 수동태인 거 확실해졌죠.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -6421,8 +6407,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         },
         {
           "no": 73,
-          "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 A . was appointed 예요. 문장 해석해보면 로메시 사스트리는, 임명되었다, <개리슨 헤럴드> 신문의 편집장으로, 어제 라는 뜻이에요. 주어는 임명되는 대상이고, 뒤에 목적어가 없고, yesterday까지 있으니까 과거 수동태 was appointed, '임명되었다'가 확실하죠.",
+          "stage": "S6 오답 제거",
+          "tutor": "그럼 선택지 볼게요. 능동태인 선택지들 다 X 표시하면 되겠죠? B. appoints 는 3인칭 단수이고, C. is appointing 진행형이고, D. appointed는 동사의 과거형이라서 모두 능동 형태가 될 수 있으니까 오답으로 X 하고 넘어가요.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -6430,6 +6416,15 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         },
         {
           "no": 74,
+          "stage": "S5 정답 근거 연결",
+          "tutor": "그래서 정답은 A. was appointed 예요. 문장 해석해보면 'Romesh Sastry, 로메시 사스트리는, was appointed, 임명되었다, as the editor-in-chief, 편집장으로, of the Garrison Herald newspaper, <개리슨 헤럴드> 신문의, yesterday, 어제' 라는 뜻이에요. 주어는 임명되는 대상이고, 뒤에 목적어가 없고, yesterday까지 있으니까 과거 수동태 was appointed, '임명되었다'가 확실하죠.",
+          "focusQ": 1,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 75,
           "stage": "S7 표현 정리",
           "tutor": "마지막으로 알아둬야 할 표현 정리할게요. appoint는 임명하다, editor-in-chief는 편집장이에요. 그리고 yesterday처럼 시제를 알려주는 표현도 꼭 확인하세요.",
           "focusQ": 1,
@@ -6438,7 +6433,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 75,
+          "no": 76,
           "stage": "S2 유형·역할 판별",
           "tutor": "빈칸 앞뒤 먼저 보고 빈칸이 무슨 자리인지 확인하라고 했죠? 앞에는 주어 All of Nakano Furniture's products가 있고, 문장에 동사가 없죠. 그러면 빈칸은 동사 자리예요. 빈칸이 동사 자리면 제일 먼저 뭐 확인하라고 했어요?",
           "focusQ": 2,
@@ -6451,8 +6446,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "수"
               },
               {
-                "text": "태",
-                "correct": true
+                "text": "태"
               },
               {
                 "text": "시제"
@@ -6461,7 +6455,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 76,
+          "no": 77,
           "stage": "S2 유형·역할 판별",
           "tutor": "그렇죠.",
           "focusQ": 2,
@@ -6471,30 +6465,20 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           }
         },
         {
-          "no": 77,
-          "stage": "S2 유형·역할 판별",
-          "tutor": "그러면 능수동태 확인해 볼게요.",
-          "focusQ": 2,
-          "interaction": {
-            "kind": "next"
-          }
-        },
-        {
           "no": 78,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "그러면 첫째, 주어와 동사의 관계부터 볼게요. 동사는 assemble, '조립하다'예요. 주어인 '나카노 가구의 모든 제품'은 무언가를 조립하는 주체예요, 조립되는 대상이에요?",
+          "tutor": "그러면 능수동태 확인해 볼게요. 첫째, 주어와 동사의 관계부터 볼게요. 동사는 assemble, '조립하다'예요. 주어인 '나카노 가구의 모든 제품'은 무언가를 조립하는 주체예요, 조립되는 대상이에요?",
           "focusQ": 2,
           "interaction": {
             "kind": "choice",
-            "prompt": "그러면 첫째, 주어와 동사의 관계부터 볼게요. 동사는 assemble, '조립하다'예요. 주어인 '나카노 가구의 모든 제품'은 무언가를 조립하는 주체예요, 조립되는 대상이에요?",
+            "prompt": "그러면 능수동태 확인해 볼게요. 첫째, 주어와 동사의 관계부터 볼게요. 동사는 assemble, '조립하다'예요. 주어인 '나카노 가구의 모든 제품'은 무언가를 조립하는 주체예요, 조립되는 대상이에요?",
             "fixedPrompt": true,
             "choices": [
               {
                 "text": "조립하는 주체"
               },
               {
-                "text": "조립되는 대상",
-                "correct": true
+                "text": "조립되는 대상"
               }
             ]
           }
@@ -6551,7 +6535,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 83,
           "stage": "S6 오답 제거",
-          "tutor": "이제 선택지 빠르게 볼게요. 능동태인 것들 다 X 치면 되겠죠? A. assemble을 쓰면 제품들이 무언가를 조립한다는 능동의 의미가 되고, 뒤에 목적어도 없어서 오답이에요. B. assembled도 마찬가지로 능동이라서 오답이죠. C. are assembling도 '제품들이 무언가를 조립하고 있다'는 능동 진행형태라 오답이에요.",
+          "tutor": "이제 선택지 빠르게 볼게요. 능동태인 것들 다 X 치면 되겠죠? A. assemble은 동사원형으로 제품들이 무언가를 조립한다는 능동의 의미가 되고, 뒤에 목적어도 없어서 오답이에요. B. assembled도 동사의 과거형으로 쓰일 수 있어서 능동태라서 오답이죠. C. are assembling도 '제품들이 무언가를 조립하고 있다'는 능동 진행형태라 오답이에요.",
           "focusQ": 2,
           "interaction": {
             "kind": "next"
@@ -6560,7 +6544,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 84,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 D. are assembled예요. 제품은 조립되는 대상이고 뒤에 목적어도 없으니까 수동태 are assembled, '조립된다'가 적절해요. 해석해보면, 나카노 가구의 모든 제품은, 조립된다, 한 조각씩, 전문 목수에 의해 라는 뜻이에요.",
+          "tutor": "그래서 정답은 D. are assembled예요. 제품은 조립되는 대상이고 뒤에 목적어도 없으니까 수동태 are assembled, '조립된다'가 적절해요. 해석해보면, 'All of Nakano Furniture's products, 나카노 가구의 모든 제품은, are assembled, 조립된다, piece by piece, 한 조각씩, by expert carpenters, 전문 목수에 의해' 라는 뜻이에요.",
           "focusQ": 2,
           "interaction": {
             "kind": "next"
@@ -6578,7 +6562,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 86,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 빈칸 앞뒤 확인해서 빈칸이 무슨 자리인지 확인해야겠죠? 앞에는 주어 Ms. Chin, 뒤에는 명사구 Mr. Stepp's duties가 있고 문장에 주절 동사가 없네요. 그러면 빈칸은 동사 자리예요. 동사 자리이면 제일 먼저 태 확인해야한다고 했죠?",
+          "tutor": "먼저 빈칸 앞뒤 확인해서 빈칸이 무슨 자리인지 확인해야겠죠? 앞에는 주어 Ms.Chin, 뒤에는 명사구 Mr.Stepp's duties가 있고 문장에 주절 동사가 없네요. 그러면 빈칸은 동사 자리예요. 동사 자리이면 제일 먼저 태 확인해야한다고 했죠?",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6587,19 +6571,19 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 87,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms. Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 의미를 보면 Ms. Chin은 업무를 직접 맡는 주체가 맞아요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
+          "tutor": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
           "focusQ": 3,
           "interaction": {
             "kind": "choice",
-            "prompt": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms. Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 의미를 보면 Ms. Chin은 업무를 직접 맡는 주체가 맞아요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
+            "prompt": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
             "fixedPrompt": true,
             "choices": [
               {
-                "text": "O",
-                "correct": true
+                "text": "O"
               },
               {
-                "text": "X"
+                "text": "X",
+                "correct": true
               }
             ]
           }
@@ -6617,7 +6601,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 89,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "뒤에 명사구 Mr. Stepp's duties 가 동사의 목적어로 나왔어요. 그러면 이제 능동태가 필요한 게 확실해졌어요.",
+          "tutor": "뒤에 명사구 Mr.Stepp's duties 가 동사의 목적어가 될 수 있죠? 그러면 이제 능동태가 필요한 게 확실해졌어요.",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6635,19 +6619,18 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 91,
           "stage": "S6 오답 제거",
-          "tutor": "그러면 이제 A. assumed와 D. will assume이 남았죠. 이럴 때는 셋째로 시제를 확인하라고 했죠? while he is at a weeklong marketing seminar는 스텝 씨가 세미나에 가 있는 동안의 상황이죠. 그 기간 동안 친 씨가 업무를 맡게 될 거라는 의미로는 어떤 시제가 자연스러울까요?",
+          "tutor": "그러면 이제 A. assumed와 D. will assume이 남았죠. 이럴 때는 셋째로 시제를 확인하라고 했죠? while he is at a weeklong marketing seminar는 '그가 세미나에 가 있는 동안에'라는 의미예요. 그 기간 동안 Ms.Chin이 업무를 맡게 될 거라는 의미로는 어떤 시제가 자연스러울까요?",
           "focusQ": 3,
           "interaction": {
             "kind": "choice",
-            "prompt": "while he is at a weeklong marketing seminar는 스텝 씨가 세미나에 가 있는 동안의 상황이죠. 그 기간 동안 친 씨가 업무를 맡게 될 거라는 의미로는 어떤 시제가 자연스러울까요?",
+            "prompt": "while he is at a weeklong marketing seminar는 '그가 세미나에 가 있는 동안에'라는 의미예요. 그 기간 동안 Ms.Chin이 업무를 맡게 될 거라는 의미로는 어떤 시제가 자연스러울까요?",
             "fixedPrompt": true,
             "choices": [
               {
                 "text": "과거 시제"
               },
               {
-                "text": "미래 시제",
-                "correct": true
+                "text": "미래 시제"
               }
             ]
           }
@@ -6657,7 +6640,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S6 오답 제거",
           "tutor": "그렇죠!",
           "focusQ": 3,
-          "tutorIfWrong": "아니에요. 같이 다시 봐볼게요.",
+          "tutorIfWrong": "아쉽지만 아니에요. 같이 다시 봐볼게요.",
           "interaction": {
             "kind": "next"
           }
@@ -6665,7 +6648,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 93,
           "stage": "S6 오답 제거",
-          "tutor": "while 같은 시간 표현 뒤에서는 앞으로 일어날 일을 말할 때도 will 대신 현재형을 쓸 수 있어요. 그래서 while he is at a weeklong marketing seminar는 '앞으로 스텝 씨가 세미나에 참석해 있는 동안'이라는 의미에요. 그러면 그 기간 동안 친 씨가 업무를 맡게 될 것이라는 미래의 의미가 자연스럽죠? 따라서 선택지 A. assumed 는 과거 시제니까 오답이에요.",
+          "tutor": "while\" 같은 시간 표현 뒤에서는, 앞으로 일어날 일을 말할 때도 will 대신 현재형을 쓸 수 있어요. 그래서 while he is at a weeklong marketing seminar는 '앞으로 그가 세미나에 참석해 있는 동안'이라는 미래의 의미를 나타내요. 그러면 그 기간 동안 Ms.Chin이 업무를 맡게 될 것이라는 미래의 의미가 자연스럽죠? 따라서 선택지 A. assumed 는 과거 시제니까 오답이에요.",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6725,8 +6708,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "text": "건설하는 주체"
               },
               {
-                "text": "건설되는 대상",
-                "correct": true
+                "text": "건설되는 대상"
               }
             ]
           }
@@ -6753,7 +6735,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 101,
           "stage": "S6 오답 제거",
-          "tutor": "이제 선택지 볼게요. 능동태인 선택지 먼저 다 지워야겠죠? A. is constructing은 '건물이 무언가를 건설하고 있다'는 능동 진행형이죠. B. constructed는 동사의 과거형이고 D. has constructed는 동사의 완료형이죠? 모두 능동태이므로 X 하고 넘어가세요.",
+          "tutor": "이제 선택지 볼게요. 능동태인 선택지 먼저 다 지워야겠죠? A. is constructing은 '건물이 무언가를 건설하고 있다'는 능동 진행형이죠. B. constructed는 동사의 과거형으로 쓰일 수 있고, D. has constructed는 동사의 완료형이죠? 모두 능동태이므로 X 하고 넘어가세요.",
           "focusQ": 4,
           "interaction": {
             "kind": "next"
@@ -6762,7 +6744,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 102,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 C. was constructed예요. 건물은 지어지는 대상이고 뒤에 목적어도 없으니까 수동태 was constructed가 맞죠. 문장 해석해보면 '건축가가 그린 그 구조물의 도면은, 많이 다르다, 지어진 건물과'라는 의미예요.",
+          "tutor": "그래서 정답은 C. was constructed예요. 건물은 지어지는 대상이고 뒤에 목적어도 없으니까 수동태 was constructed가 맞죠. 문장 해석해보면 'The architect's drawings for the structure, 건축가가 그린 그 구조물의 도면은, differ greatly, 많이 다르다, from the building that was constructed, 지어진 건물과'라는 의미예요.",
           "focusQ": 4,
           "interaction": {
             "kind": "next"
