@@ -1617,6 +1617,38 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  글자를 캔버스에 못 담아서, 보기에 밑줄을 긋고 물으면 강사가 무엇을 가리키는지 몰랐다(실측).
    *  그래서 그림 대신 좌표로 푼다 — 보기 상자(data-opt)와 겹치는 자리에 잉크가 있는지 본다.
    *  vision 에 맡기는 것보다 정확하다: 밑줄이 흐리거나 짧아도 픽셀 하나면 잡힌다. */
+  /** 잉크가 지나간 **자리 목록**을 돌려준다 (`sel` = 자리를 심어 둔 속성 선택자).
+   *  사진은 캔버스와 합성해 그림으로 판정하지만(composeMarkedImage), **글자는 담을 수가 없다.**
+   *  그래서 좌표로 푼다 — 그 상자와 겹치는 자리에 잉크가 있는지 본다. 밑줄이 흐리거나 짧아도
+   *  픽셀 하나면 잡히니 vision 에 맡기는 것보다 정확하다. */
+  const inkedBoxes = (sel: string, attr: string): string[] => {
+    const canvas = draw.canvasRef.current
+    const root = contentRef.current
+    if (!canvas || !root || !draw.strokeCount) return []
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return []
+    const cr = canvas.getBoundingClientRect()
+    const sx = canvas.width / cr.width
+    const sy = canvas.height / cr.height
+    const hit: string[] = []
+    root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+      const r = el.getBoundingClientRect()
+      const x = Math.max(0, Math.round((r.left - cr.left) * sx))
+      const y = Math.max(0, Math.round((r.top - cr.top) * sy))
+      const w = Math.min(canvas.width - x, Math.round(r.width * sx))
+      const h = Math.min(canvas.height - y, Math.round(r.height * sy))
+      if (w <= 0 || h <= 0) return
+      const { data } = ctx.getImageData(x, y, w, h)
+      for (let i = 3; i < data.length; i += 16) {
+        if (data[i] > 8) { hit.push(el.dataset[attr] ?? ''); return }
+      }
+    })
+    return Array.from(new Set(hit.filter(Boolean)))
+  }
+
+  /** 잉크가 지나간 **낱말 자리**(markKey) — 지문에 그은 밑줄을 판정하는 근거 */
+  const inkedWords = (): string[] => inkedBoxes('[data-mk]', 'mk')
+
   const inkedOptions = (): string[] => {
     const canvas = draw.canvasRef.current
     const root = contentRef.current
@@ -1649,10 +1681,35 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (it.kind !== 'mark' || markChecking) return
     const image = composeMarkedImage()
     if (!image) {
-      // 사진이 없는 화면(지문 파트)은 아직 좌표 판정을 안 붙였다 — 표시만 완료로 본다
-      setMarkDone(true)
-      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
-      void finishMark(null)
+      /* ── 사진이 없는 화면(지문) — **잉크가 어느 낱말을 지났는지로 판정한다** ──
+         예전에는 판정할 그림이 없다고 표시만 완료로 보고 넘어갔다. 그래서 Part 5 에서
+         엉뚱한 낱말('easy')에 밑줄을 그어도 "잘했어요" 하고 지나갔다(실측 보고).
+         이제 낱말마다 심어 둔 자리(data-mk)와 잉크를 견준다. */
+      const targets = it.targetWords?.length ? targetTokens(it.targetWords) : null
+      const inkKeys = inkedWords()
+      if (!targets || !inkKeys.length) {
+        // 짚을 낱말이 정해져 있지 않거나 잉크를 못 읽었으면 예전처럼 통과시킨다(가둘 수는 없다)
+        setMarkDone(true)
+        reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+        void finishMark(null)
+        return
+      }
+      const wordOf = (k: string) => k.split('|').pop() ?? ''
+      const onTarget = inkKeys.filter((k) => targets.has(wordOf(k)))
+      /* 짚어야 할 곳을 하나라도 지났으면 **그 자리를 표시로 인정한다.**
+         그러면 낱말 탭과 같은 길로 합쳐져, 목표를 다 채우는 순간 기존 완료 판정이 알아서 돈다. */
+      if (onTarget.length) {
+        setMarks((prev) => { const n = new Set(prev); onTarget.forEach((k) => n.add(k)); return n })
+        /* ⚠️ 여기서 '표시 완료' 로 켜지 않는다 — 목표를 **다 채웠는지**는 기존 완료 판정이 본다.
+           반쯤 그은 채로 완료라고 띄우면 학생이 다 했다고 믿고 멈춘다. */
+        return
+      }
+      /* 목표는 하나도 안 지나고 **엉뚱한 곳만** 그었다 — 여기서 넘기면 안 된다 */
+      const read = inkKeys.map(wordOf).filter(Boolean).slice(0, 3).join(', ')
+      setMarkVerdict({ read: read || null, ok: false, hint: '' })
+      reportAction(`${turnIdx}:mark`,
+        actionMessage(`화면에 "${read}"를 표시했습니다`, false))
+      void finishMark(false, read ? `'${read}' 는 짚어야 할 곳이 아니에요.` : undefined)
       return
     }
     setMarkChecking(true)
@@ -1722,14 +1779,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          팔레트를 먼저 찾아 눌러야 했다.
        · 보기를 고르라는 턴 → **끈다.** 켜져 있으면 캔버스가 화면을 덮어 **보기 클릭을 먹는다.**
          앞 표시 턴에서 켠 채로 넘어오면 학생은 "눌러도 안 된다" 를 겪는다.
-     ⚠️ **지문에서 낱말을 탭하는 표시 턴은 건드리지 않는다** — 거기서 펜을 켜면 탭이 캔버스로
-        가서 오히려 막힌다. 그 턴은 탭이 정본이고 펜은 거들 뿐이다. */
+     ⚠️ **지문(사진이 없는 화면)의 표시 턴은 켜지 않는다** — 거기서 펜을 켜면 캔버스가 덮여
+        낱말 탭이 막힌다. 그런데 지문에서 판정되는 것은 **탭뿐이다**(targetWords). 펜은 판정할
+        그림이 없어 아무 데나 그어도 통과한다. 켜면 판정되는 길을 막고 안 되는 길을 여는 셈이다.
+     ⚠️ **오늘 대본에는 사진 위 표시 턴이 하나도 없다** — 표시 턴 15개가 전부 RC 지문이다.
+        그래서 지금은 이 줄이 아무 일도 하지 않는다. 사진 강의(LC)에 표시 턴이 생기면 그때 산다.
+        메모 21행("필기 시키는 턴에서 자동 활성화")을 제대로 받으려면 **지문의 필기를 판정할 수
+        있어야** 한다 — 낱말마다 자리를 심어 잉크가 어디에 닿았는지 되짚는 일(메모 23·24행과 한 덩어리). */
   useEffect(() => {
     if (phase !== 'lesson' && phase !== 'review') return
     const it = turn.interaction
-    const byTap = it.kind === 'mark' && !!it.targetWords?.length
     const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
-    if (it.kind === 'mark' && !byTap && onPhoto) draw.setDrawMode(true)
+    if (it.kind === 'mark' && onPhoto) draw.setDrawMode(true)
     else if (it.kind === 'choice' || it.kind === 'pickAnswer' || it.kind === 'solveAll') draw.setDrawMode(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnIdx, phase])
