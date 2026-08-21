@@ -641,10 +641,13 @@ function PhaseStepper({ active, subtitle, onEnd, extra, onJump, steps }: {
 /* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
    콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
    실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
-function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
+function ContentActionHint({ turn, lesson, answers, graded, pickedQ, matchTapped,
   markDone, markChecking, markVerdict, cuePlaying }: {
   turn: Turn; lesson: TypeLesson
-  answers: Record<number, string>; graded: Set<number>; matchTapped: Set<string>
+  answers: Record<number, string>; graded: Set<number>
+  /** **이 자리에서** 답한 문항 (graded 와 다르다 — pickedHere 머리말 참고) */
+  pickedQ: Set<number>
+  matchTapped: Set<string>
   /** 강사가 틀어 준 자료 음원이 나가는 중인가 */
   cuePlaying?: boolean
   markDone?: boolean; markChecking?: boolean
@@ -669,7 +672,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
         : markDone ? '표시 완료' : ''
     done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
-    done = graded.has(it.qIdx)
+    done = pickedQ.has(it.qIdx)
     icon = '🎯'; text = it.prompt ?? '보기에서 정답을 선택하세요'
     /* 음원이 아직 나가는 중이면 **기다리는 중이라고 말해 준다** — 답을 고른 뒤 강사가 조용하면
        학생은 앱이 멈춘 줄 안다. 실제 시험처럼 보기는 끝까지 들려주고 그 뒤에 이어간다. */
@@ -1338,8 +1341,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 마지막 문제의 끝도 경계다 — 거기서도 자동으로 실전으로 넘어가면 안 된다 */
   const atItemEnd = (phase === 'lesson' || phase === 'review') && !!curSpan && turnIdx >= curSpan.last
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
+  /** 이 문항에 **지금 이 자리에서** 답했는가.
+   *  ⚠️ graded 와 뜻이 다르다. 코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라
+   *  들어올 때 graded 를 **전부 켜 둔다**(내가 고른 보기·정답이 색으로 남아야 강사 말과 맞는다).
+   *  그걸 '답했다' 로 읽으면 학생이 누르기도 전에 다 끝난 것이 되어, 뒤에 남은 스캐폴딩을
+   *  못 듣고 '다음 문제' 만 켜졌다(실측 보고 08-20, 구현 중 메모 40행).
+   *  수업에서는 반대로 answeredQ 가 먼저 켜지고 graded 가 늦으므로(강사 반응 뒤 채점),
+   *  단계마다 맞는 쪽을 본다. */
+  const pickedHere = (qIdx: number) => (phase === 'review' ? answeredQ.has(qIdx) : graded.has(qIdx))
   const itemDone = atItemEnd
-    && (itemLastTurn?.interaction.kind !== 'pickAnswer' || graded.has(itemLastTurn.interaction.qIdx))
+    && (itemLastTurn?.interaction.kind !== 'pickAnswer' || pickedHere(itemLastTurn.interaction.qIdx))
   /* 공개 등급 — 단계가 오르면 그때 더 준다(stageGate). 컨텍스트는 누적돼 되돌릴 수 없으므로
      **처음부터 다 주지 않는 것**이 통제의 핵심이다. */
   const gates = useMemo(() => gateLevels(turns), [turns])
@@ -1475,7 +1486,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  예전에는 완료를 reportAction 으로 에이전트에만 알렸다 — 대본 수업에는 에이전트가 없어서
    *  학생이 다 짚어 놓고도 화면이 멈춰 있었다(실측). 넘길 사람이 없으면 앱이 넘긴다.
    *  한 턴에 한 번만 — 필기 판정과 단어 탭이 같이 끝나면 두 번 넘어간다. */
-  const markAdvancedRef = useRef(-1)
+  /* ⚠️ **턴 번호만으로는 안 된다** — 코칭(실전 오답 리뷰)에 들어갈 때 턴이 0 으로 되돌아가는데,
+     수업에서 이미 0번 턴에 표시를 하고 넘어왔으면(윤다은 RC 는 수업도 코칭도 0번이 표시 턴이다)
+     이 값이 0 이라 코칭의 첫 표시 턴이 **통째로 막힌다** — '표시 완료' 라고만 뜨고 다음 질문으로
+     넘어가지 않았다(실측 보고 08-20, 구현 중 메모 39행). 단계까지 넣어 자리를 구분한다. */
+  const markAdvancedRef = useRef('')
+  /** 지금 서 있는 자리 — 단계가 다르면 턴 번호가 같아도 다른 자리다 */
+  const spotKey = `${phase}:${turnIdx}`
   /** 이 턴에 들어설 때 **이미 있던 표시** — 형광펜으로 칠한 낱말과 필기 획 수.
    *
    *  표시는 턴을 넘어 쌓인다(시험지에 그대로 남는다). 지금 있는 것만 보고 판단하면
@@ -1484,16 +1501,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *
    *  ⚠️ 기준선을 **턴 진입 효과에서 잡으면 한 박자 늦는다.** 아래 두 효과가 그것보다 먼저
    *     돌기 때문이다(선언 순서대로 실행된다). 그래서 먼저 도는 쪽이 스스로 잡는다. */
-  const enterBaseRef = useRef({ turn: -1, marks: new Set<string>(), strokes: 0 })
+  const enterBaseRef = useRef({ at: '', marks: new Set<string>(), strokes: 0 })
   const enterBase = () => {
-    if (enterBaseRef.current.turn !== turnIdx) {
-      enterBaseRef.current = { turn: turnIdx, marks: markedWords(marks), strokes: draw.strokeCount }
+    /* 자리 비교에 **단계까지** 넣는다 — 턴 번호만 보면 코칭 0번 턴이 수업 0번 턴의 기준선을
+       그대로 물려받는다. 그러면 수업 내내 쌓인 획이 '새로 그은 것' 으로 보여 손도 대기 전에
+       판정이 돌아간다(markAdvancedRef 머리말과 같은 사고). */
+    if (enterBaseRef.current.at !== spotKey) {
+      enterBaseRef.current = { at: spotKey, marks: markedWords(marks), strokes: draw.strokeCount }
     }
     return enterBaseRef.current
   }
   const finishMark = async (ok: boolean | null) => {
-    if (!scripted || markAdvancedRef.current === turnIdx) return
-    markAdvancedRef.current = turnIdx
+    if (!scripted || markAdvancedRef.current === spotKey) return
+    markAdvancedRef.current = spotKey
     /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
        prevOkRef 를 보고 떨어져 나간다(stripAck). */
     prevOkRef.current = ok
@@ -2604,10 +2624,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
     answers, graded, wrongPicks, onSelect, showKo: false,
+    /* 다시 고르라고 시키는 턴이면 채점이 끝난 보기도 열어 준다 (코칭에서 잠겨 있던 문제) */
+    askingQ: turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined,
     /* 수업에서는 정오답을 색으로 내지 않는다 — 고른 보기가 파랗게만 남고, 맞고 틀림은 강사가
        말로만 짚는다. 코칭(실전 오답 리뷰)은 이미 채점 결과를 본 자리라 색을 그대로 낸다 —
        "내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다"(아래 review 진입부). */
-    hideVerdict: phase !== 'review',
+    /* S5(정답 근거 연결)에 들어서면 **정답 보기를 색으로 열어 준다** — 콘텐츠 파트 요청
+       (구현 중 메모 9행). 그 단계는 "왜 이것이 답인가" 를 짚는 자리라, 무엇이 답인지 화면에
+       보이지 않으면 강사 말만 따라가야 한다. 그 앞 단계(학생 풀이·개념 코칭)는 그대로 감춘다 —
+       거기서 정답이 보이면 학생이 풀 이유가 없다. */
+    hideVerdict: phase !== 'review' && !/^S5|정답\s*근거/.test(turn.stage),
     matchState,
   }
 
@@ -2691,7 +2717,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (it.kind === 'choice' && choicePicked !== null) return it.choices[choicePicked]?.text ?? null
     if (it.kind === 'subjective' && subjSent && subjText.trim()) return subjText.trim()
     if (it.kind === 'mark' && markDone) return '표시했어요'
-    if (it.kind === 'pickAnswer' && graded.has(it.qIdx)) {
+    if (it.kind === 'pickAnswer' && pickedHere(it.qIdx)) {
       const picked = lesson.content.questions[it.qIdx]?.options.find((o) => o.label === answers[it.qIdx])
       return picked ? `${picked.label}) ${picked.text}` : null
     }
@@ -3072,7 +3098,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           onStartAgent={startAgent}
           /* ── ① 행동 지시 (필기해 보세요·탭해 보세요…) — 수업 영역이 아니라 강사 창에서 뜬다 ── */
           hint={
-            <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped}
+            <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded}
+              pickedQ={phase === 'review' ? answeredQ : graded} matchTapped={matchTapped}
               /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
                  판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
               markDone={markDone} markChecking={markChecking} markVerdict={markVerdict}

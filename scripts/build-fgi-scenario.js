@@ -225,8 +225,13 @@ function columnsOf(row) {
   const stage = find('단계', '스캐폴딩')
   const tutor = find(...HEADER_TUTOR)
   const mode = find('학생 방식', '학생 답변 방식', '학생 인터랙션')
-  /* 예시 답변 열은 '학생' 으로 시작하는 것이 여럿이라 **방식 열 뒤**에서 찾는다 */
-  const sample = cells.findIndex((c, i) => i > mode && (c.includes('답변') || c === '학생'))
+  /* 예시 답변 열은 '학생' 으로 시작하는 것이 여럿이라 **방식 열 뒤**에서 찾는다.
+     ⚠️ 이름이 개정마다 바뀐다 — 08-20 에 이도윤 탭이 '학생 …' → '정답' 으로 바꿨고(구현 중 메모 8행),
+        그 순간 이 열을 못 찾아 **정답 정보가 통째로 비었다.** 빈 채로도 빌드는 성공한다:
+        O/X 는 전부 X 가 정답이 되고(23개 중 시트 기준 8개가 뒤집혔다), 선다는 정답 표시가 사라지고,
+        말하기는 예시 답변이 없어 무엇을 말해도 못 맞춘다. 그래서 아래 isHeaderRow 에서 **크게 알린다.** */
+  const sample = cells.findIndex((c, i) => i > mode
+    && (c.includes('답변') || c.includes('예시') || c === '학생' || c === '정답'))
   if (stage < 0 || tutor < 0) return null
   return { stage, tutor, mode, sample }
 }
@@ -411,12 +416,37 @@ function parse(tabName, range, section) {
     }
 
     const asCols = columnsOf(row)
-    if (isHeaderRow(row, asCols)) { cols = asCols; continue }
+    if (isHeaderRow(row, asCols)) {
+      cols = asCols
+      /* 정답 열을 못 찾으면 **조용히 비는 것이 가장 위험하다** — 빌드는 성공하고 수업만 틀린다 */
+      if (cols.sample < 0) {
+        console.warn(`\nWARN  "${tabName}" 표 머리에서 **예시 답변/정답 열을 못 찾았다.**`)
+        console.warn(`      머리 줄: ${row.map((c) => clean(c)).filter(Boolean).join(' | ')}`)
+        console.warn('      이대로 두면 정답 정보가 전부 빈다 — O/X 는 X 가 정답, 선다는 정답 없음, 말하기는 예시 답변 없음.')
+        console.warn('      columnsOf 의 이름 목록에 이 탭의 열 이름을 더할 것.\n')
+      }
+      continue
+    }
     if (!cols) continue
 
     const tutor = clean(row[cols.tutor])
     if (!tutor) continue        // 빈칸 줄 — 아직 안 쓴 대본이다. 버린다
     const modeRaw = cols.mode >= 0 ? row[cols.mode] : ''
+
+    /* ── 갈래를 **두 줄로 나눠 적은 꼴** ──
+       콘텐츠팀은 보통 한 칸에 "(정답) … (오답) …" 을 같이 적는데, 줄을 나눠 적은 곳이 있다
+       (이도윤 51·52행). 그대로 두면 두 턴이 되어 **정답 피드백과 오답 피드백이 둘 다 나간다**
+       (실측 보고 08-20, 구현 중 메모 12행). 앞 줄이 (정답)-만이고 이 줄이 (오답)-만이면 붙인다.
+       ⚠️ 학생에게 무엇을 시키는 줄은 붙이지 않는다 — 상호작용이 통째로 사라진다. */
+    const prevTurn = cur.turns[cur.turns.length - 1]
+    const loneWrong = /^\(\s*오답\s*\)/.test(tutor)
+    const prevLoneOk = prevTurn && /^\(\s*정답\s*\)/.test(prevTurn.tutor) && !/\(\s*오답\s*\)/.test(prevTurn.tutor)
+    const idleRow = !clean(modeRaw) || /^[-–]$/.test(clean(modeRaw))
+    if (loneWrong && prevLoneOk && idleRow && !prevTurn.wrongLine) {
+      prevTurn.wrongLine = tutor.replace(/^\(\s*오답\s*\)\s*/, '')
+      continue
+    }
+
     const sampleRaw = cols.sample >= 0 ? row[cols.sample] : ''
     cur.turns.push({
       stage: clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업',
@@ -631,6 +661,11 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
     ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx }
     : { no, stage: t.stage, tutor, focusQ: qIdx }
   if (cue) base.audio = { kind: 'option', qIdx, label: cue.label }
+  /* 다음 줄에 따로 적혀 있던 (오답) 갈래 — parse 가 앞 턴에 붙여 온다 */
+  if (t.wrongLine) {
+    const w = playCue(t.wrongLine)
+    base.tutorIfWrong = w ? w.said : t.wrongLine
+  }
   if (branch) {
     const w = playCue(branch.wrong)
     if (branch.wrong) base.tutorIfWrong = w ? w.said : branch.wrong
