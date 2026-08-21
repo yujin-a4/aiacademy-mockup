@@ -1564,7 +1564,30 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setMarkDone(true)
       reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
       void finishMark(true)
+      return
     }
+
+    /* ── 엉뚱한 낱말만 짚었으면 짚어 준다 ──
+       여기는 오래 **다 맞혔을 때만** 반응했다. 그래서 틀린 낱말을 누르면 노랗게 칠해지기만 하고
+       아무 말이 없었다 — 학생은 맞게 짚은 줄 알고 기다린다(실측 보고: Part 5 에서 'replacement'
+       를 눌러도 아무 반응이 없다). 잉크 판정과 같은 규칙으로 본다.
+       ⚠️ **짚어야 할 곳을 하나라도 눌렀으면 가만히 둔다** — 여러 낱말짜리 목표("by any user")를
+          하나씩 채우는 중일 수 있다. 그 중간에 끼어들면 맞게 하고 있는 학생을 나무라는 꼴이다.
+       ⚠️ 곧바로 말하지 않고 잠깐 기다린다 — 잘못 눌러 바로 다시 누르는(취소) 경우가 흔하다. */
+    const wrongKeys = Array.from(marks).filter((k) => {
+      const w = k.split('|').pop() ?? ''
+      return !!w && !targets.has(w) && !base.marks.has(w)
+    })
+    const touchedTarget = Array.from(words).some((w) => targets.has(w) && !base.marks.has(w))
+    if (!wrongKeys.length || touchedTarget) return
+
+    const t = setTimeout(() => {
+      const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
+      /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다 */
+      setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
+      void finishMark(false, read ? `'${read}' 는 짚어야 할 곳이 아니에요.` : undefined)
+    }, 800)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
 
