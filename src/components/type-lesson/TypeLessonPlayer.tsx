@@ -1656,13 +1656,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const hit: string[] = []
     root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
       const r = el.getBoundingClientRect()
-      /* 상자를 조금 넉넉히 본다 — **밑줄은 글자 아래로 지나간다.** 딱 맞게 보면 낱말 바로 밑을
-         그은 학생이 "엉뚱한 곳" 이 된다. 위아래 6px 씩 늘린다(줄 간격이 넓어 옆 줄과 안 겹친다). */
-      const PAD = 6
+      /* ── 상자를 **줄 간격만큼** 넉넉히 본다 ──
+         낱말 상자는 글자 크기만 하다(인라인 요소의 사각형은 글자 상자다). 그런데 **밑줄은 글자
+         아래로 지나간다.** 딱 맞게 보면 낱말 바로 밑에 제대로 그은 학생이 "엉뚱한 곳" 이 된다
+         (실측: 'easy replacement' 밑에 그었는데 못 잡았다).
+         고정값 대신 줄 높이에서 남는 만큼(반 줄 여백)을 쓴다 — 줄 간격이 좁은 화면에서도
+         옆 줄을 침범하지 않는다. 아래로는 조금 더 준다: 사람은 글자에 닿게 긋지 않는다. */
+      const lh = parseFloat(getComputedStyle(el).lineHeight)
+      const lead = Number.isFinite(lh) && lh > r.height ? (lh - r.height) / 2 : 6
+      const padUp = Math.max(2, lead * 0.6)
+      const padDown = Math.max(10, lead * 1.4)
       const x = Math.max(0, Math.round((r.left - cr.left) * sx))
-      const y = Math.max(0, Math.round((r.top - PAD - cr.top) * sy))
+      const y = Math.max(0, Math.round((r.top - padUp - cr.top) * sy))
       const w = Math.min(canvas.width - x, Math.round(r.width * sx))
-      const h = Math.min(canvas.height - y, Math.round((r.height + PAD * 2) * sy))
+      const h = Math.min(canvas.height - y, Math.round((r.height + padUp + padDown) * sy))
       if (w <= 0 || h <= 0) return
       const { data } = ctx.getImageData(x, y, w, h)
       for (let i = 3; i < data.length; i += 16) {
