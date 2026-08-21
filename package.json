@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "tts:scripted": "node --experimental-strip-types scripts/gen-scripted-tts.mjs"
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",
