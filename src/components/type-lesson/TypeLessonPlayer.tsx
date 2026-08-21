@@ -1511,8 +1511,36 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     }
     return enterBaseRef.current
   }
-  const finishMark = async (ok: boolean | null) => {
+  /** 잘못 짚었을 때 **다시 시킬 횟수** — 한 번만. 못 하는 학생을 계속 세워두는 게 더 나쁘다
+   *  (문항 다시 고르기 REVIEW_MAX_TRIES 와 같은 판단) */
+  const MARK_MAX_TRIES = 2
+  const markTriesRef = useRef(new Map<string, number>())
+
+  const finishMark = async (ok: boolean | null, hint?: string) => {
     if (!scripted || markAdvancedRef.current === spotKey) return
+
+    /* ── 엉뚱한 곳을 짚었으면 그냥 넘어가지 않는다 (구현 중 메모 23행) ──
+       "필기로 뭘 체크해 보라 했을 때 다른 데에 해도 그냥 넘어간다" 는 보고.
+       ⚠️ **강사에 따라 갈린다.** 대본 밖의 말을 얹지 않는 강사(이도윤)는 그대로 넘어간다 —
+          그 대본은 다음 줄에 오답 갈래를 갖고 있어(표시 턴 3개 중 2개) 거기서 짚어 준다.
+          윤다은은 표시 턴 12개가 **전부** 갈래가 없어, 앱이 거들지 않으면 아무 말 없이 지나간다.
+       무엇이 답인지는 말하지 않는다 — 판정이 돌려준 hint 는 "어디를 다시 볼지" 한 줄이다
+       (api/mark-check 가 정답을 문장으로 알려주지 못하게 막아 둔다). */
+    if (ok === false && !INST_SCRIPT_ONLY[instructor]) {
+      const tries = (markTriesRef.current.get(spotKey) ?? 0) + 1
+      markTriesRef.current.set(spotKey, tries)
+      if (tries < MARK_MAX_TRIES) {
+        /* 기준선을 지금 획 수로 올린다 — 그래야 **다음에 새로 그은 것만** 다시 본다 */
+        enterBase().strokes = draw.strokeCount
+        setMarkDone(false)
+        setMarkVerdict(null)
+        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?')
+        return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
+      }
+      /* 두 번째도 못 짚었다 — 어디를 봐야 하는지만 짚어 주고 넘어간다 */
+      if (hint) await say(hint)
+    }
+
     markAdvancedRef.current = spotKey
     /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
        prevOkRef 를 보고 떨어져 나간다(stripAck). */
@@ -1650,7 +1678,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           ? actionMessage(`화면에 "${verdict.read}"를 표시했습니다`, verdict.ok,
             verdict.ok ? undefined : verdict.hint || undefined)
           : actionMessage('화면에 표시했지만 무엇을 표시했는지 읽지 못했습니다 — 무엇을 짚었는지 말로 물어보세요'))
-      void finishMark(verdict.read ? verdict.ok : null)
+      void finishMark(verdict.read ? verdict.ok : null, verdict.hint || undefined)
     } catch {
       setMarkDone(true)
       reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
