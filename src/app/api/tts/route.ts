@@ -1,62 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from '@/data/instructorData'
-
-const DEFAULT_TTS_MODEL = 'eleven_multilingual_v2'
+/* 문장을 다듬는 규칙은 미리 생성기(scripts/gen-scripted-tts.mjs)와 **한 벌을 나눠 쓴다** —
+   여기서만 고치면 미리 만들어 둔 소리와 실시간 소리가 갈린다. src/lib/ttsText.ts 참고. */
+import {
+  DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
+  applyPronunciation, sanitizeForTts, spaceSentences,
+} from '@/lib/ttsText'
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
 
-/* ── 강사 페르소나별 ElevenLabs 파라미터 ── */
-const TTS_PARAMS: Record<string, { speed: number; stability: number; similarity_boost: number }> = {
-  park:    { speed: 1.2, stability: 0.30, similarity_boost: 0.80 },
-  jang:    { speed: 1.1, stability: 0.50, similarity_boost: 0.75 },
-  kim:     { speed: 1.0, stability: 0.60, similarity_boost: 0.75 },
-  p6tutor: { speed: 1.0, stability: 0.50, similarity_boost: 0.80 },
-}
-
-const DEFAULT_TTS = { speed: 1.0, stability: 0.50, similarity_boost: 0.75 }
-
-/** TTS 전송 전 특수문자 정리 */
-function sanitizeForTts(raw: string): string {
-  return raw
-    .replace(/_{4,}/g, '빈칸')
-    /* 화면에서 핵심을 굵게 하려고 시트가 찍는 표시다(TutorText). 소리에는 아무 뜻이 없으니
-       뗀다 — 두면 강사가 "별표별표" 를 읽는다. 작은따옴표는 그대로 둔다(읽어도 문제없다). */
-    .replace(/\*\*/g, '')
-    .replace(/['']/g, "'")
-    .replace(/[""]/g, '"')
-    .replace(/'/g, "'")
-    .trim()
-}
-
-/** 문장 끝에서 **한 박자 쉬게** 한다 — 마침표 뒤의 공백을 줄바꿈으로 바꾼다.
- *
- *  줄바꿈을 쓰는 이유: v3 는 `<break time=…>` 를 안 받고, `[pause]` 류 태그는 모델이 그대로
- *  읽어 버리는 사고가 있다. 줄바꿈은 그냥 글자라 읽힐 수가 없고, 문서가 권하는 방식이기도 하다.
- *
- *  건드리지 않는 것
- *   · 숫자 사이의 점 — "3.5초" 를 "3 / 5초" 로 끊으면 안 된다
- *   · 이미 줄이 바뀐 자리 — 공백이 있는 경우만 바꾼다(줄바꿈이 겹치면 사이가 너무 벌어진다)
- *  **화면 글자는 이걸 거치지 않는다.** 읽는 문자열에만 손댄다. */
-function spaceSentences(raw: string): string {
-  return raw.replace(/([.!?])[ \t]+(?=[^\s\d])/g, '$1\n\n')
-}
-
-/* ── 발음 사전 ──
-   강사가 자꾸 틀리게 읽는 낱말을 여기 적는다. v3 는 **슬래시로 감싼 IPA 를 그대로 알아듣는다**
-   (`/ˈiːzəl/`) — 일레븐랩스에 사전 파일을 올리거나 API 로 등록할 필요가 없다.
-   ⚠️ v3 전용이다. 다른 모델(박혜원 = multilingual v2)은 IPA 를 못 알아들어 슬래시째 읽거나
-      뭉갠다. 그래서 아래에서 **모델을 보고** 건다.
-   ⚠️ 화면 글자는 그대로 'easel' 이다 — 읽을 때만 바꾼다(koLetters 와 같은 규칙). */
-const IPA: Record<string, string> = {
-  easel: '/ˈiːzəl/',
-}
-
-function applyPronunciation(raw: string): string {
-  return Object.entries(IPA).reduce(
-    (s, [word, ipa]) => s.replace(new RegExp(`\\b${word}\\b`, 'gi'), ipa),
-    raw,
-  )
-}
 
 export async function POST(req: NextRequest) {
   try {

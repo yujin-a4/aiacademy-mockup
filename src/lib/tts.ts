@@ -1,4 +1,28 @@
 import { INST_TTS_RATE } from '@/data/instructorData'
+import { ttsCacheKey } from '@/lib/ttsText'
+import ttsManifest from '@/data/ttsManifest.json'
+
+/* ── 미리 만들어 둔 강사 음원 ──
+   대본 수업은 **모든 학생이 똑같은 말을 듣는다.** 그런데 실시간 생성은 학생 수만큼 다시 만든다 —
+   50명이면 50번, 300명이면 300번. 그래서 대본 발화는 `scripts/gen-scripted-tts.mjs` 로 미리
+   만들어 두고, 여기서 파일이 있으면 그걸 튼다.
+
+   **매니페스트에 없으면 조용히 실시간 생성으로 간다.** 이 폴백이 이 구조의 핵심이다 —
+   대본이 바뀌어도, 학생 점수가 들어가는 문장("{맞은수}개")처럼 미리 만들 수 없는 줄이어도,
+   레일만 있고 대본이 없는 강의여도 그냥 예전처럼 돈다. 미리 만든 것은 **빨라지는 것뿐**이다.
+
+   미리 만들어 두면 좋은 이유가 비용만은 아니다.
+     · 소리가 매번 똑같다 — 실시간 생성은 같은 문장도 억양이 조금씩 달라져서, FGI 참가자마다
+       미묘하게 다른 수업을 들은 셈이 된다.
+     · 현장 네트워크가 나빠도 강사가 말을 한다.
+     · 사람이 미리 들어보고 이상한 발음을 잡을 수 있다(참가자가 처음 듣지 않는다). */
+const PRERENDERED = ttsManifest as Record<string, string>
+
+/** 미리 만들어 둔 mp3 주소. 없으면 undefined → 실시간 생성.
+ *  ⚠️ `text` 는 **실제로 읽는 문자열**이어야 한다(화면 문장이 아니라 koLetters 를 거친 값). */
+function prerenderedSrc(text: string, persona: string, instructor?: string): string | undefined {
+  return PRERENDERED[ttsCacheKey(text, persona, instructor)]
+}
 
 /** 현재 재생 중인 오디오 인스턴스 (전역 추적) */
 let _currentAudio: HTMLAudioElement | null = null
@@ -138,6 +162,11 @@ function ttsKey(text: string, persona: string, instructor?: string): string {
 }
 
 function loadTTS(text: string, persona: string, instructor?: string): Promise<string | null> {
+  /* 미리 만들어 둔 파일이 먼저다 — 네트워크도 크레딧도 쓰지 않는다.
+     메모리 캐시에 담지 않는 이유: 주소가 정적 파일이라 브라우저가 알아서 캐시한다. */
+  const pre = prerenderedSrc(text, persona, instructor)
+  if (pre) return Promise.resolve(pre)
+
   const k = ttsKey(text, persona, instructor)
   const hit = _ttsCache.get(k)
   if (hit) return Promise.resolve(hit)
@@ -269,26 +298,9 @@ export function playbackProgress(): { current: number; duration: number } | null
   return { current: a.currentTime, duration: a.duration }
 }
 
-/* ── 한국어 발화 안에 홀로 선 알파벳 ── */
-const LETTER_KO: Record<string, string> = {
-  A: '에이', B: '비', C: '씨', D: '디', E: '이', F: '에프', G: '지', H: '에이치', I: '아이',
-  J: '제이', K: '케이', L: '엘', M: '엠', N: '엔', O: '오', P: '피', Q: '큐', R: '알',
-  S: '에스', T: '티', U: '유', V: '브이', W: '더블유', X: '엑스', Y: '와이', Z: '지',
-}
-
-/**
- * 한국어 문장 속 **홀로 선 대문자 한 글자**를 한글 음으로 바꾼다 — "D에서는" → "디에서는".
- * 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다(실측: "B예요" 가 알아들을 수 없는 소리).
- * **화면에 보이는 글자는 그대로 A·B·C·D 다** — 읽을 때만 바꾼다.
- *
- * 손대지 않는 것
- *  · 영어 단어 속 글자 — 앞뒤에 알파벳이 붙어 있으면 건드리지 않는다("an easel", "AI")
- *  · 소문자 — 영어 문장의 관사 'a' 가 "에이" 로 읽히면 안 된다("paint a picture")
- * 그래서 이 함수는 **한국어 발화 전용**이다. 영어 지문·보기 낭독에는 쓰지 말 것.
- */
-export function koLetters(text: string): string {
-  return text.replace(/(?<![A-Za-z])([A-Z])(?![A-Za-z])/g, (m) => LETTER_KO[m] ?? m)
-}
+/* koLetters 는 ttsText.ts 로 옮겼다 — 미리 음원을 만드는 생성기가 **같은 변환**을 거쳐야
+   캐시 키가 맞아떨어진다. 여기서는 예전처럼 '@/lib/tts' 에서 가져다 쓰도록 다시 내보낸다. */
+export { koLetters } from '@/lib/ttsText'
 
 /** fetchTTSAudio + playAndWait + speechSynthesis fallback.
  *  fetch 완료 후 토큰을 재확인해 화면 전환 중에 fetch가 끝난 경우 재생을 막는다.
@@ -332,7 +344,10 @@ export async function speakAndWait(text: string, persona: string): Promise<void>
   const token = ++_playbackToken
 
   let audio: HTMLAudioElement | null = null
-  try {
+  const pre = prerenderedSrc(text, persona)
+  if (pre) {
+    audio = new Audio(pre)
+  } else try {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
