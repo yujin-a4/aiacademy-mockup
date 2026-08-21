@@ -1656,10 +1656,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const hit: string[] = []
     root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
       const r = el.getBoundingClientRect()
+      /* 상자를 조금 넉넉히 본다 — **밑줄은 글자 아래로 지나간다.** 딱 맞게 보면 낱말 바로 밑을
+         그은 학생이 "엉뚱한 곳" 이 된다. 위아래 6px 씩 늘린다(줄 간격이 넓어 옆 줄과 안 겹친다). */
+      const PAD = 6
       const x = Math.max(0, Math.round((r.left - cr.left) * sx))
-      const y = Math.max(0, Math.round((r.top - cr.top) * sy))
+      const y = Math.max(0, Math.round((r.top - PAD - cr.top) * sy))
       const w = Math.min(canvas.width - x, Math.round(r.width * sx))
-      const h = Math.min(canvas.height - y, Math.round(r.height * sy))
+      const h = Math.min(canvas.height - y, Math.round((r.height + PAD * 2) * sy))
       if (w <= 0 || h <= 0) return
       const { data } = ctx.getImageData(x, y, w, h)
       for (let i = 3; i < data.length; i += 16) {
@@ -1709,12 +1712,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          엉뚱한 낱말('easy')에 밑줄을 그어도 "잘했어요" 하고 지나갔다(실측 보고).
          이제 낱말마다 심어 둔 자리(data-mk)와 잉크를 견준다. */
       const targets = it.targetWords?.length ? targetTokens(it.targetWords) : null
+      const hasBoxes = !!contentRef.current?.querySelector('[data-mk]')
       const inkKeys = inkedWords()
-      if (!targets || !inkKeys.length) {
-        // 짚을 낱말이 정해져 있지 않거나 잉크를 못 읽었으면 예전처럼 통과시킨다(가둘 수는 없다)
+      if (!targets || !hasBoxes) {
+        /* 짚을 낱말이 정해져 있지 않거나, 화면에 되짚을 자리가 아예 없으면 판정할 수가 없다 —
+           예전처럼 통과시킨다(판정 못 하는 필기로 학생을 가둘 수는 없다). */
         setMarkDone(true)
         reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
         void finishMark(null)
+        return
+      }
+      if (!inkKeys.length) {
+        /* 그은 것은 있는데 **어느 낱말에도 닿지 않았다** — 여백에 그은 것이다.
+           예전에는 이것도 '못 읽었다' 로 보고 통과시켜서, 엉뚱한 데 그어도 "좋아요" 하고
+           넘어갔다(실측 보고). 낱말 위에 그으라고 말해 주고 다시 시킨다. */
+        setMarkVerdict({ read: null, ok: false, hint: '' })
+        reportAction(`${turnIdx}:mark`, actionMessage('화면에 표시했지만 지문의 낱말 위가 아닙니다', false))
+        void finishMark(false, '짚어야 할 낱말 **위에** 표시해 주세요.')
         return
       }
       const wordOf = (k: string) => k.split('|').pop() ?? ''
