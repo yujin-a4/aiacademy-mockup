@@ -4,7 +4,7 @@ import { INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from '@/data/instruct
    여기서만 고치면 미리 만들어 둔 소리와 실시간 소리가 갈린다. src/lib/ttsText.ts 참고. */
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
-  applyPronunciation, sanitizeForTts, spaceSentences,
+  applyPronunciation, sanitizeForTts, sayableTerms, spaceSentences,
 } from '@/lib/ttsText'
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
     let speech = !isListening && instructor && INST_SENTENCE_PAUSE[instructor]
       ? spaceSentences(text)
       : text
+    /* 읽는 법을 정해 둔 말(세는 말·기호·물결표)은 **모델을 가리지 않는다** — 강사 발화에만 건다.
+       듣기 음원은 시험 자료라 손대지 않는다. */
+    if (!isListening) speech = sayableTerms(speech)
     /* 발음 교정은 강사 발화에만, 그리고 IPA 를 알아듣는 모델에만 건다 */
     if (!isListening && modelId === 'eleven_v3') speech = applyPronunciation(speech)
 
