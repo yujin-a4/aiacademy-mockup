@@ -55,6 +55,11 @@ export interface ContentState {
   /** 잠깐 짚어 보여줄 문항 — '안 푼 문제가 있어요' 로 데려간 자리. 화면에 스크롤해 올리고 표시를 단다.
    *  focusQ 를 쓰면 '지금 읽어주는 문항' 과 뜻이 섞여서 따로 둔다. */
   spotlightQ?: number
+  /** 지금 턴이 **다시 고르라고 시키고 있는** 문항 — 채점이 끝났어도 보기를 열어 준다.
+   *  코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라 graded 가 처음부터 다 켜져 있는데,
+   *  그 안에 "보기에서 정답을 다시 골라볼까요?" 턴이 있다. graded 만 보면 그 보기가 잠겨 있어
+   *  **눌러도 아무 일이 없다**(실측 보고 08-20, 구현 중 메모 40행). */
+  askingQ?: number
   /** 'single': focusQ 문항만 선택 가능 / 'all': 전 문항 선택 가능 / 'none' */
   answerMode: 'none' | 'single' | 'all'
   answers: Record<number, string>
@@ -188,7 +193,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const [scriptOverride, setScriptOverride] = useState<Record<string, boolean>>({})
   const focused = st.focusQ === qIdx
   const graded = st.graded.has(qIdx)
-  const selectable = !graded && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
+  /* 지금 이 문항을 다시 고르라고 시키는 턴이면 채점이 끝났어도 열어 준다 */
+  const asking = st.askingQ === qIdx
+  const selectable = (asking || !graded) && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
   const revealed = st.revealedOptions[qIdx]
   const correctLabel = q.options.find((o) => o.correct)?.label
   /* 지금 나가는 음원이 "전체 지문/스크립트"인가 — 보기(opt:)·문항 묶음(qaudio:)은 그 자리에서 켜지므로 뺀다 */
