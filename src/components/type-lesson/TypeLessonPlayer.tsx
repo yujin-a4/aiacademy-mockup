@@ -303,6 +303,17 @@ function koCopula(word: string): string {
   return (code - 0xac00) % 28 ? '이에요' : '예요'
 }
 
+/** 받침이 있으면 '은', 없으면 '는' — 낱말을 인용해 되짚을 때 조사가 어긋나면 바로 들린다
+ *  (구현 중 메모 27행: "'지시 받는 사람'는" 처럼 나갔다).
+ *  ⚠️ 한글이 아닌 끝글자(영단어·기호)는 '는' 그대로 둔다 — 읽는 소리를 모르면 고칠 근거가 없고,
+ *     A~D 라벨은 에이·비·씨·디로 모두 모음이라 '는' 이 맞다. */
+function koTopic(word: string): string {
+  const last = word.trim().replace(/['\"’”)\]]+$/, '').slice(-1)
+  const code = last.charCodeAt(0)
+  if (!(code >= 0xac00 && code <= 0xd7a3)) return '는'
+  return (code - 0xac00) % 28 ? '은' : '는'
+}
+
 /** 보기 해석을 **인용문**으로 바꾼다 — "여자가 물감 한 개를 들고 있다." → "여자가 물감 한 개를 들고 있다고"
  *  (`question_options.option_explanation` 에는 오답 이유가 아니라 **보기 해석**이 들어 있다.
  *   그대로 읽으면 "아니에요. 여자가 물감 한 개를 들고 있다." 처럼 번역문만 튀어나온다 — 실측) */
@@ -1537,7 +1548,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?')
         return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
       }
-      /* 두 번째도 못 짚었다 — 어디를 봐야 하는지만 짚어 주고 넘어간다 */
+      /* ── 두 번째도 못 짚었다 — 넘어가되 **정답 자리를 화면에 짚어 준다** ──
+         말로만 알려주고 넘어가면 학생은 어디가 답이었는지 끝내 못 본다(구현 중 메모 56행).
+         '표시 완료' 를 눌렀을 때와 같은 자리(tutorMarks)에 강사가 대신 표시한다.
+         짚을 낱말이 데이터에 없는 필기 턴(사진 위 동그라미 등)은 짚어 줄 자리가 없어 그대로 둔다. */
+      const mk = turn.interaction
+      if (mk.kind === 'mark' && mk.targetWords?.length) {
+        setTutorMarks((prev) => {
+          const n = new Set(prev)
+          targetTokens(mk.targetWords!).forEach((w) => n.add(w))
+          return n
+        })
+      }
       if (hint) await say(hint)
     }
 
@@ -1585,7 +1607,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
       /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다 */
       setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
-      void finishMark(false, read ? `'${read}' 는 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}'${koTopic(read)} 아니에요.` : undefined)
     }, 800)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1753,7 +1775,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setMarkVerdict({ read: read || null, ok: false, hint: '' })
       reportAction(`${turnIdx}:mark`,
         actionMessage(`화면에 "${read}"를 표시했습니다`, false))
-      void finishMark(false, read ? `'${read}' 는 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}'${koTopic(read)} 아니에요.` : undefined)
       return
     }
     setMarkChecking(true)
@@ -2560,7 +2582,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const data = await res.json()
       /* LLM 답에는 **·*·`* 같은 기호가 섞여 나온다 — 그대로 읽으면 TTS 가 별표를 발음한다 */
       const answer = String(data.dialogue ?? '').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
-        || '음, 그건 지금 단계에서는 답하기 어려워요.'
+        /* ⚠️ 이 말은 **답을 못 가져왔을 때**의 폴백이지 채점이 아니다. 예전 문구
+           ("그건 지금 단계에서는 답하기 어려워요")는 오답을 고른 자리에서 나오면 마치 답을
+           안 알려주겠다는 말로 들렸다(구현 중 메모 53행). 못 한 것은 설명이지 판정이 아니라고
+           분명히 말하고, 학생을 문제로 돌려보낸다(뒤이어 askAside 가 물음을 다시 읽어 준다). */
+        || '음, 그건 제가 설명하기 어려운 부분이에요.'
       await say(answer, true)
     } catch {
       await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true)
@@ -3293,8 +3319,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 <div className="space-y-2">
                   <div className="rounded-xl border border-[#BFDBFE] bg-[#F8FAFF] px-3 py-2.5">
                     <p className="text-[12px] font-bold text-[#2563EB]">유형 학습이 끝났어요</p>
+                    {/* ⚠️ **읽기(RC)에는 음원이 없다** — 여기에 "음원을 눌러 다시 들어보세요" 를
+                        띄우면 있지도 않은 버튼을 찾게 된다(구현 중 메모 29행). */}
                     <p className="text-[11px] text-[#6B7280] leading-relaxed mt-0.5">
-                      실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.
+                      {lesson.area === 'RC'
+                        ? '이제 실전 문제로 넘어갈 수 있어요.'
+                        : '실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.'}
                     </p>
                   </div>
                   {/* 실전으로 가는 버튼은 아래 '앞으로 가는 줄' 에 있다 — 여기 또 두면 같은 일을 하는
