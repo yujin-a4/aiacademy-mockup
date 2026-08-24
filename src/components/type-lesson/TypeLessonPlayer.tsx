@@ -1595,8 +1595,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
     const t = setTimeout(() => {
       const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
-      /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다 */
-      setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
+      /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다.
+         ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 대본만 말하는 강사(이도윤)는 여기서 아무
+            말도 하지 않는데, 지우기는 강사를 가리지 않아서 **칠한 것이 말없이 사라졌다** — 화면에서는
+            형광펜이 아예 안 먹는 것으로 보인다(실측). 아무 말도 안 할 것이면 칠한 채로 둔다. */
+      if (!INST_SCRIPT_ONLY[instructor]) {
+        setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
+      }
       void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
     }, 800)
     return () => clearTimeout(t)
