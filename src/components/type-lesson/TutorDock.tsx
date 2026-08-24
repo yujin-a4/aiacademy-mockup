@@ -410,6 +410,15 @@ export default function TutorDock({
   }, [messages, anchor])
   const cardAt = anchor ?? messages.length
 
+  /* ── 음성모드 '지금 하는 말' 상자를 따라 내려가게 (구현 중 메모 57행) ──
+     글자가 소리에 맞춰 하나씩 늘어나므로 lastLine 이 바뀔 때마다 바닥으로 붙인다.
+     smooth 를 안 쓰는 이유는 아래 대화창과 같다 — 매 글자 부드러운 스크롤을 걸면 서로 밀려 덜컹인다. */
+  const liveRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = liveRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lastLine])
+
   /* ── 최소화 — 얼굴을 끌어 원하는 자리에 두는 작은 창 ── */
   if (mode === 'mini') {
     return (
@@ -451,9 +460,12 @@ export default function TutorDock({
 
       {voiceMode ? (
         <>
-          {/* 강사가 지금 하는 말 — 실시간으로 이 박스에 뜬다 */}
+          {/* 강사가 지금 하는 말 — 실시간으로 이 박스에 뜬다.
+              ⚠️ **이 상자는 스스로 따라 내려가야 한다**(구현 중 메모 57행). 아래 bodyRef 의 자동
+                 스크롤은 선택지 자리의 것이라 여기까지 오지 않는다. 말이 길어지면 26vh 를 넘겨
+                 지금 읽는 대목이 상자 밖으로 밀려났다. */}
           <div className="shrink-0 px-3 md:px-4 pt-1">
-            <div className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
+            <div ref={liveRef} className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
               <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium whitespace-pre-wrap">
                 {lastLine ? <TutorText text={lastLine} /> : <SpeechDots />}
               </p>
