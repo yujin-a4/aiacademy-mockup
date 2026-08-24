@@ -103,6 +103,35 @@ export const markedWords = (marks: Set<string>) => {
 }
 
 /* ── 단어 탭 텍스트 ── */
+/* ── 여러 낱말을 한 번에 짚기 (구현 중 메모 24행) ──
+   "주어 부분을 짚어보세요" 처럼 목표가 여러 낱말인데 하나씩만 찍혀서, 다 채우기 전에는 아무 반응이
+   없었다 — 콘텐츠 파트에는 "탭해도 인식을 안 함" 으로 보였다. 손가락(또는 마우스)을 끌면 지나간
+   낱말이 다 켜진다.
+   ⚠️ **아이패드가 기준이다.** 터치는 처음 누른 요소가 이벤트를 붙잡고 있어 낱말마다 pointerenter
+      가 오지 않는다 → 좌표로 짚는다(`elementFromPoint` + 이미 있는 `data-mk`).
+   ⚠️ 낱말에 `touch-pan-y` 를 준다 — **세로로 끌면 지문이 그대로 스크롤되고**, 가로로 끌 때만
+      우리에게 이벤트가 온다. 안 그러면 글자 위에서는 스크롤이 막힌다. */
+function startWordDrag(st: ContentState, key: string, e: React.PointerEvent) {
+  st.onTapWord(key)                                   // 누른 낱말은 예전처럼 토글
+  const el = e.currentTarget as HTMLElement
+  const already = new Set([key])
+  el.setPointerCapture?.(e.pointerId)
+  const move = (ev: PointerEvent) => {
+    const hit = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)
+      ?.closest('[data-mk]')?.getAttribute('data-mk')
+    /* 끌어서 지나가는 것은 **켜기만** 한다 — 지나갔다고 꺼 버리면 되돌아올 때 깜빡인다 */
+    if (hit && !already.has(hit)) { already.add(hit); if (!st.marks.has(hit)) st.onTapWord(hit) }
+  }
+  const end = () => {
+    el.removeEventListener('pointermove', move)
+    el.removeEventListener('pointerup', end)
+    el.removeEventListener('pointercancel', end)
+  }
+  el.addEventListener('pointermove', move)
+  el.addEventListener('pointerup', end)
+  el.addEventListener('pointercancel', end)
+}
+
 function TapText({ text, st, className, scope = '' }: { text: string; st: ContentState; className?: string; scope?: string }) {
   const tokens = text.split(/(\s+)/)
   /* 실전에는 형광펜이 없다 — 시험지에 밑줄을 긋고 싶으면 좌하단 연필(필기)을 쓴다.
@@ -127,8 +156,8 @@ function TapText({ text, st, className, scope = '' }: { text: string; st: Conten
              지문은 글자라 사진처럼 캔버스와 합성해 판정할 수가 없다. 이게 없으면 밑줄을 아무 데나
              그어도 통과했다(실측: Part 5 에서 'easy' 에 밑줄을 그어도 "잘했어요"). 보기(data-opt)와
              같은 방식이다. */
-          <span key={i} data-mk={key} onClick={() => st.onTapWord(key)}
-            className={`cursor-pointer rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
+          <span key={i} data-mk={key} onPointerDown={(e) => startWordDrag(st, key, e)}
+            className={`cursor-pointer touch-pan-y rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
               marked ? 'bg-[#FDE68A]' : tMarked ? 'bg-[#DBEAFE] text-[#1D4ED8] font-semibold' : 'hover:bg-[#F3F4F6]'
             } ${marked && tMarked ? 'underline decoration-[#2563EB] decoration-2 underline-offset-2' : ''}`}>
             {tk}
