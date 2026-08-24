@@ -157,10 +157,17 @@ export function koLetters(text: string): string {
 }
 
 /* ── 조사 고르기 ──
-   **철자가 아니라 읽는 소리로 고른다.** 끝소리가 자음이면 은·이·을·과, 모음이면 는·가·를·와.
-   'are' 는 /ɑːr/ 로 읽기로 정해 두었으므로(위 IPA 사전, 구현 중 메모 66행) 자음으로 끝난다
-   → **"are이" 가 맞다.** "are가" 는 [아르] 로 읽을 때에나 맞는 말이다.
+   **철자가 아니라 한국어로 읽히는 소리로 고른다.** 끝이 자음이면 은·이·을·과, 모음이면 는·가·를·와.
+
+   영단어가 까다롭다 — 끝자음의 **종류**가 가른다.
+   · ㅁ·ㄴ·ㅇ·ㄹ·r 은 **받침으로 남는다** → 자음: line[라인]**은** · easel[이젤]**은** · are[아r]**이**
+   · 그 밖의 자음(t·d·k·p·s·f·ch…)은 **'으/이' 가 붙어** 모음으로 끝난다
+     → replacement[리플레이스먼트]**는** · standardized[스탠더다이즈드]**는** · base[베이스]**는**
+   'are' 를 /ɑːr/ 로 읽기로 정해 둔 것이 곧 "are이" 의 근거다(위 IPA 사전, 구현 중 메모 66행).
    여기 두는 이유: 판단 근거인 발음 사전(IPA·LETTER_KO)이 이 파일에 있다. */
+
+/** 한국어로 읽었을 때 **받침으로 끝나는 소리**들 — 이것만 자음으로 센다 */
+const KEEPS_BATCHIM = 'mnŋlrɹ'
 
 /** 그 낱말을 **읽었을 때** 자음으로 끝나는가. 모르면 null */
 export function endsConsonant(raw: string): boolean | null {
@@ -184,20 +191,16 @@ export function endsConsonant(raw: string): boolean | null {
 
   /* 발음을 적어 둔 낱말은 그 IPA 의 끝소리로 (여기가 정본이다) */
   const ipa = IPA[w.toLowerCase()]
-  if (ipa) {
-    const bare = ipa.replace(/[/ˈˌː.]/g, '')
-    return !'iɪeɛæaɑɒɔoʊuʌəɜɐyøœ'.includes(bare.slice(-1))
-  }
+  if (ipa) return KEEPS_BATCHIM.includes(ipa.replace(/[/ˈˌː.]/g, '').slice(-1))
 
   /* 사전에 없는 영단어는 철자로 짐작한다 — **짐작이라 IPA 사전이 늘 우선한다.**
-     묵음 e(line·base·have)는 자음으로, 짧은 말(the·be·he)은 모음으로 본다. */
-  const en = w.toLowerCase().replace(/[^a-z]/g, '')
+     묵음 e 는 떼고 본다(line → n 받침 · base → s 라 '스'). */
+  let en = w.toLowerCase().replace(/[^a-z]/g, '')
   if (!en) return null
-  const tail = en.slice(-1)
-  if (tail === 'e') return en.length > 3 && !'aeiou'.includes(en.slice(-2, -1))
-  if ('aiouy'.includes(tail)) return false
-  if (tail === 'w' && 'aeo'.includes(en.slice(-2, -1))) return false   // now·low·new → [우]
-  return true
+  if (en.length > 3 && en.endsWith('e') && !'aeiou'.includes(en.slice(-2, -1))) en = en.slice(0, -1)
+  if (en.endsWith('ng')) return true                    // -ing → [잉] 받침
+  if (/[aeiouyw]$/.test(en)) return false               // 모음으로 끝난다 (easy·the·now)
+  return /[mnlr]$/.test(en)                             // 받침으로 남는 자음만 자음으로 센다
 }
 
 /** 앞말에 맞는 조사. 모르면 모음 쪽(는·가·를·와)으로 둔다 — 어색해도 틀린 티가 덜 난다. */
