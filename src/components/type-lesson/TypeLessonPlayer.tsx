@@ -14,6 +14,8 @@ import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
+/* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
+import { koJosa, endsConsonant } from '@/lib/ttsText'
 import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
@@ -296,22 +298,10 @@ function bareWord(s: string): string | null {
   return t.split(/\s+/).length > 3 ? null : t
 }
 
-/** 받침이 있으면 '이에요', 없으면 '예요' — 읽어 주는 말이라 어긋나면 바로 들린다. */
+/** 끝소리가 자음이면 '이에요', 모음이면 '예요' — 읽어 주는 말이라 어긋나면 바로 들린다.
+ *  영단어도 **읽는 소리**로 본다: 'standardized' 는 [드] 로 끝나 '이에요' 다. */
 function koCopula(word: string): string {
-  const code = word.trim().slice(-1).charCodeAt(0)
-  if (!(code >= 0xac00 && code <= 0xd7a3)) return '예요'
-  return (code - 0xac00) % 28 ? '이에요' : '예요'
-}
-
-/** 받침이 있으면 '은', 없으면 '는' — 낱말을 인용해 되짚을 때 조사가 어긋나면 바로 들린다
- *  (구현 중 메모 27행: "'지시 받는 사람'는" 처럼 나갔다).
- *  ⚠️ 한글이 아닌 끝글자(영단어·기호)는 '는' 그대로 둔다 — 읽는 소리를 모르면 고칠 근거가 없고,
- *     A~D 라벨은 에이·비·씨·디로 모두 모음이라 '는' 이 맞다. */
-function koTopic(word: string): string {
-  const last = word.trim().replace(/['\"’”)\]]+$/, '').slice(-1)
-  const code = last.charCodeAt(0)
-  if (!(code >= 0xac00 && code <= 0xd7a3)) return '는'
-  return (code - 0xac00) % 28 ? '은' : '는'
+  return endsConsonant(word) ? '이에요' : '예요'
 }
 
 /** 보기 해석을 **인용문**으로 바꾼다 — "여자가 물감 한 개를 들고 있다." → "여자가 물감 한 개를 들고 있다고"
@@ -1607,7 +1597,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
       /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다 */
       setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
-      void finishMark(false, read ? `'${read}'${koTopic(read)} 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
     }, 800)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1775,7 +1765,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setMarkVerdict({ read: read || null, ok: false, hint: '' })
       reportAction(`${turnIdx}:mark`,
         actionMessage(`화면에 "${read}"를 표시했습니다`, false))
-      void finishMark(false, read ? `'${read}'${koTopic(read)} 아니에요.` : undefined)
+      void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
       return
     }
     setMarkChecking(true)
