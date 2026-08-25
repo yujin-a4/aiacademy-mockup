@@ -21,6 +21,8 @@ export interface ChatMsg {
   text: string
   /** 대본 밖 질문·답변인가 — 수업 흐름과 섞이지 않게 노란 결로 묶어 보여준다 */
   aside?: boolean
+  /** 앱이 만든 줄인가(판정·힌트). 따옴표를 강조로 읽지 않는다 — TutorText 의 plain 참고 */
+  plain?: boolean
 }
 
 /* ── 대화 모드 토글 — 강사 아바타 바로 아래에 산다 ──
@@ -260,10 +262,19 @@ export function SpeechDots() {
 /* ── 강사 말에서 **핵심**을 굵게 ──
    발화가 평균 99자라 통으로 흘러가면 무엇이 중요한지 눈에 안 들어온다(실측 지적).
    두 가지를 굵게 잡는다:
-     · '…'   — 시트가 이미 뜻풀이·핵심 표현에 쓰고 있다(발화 291개 중 91개). 따옴표는 남긴다.
+     · '…'   — 시트가 이미 뜻풀이·핵심 표현에 쓰고 있다(대본 따옴표 168개). 따옴표는 남긴다.
      · **…** — 콘텐츠팀이 따로 찍고 싶을 때. 별표는 화면에서 감추고, 읽을 때도 뗀다(api/tts).
+
+   ⚠️ **굵힐지 말지는 언어가 아니라 '누가 한 말인가' 로 가른다.**
+      대본이 따옴표 친 것은 콘텐츠팀이 중요하다고 친 것이라 영어든 한글이든 굵다
+      ('물로 헹구다' · 'be + p.p.'). 반대로 **앱이 학생 오답을 인용한 줄**은 굵히지 않는다 —
+      "'over'은 아니에요. 다시 한번 표시해 볼까요?" 에서 over 는 중요한 게 아니라 틀린 것이다.
+      그건 부르는 쪽이 `plain` 으로 알려준다(TutorText·ChatMsg·TutorDock 의 같은 이름).
+
    ⚠️ 영어 축약형을 강조로 오해하면 안 된다("He's reviewing" → 여기서 굵어지기 시작한다).
-      그래서 따옴표는 **앞이 글자가 아닐 때만** 여는 것으로 본다.
+      **여는 쪽**은 앞이 글자가 아닐 때만, **닫는 쪽**은 뒤가 글자가 아닐 때만 따옴표로 본다.
+      닫는 쪽을 안 보면 아포스트로피가 닫기로 잡혀 문장이 엉뚱한 데서 끊긴 채 굵어졌다
+      (【'The layout of Pierce University'】s new residence hall — 대본에 6군데).
    ⚠️ 글자는 소리에 맞춰 하나씩 드러나므로 **잘린 문자열이 들어온다.** 여는 표시만 오고 닫는
       표시가 아직 안 온 토막도 굵게 보여야 강조가 뒤늦게 튀어 들어오지 않는다. */
 type Seg = { t: string; b: boolean }
@@ -272,6 +283,12 @@ function parseEmphasis(src: string): Seg[] {
   const segs: Seg[] = []
   const push = (t: string, b: boolean) => { if (t) segs.push({ t, b }) }
   const isWord = (c: string | undefined) => !!c && /[A-Za-z0-9]/.test(c)
+  /** 닫는 따옴표 자리 — 뒤가 글자면 아포스트로피다(University's). 지나쳐서 다음 것을 본다. */
+  const closeAt = (from: number) => {
+    let j = src.indexOf("'", from)
+    while (j !== -1 && isWord(src[j + 1])) j = src.indexOf("'", j + 1)
+    return j
+  }
   let buf = ''
   let i = 0
   while (i < src.length) {
@@ -284,7 +301,7 @@ function parseEmphasis(src: string): Seg[] {
       continue
     }
     if (src[i] === "'" && !isWord(src[i - 1])) {
-      const end = src.indexOf("'", i + 1)
+      const end = closeAt(i + 1)
       push(buf, false); buf = ''
       if (end === -1) { push(src.slice(i), true); return segs }
       push(src.slice(i, end + 1), true)      // 따옴표째 굵게 — 길이가 그대로라 글자 흐름이 안 어긋난다
@@ -298,8 +315,11 @@ function parseEmphasis(src: string): Seg[] {
   return segs
 }
 
-/** 강사 말 한 줄 — 핵심만 굵게. 학생 말·일반 글자에는 쓰지 않는다. */
-export function TutorText({ text }: { text: string }) {
+/** 강사 말 한 줄 — 핵심만 굵게. 학생 말·일반 글자에는 쓰지 않는다.
+ *  @param plain 앱이 만든 줄(판정·힌트)인가. 대본이 아니라 앱이 학생 답을 인용한 자리라
+ *    따옴표를 강조로 읽으면 **틀린 것이 굵어진다** — 그럴 때는 글자를 그대로 둔다. */
+export function TutorText({ text, plain }: { text: string; plain?: boolean }) {
+  if (plain) return <>{text}</>
   return (
     <>
       {parseEmphasis(text).map((s, i) => (
@@ -309,7 +329,7 @@ export function TutorText({ text }: { text: string }) {
   )
 }
 
-function Bubble({ role, text, aside }: ChatMsg) {
+function Bubble({ role, text, aside, plain }: ChatMsg) {
   const mine = role === 'user'
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -321,7 +341,7 @@ function Bubble({ role, text, aside }: ChatMsg) {
           : mine
             ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
             : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
-      }`}>{text ? (mine ? text : <TutorText text={text} />) : (mine ? null : <SpeechDots />)}</div>
+      }`}>{text ? (mine ? text : <TutorText text={text} plain={plain} />) : (mine ? null : <SpeechDots />)}</div>
     </div>
   )
 }
@@ -355,6 +375,8 @@ export interface TutorDockProps {
   preparing?: boolean
   /** 지금 강사가 하는 말 (음성 모드 박스 · 최소화 말풍선) */
   lastLine: string
+  /** 그 줄이 앱이 만든 것인가(판정·힌트) — 따옴표를 강조로 읽지 않는다 */
+  lastLinePlain?: boolean
   /** 지금 학생이 말해도 되는가 — 대본 수업에서 마이크가 열린 동안만 true.
    *  주지 않으면(에이전트 모드) 예전처럼 연결돼 있으면 늘 듣는 것으로 본다. */
   micActive?: boolean
@@ -380,7 +402,7 @@ export interface TutorDockProps {
 export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
-  lastLine, messages, actions, hint, actionKey,
+  lastLine, lastLinePlain, messages, actions, hint, actionKey,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
 }: TutorDockProps) {
   const voiceMode = chatMode === 'voice'
@@ -425,7 +447,7 @@ export default function TutorDock({
       <MiniDock
         faceSrc={faceSrc} clipSrc={clipSrc} allClips={allClips}
         name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking} preparing={preparing}
-        getTutorFreq={getTutorFreq} lastLine={lastLine}
+        getTutorFreq={getTutorFreq} lastLine={lastLine} lastLinePlain={lastLinePlain}
         chatMode={chatMode} setChatMode={setChatMode}
         inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
         actions={actions} hint={hint}
@@ -467,7 +489,7 @@ export default function TutorDock({
           <div className="shrink-0 px-3 md:px-4 pt-1">
             <div ref={liveRef} className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
               <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium whitespace-pre-wrap">
-                {lastLine ? <TutorText text={lastLine} /> : <SpeechDots />}
+                {lastLine ? <TutorText text={lastLine} plain={lastLinePlain} /> : <SpeechDots />}
               </p>
             </div>
           </div>
@@ -484,7 +506,7 @@ export default function TutorDock({
         <>
           {/* 채팅창 — 강사 회색 / 나 파랑. 선택지·지시도 이 흐름 안에서 뜬다 */}
           <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 pt-2 pb-3 space-y-2">
-            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} />)}
+            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
             {/* 선택지·행동 지시도 채팅 한 칸 — 강사 말풍선 쪽(왼쪽)에 붙는 카드.
                 이번 턴에 할 일이 없으면(둘 다 null) 빈 카드가 남지 않게 empty:hidden 으로 접는다. */}
             <div className="flex justify-start empty:hidden">
@@ -493,7 +515,7 @@ export default function TutorDock({
                 {actions}
               </div>
             </div>
-            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} />)}
+            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
           </div>
           <TextComposer connected={connected} connecting={connecting}
             inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent} />
@@ -508,12 +530,13 @@ export default function TutorDock({
    · 얼굴을 끌면 창이 통째로 따라온다(끌지 않고 탭하면 원래 패널로 복원)
    · 말풍선은 **자르지 않는다** — 발화가 길면 박스가 커지고, 아주 길면 그 안에서 스크롤한다
    · 선택지·행동 지시도 이 안에서 작은 UI로 보인다 */
-function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq, lastLine, chatMode, setChatMode,
+function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq, lastLine, lastLinePlain, chatMode, setChatMode,
   inputText, setInputText, onSend, onStartAgent, actions, hint, onRestore }: {
   faceSrc: string; clipSrc?: string | null; allClips?: string[]
   name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
   getTutorFreq?: () => Uint8Array | undefined
   lastLine: string
+  lastLinePlain?: boolean
   chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
   inputText: string; setInputText: (s: string) => void; onSend: () => void; onStartAgent: () => void
   actions?: ReactNode; hint?: ReactNode
@@ -564,7 +587,7 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
           style={{ boxShadow: '0 6px 24px rgba(37,99,235,0.16), 0 1px 4px rgba(0,0,0,0.08)' }}>
           <div className="max-h-[46vh] overflow-y-auto px-3.5 py-2.5 space-y-2">
             {lastLine ? (
-              <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap"><TutorText text={lastLine} /></p>
+              <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap"><TutorText text={lastLine} plain={lastLinePlain} /></p>
             ) : (isSpeaking || preparing) ? <SpeechDots /> : null}
             {/* 선택지·행동 지시 — 작은 창 안에서는 글자를 한 단계 줄여 보여준다 */}
             <div className="pt-2 border-t border-dashed border-[#E5E7EB] space-y-2 empty:hidden empty:border-0 empty:pt-0
