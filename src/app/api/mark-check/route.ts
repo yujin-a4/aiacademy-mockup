@@ -98,8 +98,16 @@ export async function POST(req: NextRequest) {
       }],
       config: {
         systemInstruction: SYSTEM,
-        // gemini-3.5-flash 는 thinking 이 기본 on — 사고 토큰까지 여유를 둔다(부족하면 응답이 빈다)
-        maxOutputTokens: 4000,
+        /* ── 사고(thinking)를 끈다 — 요금의 대부분이 여기였다 (실측 2026-08-25) ──
+           gemini-3.5-flash 는 thinking 이 **기본 on** 이고, 사고 토큰은 출력으로 청구된다.
+           같은 사진·같은 프롬프트로 재 보니 사고 225 · 답 53 이었다. 판정 한 줄을 얻으려고
+           그 다섯 배를 태우고 있었다. 끄면 사고 0 · 답 55 로 **결과는 같고** 응답도 절반으로
+           빨라진다(3.3초 → 1.7초 — 강사 반응이 늦다는 보고와도 같은 자리다).
+           ⚠️ 껐는데 판정이 나빠지면 여기부터 되돌릴 것. 모델을 바꾸기 전에 이것을 먼저 본다. */
+        thinkingConfig: { thinkingBudget: 0 },
+        /* 사고를 껐으니 4000 은 필요 없다 — 답이 55 토큰짜리 JSON 한 줄이다.
+           한도는 요금이 아니라 **폭주 상한**이다. 넉넉하되 4000 은 아니게 둔다. */
+        maxOutputTokens: 500,
         temperature: 0.2,
         responseMimeType: 'application/json',
       },
