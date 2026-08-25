@@ -1608,6 +1608,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
 
+  /* ── 강사가 정답을 공개하는 단계면 **정답 보기에 표시를 켠다** (구현 중 메모 43행) ──
+     정답 표시는 `graded` 가 켜져야 나오는데, 그건 학생이 보기를 골랐을 때만 켜졌다.
+     그런데 **이도윤 RC 수업에는 정답 고르기 턴이 아예 없다** — 강사가 처음부터 끝까지
+     같이 풀어 주는 대본이라 학생이 A~D 를 고르는 자리가 없다. 그래서 "그래서 정답은
+     C. waived예요" 라고 말하는 동안 화면의 네 보기는 넷 다 흰 채로 있었다(실측 보고).
+     정답을 감출 이유가 사라지는 자리(hideVerdict 가 풀리는 S5·정답 근거 연결)에서
+     화면도 같이 연다. 이미 풀어서 채점된 문항이면 아무 일도 하지 않는다. */
+  useEffect(() => {
+    if (!scripted || phase === 'review') return
+    const q = turn.focusQ
+    if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
+    setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnIdx, phase])
+
   /* 근거 연결(match) — 모든 근거를 지문에서 탭해 연결하면 완료로 보고 알린다 */
   useEffect(() => {
     const it = turn.interaction
