@@ -1634,6 +1634,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
 
+  /** 보기 네 개를 **이미 연 문항** (윤다은) — 음원이 끝난 뒤에 열고, 열면 닫지 않는다
+   *  (구현 중 메모 70행). 아래 효과가 채운다. */
+  const [openAllQ, setOpenAllQ] = useState<Set<number>>(new Set())
+
   /** 정오답 색을 **이미 연 문항** — 한 번 열면 그 문항이 끝날 때까지 닫지 않는다
    *  (구현 중 메모 45행). 아래 효과가 S5 에서 채운다. */
   const [verdictShown, setVerdictShown] = useState<Set<number>>(new Set())
@@ -1967,17 +1971,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 이 문항을 다루는 마지막 턴인가 — 다음 턴이 다른 문항으로 넘어가면 여기서 끝난 것이다.
        수업의 '마무리 멘트'·실전 코칭의 'S7 표현 정리' 가 여기 걸린다([다음 문제] 가 열리는 그 시점). */
     const lastOfQ = !!cur && (!turns[turnIdx + 1] || turns[turnIdx + 1].focusQ !== cur.focusQ)
-    /* 강사에 따라 **답을 고른 즉시** 네 개를 여는 경우가 있다(INST_OPEN_ALL_OPTIONS — 윤다은).
-       강사 설명이 진행되는 동안 보기 네 문장을 같이 보라는 뜻이다. */
-    if (!scripted || lastOfQ || freePlay || INST_OPEN_ALL_OPTIONS[instructor]) {
+    if (!scripted || lastOfQ || freePlay) {
       answeredQ.forEach((q) => { options[q] = 'all' })
     }
+    /* 강사에 따라 답을 고른 문항의 네 개를 **미리** 여는 경우가 있다(윤다은) — 강사 설명이
+       진행되는 동안 보기 네 문장을 같이 보라는 뜻이다.
+       ⚠️ **음원이 나가는 중에는 열지 않는다** (구현 중 메모 70행). 예전에는 누르는 즉시 열려서,
+          보기 음원을 아직 듣고 있는데 네 문장이 통째로 떠 버렸다 — 듣고 고르는 자리가 읽고
+          고르는 자리가 된다. 판정은 아래 효과가 하고, 여기서는 그 결과만 쓴다(열었다 닫았다
+          하면 설명 중에 깜빡인다). */
+    openAllQ.forEach((q) => { options[q] = 'all' })
     if (scripted && (lastOfQ || freePlay) && cur?.focusQ !== undefined) {
       /* 다시 고르지 않는 단계(실전 코칭)는 answeredQ 가 비어 있어 위에서 안 열린다 — 여기서 연다 */
       options[cur.focusQ] = 'all'
     }
     return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
-  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor])
+  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor, openAllQ])
 
   /** 앱이 턴을 넘길 때 — 에이전트에도 다음 단계 지시를 밀어준다.
    *  이걸 안 하면 진행 주체가 앱인 턴에서 에이전트가 지시를 못 받아 그냥 침묵한다
@@ -2922,6 +2931,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  말로 답하는 자리는 수업(스캐폴딩)과 오답 코칭뿐이다. 실전은 보기를 누르고, 정리는
    *  자기 마이크 버튼을 쓴다. */
   const voicePhase = phase === 'lesson' || phase === 'review'
+  /* 답을 고른 문항의 보기 네 개를 연다 — **자료 음원이 멎은 뒤**에만 (구현 중 메모 70행).
+     한 번 연 것은 도로 닫지 않는다(뒤이어 강사가 보기 음원을 하나씩 틀 때 깜빡이지 않게). */
+  useEffect(() => {
+    if (!INST_OPEN_ALL_OPTIONS[instructor] || cuePlaying) return
+    setOpenAllQ((prev) => {
+      let next = prev
+      answeredQ.forEach((q) => { if (!next.has(q)) { next = new Set(next); next.add(q) } })
+      return next
+    })
+  }, [answeredQ, cuePlaying, instructor])
+
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
   const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
