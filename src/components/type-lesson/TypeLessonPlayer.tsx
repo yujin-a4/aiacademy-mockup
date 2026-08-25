@@ -1634,6 +1634,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
 
+  /** 정오답 색을 **이미 연 문항** — 한 번 열면 그 문항이 끝날 때까지 닫지 않는다
+   *  (구현 중 메모 45행). 아래 효과가 S5 에서 채운다. */
+  const [verdictShown, setVerdictShown] = useState<Set<number>>(new Set())
+
   /* ── 강사가 정답을 공개하는 단계면 **정답 보기에 표시를 켠다** (구현 중 메모 43행) ──
      정답 표시는 `graded` 가 켜져야 나오는데, 그건 학생이 보기를 골랐을 때만 켜졌다.
      그런데 **이도윤 RC 수업에는 정답 고르기 턴이 아예 없다** — 강사가 처음부터 끝까지
@@ -1646,6 +1650,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const q = turn.focusQ
     if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
     setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
+    setVerdictShown((p) => (p.has(q) ? p : new Set(p).add(q)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnIdx, phase])
 
@@ -2868,7 +2873,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        (구현 중 메모 9행). 그 단계는 "왜 이것이 답인가" 를 짚는 자리라, 무엇이 답인지 화면에
        보이지 않으면 강사 말만 따라가야 한다. 그 앞 단계(학생 풀이·개념 코칭)는 그대로 감춘다 —
        거기서 정답이 보이면 학생이 풀 이유가 없다. */
-    hideVerdict: phase !== 'review' && !/^S5|정답\s*근거/.test(turn.stage),
+    /* ⚠️ **한 번 연 것은 다시 닫지 않는다** (구현 중 메모 45행). 예전에는 지금 턴의 단계만
+       보고 정해서, S5 를 지나 S6(오답 제거)·S7(표현 정리)로 넘어가는 순간 **정답·오답 색이
+       통째로 사라졌다** — 강사는 뒤이어 다른 보기를 설명하는데 화면에는 근거가 없어진다.
+       문항이 바뀌면 focusQ 가 바뀌므로 다음 문항은 저절로 다시 감춰진다. */
+    hideVerdict: phase !== 'review'
+      && !/^S5|정답\s*근거/.test(turn.stage)
+      && !(turn.focusQ !== undefined && verdictShown.has(turn.focusQ)),
     matchState,
   }
 
