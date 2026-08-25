@@ -2552,6 +2552,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           message: `[강사 질문] ${turn.tutor}\n[기대 답] ${expected}\n[학생 답] ${said}`,
         }),
       })
+      /* 서버가 실패한 것과 '판정을 못 읽었다' 를 로그에서 갈라 둔다 — 둘 다 '?' 로 끝나지만
+         원인이 다르다(구현 중 메모 66행). 섞어 놓으면 LLM 이 통째로 죽어 있어도 프롬프트를
+         의심하게 된다. */
+      if (!res.ok) { console.warn('[judge] 서버가 실패했다', res.status); return '?' }
       const data = await res.json()
       const v = String(data.dialogue ?? '').trim().toUpperCase()
       if (v.startsWith('Q')) return 'Q'
@@ -2622,6 +2626,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             + '학생이 계속 대화하게 되어 수업으로 돌아오지 못한다.',
         }),
       })
+      /* ── 서버가 실패한 것을 **'답이 없다' 로 읽지 않는다** (구현 중 메모 66행) ──
+         res.ok 를 안 보고 data.dialogue 만 봤더니, 500(키 없음)·502(구글 호출 실패)가
+         전부 아래 폴백 문구로 떨어졌다 — 학생에게는 강사가 설명을 거부하는 말로 들리고,
+         화면에도 로그에도 아무 자국이 안 남아서 **고장 난 줄 아무도 몰랐다.**
+         실측 2026-08-25: 배포본에서 구글이 429(월 지출 한도 초과)를 내는 동안 자유 질문이
+         전부 "그건 제가 설명하기 어려운 부분이에요" 로 답했다. 못 가져온 것은 못 가져왔다고 한다. */
+      if (!res.ok) {
+        console.warn('[ask] 답을 못 가져왔다', res.status, await res.text().catch(() => ''))
+        await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true, true)
+        return
+      }
       const data = await res.json()
       /* LLM 답에는 **·*·`* 같은 기호가 섞여 나온다 — 그대로 읽으면 TTS 가 별표를 발음한다 */
       const answer = String(data.dialogue ?? '').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
@@ -2631,8 +2646,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
            분명히 말하고, 학생을 문제로 돌려보낸다(뒤이어 askAside 가 물음을 다시 읽어 준다). */
         || '음, 그건 제가 설명하기 어려운 부분이에요.'
       await say(answer, true)
-    } catch {
-      await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true)
+    } catch (e) {
+      console.warn('[ask] 질문 요청이 실패했다', e)
+      await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true, true)
     } finally {
       setAskBusy(false)
     }

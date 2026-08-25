@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+/* ⚠️ `gemini-2.5-flash` 는 죽어 있었다 — 신규 사용자에게 404 다("no longer available to
+   new users", 실측 2026-08-25). 이 라우트는 그동안 조용히 500 만 뱉고 있었다.
+   lite 를 쓰는 이유: 주간 리포트는 짧은 요약 한 편이라 상위 모델이 필요 없다. */
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent'
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY
