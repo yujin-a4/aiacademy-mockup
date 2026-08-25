@@ -2853,6 +2853,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        동안 강사가 끼어들지 않는다. 문제를 넘기면 다음 문제 단계가 시작되며 다시 잠긴다.
        freePlay(수업 전체 종료)는 마지막 문제 뒤의 같은 상태다. */
     audioFree: freePlay || itemDone,
+    /* 필기로 짚으라고 시킨 턴 — 보기 위의 낱말 탭을 끈다(구현 중 메모 67행) */
+    markTurn: turn.interaction.kind === 'mark',
     /* 대본 수업은 강사가 지목한 보기의 스크립트를 그때그때 연다 (reveal.optionText) */
     autoScript: !!scripted,
     onPlayAudio: playLessonAudio,
