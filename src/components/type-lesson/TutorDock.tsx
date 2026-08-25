@@ -506,7 +506,7 @@ export default function TutorDock({
         <>
           {/* 채팅창 — 강사 회색 / 나 파랑. 선택지·지시도 이 흐름 안에서 뜬다 */}
           <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 pt-2 pb-3 space-y-2">
-            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} />)}
+            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
             {/* 선택지·행동 지시도 채팅 한 칸 — 강사 말풍선 쪽(왼쪽)에 붙는 카드.
                 이번 턴에 할 일이 없으면(둘 다 null) 빈 카드가 남지 않게 empty:hidden 으로 접는다. */}
             <div className="flex justify-start empty:hidden">
@@ -515,7 +515,7 @@ export default function TutorDock({
                 {actions}
               </div>
             </div>
-            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} />)}
+            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
           </div>
           <TextComposer connected={connected} connecting={connecting}
             inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent} />
