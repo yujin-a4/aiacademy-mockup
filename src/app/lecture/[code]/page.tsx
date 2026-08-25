@@ -110,9 +110,15 @@ export default function LecturePage() {
 
   /* 학생 문구는 레일에 박아두지 않고 매번 만든다 (없거나 실패하면 원본이 그대로 남는다) */
   const steps = useMemo(() => program.items.flatMap((i) => i.steps), [program.items])
+  /* 대본이 있는지 **생성을 시키기 전에** 본다 — 아래 finalLesson 에서 보면 늦는다.
+     ⚠️ 예전에는 여기서 조건 없이 생성하고, 대본이 있으면 그 결과를 버렸다. 버릴 것을
+        만드느라 **강의를 열 때마다 LLM 이 발화를 통째로 생성했다** — FGI 두 강의가 지금
+        제일 자주 열리는 화면이라(콘텐츠 파트 QA) 요금이 여기서 났다(실측 2026-08-25,
+        구글 월 지출 한도 초과). 대본 수업은 할 말이 다 정해져 있어 만들 것이 없다. */
+  const scenario = scenarioFor(instructor, code)
   const promptState = useRailPrompts(
     builtLesson?.turns ?? [], steps, builtLesson?.content ?? null,
-    builtLesson?.part ?? 0, !!rail, builtLesson?.items,
+    builtLesson?.part ?? 0, !!rail && !scenario, builtLesson?.items,
     instructor,        // 말투 — 첫 마디는 낭독되므로 강사별로 달라져야 한다
   )
   /* ── 대본 수업 (FGI 시연) ──
@@ -122,8 +128,8 @@ export default function LecturePage() {
      문항(사진·보기·음원)은 그대로 DB 것을 쓴다. 바뀌는 것은 **진행**뿐이다.
 
      **강사마다 대본이 다르다.** 같은 문항이라도 짚는 순서와 시키는 방식이 갈리므로
-     (강사, 강의) 두 축으로 찾는다. 대본이 없는 강사로 열면 평소대로 레일 + LLM 이다. */
-  const scenario = scenarioFor(instructor, code)
+     (강사, 강의) 두 축으로 찾는다. 대본이 없는 강사로 열면 평소대로 레일 + LLM 이다.
+     (scenario 는 위 useRailPrompts 보다 먼저 구해 둔다 — 생성 자체를 건너뛰려고) */
   const finalLesson = builtLesson && scenario
     ? { ...builtLesson, turns: scenario.turns }
     : builtLesson && rail
