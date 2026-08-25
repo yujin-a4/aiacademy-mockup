@@ -1559,7 +1559,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         enterBase().strokes = draw.strokeCount
         setMarkDone(false)
         setMarkVerdict(null)
-        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?')
+        /* plain — 이 줄은 **앱이 학생이 짚은 낱말을 인용한 것**이다. 따옴표를 강조로 읽으면
+           틀린 낱말이 굵어진다("'over'은 아니에요"). 대본의 따옴표(뜻풀이)와는 다른 자리다. */
+        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?', false, true)
         return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
       }
       /* ── 두 번째도 못 짚었다 — 넘어가되 **정답 자리를 화면에 짚어 준다** ──
@@ -1574,7 +1576,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           return n
         })
       }
-      if (hint) await say(hint)
+      if (hint) await say(hint, false, true)      // 위와 같은 이유로 plain
     }
 
     markAdvancedRef.current = spotKey
@@ -2162,6 +2164,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      않는다: 문장이 길든 짧든, 목소리가 빠르든 느리든 글자는 정확히 소리를 따라온다.
      음원이 없을 때(브라우저 TTS 폴백)만 글자 수로 대략 잡는다. */
   const revealRef = useRef<number | null>(null)
+  /** 지금 흐르고 있는 줄이 **앱이 만든 것**인가 — say(…, plain) 이 세운다.
+   *  대본 발화(turn.tutor)로 돌아가면 typed 가 비므로 아래 tutorLinePlain 이 저절로 꺼진다. */
+  const [plainLine, setPlainLine] = useState(false)
   /** 글자를 **0에 세워 둔다.** 음원을 받는 동안 말풍선이 비어 있어야 그 자리에 점 세 개가 돈다.
    *  흘리기 시작하는 것은 소리가 나가는 순간(speakTTS 의 onStart)이지 이때가 아니다. */
   const armReveal = (text: string) => {
@@ -2207,10 +2212,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   /* 낭독은 반드시 이걸로 부른다 — 말하는 동안 아바타가 움직이고 파형이 떠야 한다.
      speakTTS 를 직접 부르면 화면은 강사가 말하는 줄 모른다(실측: 영상도 파형도 안 나왔다). */
-  const say = async (text: string, aside = false) => {
+  /** @param plain **앱이 만든 줄**인가(판정·힌트). 대본이 아니라 앱이 학생 답을 인용한
+   *    자리라 따옴표를 강조로 읽으면 틀린 것이 굵어진다 — 그럴 때는 글자를 그대로 둔다
+   *    (TutorDock 의 TutorText·parseEmphasis 머리말 참고). */
+  const say = async (text: string, aside = false, plain = false) => {
     /* 말한 것은 그대로 채팅에도 쌓는다 — 텍스트 모드에서 대화가 남아야 앞을 다시 볼 수 있다.
        낭독·피드백·질문 답변이 전부 이 문을 지나므로 여기 한 곳에서만 쌓으면 된다. */
-    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside }]))
+    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside, plain }]))
+    setPlainLine(plain)
     setNarrating(true)
     /* 말풍선은 **비어 있는 채로** 먼저 세운다(자리는 잡되 글자는 없다) — 그 사이 점 세 개가 돈다.
        글자는 소리가 나가는 순간부터 흐른다. 이 순서가 뒤집히면 학생이 글자를 먼저 읽어 버려서
@@ -2914,6 +2923,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      읽는 문장은 대본 발화만이 아니다(피드백·질문 답변도 이 자리를 쓴다) → typed 를 먼저 본다. */
   const tutorLine = typed ? typed.text.slice(0, typed.shown)
     : (agentConnected && lastAgentAi) || turn.tutor
+  /* 앱이 만든 줄인지는 **지금 흐르는 줄일 때만** 뜻이 있다. typed 가 비면 대본 발화라 늘 강조를 탄다. */
+  const tutorLinePlain = typed ? plainLine : false
 
   /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
      종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
@@ -3232,7 +3243,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
           preparing={voiceLoading}
           /* 음성 모드 발화 박스 · 최소화 말풍선에 실시간으로 뜨는 "지금 하는 말" */
-          lastLine={tutorLine}
+          lastLine={tutorLine} lastLinePlain={tutorLinePlain}
           /* ── '질문 있어요' 버튼은 없앴다 ──
              그냥 물어보면 알아서 답하고 대본으로 돌아오므로, 먼저 모드를 켜라고 시킬 이유가
              없어졌다. 남은 것은 **답하는 동안의 한 줄**뿐이다 — 아무 표시도 없으면 학생이
