@@ -544,6 +544,30 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
 
 const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
+/* ── 잘못 짚은 낱말을 **강사가 읽을 말로** 바꾼다 (구현 중 메모 24행) ──
+   낱개로 쉼표로 이어 붙이면 "'all, component, parts'는 아니에요" 라고 또박또박 끊어 읽는다.
+   학생이 끌어서 짚은 것은 낱말 셋이 아니라 **구 하나**다 — 붙여서 한 덩어리로 읽어야 한다.
+   표시 키는 `자리|토큰번호|낱말` 이고, 지문 토큰은 낱말과 공백이 번갈아 든다(split(/(\s+)/)).
+   그래서 **자리가 같고 번호가 2 차이면 나란히 붙은 낱말**이다 — 그 줄만 공백으로 잇는다.
+   떨어진 자리를 여럿 짚었으면 그때만 쉼표로 나눈다. 길어지면 세 덩어리까지만 읽는다. */
+const readMarks = (keys: string[]) => {
+  const parsed = keys.map((k) => {
+    const bits = k.split('|')
+    const word = bits.pop() ?? ''
+    const idx = Number(bits.pop())
+    return { scope: bits.join('|'), idx, word }
+  }).filter((p) => p.word && Number.isFinite(p.idx))
+  parsed.sort((a, b) => (a.scope === b.scope ? a.idx - b.idx : a.scope < b.scope ? -1 : 1))
+
+  const runs: string[][] = []
+  parsed.forEach((p, i) => {
+    const prev = parsed[i - 1]
+    if (prev && prev.scope === p.scope && p.idx - prev.idx === 2) runs[runs.length - 1].push(p.word)
+    else runs.push([p.word])
+  })
+  return runs.slice(0, 3).map((r) => r.join(' ')).join(', ')
+}
+
 /* 단계명(S코드/Q번호 접두어)에서 사람이 읽을 라벨만 뽑는다. 남는 게 'S2+S4'처럼 코드성이면 버린다 —
    그런 조각은 화면 제목으로 노출하기엔 의미가 없다. */
 function cleanStageLabel(stage: string): string | null {
@@ -1594,7 +1618,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (!wrongKeys.length || touchedTarget) return
 
     const t = setTimeout(() => {
-      const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
+      const read = readMarks(wrongKeys)
       /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다.
          ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 대본만 말하는 강사(이도윤)는 여기서 아무
             말도 하지 않는데, 지우기는 강사를 가리지 않아서 **칠한 것이 말없이 사라졌다** — 화면에서는
@@ -1781,7 +1805,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         return
       }
       /* 목표는 하나도 안 지나고 **엉뚱한 곳만** 그었다 — 여기서 넘기면 안 된다 */
-      const read = inkKeys.map(wordOf).filter(Boolean).slice(0, 3).join(', ')
+      const read = readMarks(inkKeys)   // 밑줄이 여러 낱말을 지났으면 구 그대로 읽는다
       setMarkVerdict({ read: read || null, ok: false, hint: '' })
       reportAction(`${turnIdx}:mark`,
         actionMessage(`화면에 "${read}"를 표시했습니다`, false))
