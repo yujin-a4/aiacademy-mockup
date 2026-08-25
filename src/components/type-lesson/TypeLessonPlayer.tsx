@@ -544,6 +544,30 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
 
 const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
+/* ── 잘못 짚은 낱말을 **강사가 읽을 말로** 바꾼다 (구현 중 메모 24행) ──
+   낱개로 쉼표로 이어 붙이면 "'all, component, parts'는 아니에요" 라고 또박또박 끊어 읽는다.
+   학생이 끌어서 짚은 것은 낱말 셋이 아니라 **구 하나**다 — 붙여서 한 덩어리로 읽어야 한다.
+   표시 키는 `자리|토큰번호|낱말` 이고, 지문 토큰은 낱말과 공백이 번갈아 든다(split(/(\s+)/)).
+   그래서 **자리가 같고 번호가 2 차이면 나란히 붙은 낱말**이다 — 그 줄만 공백으로 잇는다.
+   떨어진 자리를 여럿 짚었으면 그때만 쉼표로 나눈다. 길어지면 세 덩어리까지만 읽는다. */
+const readMarks = (keys: string[]) => {
+  const parsed = keys.map((k) => {
+    const bits = k.split('|')
+    const word = bits.pop() ?? ''
+    const idx = Number(bits.pop())
+    return { scope: bits.join('|'), idx, word }
+  }).filter((p) => p.word && Number.isFinite(p.idx))
+  parsed.sort((a, b) => (a.scope === b.scope ? a.idx - b.idx : a.scope < b.scope ? -1 : 1))
+
+  const runs: string[][] = []
+  parsed.forEach((p, i) => {
+    const prev = parsed[i - 1]
+    if (prev && prev.scope === p.scope && p.idx - prev.idx === 2) runs[runs.length - 1].push(p.word)
+    else runs.push([p.word])
+  })
+  return runs.slice(0, 3).map((r) => r.join(' ')).join(', ')
+}
+
 /* 단계명(S코드/Q번호 접두어)에서 사람이 읽을 라벨만 뽑는다. 남는 게 'S2+S4'처럼 코드성이면 버린다 —
    그런 조각은 화면 제목으로 노출하기엔 의미가 없다. */
 function cleanStageLabel(stage: string): string | null {
@@ -1535,7 +1559,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         enterBase().strokes = draw.strokeCount
         setMarkDone(false)
         setMarkVerdict(null)
-        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?')
+        /* plain — 이 줄은 **앱이 학생이 짚은 낱말을 인용한 것**이다. 따옴표를 강조로 읽으면
+           틀린 낱말이 굵어진다("'over'은 아니에요"). 대본의 따옴표(뜻풀이)와는 다른 자리다. */
+        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?', false, true)
         return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
       }
       /* ── 두 번째도 못 짚었다 — 넘어가되 **정답 자리를 화면에 짚어 준다** ──
@@ -1550,7 +1576,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           return n
         })
       }
-      if (hint) await say(hint)
+      if (hint) await say(hint, false, true)      // 위와 같은 이유로 plain
     }
 
     markAdvancedRef.current = spotKey
@@ -1594,7 +1620,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (!wrongKeys.length || touchedTarget) return
 
     const t = setTimeout(() => {
-      const read = wrongKeys.map((k) => k.split('|').pop()).filter(Boolean).slice(0, 3).join(', ')
+      const read = readMarks(wrongKeys)
       /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다.
          ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 대본만 말하는 강사(이도윤)는 여기서 아무
             말도 하지 않는데, 지우기는 강사를 가리지 않아서 **칠한 것이 말없이 사라졌다** — 화면에서는
@@ -1607,6 +1633,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
+
+  /* ── 강사가 정답을 공개하는 단계면 **정답 보기에 표시를 켠다** (구현 중 메모 43행) ──
+     정답 표시는 `graded` 가 켜져야 나오는데, 그건 학생이 보기를 골랐을 때만 켜졌다.
+     그런데 **이도윤 RC 수업에는 정답 고르기 턴이 아예 없다** — 강사가 처음부터 끝까지
+     같이 풀어 주는 대본이라 학생이 A~D 를 고르는 자리가 없다. 그래서 "그래서 정답은
+     C. waived예요" 라고 말하는 동안 화면의 네 보기는 넷 다 흰 채로 있었다(실측 보고).
+     정답을 감출 이유가 사라지는 자리(hideVerdict 가 풀리는 S5·정답 근거 연결)에서
+     화면도 같이 연다. 이미 풀어서 채점된 문항이면 아무 일도 하지 않는다. */
+  useEffect(() => {
+    if (!scripted || phase === 'review') return
+    const q = turn.focusQ
+    if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
+    setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnIdx, phase])
 
   /* 근거 연결(match) — 모든 근거를 지문에서 탭해 연결하면 완료로 보고 알린다 */
   useEffect(() => {
@@ -1766,7 +1807,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         return
       }
       /* 목표는 하나도 안 지나고 **엉뚱한 곳만** 그었다 — 여기서 넘기면 안 된다 */
-      const read = inkKeys.map(wordOf).filter(Boolean).slice(0, 3).join(', ')
+      const read = readMarks(inkKeys)   // 밑줄이 여러 낱말을 지났으면 구 그대로 읽는다
       setMarkVerdict({ read: read || null, ok: false, hint: '' })
       reportAction(`${turnIdx}:mark`,
         actionMessage(`화면에 "${read}"를 표시했습니다`, false))
@@ -2123,6 +2164,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      않는다: 문장이 길든 짧든, 목소리가 빠르든 느리든 글자는 정확히 소리를 따라온다.
      음원이 없을 때(브라우저 TTS 폴백)만 글자 수로 대략 잡는다. */
   const revealRef = useRef<number | null>(null)
+  /** 지금 흐르고 있는 줄이 **앱이 만든 것**인가 — say(…, plain) 이 세운다.
+   *  대본 발화(turn.tutor)로 돌아가면 typed 가 비므로 아래 tutorLinePlain 이 저절로 꺼진다. */
+  const [plainLine, setPlainLine] = useState(false)
   /** 글자를 **0에 세워 둔다.** 음원을 받는 동안 말풍선이 비어 있어야 그 자리에 점 세 개가 돈다.
    *  흘리기 시작하는 것은 소리가 나가는 순간(speakTTS 의 onStart)이지 이때가 아니다. */
   const armReveal = (text: string) => {
@@ -2168,10 +2212,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   /* 낭독은 반드시 이걸로 부른다 — 말하는 동안 아바타가 움직이고 파형이 떠야 한다.
      speakTTS 를 직접 부르면 화면은 강사가 말하는 줄 모른다(실측: 영상도 파형도 안 나왔다). */
-  const say = async (text: string, aside = false) => {
+  /** @param plain **앱이 만든 줄**인가(판정·힌트). 대본이 아니라 앱이 학생 답을 인용한
+   *    자리라 따옴표를 강조로 읽으면 틀린 것이 굵어진다 — 그럴 때는 글자를 그대로 둔다
+   *    (TutorDock 의 TutorText·parseEmphasis 머리말 참고). */
+  const say = async (text: string, aside = false, plain = false) => {
     /* 말한 것은 그대로 채팅에도 쌓는다 — 텍스트 모드에서 대화가 남아야 앞을 다시 볼 수 있다.
        낭독·피드백·질문 답변이 전부 이 문을 지나므로 여기 한 곳에서만 쌓으면 된다. */
-    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside }]))
+    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside, plain }]))
+    setPlainLine(plain)
     setNarrating(true)
     /* 말풍선은 **비어 있는 채로** 먼저 세운다(자리는 잡되 글자는 없다) — 그 사이 점 세 개가 돈다.
        글자는 소리가 나가는 순간부터 흐른다. 이 순서가 뒤집히면 학생이 글자를 먼저 읽어 버려서
@@ -2875,6 +2923,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      읽는 문장은 대본 발화만이 아니다(피드백·질문 답변도 이 자리를 쓴다) → typed 를 먼저 본다. */
   const tutorLine = typed ? typed.text.slice(0, typed.shown)
     : (agentConnected && lastAgentAi) || turn.tutor
+  /* 앱이 만든 줄인지는 **지금 흐르는 줄일 때만** 뜻이 있다. typed 가 비면 대본 발화라 늘 강조를 탄다. */
+  const tutorLinePlain = typed ? plainLine : false
 
   /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
      종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
@@ -3193,7 +3243,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
           preparing={voiceLoading}
           /* 음성 모드 발화 박스 · 최소화 말풍선에 실시간으로 뜨는 "지금 하는 말" */
-          lastLine={tutorLine}
+          lastLine={tutorLine} lastLinePlain={tutorLinePlain}
           /* ── '질문 있어요' 버튼은 없앴다 ──
              그냥 물어보면 알아서 답하고 대본으로 돌아오므로, 먼저 모드를 켜라고 시킬 이유가
              없어졌다. 남은 것은 **답하는 동안의 한 줄**뿐이다 — 아무 표시도 없으면 학생이

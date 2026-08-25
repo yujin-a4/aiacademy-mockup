@@ -4485,7 +4485,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 79,
           "stage": "S6 오답 제거 (B)",
-          "tutor": "reading materials는 '읽을거리'리는 뜻이에요. 읽을거리는 사진에 있지만, 소파 위가 아니라 탁자 위에 있죠? 선택지에 사물은 맞아도 위치가 다르면 오답이에요.",
+          "tutor": "reading materials는 '읽을거리'라는 뜻이에요. 읽을거리는 사진에 있지만, 소파 위가 아니라 탁자 위에 있죠? 선택지에 사물은 맞아도 위치가 다르면 오답이에요.",
           "focusQ": 1,
           "reveal": {
             "optionText": [
@@ -4746,7 +4746,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 92,
           "stage": "S6 오답 제거 (A)",
-          "tutor": "여자 중 한 명이 is reaching into a shopping cart. 쇼핑 카트 안으로 손을 뻗고 있다고 했어요. 사진 속 여자가 손을 뻗고 있기는 하지만 쇼핑 카트 안으로 뻗는 거는 아니죠? 이렇게 사진에 없는 단어가 나오면 빠르게 X하고 넘어가요.",
+          "tutor": "여자 중 한 명이 is reaching into a shopping cart. 쇼핑 카트 안으로 손을 뻗고 있다고 했어요. 사진 속 여자가 손을 뻗고 있기는 하지만 쇼핑 카트 안으로 뻗는 거는 아니죠? 이렇게 인물의 동작이 일치하더라도, 뒤에 나오는 위치까지 맞는지 확인해야 해요.",
           "focusQ": 2,
           "reveal": {
             "optionText": [
@@ -4789,7 +4789,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 94,
           "stage": "S6 오답 제거 (C)",
-          "tutor": "C에서는 pushing a button on a cash register라고 했는데, 일단 사진에 계산대 버튼 없죠? 오답으로 바로 넘겨버리면 돼요.",
+          "tutor": "C에서는 pushing a button on a cash register라고 했는데, 일단 사진에 계산대 버튼은 없죠? 이렇게 사진에 없는 단어가 나오면 빠르게 X하고 넘어가요.",
           "focusQ": 2,
           "reveal": {
             "optionText": [
@@ -4991,18 +4991,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             ]
           },
           "interaction": {
-            "kind": "choice",
-            "prompt": "이제 선택지 A 들어볼게요. 선택지 A 재생.",
-            "fixedPrompt": true,
-            "choices": [
-              {
-                "text": "O"
-              },
-              {
-                "text": "X",
-                "correct": true
-              }
-            ]
+            "kind": "next"
           }
         },
         {
@@ -5405,11 +5394,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S2 유형·역할 판별",
-          "tutor": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요.",
+          "tutor": "자, Part 5에서는 문제 보면 가장 먼저 빈칸 앞뒤 확인해서 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠? 동그라미 쳐보세요.",
           "focusQ": 0,
           "interaction": {
             "kind": "mark",
-            "prompt": "자, Part 5는 문제 처음부터 해석하면서 읽고 있으면 뒤에 절대 다 못 풀어요. 필요한 부분에서만 해석하면 돼요. 문제 보면 먼저 빈칸 앞뒤 확인해보세요. 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠?",
+            "prompt": "자, Part 5에서는 문제 보면 가장 먼저 빈칸 앞뒤 확인해서 빈칸이 어떤 자리인지 판단해야 해요. 빈칸 바로 앞에 뭐가 나오죠?",
             "targetWords": [
               "are"
             ]
@@ -5443,7 +5432,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S3 개념 코칭",
-          "tutor": "자, 개념 짧게 한번 짚고 갈게요. 문장에서 주어와 동작의 관계에 따라 능동태와 수동태로 표현할 수 있어요.주어가 동작을 직접 하는 주체이면 능동태, 주어가 행위를 당하는 대상이면 수동태를 써요. 능동태는 일반 동사나 be + -ing 같은 형태로 쓰고, 수동태는 be + p.p. 형태로 써요. 그럼 문장 다시 봐볼게요.",
+          "tutor": "자, 개념 짧게 한번 짚고 갈게요. 문장에서 주어와 동사의 관계에 따라 능동태와 수동태로 표현할 수 있어요. 주어가 동작을 직접 하는 주체이면 능동태, 주어가 행위를 당하는 대상이면 수동태 be + p.p. 형태를 써요. 그럼 문장 다시 봐볼게요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -5522,7 +5511,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "빈칸 뒤의 for easy replacement는 '간편한 교체를 위해'라는 뜻의 전치사구예요. 전치사구는 동사의 목적어가 될 수 없어요. 이렇게 주어가 동작을 받는 대상인지 먼저 보고, 동사 뒤에 목적어가 없는지까지 확인하면 수동태라는 걸 더 확실하게 판단할 수 있어요. 그러면 이제 정답으로 수동태 고르기 전에 마지막으로 명사 선택지만 한번 확인하면 돼요.",
+          "tutor": "빈칸 뒤의 for easy replacement는 '간편한 교체를 위해'라는 뜻의 전치사구예요. 전치사구는 동사의 목적어가 될 수 없어요. 이렇게 동사 뒤에 목적어가 없으면 수동태라는 걸 더 확실하게 판단할 수 있어요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -5533,7 +5522,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 오답 제거",
-          "tutor": "이제 선택지 봐볼게요. D. standardization 은 명사니깐 문장 구조상 be동사 뒤에 보어로 올 수 있어요. 그런데 의미상 '자동문의 모든 구성품은 표준화이다'는 어색하죠? 따라서 오답이에요. 그럼 답이 수동태인 것이 확실해졌죠? 나머지 오답 선택지도 짧게 봐볼게요. C. standardizes는 3인칭 단수 동사죠. be동사 뒤에는 are standardizes처럼 일반 동사 형태를 바로 이어서 쓸 수는 없어요. 마지막으로 A. standardizing을 넣으면 '모든 구성품이 무언가를 표준화하고 있다'는 능동의 의미가 되니까 오답이죠?",
+          "tutor": "이제 선택지 봐볼게요. D. standardization 은 명사니깐 문장 구조상 be동사 뒤에 보어로 올 수 있어요. 그런데 의미상 '자동문의 모든 구성품은 표준화이다'는 어색하죠? 따라서 오답이에요. C. standardizes는 3인칭 단수 동사죠. be동사 뒤에는 are standardizes처럼 일반 동사 형태를 바로 이어서 쓸 수는 없어요. 마지막으로 A. standardizing을 넣으면 '모든 구성품이 무언가를 표준화하고 있다'는 능동의 의미가 되니까 오답이죠?",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -5764,7 +5753,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S7 표현 정리",
-          "tutor": "마지막으로 핵심 정리하고 갈게요. 조동사가 있는 능수동 문제도 첫째, 주어와 동사의 관계를 확인하고, 둘째, 빈칸 뒤 목적어 유무를 확인하면 돼요. 수동이면 조동사 + be + p.p. 형태를 기억하세요. 외워둬야 할 어휘는 virtual 가상의, alter 변경하다예요.",
+          "tutor": "마지막으로 핵심 정리하고 갈게요. 조동사의 수동태 형태는 '조동사 + be + p.p.' 를 쓴다는 점을 기억하세요. 외워둬야 할 어휘는 virtual 가상의, alter 변경하다예요.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -5868,11 +5857,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "이럴 때는 둘째, 빈칸 뒤에 목적어가 있는지 확인해야 해요. the team은 목적어일까요?",
+          "tutor": "이럴 때는 다음으로, 빈칸 뒤에 목적어가 있는지 확인해야 해요. the team은 목적어일까요?",
           "focusQ": 2,
           "interaction": {
             "kind": "choice",
-            "prompt": "이럴 때는 둘째, 빈칸 뒤에 목적어가 있는지 확인해야 해요. the team은 목적어일까요?",
+            "prompt": "이럴 때는 다음으로, 빈칸 뒤에 목적어가 있는지 확인해야 해요. the team은 목적어일까요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -5913,11 +5902,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "그러면 빈칸에 능동태가 들어가야하는 거 확인했으니까, 선택지에서 능동태로 쓸 수 있는 거 찾아볼까요? 능동태가 될 수 있는 선택지는 A. directed, B. direct, C. is directing 세 개나 있죠? 이럴 때는 이제 셋째, 동사의 수와 시제까지 확인해야 해요. 앞의 When she took over the project에서 took over가 어떤 시제죠?",
+          "tutor": "그러면 빈칸에 능동태가 들어가야하는 거 확인했으니까, 선택지에서 능동태로 쓸 수 있는 거 찾아볼까요? 능동태가 될 수 있는 선택지는 A. directed, B. direct, C. is directing 세 개나 있죠? 이럴 때는 이제 마지막으로, 동사의 수와 시제까지 확인해야 해요. 앞의 When she took over the project에서 took over가 어떤 시제죠?",
           "focusQ": 2,
           "interaction": {
             "kind": "choice",
-            "prompt": "이럴 때는 이제 셋째, 동사의 수와 시제까지 확인해야 해요. 앞의 When she took over the project에서 took over가 어떤 시제죠?",
+            "prompt": "이럴 때는 이제 마지막으로, 동사의 수와 시제까지 확인해야 해요. 앞의 When she took over the project에서 took over가 어떤 시제죠?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -5972,7 +5961,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 동사의 과거 형태인 A. directed 예요. 문장 해석해보면, 'When she took over the project, 프로젝트를 맡았을 때, Ms. Levy, 레비 씨는, directed, 지시했다, the team , 팀에게, to provide frequent progress updates over the next month, 다음 한 달 동안 진행 상황보고를 자주 하라고' 예요. 레비 씨가 팀에게 지시하는 주체이고, 뒤에 the team이라는 목적어가 있으며, took over과 같은 과거 시점이니까 directed가 가장 적절해요.",
+          "tutor": "그래서 정답은 동사의 과거 형태인 A. directed 예요. 문장 해석해보면, 'When she took over the project, 프로젝트를 맡았을 때, Ms. Levy, 레비 씨는, directed, 지시했다, the team, 팀에게, to provide frequent progress updates over the next month, 다음 한 달 동안 진행 상황보고를 자주 하라고' 예요.",
           "focusQ": 2,
           "interaction": {
             "kind": "next"
@@ -6067,7 +6056,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S3 개념 코칭",
-          "tutor": "맞아요. 그러면 능수동 판단하기 전에 잠깐 개념 짧게 한번 짚고 갈게요. 이번 문제에는 be being + p.p. 형태가 나와요. 이건 '지금 ~되고 있는 중이'라는 의미로 어떤 행위가 진행 중인 수동태를 나타내는 표현이에요. 그래도 능수동 판단 순서는 똑같습니다.",
+          "tutor": "맞아요. 그러면 능수동 판단하기 전에 잠깐 개념 짧게 한번 짚고 갈게요. 이번 문제에는 be being + p.p. 형태가 나와요. 이건 '지금 ~되고 있는 중인' 이라는 의미로 어떤 행위가 진행 중인 수동태를 나타내는 표현이에요. 그래도 능수동 판단 순서는 똑같습니다.",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6078,11 +6067,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "첫째, 주어와 동사의 관계를 확인할게요. 이 문장의 주어 The layout '배치'는 스스로 무언가를 설계하는 주체예요, 누군가에 의해 설계되는 대상이에요?",
+          "tutor": "먼저 주어와 동사의 관계를 확인할게요. 이 문장의 주어 The layout '배치'는 스스로 무언가를 설계하는 주체예요, 누군가에 의해 설계되는 대상이에요?",
           "focusQ": 3,
           "interaction": {
             "kind": "choice",
-            "prompt": "첫째, 주어와 동사의 관계를 확인할게요. 이 문장의 주어 The layout '배치'는 스스로 무언가를 설계하는 주체예요, 누군가에 의해 설계되는 대상이에요?",
+            "prompt": "먼저 주어와 동사의 관계를 확인할게요. 이 문장의 주어 The layout '배치'는 스스로 무언가를 설계하는 주체예요, 누군가에 의해 설계되는 대상이에요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -6112,11 +6101,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "그럼 둘째, 빈칸 뒤에 목적어가 있는지도 확인해볼게요. 빈칸 뒤에 목적어가 있나요, 없나요?",
+          "tutor": "그럼 다음으로, 빈칸 뒤에 목적어가 있는지도 확인해볼게요. 빈칸 뒤에 목적어가 있나요, 없나요?",
           "focusQ": 3,
           "interaction": {
             "kind": "choice",
-            "prompt": "그럼 둘째, 빈칸 뒤에 목적어가 있는지도 확인해볼게요. 빈칸 뒤에 목적어가 있나요, 없나요?",
+            "prompt": "그럼 다음으로, 빈칸 뒤에 목적어가 있는지도 확인해볼게요. 빈칸 뒤에 목적어가 있나요, 없나요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -6157,8 +6146,18 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S6 오답 제거",
-          "tutor": "그럼 선택지 빠르게 볼게요. 우선 능동태가 될 수 있는 선택지 다 지워봅시다. A. designs는 3인칭 단수 형태이고, B. was designing 은 진행형태로 모두 능동이죠? 모두 X하고 오답으로 표시하면 돼요. D. designed는 p.p. 형태가 될 수 지만, 수동태가 되려면 앞에 be동사가 있어야 해요. 따라서 얘도 오답이에요.",
+          "tutor": "그럼 선택지 빠르게 볼게요. 우선 능동태가 될 수 있는 선택지 다 지워봅시다. A. designs는 3인칭 단수 형태이고, B. was designing 은 진행형태로 모두 능동이죠? 모두 X하고 오답으로 표시하면 돼요. D. designed는 p.p. 형태가 될 수 있지만, 수동태가 되려면 앞에 be동사가 있어야 해요. 따라서 D도 오답이에요.",
           "focusQ": 3,
+          "reveal": {
+            "optionText": [
+              {
+                "qIdx": 3,
+                "labels": [
+                  "D"
+                ]
+              }
+            ]
+          },
           "interaction": {
             "kind": "next"
           }
@@ -6179,7 +6178,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S7 표현 정리",
-          "tutor": "마지막으로 핵심 정리하고 갈게요. 능수동태 문제는 첫째, 주어와 동사의 관계를 확인하고, 둘째, 빈칸 뒤 목적어 유무를 확인헤요. 그리고 be being + p.p.는 '~되고 있는 중이다'라는 진행 수동태라는 것도 기억해 두세요.",
+          "tutor": "마지막으로 핵심 어휘 정리하고 갈게요. input은 '의견', design은 '설계하다'라는 의미예요. 그리고 be being + p.p.는 '~되고 있는 중이다'라는 진행 수동태라는 것도 기억해 두세요.",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6328,7 +6327,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 65,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 C. waived예요. will be waived가 되어 '면제될 것이다'라는 미래를 나타내는 수동태가 돼죠. 문장 해석해보면, 'According to the Cordell Pottery Exhibition's Web site, 코델 도자기 전시회 웹사이트에 따르면, the entry fee, 입장료는, will be waived, 면제 될 것이다, for Cordell residents, 코델 주민들에게는' 이라는 의미예요.",
+          "tutor": "그래서 정답은 C. waived예요. will be waived가 되어 '면제될 것이다'라는 미래를 나타내는 수동태가 되죠. 문장 해석해보면, 'According to the Cordell Pottery Exhibition's Web site, 코델 도자기 전시회 웹사이트에 따르면, the entry fee, 입장료는, will be waived, 면제 될 것이다, for Cordell residents, 코델 주민들에게는' 이라는 의미예요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -6415,7 +6414,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 72,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "전치사구 as the editor-in-chief ~ 는 동사의 목적어가 될 수 없어요. 그러면 이제 수동태인 거 확실해졌죠.",
+          "tutor": "전치사구 as the editor-in-chief 는 동사의 목적어가 될 수 없어요. 그러면 이제 수동태인 거 확실해졌죠.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -6433,7 +6432,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 74,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 A. was appointed 예요. 문장 해석해보면 'Romesh Sastry, 로메시 사스트리는, was appointed, 임명되었다, as the editor-in-chief, 편집장으로, of the Garrison Herald newspaper, <개리슨 헤럴드> 신문의, yesterday, 어제' 라는 뜻이에요. 주어는 임명되는 대상이고, 뒤에 목적어가 없고, yesterday까지 있으니까 과거 수동태 was appointed, '임명되었다'가 확실하죠.",
+          "tutor": "그래서 정답은 A. was appointed 예요. 주어는 임명되는 대상이고, 뒤에 목적어가 없고, yesterday까지 있으니까 과거 수동태 was appointed가 확실하죠. 문장 해석해보면 'Romesh Sastry, 로메시 사스트리는, was appointed, 임명되었다, as the editor-in-chief of the Garrison Herald newspaper, <개리슨 헤럴드> 신문의 편집장으로, yesterday, 어제' 라는 뜻이에요.",
           "focusQ": 1,
           "interaction": {
             "kind": "next"
@@ -6553,7 +6552,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 83,
           "stage": "S6 오답 제거",
-          "tutor": "이제 선택지 빠르게 볼게요. 능동태인 것들 다 X 치면 되겠죠? A. assemble은 동사원형으로 제품들이 무언가를 조립한다는 능동의 의미가 되고, 뒤에 목적어도 없어서 오답이에요. B. assembled도 동사의 과거형으로 쓰일 수 있어서 능동태라서 오답이죠. C. are assembling도 '제품들이 무언가를 조립하고 있다'는 능동 진행형태라 오답이에요.",
+          "tutor": "이제 선택지 빠르게 볼게요. 능동태인 것들 다 X 치면 되겠죠? A. assemble은 동사원형으로 제품들이 무언가를 조립한다는 능동의 의미가 되고, 뒤에 목적어도 없어서 오답이에요. B. assembled도 동사의 과거형으로 쓰일 수 있어서 능동태라서 오답이죠. C. are assembling도 능동 진행형태라 오답이에요.",
           "focusQ": 2,
           "interaction": {
             "kind": "next"
@@ -6580,7 +6579,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 86,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 빈칸 앞뒤 확인해서 빈칸이 무슨 자리인지 확인해야겠죠? 앞에는 주어 Ms.Chin, 뒤에는 명사구 Mr.Stepp's duties가 있고 문장에 주절 동사가 없네요. 그러면 빈칸은 동사 자리예요. 동사 자리이면 제일 먼저 태 확인해야한다고 했죠?",
+          "tutor": "자, 먼저 빈칸 앞뒤 확인해볼게요. 앞에는 주어 Ms.Chin, 뒤에는 명사구 Mr.Stepp's duties가 있고 문장에 동사가 없죠? 따라서 빈칸은 동사 자리예요. 빈칸이 동사 자리이면 제일 먼저 태 확인해야한다고 했죠?",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
@@ -6589,11 +6588,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 87,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
+          "tutor": "그러면 먼저 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
           "focusQ": 3,
           "interaction": {
             "kind": "choice",
-            "prompt": "첫째, 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
+            "prompt": "그러면 먼저 주어와 동사의 관계부터 볼게요. assume은 여기서 '업무를 맡다'라는 뜻이에요. 주어인 Ms.Chin은 업무를 직접 맡는 주체인지 업무를 맡게 되는 대상인지 확인해야 해요. 그런데 주체인지 대상인지 확실하지 않다면 다음으로 뒤에 목적어 있는지 확인하면 돼요. 빈칸 뒤에 목적어가 있나요?",
             "fixedPrompt": true,
             "choices": [
               {
@@ -6667,7 +6666,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 93,
           "stage": "S6 오답 제거",
-          "tutor": "while\" 같은 시간 표현 뒤에서는, 앞으로 일어날 일을 말할 때도 will 대신 현재형을 쓸 수 있어요. 그래서 while he is at a weeklong marketing seminar는 '앞으로 그가 세미나에 참석해 있는 동안'이라는 미래의 의미를 나타내요. 그러면 그 기간 동안 Ms.Chin이 업무를 맡게 될 것이라는 미래의 의미가 자연스럽죠? 따라서 선택지 A. assumed 는 과거 시제니까 오답이에요.",
+          "tutor": "while 같은 시간 표현 뒤에서는, 앞으로 일어날 일을 말할 때도 will 대신 현재형을 쓸 수 있어요. 그래서 while he is at a weeklong marketing seminar는 '앞으로 그가 세미나에 참석해 있는 동안'이라는 미래의 의미를 나타내요. 그러면 그 기간 동안 Ms.Chin이 업무를 맡게 될 것이라는 미래의 의미가 자연스럽죠? 따라서 선택지 A. assumed 는 과거 시제니까 오답이에요.",
           "focusQ": 3,
           "interaction": {
             "kind": "next"
