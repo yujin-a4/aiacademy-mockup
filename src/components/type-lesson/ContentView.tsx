@@ -19,6 +19,9 @@ export interface ContentState {
   marks: Set<string>
   /** 단어 탭(형광펜)을 쓸 수 있나 — 실전은 false. 지정하지 않으면 쓸 수 있다 */
   tapWords?: boolean
+  /** 지금이 **필기로 짚으라고 시킨 턴**인가 — 그때는 보기 위의 낱말 탭을 끈다
+   *  (구현 중 메모 67행). 짚을 곳은 지문이지 보기가 아니다. */
+  markTurn?: boolean
   tutorMarks: Set<string>
   onTapWord: (word: string) => void
   /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
@@ -136,11 +139,15 @@ function startWordDrag(st: ContentState, key: string, _e: React.PointerEvent) {
   document.addEventListener('pointercancel', end)
 }
 
-function TapText({ text, st, className, scope = '' }: { text: string; st: ContentState; className?: string; scope?: string }) {
+function TapText({ text, st, className, scope = '', noTap }: {
+  text: string; st: ContentState; className?: string; scope?: string
+  /** 이 자리만 탭을 끈다 — 화면 전체를 끄는 `tapWords` 와 달리 한 군데만 잠근다 */
+  noTap?: boolean
+}) {
   const tokens = text.split(/(\s+)/)
   /* 실전에는 형광펜이 없다 — 시험지에 밑줄을 긋고 싶으면 좌하단 연필(필기)을 쓴다.
      단어를 눌러 노랗게 칠하는 건 수업에서 강사가 "여기 짚어보세요" 할 때 쓰는 장치다. */
-  const tappable = st.tapWords !== false
+  const tappable = st.tapWords !== false && !noTap
   return (
     <span className={className}>
       {tokens.map((tk, i) => {
@@ -381,7 +388,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                     )
                   ) : (
                     <span className="text-[13px] md:text-[14px] text-[#1C1B33] leading-snug flex-1">
-                      <TapText text={o.text} st={st} scope={`q${qIdx}.${o.label}`} />
+                      {/* 필기 지시 턴에는 **보기 위에서 형광펜이 안 켜진다** (구현 중 메모 67행)
+                          — 짚으라고 한 곳은 지문이다. 보기까지 켜지면 엉뚱한 데를 칠해 놓고
+                          맞게 짚은 줄 안다. 지문(q.q)과 지문 조각은 그대로 탭된다. */}
+                      <TapText text={o.text} st={st} scope={`q${qIdx}.${o.label}`} noTap={st.markTurn} />
                     </span>
                   )}
                   {playing && !textHidden && <SpeakerIcon pulse />}

@@ -1634,6 +1634,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
 
+  /** 보기 네 개를 **이미 연 문항** (윤다은) — 음원이 끝난 뒤에 열고, 열면 닫지 않는다
+   *  (구현 중 메모 70행). 아래 효과가 채운다. */
+  const [openAllQ, setOpenAllQ] = useState<Set<number>>(new Set())
+
+  /** 정오답 색을 **이미 연 문항** — 한 번 열면 그 문항이 끝날 때까지 닫지 않는다
+   *  (구현 중 메모 45행). 아래 효과가 S5 에서 채운다. */
+  const [verdictShown, setVerdictShown] = useState<Set<number>>(new Set())
+
   /* ── 강사가 정답을 공개하는 단계면 **정답 보기에 표시를 켠다** (구현 중 메모 43행) ──
      정답 표시는 `graded` 가 켜져야 나오는데, 그건 학생이 보기를 골랐을 때만 켜졌다.
      그런데 **이도윤 RC 수업에는 정답 고르기 턴이 아예 없다** — 강사가 처음부터 끝까지
@@ -1646,6 +1654,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const q = turn.focusQ
     if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
     setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
+    setVerdictShown((p) => (p.has(q) ? p : new Set(p).add(q)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnIdx, phase])
 
@@ -1962,17 +1971,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 이 문항을 다루는 마지막 턴인가 — 다음 턴이 다른 문항으로 넘어가면 여기서 끝난 것이다.
        수업의 '마무리 멘트'·실전 코칭의 'S7 표현 정리' 가 여기 걸린다([다음 문제] 가 열리는 그 시점). */
     const lastOfQ = !!cur && (!turns[turnIdx + 1] || turns[turnIdx + 1].focusQ !== cur.focusQ)
-    /* 강사에 따라 **답을 고른 즉시** 네 개를 여는 경우가 있다(INST_OPEN_ALL_OPTIONS — 윤다은).
-       강사 설명이 진행되는 동안 보기 네 문장을 같이 보라는 뜻이다. */
-    if (!scripted || lastOfQ || freePlay || INST_OPEN_ALL_OPTIONS[instructor]) {
+    if (!scripted || lastOfQ || freePlay) {
       answeredQ.forEach((q) => { options[q] = 'all' })
     }
+    /* 강사에 따라 답을 고른 문항의 네 개를 **미리** 여는 경우가 있다(윤다은) — 강사 설명이
+       진행되는 동안 보기 네 문장을 같이 보라는 뜻이다.
+       ⚠️ **음원이 나가는 중에는 열지 않는다** (구현 중 메모 70행). 예전에는 누르는 즉시 열려서,
+          보기 음원을 아직 듣고 있는데 네 문장이 통째로 떠 버렸다 — 듣고 고르는 자리가 읽고
+          고르는 자리가 된다. 판정은 아래 효과가 하고, 여기서는 그 결과만 쓴다(열었다 닫았다
+          하면 설명 중에 깜빡인다). */
+    openAllQ.forEach((q) => { options[q] = 'all' })
     if (scripted && (lastOfQ || freePlay) && cur?.focusQ !== undefined) {
       /* 다시 고르지 않는 단계(실전 코칭)는 answeredQ 가 비어 있어 위에서 안 열린다 — 여기서 연다 */
       options[cur.focusQ] = 'all'
     }
     return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
-  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor])
+  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor, openAllQ])
 
   /** 앱이 턴을 넘길 때 — 에이전트에도 다음 단계 지시를 밀어준다.
    *  이걸 안 하면 진행 주체가 앱인 턴에서 에이전트가 지시를 못 받아 그냥 침묵한다
@@ -2839,6 +2853,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        동안 강사가 끼어들지 않는다. 문제를 넘기면 다음 문제 단계가 시작되며 다시 잠긴다.
        freePlay(수업 전체 종료)는 마지막 문제 뒤의 같은 상태다. */
     audioFree: freePlay || itemDone,
+    /* 필기로 짚으라고 시킨 턴 — 보기 위의 낱말 탭을 끈다(구현 중 메모 67행) */
+    markTurn: turn.interaction.kind === 'mark',
     /* 대본 수업은 강사가 지목한 보기의 스크립트를 그때그때 연다 (reveal.optionText) */
     autoScript: !!scripted,
     onPlayAudio: playLessonAudio,
@@ -2868,7 +2884,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        (구현 중 메모 9행). 그 단계는 "왜 이것이 답인가" 를 짚는 자리라, 무엇이 답인지 화면에
        보이지 않으면 강사 말만 따라가야 한다. 그 앞 단계(학생 풀이·개념 코칭)는 그대로 감춘다 —
        거기서 정답이 보이면 학생이 풀 이유가 없다. */
-    hideVerdict: phase !== 'review' && !/^S5|정답\s*근거/.test(turn.stage),
+    /* ⚠️ **한 번 연 것은 다시 닫지 않는다** (구현 중 메모 45행). 예전에는 지금 턴의 단계만
+       보고 정해서, S5 를 지나 S6(오답 제거)·S7(표현 정리)로 넘어가는 순간 **정답·오답 색이
+       통째로 사라졌다** — 강사는 뒤이어 다른 보기를 설명하는데 화면에는 근거가 없어진다.
+       문항이 바뀌면 focusQ 가 바뀌므로 다음 문항은 저절로 다시 감춰진다. */
+    hideVerdict: phase !== 'review'
+      && !/^S5|정답\s*근거/.test(turn.stage)
+      && !(turn.focusQ !== undefined && verdictShown.has(turn.focusQ)),
     matchState,
   }
 
@@ -2911,6 +2933,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  말로 답하는 자리는 수업(스캐폴딩)과 오답 코칭뿐이다. 실전은 보기를 누르고, 정리는
    *  자기 마이크 버튼을 쓴다. */
   const voicePhase = phase === 'lesson' || phase === 'review'
+  /* 답을 고른 문항의 보기 네 개를 연다 — **자료 음원이 멎은 뒤**에만 (구현 중 메모 70행).
+     한 번 연 것은 도로 닫지 않는다(뒤이어 강사가 보기 음원을 하나씩 틀 때 깜빡이지 않게). */
+  useEffect(() => {
+    if (!INST_OPEN_ALL_OPTIONS[instructor] || cuePlaying) return
+    setOpenAllQ((prev) => {
+      let next = prev
+      answeredQ.forEach((q) => { if (!next.has(q)) { next = new Set(next); next.add(q) } })
+      return next
+    })
+  }, [answeredQ, cuePlaying, instructor])
+
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
   const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
