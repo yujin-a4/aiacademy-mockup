@@ -260,8 +260,16 @@ export function SpeechDots() {
 /* ── 강사 말에서 **핵심**을 굵게 ──
    발화가 평균 99자라 통으로 흘러가면 무엇이 중요한지 눈에 안 들어온다(실측 지적).
    두 가지를 굵게 잡는다:
-     · '…'   — 시트가 이미 뜻풀이·핵심 표현에 쓰고 있다(발화 291개 중 91개). 따옴표는 남긴다.
+     · '…'   — 시트가 이미 뜻풀이·핵심 표현에 쓰고 있다. **단, 안에 한글이 있을 때만.**
      · **…** — 콘텐츠팀이 따로 찍고 싶을 때. 별표는 화면에서 감추고, 읽을 때도 뗀다(api/tts).
+
+   ⚠️ **따옴표 안이라고 다 굵히지 않는다.** 굵은 것은 '설명에서 중요한 내용' 이어야 하는데,
+      따옴표를 무조건 굵히면 **학생이 잘못 짚은 낱말까지 굵어진다** — "'over'은 아니에요.
+      다시 한번 표시해 볼까요?" 에서 굵어야 할 것이 있다면 그건 over 가 아니다(오히려 반대다).
+      대본의 따옴표는 162개가 전부 뜻풀이('붓을 헹구다')라 **한글이 들었는지**로 갈린다.
+      한글 없는 6개는 영어 아포스트로피가 짝지어진 것뿐이라(University's …) 굵지 않는 게 맞다.
+      강조를 사람이 직접 찍고 싶으면 **…** 를 쓴다 — 그건 언어를 가리지 않는다.
+
    ⚠️ 영어 축약형을 강조로 오해하면 안 된다("He's reviewing" → 여기서 굵어지기 시작한다).
       그래서 따옴표는 **앞이 글자가 아닐 때만** 여는 것으로 본다.
    ⚠️ 글자는 소리에 맞춰 하나씩 드러나므로 **잘린 문자열이 들어온다.** 여는 표시만 오고 닫는
@@ -272,6 +280,8 @@ function parseEmphasis(src: string): Seg[] {
   const segs: Seg[] = []
   const push = (t: string, b: boolean) => { if (t) segs.push({ t, b }) }
   const isWord = (c: string | undefined) => !!c && /[A-Za-z0-9]/.test(c)
+  /** 따옴표 안이 **뜻풀이인가** — 한글이 하나라도 들었으면 설명이고, 아니면 인용한 낱말이다 */
+  const hasKo = (t: string) => /[가-힣]/.test(t)
   let buf = ''
   let i = 0
   while (i < src.length) {
@@ -285,8 +295,12 @@ function parseEmphasis(src: string): Seg[] {
     }
     if (src[i] === "'" && !isWord(src[i - 1])) {
       const end = src.indexOf("'", i + 1)
+      /* 아직 닫히지 않은 토막 — 한글이 하나라도 보이면 굵게 시작한다(뜻풀이가 이어질 자리다).
+         영어만 흐르고 있으면 굵히지 않는다. 닫히고 나면 아래 규칙이 다시 판정한다. */
+      if (end === -1) { push(buf, false); push(src.slice(i), hasKo(src.slice(i))); return segs }
+      const inner = src.slice(i + 1, end)
+      if (!hasKo(inner)) { buf += src.slice(i, end + 1); i = end + 1; continue }
       push(buf, false); buf = ''
-      if (end === -1) { push(src.slice(i), true); return segs }
       push(src.slice(i, end + 1), true)      // 따옴표째 굵게 — 길이가 그대로라 글자 흐름이 안 어긋난다
       i = end + 1
       continue
