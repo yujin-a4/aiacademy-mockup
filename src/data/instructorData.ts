@@ -358,3 +358,46 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
     ],
   },
 }
+
+/* ── 홈 말풍선 (INST_MESSAGES.dashboard 의 후속) ──
+ *
+ * 기존 dashboard 배열은 응원 문구 5개를 15초마다 돌렸다. 내 학습 상태와 무관해서, 어제 뭘 했든
+ * 같은 말이 나온다 — 사람 얼굴을 걸어놓고 나를 모르는 말을 하면 안 거는 것보다 나쁘다.
+ * 그래서 문구를 **상황으로 고르고 돌리지 않는다.** 상황 판정은 homeToday.coachSituation.
+ * (docs/lesson-end-spec.md 가 말하는 "홈 말풍선이 상태로 갈린다"의 첫 구현이다. 정답률 3구간까지
+ *  가려면 채점 이력이 있어야 해서, 지금은 오늘 진행 상태 3구간 + 약점 파트 한 줄로 둔다.)
+ *
+ * 약점 한 줄은 INST_WEAK_COMMENTS 를 그대로 재사용한다 — 같은 말을 두 군데 쓰면 반드시 어긋난다.
+ */
+export type CoachSituation = 'start' | 'resume' | 'done'
+
+export const INST_HOME_COACH: Record<string, Record<CoachSituation, string>> = {
+  park_hyewon: {
+    start: '오늘 아직 하나도 안 했어. 첫 강의부터 바로 가자.',
+    resume: '여기까지 왔으면 남은 건 금방이야. 끝내야 복습이 열려.',
+    done: '오늘 강의는 다 했어. 틀린 것만 복습에서 다시 보고 마무리해.',
+  },
+  yun_daeun: {
+    start: '오늘도 와줬네요 😊 첫 강의만 가볍게 열어봐요.',
+    resume: '벌써 여기까지 왔어요. 남은 것도 천천히 하나만 더 해봐요 🌸',
+    done: '오늘 강의 다 끝냈어요! 복습으로 틀린 것만 짚고 마무리해요 ✨',
+  },
+  lee_doyun: {
+    start: '오늘 진행률 0%입니다. 첫 강의부터 순서대로 가시죠.',
+    resume: '남은 강의를 끝내야 오답 복습이 열립니다. 이어서 진행하시죠.',
+    done: '오늘 강의 완료. 이제 오답 유형만 복습에서 다시 확인하면 됩니다.',
+  },
+  seo_jian: {
+    start: '어렵지 않아요 💜 오늘 첫 강의만 열면 절반은 온 거예요!',
+    resume: '잘하고 있어요! 남은 것만 마무리하면 오늘 끝이에요 💪',
+    done: '오늘 강의 다 해냈어요 💜 복습까지 하면 완벽해요!',
+  },
+  oh_jungja: {
+    start: '천천히 시작하면 돼요. 첫 강의 하나만 열어봐요.',
+    resume: '여기까지 잘 왔어요. 남은 것 하나만 더 하면 돼요.',
+    done: '오늘 할 것 다 했어요. 복습에서 틀린 것만 다시 보면 돼요.',
+  },
+}
+
+export const homeCoachLine = (instructor: string, situation: CoachSituation): string =>
+  (INST_HOME_COACH[instructor] ?? INST_HOME_COACH.park_hyewon)[situation]
