@@ -52,6 +52,8 @@ bad data/types. **Run it after any non-trivial data or type change** before cons
 | Instructor persona data/copy | `src/data/instructorData.ts` |
 | Design tokens & dashboard redesign brief | `tailwind.config.ts`, `DESIGN_SYSTEM.md` |
 | Product requirements | `YBM_AI_어학원_PRD_v2.md`, `docs/learning-types.md` |
+| **답을 기다리는 결정** (고르지 말고 쌓는 곳) | **`docs/DECISIONS.md`** — 세션 시작할 때 먼저 읽는다 |
+| 화면이 어제와 달라졌는지 검사 | `npm run smoke` (`scripts/smoke.mjs`), 기준은 `tests/smoke/baselines/` |
 
 ## 4. Architecture in brief
 
