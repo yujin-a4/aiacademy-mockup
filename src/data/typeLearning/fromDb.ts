@@ -952,7 +952,7 @@ export function buildPracticeContent(part: number, rows: UiDbQuestion[]): TypeLe
             id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
           })),
         }],
-        questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
+        questions: group.map((q) => toQuestion(q, '빈칸에 알맞은 것을 고르세요.')),
       }
     /* RC(6·7) — **지문 하나(이중·삼중이면 한 묶음) = 세트 하나 = 문항 여럿**이다.
        LC 3·4 와 같은 규칙으로 지문(passage.code)으로 묶는다. 예전엔 group[0] 의 지문만 보고
@@ -1025,7 +1025,7 @@ export function buildReviewContent(part: number, rows: UiDbQuestion[]): TypeLess
           id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
         })),
       }],
-      questions: group.map((q, i) => toQuestion(q, `빈칸에 알맞은 것을 고르세요. (${i + 1})`)),
+      questions: group.map((q) => toQuestion(q, '빈칸에 알맞은 것을 고르세요.')),
     }
   }
   return null
