@@ -60,18 +60,27 @@ def main():
     service = build("sheets", "v4", credentials=creds)
     meta = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
 
-    result = {"title": meta.get("properties", {}).get("title"), "sheets": []}
-    for sh in meta.get("sheets", []):
-        name = sh.get("properties", {}).get("title")
-        rng = f"'{name}'"
-        vals = (
+    names = [sh.get("properties", {}).get("title") for sh in meta.get("sheets", [])]
+
+    # 탭마다 한 번씩 부르면 **탭 63개짜리 시트에서 분당 60 한도에 매번 걸린다**(08-26 실측:
+    # 두 번 연속 429). batchGet 은 여러 범위를 한 번에 받으므로 63회가 2회로 준다.
+    # URL 길이 때문에 한 번에 다 넣지는 않는다 — 30개씩 끊는다.
+    CHUNK = 30
+    got = {}
+    for i in range(0, len(names), CHUNK):
+        part = names[i : i + CHUNK]
+        res = (
             service.spreadsheets()
             .values()
-            .get(spreadsheetId=SPREADSHEET_ID, range=rng)
+            .batchGet(spreadsheetId=SPREADSHEET_ID, ranges=[f"'{n}'" for n in part])
             .execute()
-            .get("values", [])
         )
-        result["sheets"].append({"name": name, "values": vals})
+        for name, vr in zip(part, res.get("valueRanges", [])):
+            got[name] = vr.get("values", [])
+
+    result = {"title": meta.get("properties", {}).get("title"), "sheets": []}
+    for name in names:
+        result["sheets"].append({"name": name, "values": got.get(name, [])})
 
     out_path = os.path.join(HERE, "sheet_dump.json")
     with open(out_path, "w", encoding="utf-8") as f:
