@@ -4259,21 +4259,19 @@ function RecapAnswerInput({ onSubmit, shaking, order }: {
 }
 
 /* ── 정리 카드 하나 ──
-   **학생이 말한 대로 들어간다.** 틀려도 막지 않고 그대로 받아 다음 칸으로 넘어간다
+   **학생이 말한 대로 들어간다.** 되돌려 보내는 자리가 없다 — 틀려도 그대로 받아 넘어간다
    (메모 46·53행). 맞았는지 틀렸는지는 **강사가 이 문항을 짚을 때** 색으로 켠다 —
    그전까지는 내가 넣은 말이 파랗게만 남는다. 채점을 먼저 띄우면 강사가 말하기도 전에
    답을 알아 버려서, 정리 멘트가 이미 아는 것을 되풀이하는 자리가 된다. */
-function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, active, graded }: {
+function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, active, graded }: {
   index: number; sentence: RecapSentence
   /** 칸마다 학생이 넣은 말 — 빈칸이 하나면 길이 1이다 */
   filled?: (string | undefined)[]
   /** 답한다 — `blank` 는 몇 번째 빈칸인가(하나뿐이면 0) */
   onPick: (choice: string, blank: number) => void
   onSpeak: (transcript: string, blank: number) => void
-  /** 칸마다 맞았는가 — 전략 정리는 늘 true(정답만 입력된다), 어휘 확인은 틀리면 false */
+  /** 칸마다 맞았는가 — 넣은 말을 그대로 채점한 결과다(강사가 짚을 때만 화면에 낸다) */
   corrects?: (boolean | undefined)[]
-  /** 방금 넣은 오답 — 잠깐 흔들리고 스스로 사라진다 */
-  wrong?: string
   /** 강사가 **지금 이 칸을 짚고 있는가** — 말과 화면이 같은 곳을 가리켜야 따라갈 수 있다 */
   active?: boolean
   /** 강사가 **이 문항을 짚기 시작했나** — 채점 색은 그때 켠다 (메모 46행) */
@@ -4317,19 +4315,18 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
             뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다.
             ⚠️ 글자 입력은 지운 것이 아니라 꺼 둔 것이다(RECAP_TEXT_INPUT) — 되돌리려면 여기 한 줄. */}
         {RECAP_TEXT_INPUT && sentence.choices.length === 0 && at >= 0 && (
-          <RecapAnswerInput shaking={!!wrong} onSubmit={(said) => onPick(said, at)}
+          <RecapAnswerInput onSubmit={(said) => onPick(said, at)}
             order={blanks.length > 1 ? at : undefined} />
         )}
         {sentence.choices.map((c) => {
           const isAnswer = c === sentence.answer
-          const shaking = wrong === c
           /* ⚠️ hover 에 **배경색을 주지 않는다.** 오답으로 빨개졌다가 풀리는 순간 마우스가
              그 버튼 위에 그대로 있어서, 빨강이 곧바로 hover 하늘색으로 바뀐다 —
              "빨강 → 하늘색" 으로 읽혀 무슨 뜻인지 알 수 없다(실측). 채워진 칸(초록)과도
              헷갈린다. hover 는 테두리로만 알린다. */
           return (
             <button key={c} disabled={done} onClick={() => onPick(c, 0)}
-              className={`text-[12px] font-semibold border rounded-lg px-3 py-1.5 transition-colors ${shaking ? 'animate-shake' : ''} ${
+              className={`text-[12px] font-semibold border rounded-lg px-3 py-1.5 transition-colors ${
                 done && graded
                   /* 강사가 짚는 자리 — 정답은 초록, 내가 고른 오답은 빨강 취소선, 나머지는 흐림 */
                   ? isAnswer ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
@@ -4338,8 +4335,7 @@ function RecapCard({ index, sentence, filled, corrects, wrong, onPick, onSpeak, 
                   /* 고르기만 한 자리 — 내가 고른 것만 파랗게 남는다. 정답은 아직 말하지 않는다 */
                   : done ? filled?.[0] === c ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
                       : 'border-[#E5E7EB] text-[#CBD5E1]'
-                    : shaking ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
-                      : 'border-[#E5E7EB] bg-white text-[#374151] hover:border-[#2563EB] hover:text-[#1D4ED8]'
+                    : 'border-[#E5E7EB] bg-white text-[#374151] hover:border-[#2563EB] hover:text-[#1D4ED8]'
               }`}>{c}</button>
           )
         })}
@@ -4390,15 +4386,10 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const lastPage = page >= groups.length - 1
 
   const allDone = items.every((s) => blanksOf(s).every((_, i) => fills[s.id]?.[i] !== undefined))
-  /** 방금 누른 오답 (칸 id → 그 보기). 잠깐 흔들리고 스스로 사라진다 */
-  const [wrong, setWrong] = useState<Record<string, string>>({})
-  const shakeTimers = useRef<number[]>([])
   /** 강사가 **짚기 시작한** 문항 id — 채점 색은 여기 들어온 뒤에 켠다 (메모 46행).
    *  "학생이 말한 거 그대로 입력 → 강사가 피드백할 때 채점" 이라, 채우는 동안에는
    *  맞았는지 틀렸는지를 화면이 먼저 말하지 않는다. */
   const [revealed, setRevealed] = useState<Set<string>>(new Set())
-  /** 문항 id → 말했는데 칸을 못 채운 횟수. 한 번까지만 다시 청한다 (메모 53행) */
-  const retriesRef = useRef<Map<string, number>>(new Map())
 
   /** 이 답이 맞는가 — 클릭이면 정답과 같은지, 음성이면 정답 표현이 들어 있는지 */
   /** 이 답이 맞는가 — 보기를 누른 것이면 정답과 같은지, 직접 적거나 말한 것이면 넉넉히 본다.
@@ -4441,9 +4432,6 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   const FILL_HINT = items[0]?.choices.length
     ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
     : '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
-  /** 못 채웠을 때 강사가 하는 한 마디 (시트 진행 규칙). 고를 보기도 적을 칸도 없는 자리라
-   *  '선택해보세요' 가 아니라 **무엇을 해야 하는지** 그대로 말한다. */
-  const RETRY_LINE = '다시 한번, 빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요.'
   const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
@@ -4534,16 +4522,10 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
 
   useEffect(() => () => {
     runRef.current += 1; stopVoice(); stopCurrentAudio()
-    shakeTimers.current.forEach(clearTimeout)
   }, [])
 
-  /** 오답을 눌렀다 — **기록하지 않고** 그 버튼만 잠깐 흔든다. 글자로 "틀렸어요" 라고 적지
-   *  않는 이유: 정리는 확인하는 자리라, 되돌릴 수 있는 실수에 판정문을 붙일 필요가 없다. */
-  const shake = (id: string, choice: string) => {
-    setWrong((p) => ({ ...p, [id]: choice }))
-    const t = window.setTimeout(() => setWrong((p) => { const n = { ...p }; delete n[id]; return n }), 420)
-    shakeTimers.current.push(t)
-  }
+  /* 오답을 흔들어 되돌려 보내던 자리였다 — 이제 **되돌려 보내지 않는다.** 무엇을 넣든
+     그대로 받고, 맞고 틀림은 강사가 짚을 때 색으로 말한다 (메모 46행). */
 
   /** 답 하나를 받는다 — **틀려도 그대로 받는다** (메모 46·53행).
    *  예전에는 전략 정리에서 정답을 눌러야만 입력돼서, 못 맞히면 그 자리에 갇혔다
@@ -4597,25 +4579,17 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
       found.forEach((v, i) => { if (v !== undefined) cur[i] = v })
       return { ...p, [s.id]: cur }
     })
-    /* 한 칸이라도 못 찾았으면 흔들고 강사가 한 마디 한다 — 찾은 칸은 그대로 남는다(다시 읽으면
-       나머지가 채워진다). 무엇이 비었는지는 문장의 빈칸이 보여 준다. */
+    /* ── 못 찾은 칸에는 **말한 그대로** 넣는다 (메모 46행) ──
+       "학생이 말한 거 그대로 입력 → 강사가 피드백할 때 채점". 키워드가 안 걸렸다고 아무것도
+       안 넣으면, 학생 눈에는 **말해도 아무 일이 없는 화면**이다(08-28 실측). 여기는 글자
+       입력칸도 없는 자리(RECAP_TEXT_INPUT=false)라 그러면 빠져나갈 길이 통째로 막힌다.
+       ⚠️ 넣어 두면 채점은 강사가 짚을 때 `isRight` 로 **다시** 본다. 그 판정이 여기 찾기보다
+          너그러워서(자리를 안 따진다), 인식이 낱말을 흘린 정답은 그때 초록으로 살아난다. */
     const missed = found.some((v, i) => v === undefined && fills[s.id]?.[i] === undefined)
-    /* 들린 말은 **화면에 띄우지 않는다**(08-20 결정) — 학생에게 보여줄 것이 아니다.
-       다만 인식이 낱말을 흘리는 일이 잦아(실측: "사물의 위치와 상태를" → "3월의 위치를")
-       못 채운 경우만 콘솔에 남긴다. 무엇 때문에 안 됐는지 확인할 자리가 없으면 손댈 수가 없다. */
-    if (missed) console.log('[정리] 못 채움 — 들린 말:', transcript)
+    /* 들린 말은 **화면 말풍선에 띄우지 않는다**(08-20 결정) — 다만 인식이 낱말을 흘리는 일이
+       잦아(실측: "사물의 위치와 상태를" → "3월의 위치를") 못 채운 경우는 콘솔에 남긴다. */
     if (!missed) return
-    /* ── 못 찾았다고 그 자리에 가둘 수는 없다 (메모 53행) ──
-       한 번은 다시 청한다 — 인식이 낱말을 흘리는 일이 잦아서, 다시 읽으면 대개 채워진다.
-       두 번째부터는 **말한 그대로** 못 찾은 칸에 넣고 넘어간다. 틀린 채로 남지만, 그건
-       강사가 짚을 때 빨갛게 뜨고 정답을 알려주는 자리가 있다(메모 46행). */
-    const tried = (retriesRef.current.get(s.id) ?? 0) + 1
-    retriesRef.current.set(s.id, tried)
-    if (tried <= 1) {
-      shake(s.id, transcript)
-      if (!speaking) void say(RETRY_LINE)
-      return
-    }
+    console.log('[정리] 키워드 못 찾음 — 들린 말 그대로 넣음:', transcript)
     setFills((p) => {
       const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as string | undefined)
       cur.forEach((v, i) => { if (v === undefined) cur[i] = transcript })
@@ -4676,7 +4650,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
             {items.map((s, i) => (
               <RecapCard key={s.id} index={i} sentence={s} filled={fills[s.id]}
                 corrects={correctsOf(s)} graded={revealed.has(s.id)}
-                wrong={wrong[s.id]} active={activeIdx === i}
+                active={activeIdx === i}
                 onPick={(c, b) => pick(s, c, b)} onSpeak={(t, b) => speakAnswer(s, t, b)} />
             ))}
           </div>
