@@ -33,12 +33,13 @@ PDF 구조 (실측)
   python scripts/extract_rc_pdf.py --test 1 --part 7 --preview
 """
 import argparse
-import glob
 import json
 import os
 import re
 
 import fitz
+
+import _book_paths
 
 # ── 세트 머리 ────────────────────────────────────────────────────────────
 HEAD = re.compile(r"Questions?\s+(\d{3})[-–](\d{3})\s+refer to the following\s+([^.]+)\.")
@@ -99,9 +100,15 @@ def clean(s):
     return "".join(out).strip()
 
 
-def find_pdfs():
-    files = sorted(glob.glob(os.path.join("YBM*pdf*", "*.pdf")))
-    rc = [f for f in files if "RC" in os.path.basename(f)]
+def find_pdfs(vol=1):
+    """해당 권의 RC 본권·해설.
+
+    ⚠️ 예전엔 'YBM*pdf*/*.pdf' 로 글롭해서 **1권과 2권이 같이 잡혔다**. 그러면 페이지 수로
+       고르는 아래 정렬이 엉뚱한 권을 집는다. LC 쪽이 겪은 것과 같은 함정이라 같은 식으로 막는다.
+    """
+    rc = _book_paths.book_pdfs(vol, "RC")
+    if len(rc) != 2:
+        raise SystemExit("%d권 RC PDF 를 2개로 못 집었다: %s" % (vol, rc))
     docs = [fitz.open(f) for f in rc]
     docs.sort(key=lambda d: d.page_count)      # 해설(220p) < 본권(332p)
     return {"hae": docs[0], "bon": docs[-1]}
@@ -450,15 +457,40 @@ def parse_bon(bon, lo, hi, want_part):
         for i, g in enumerate(groups):
             chunk = "\n".join(t for _, t, _ in g)
             passages.append(parse_passage(chunk, kinds[i] if i < len(kinds) else "text"))
+        questions = parse_questions("\n".join(s["_q"]))
+        repair_numbers(questions, s["from"], s["to"])
         out.append({
             "range": [s["from"], s["to"]],
             "part": s["part"],
             "page": s["page"],
             "phrase": s["phrase"],
             "passages": passages,
-            "questions": parse_questions("\n".join(s["_q"])),
+            "questions": questions,
         })
     return out
+
+
+def repair_numbers(questions, a, b):
+    """세트 범위를 벗어난 문항 번호를 자리로 되살린다.
+
+    조판이 번호를 깨뜨리는 쪽이 있다 — 실측: 2권 RC TEST 9 의 **178번이 '900'** 으로 읽혔다.
+    그러면 그 문항이 범위 밖이라 통째로 버려져 회차가 69문항이 된다(모의고사로는 못 쓴다).
+
+    머리말이 세트 범위를 알려 주고(176-180) 문항은 그 안에서 순서대로 나오므로,
+    **개수가 맞고 어긋난 번호가 빈 자리 개수와 같을 때만** 자리로 채운다.
+    개수가 안 맞으면 손대지 않는다 — 잘못 채우느니 결손으로 남겨 감사기에 걸리는 편이 낫다.
+    """
+    want = list(range(a, b + 1))
+    if len(questions) != len(want):
+        return
+    good = {q["no"] for q in questions if a <= q["no"] <= b}
+    holes = [n for n in want if n not in good]
+    bad = [q for q in questions if not a <= q["no"] <= b]
+    if len(bad) != len(holes):
+        return
+    for q, n in zip(bad, holes):
+        q["no_raw"] = q["no"]
+        q["no"] = n
 
 
 def hae_pages(hae, test_no):
@@ -530,13 +562,14 @@ def parse_hae(hae, nums, test_no):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--vol", type=int, default=1, choices=(1, 2))
     ap.add_argument("--test", type=int, default=1)
     ap.add_argument("--part", type=int, choices=[6, 7])
     ap.add_argument("--out")
     ap.add_argument("--preview", action="store_true")
     a = ap.parse_args()
 
-    pdfs = find_pdfs()
+    pdfs = find_pdfs(a.vol)
     rng = test_ranges(pdfs["bon"]).get(a.test)
     if not rng:
         raise SystemExit(f"TEST {a.test} 를 못 찾았다")

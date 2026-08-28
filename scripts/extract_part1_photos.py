@@ -27,15 +27,16 @@ import sys
 import fitz  # PyMuPDF
 from PIL import Image
 
+import _book_paths
+
 DPI = 300   # 교재 사진 원본과 비슷한 픽셀 수가 나오는 값
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
-BOOKS = {
-    "1": os.path.join(ROOT, "YBM 실전토익 1 최종 pdf 웹용", "YBM 실전토익 LC 1000_1_본권 (2024).pdf"),
-    "2": os.path.join(ROOT, "YBM 실전토익 2 최종 pdf 웹용", "YBM 실전토익 LC 1000_2_본권.pdf"),
-}
+def book_path(book):
+    """권 번호 → LC 본권 PDF. 위치는 _book_paths(TOEIC_PDF_ROOT)가 정한다."""
+    return _book_paths.pick(book, "LC", "본권")
 ANCHOR = "four statements about a picture"   # Part 1 안내문 — 회차 시작을 여는 문장
 CODE_RE = re.compile(r"^YBM_LC(?P<book>\d)_T(?P<test>\d+)_Q(?P<q>\d+)$", re.I)
 
@@ -45,9 +46,7 @@ _cache = {}
 def part1_starts(book):
     """그 권의 회차별 Part 1 안내 페이지(0-base). 순서가 곧 회차 번호다."""
     if book not in _cache:
-        path = BOOKS[book]
-        if not os.path.exists(path):
-            raise SystemExit(f"교재 PDF가 없다: {path}")
+        path = book_path(book)
         doc = fitz.open(path)
         starts = [i for i in range(doc.page_count) if ANCHOR in doc[i].get_text()]
         _cache[book] = (doc, starts)
@@ -60,7 +59,7 @@ def extract(code, out_dir):
         print(f"  ✗ {code}: 코드 형식이 아니다 (YBM_LC1_T06_Q001 꼴)")
         return None
     book, test, qno = m.group("book"), int(m.group("test")), int(m.group("q"))
-    if book not in BOOKS:
+    if book not in ("1", "2"):
         print(f"  ✗ {code}: {book}권은 없다")
         return None
     doc, starts = part1_starts(book)
@@ -126,10 +125,14 @@ def codes_from_sheet():
 
 
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
     out_dir = os.path.join(ROOT, "public", "part1", "fgi")
-    if "--out" in sys.argv:
-        out_dir = os.path.join(ROOT, sys.argv[sys.argv.index("--out") + 1])
+    if "--out" in argv:
+        i = argv.index("--out")
+        out_dir = os.path.join(ROOT, argv[i + 1])
+        argv = argv[:i] + argv[i + 2:]        # --out 의 **값**도 빼야 한다.
+        #  안 빼면 폴더 경로가 문항 코드로 넘어가 '코드 형식이 아니다' 를 매번 찍는다
+    args = [a for a in argv if not a.startswith("--")]
 
     codes = codes_from_sheet() if "--from-sheet" in sys.argv else args
     if not codes:

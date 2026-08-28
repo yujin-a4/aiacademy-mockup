@@ -5,19 +5,12 @@
    사용: python scripts/extract_rc_p5.py [--vol 1|2]
    1권과 2권은 파일명 규칙이 다르다(1권만 뒤에 ' (2024)'가 붙는다).
 """
-import fitz, io, re, json, os, sys, glob
+import fitz, io, re, json, os, sys
+import _book_paths
 VOL = 2 if '--vol' in sys.argv and sys.argv[sys.argv.index('--vol') + 1] == '2' else 1
-BASE = f"YBM 실전토익 {VOL} 최종 pdf 웹용"
 
-def pick(kind):
-    """'본권' / '해설' PDF 를 파일명 흔들림에 관계없이 집는다"""
-    hits = [p for p in glob.glob(os.path.join(BASE, '*.pdf')) if 'RC' in p and kind in p]
-    if len(hits) != 1:
-        raise SystemExit(f"{BASE} 에서 RC {kind} PDF 를 하나로 못 집었다: {hits}")
-    return hits[0]
-
-BOOK = fitz.open(pick('본권'))
-SOL  = fitz.open(pick('해설'))
+BOOK = fitz.open(_book_paths.pick(VOL, 'RC', '본권'))
+SOL  = fitz.open(_book_paths.pick(VOL, 'RC', '해설'))
 SUFFIX = '' if VOL == 1 else str(VOL)
 
 def norm(s):

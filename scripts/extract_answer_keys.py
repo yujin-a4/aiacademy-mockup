@@ -23,15 +23,11 @@ import sys
 
 import fitz  # PyMuPDF
 
+import _book_paths
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
-BOOKS = {
-    ("LC", "1"): "YBM 실전토익 1 최종 pdf 웹용/YBM 실전토익 LC 1000_1_해설 (2024).pdf",
-    ("LC", "2"): "YBM 실전토익 2 최종 pdf 웹용/YBM 실전토익 LC 1000_2_해설.pdf",
-    ("RC", "1"): "YBM 실전토익 1 최종 pdf 웹용/YBM 실전토익 RC 1000_1_해설 (2024).pdf",
-    ("RC", "2"): "YBM 실전토익 2 최종 pdf 웹용/YBM 실전토익 RC 1000_2_해설.pdf",
-}
 CODE_RE = re.compile(r"^YBM_(?P<area>LC|RC)(?P<book>\d)_T(?P<test>\d+)_Q(?P<q>\d+)$", re.I)
 
 LABEL_RE = re.compile(r"^(\d*)\(([A-D])\)$")   # '(C)' 또는 번호가 눌어붙은 '45(C)'
@@ -79,9 +75,7 @@ def answer_keys(area, book):
 
     정답표는 **회차마다 그 회차 해설 앞에** 있다(앞쪽에 몰려 있지 않다) → 전체를 훑는다."""
     if (area, book) not in _keys:
-        path = os.path.join(ROOT, BOOKS[(area, book)])
-        if not os.path.exists(path):
-            raise SystemExit(f"교재 해설 PDF가 없다: {path}")
+        path = _book_paths.pick(book, area, "해설")
         lo, hi = (1, 100) if area == "LC" else (101, 200)
         doc = fitz.open(path)
         by_test, cur = {}, None

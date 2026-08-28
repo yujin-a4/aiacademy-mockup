@@ -59,3 +59,7 @@ gcp/**/env.yaml
 
 # 시트 PDF 내보내기 (참고용, 용량 큼 - docs/scaffolding-sheet-structure.md로 대체됨)
 /AI어학원 콘텐츠.pdf
+
+# 실전 모의고사 교재 음원 (회차당 ~45MB). 저작물이고 용량이 커서 커밋하지 않는다.
+# 만드는 법: python scripts/map_mock_audio.py --vol 1 --test 1 --copy public/mock/lc1-t01 --emit scripts/dump/audio_lc1_t01.json
+/public/mock/
