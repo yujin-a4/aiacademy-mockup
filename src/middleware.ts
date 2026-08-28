@@ -39,8 +39,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // api·정적 자산·이미지/영상 파일은 제외하고 페이지 라우트만 검사.
+  // api·정적 자산·이미지/영상/폰트/음원 파일은 제외하고 페이지 라우트만 검사.
+  //
+  // ⚠️ **폰트를 빠뜨리면 폰트가 통째로 안 뜬다** (08-28 실측). `@font-face` 로 받는 폰트는
+  //    같은 출처라도 **쿠키를 안 실어 보낸다**(credentials omit). 그래서 미들웨어 눈에는 늘
+  //    미로그인이라 `/` 로 307 튕기고, 브라우저는 돌아온 HTML 을 폰트로 파싱한다
+  //    ("OTS parsing error: invalid sfntVersion: 1008813135" — 저 숫자가 곧 `<!DO` 다).
+  //    페이지는 멀쩡히 뜨는데 글꼴만 폴백으로 바뀌어서, 눈으로는 원인을 못 찾는다.
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|ico|json|txt|js|css)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|mp4|webm|mp3|wav|m4a|ttf|otf|woff|woff2|ico|json|txt|js|css)$).*)',
   ],
 }
