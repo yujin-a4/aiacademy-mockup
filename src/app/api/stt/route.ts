@@ -19,6 +19,12 @@ export async function POST(req: NextRequest) {
     const upstream = new FormData()
     upstream.append('model_id', 'scribe_v1')
     upstream.append('file', audio, audio.name || 'audio.webm')
+    /* 언어를 알면 알려 준다 — 정리 화면은 한 문장이 짧아서("사람의 동작 확인") 자동 판별이
+       영어로 튀는 일이 있다. 화면이 이미 아는 값이라 굳이 맞히게 둘 이유가 없다.
+       ⚠️ 엔진 **비교 평가**에서는 언어 힌트를 주지 않기로 했다(그건 점수를 유리하게 만든다).
+          여기는 제품이라 다른 자리다. */
+    const langCode = incoming.get('language_code')
+    if (typeof langCode === 'string' && langCode) upstream.append('language_code', langCode)
 
     const res = await fetch(ELEVENLABS_STT_URL, {
       method: 'POST',
