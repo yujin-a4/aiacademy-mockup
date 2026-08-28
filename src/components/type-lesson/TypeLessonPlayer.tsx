@@ -1583,7 +1583,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
        prevOkRef 를 보고 떨어져 나간다(stripAck). */
     prevOkRef.current = ok
-    if (ok !== false && !scriptWillAck()) await say(ackLine(ackNoRef.current++))
+    if (ok !== false && !scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
     goNext()
   }
 
@@ -2350,7 +2350,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     triesRef.current.set(turnIdx, tries)
     prevOkRef.current = ok
     if (ok) {
-      if (!scriptWillAck()) await say(ackLine(ackNoRef.current++))
+      /* ── 이도윤은 맞장구도 앱이 하지 않는다 (08-28 결정) ──
+         이 강사 대본은 **정오답에 따른 발화를 직접 갖고 있다**(tutorIfWrong, 대본에 46곳).
+         앞에 앱이 "잘했어요" 를 얹으면 곧바로 대본이 "아쉽지만 아니에요" 를 말하는 일이 생긴다 —
+         scriptWillAck 은 다음 줄의 `tutor` 만 보므로, 오답이라 tutorIfWrong 이 나갈 자리를
+         못 가려낸다. 판정은 대본에 맡기고 앱은 비켜선다.
+         ⚠️ **코칭(실전 오답 리뷰)에는 걸지 않는다.** 그쪽 대본은 32턴 전부 갈래가 없어서
+            (tutorIfWrong 0개) 앱까지 입을 다물면 틀린 학생이 아무 반응도 못 받는다. */
+      if (!scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
       goNext()
       return
     }
