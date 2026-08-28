@@ -28,6 +28,8 @@ export interface SessionEndFlowProps {
   /** 마지막 화면 안내 문구 — 오늘 분량이 남았는지에 따라 달라진다 */
   actionTitle?: string
   actionSubtitle?: string
+  /** 오늘 강사가 짚어 준 표현 — 마지막 화면에 모아 보여준다 (구현 중 메모 73행) */
+  expressions?: { en: string; ko: string }[]
 }
 
 export default function SessionEndFlow({
@@ -45,6 +47,7 @@ export default function SessionEndFlow({
   homeLabel,
   actionTitle,
   actionSubtitle,
+  expressions,
 }: SessionEndFlowProps) {
   // localStorage는 렌더 시점에 읽어서 저장 전 값을 얻는다('첫 완주' 판정이 이번 회차에 오염되면 안 된다)
   const totalCompletions = getTotalCompletions(partKey)
@@ -94,7 +97,8 @@ export default function SessionEndFlow({
 
   steps.push(
     <StepAction key="action" onNextLesson={onNextLesson} onReport={onReport} onHome={onHome}
-      nextLessonLabel={nextLessonLabel} homeLabel={homeLabel} title={actionTitle} subtitle={actionSubtitle} />,
+      nextLessonLabel={nextLessonLabel} homeLabel={homeLabel} title={actionTitle} subtitle={actionSubtitle}
+      expressions={expressions} />,
   )
 
   const currentStep = Math.min(step, steps.length - 1)
