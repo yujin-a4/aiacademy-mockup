@@ -443,7 +443,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
 
 /* ── 문항 탭(P3·P4·P6·P7) — 한 화면에 한 문항만.
    탭으로 이전/이후 문항을 자유롭게 오갈 수 있고, 턴이 다루는 문항(focusQ)이 바뀌면 그 탭으로 자동 이동한다.
-   탭 점: 채점 후엔 정/오답(초록/빨강), 채점 전 답만 고른 상태(실전)는 파랑. ── */
+   탭 점: 채점 결과를 내는 자리에서만 정/오답(초록/빨강), 그 밖에 답만 고른 상태는 파랑.
+   ⚠️ **hideVerdict 면 점도 색을 내지 않는다** (구현 중 메모 6행). 수업의 학생 풀이 단계는
+      보기 색을 감춰 놓고 정작 탭의 점이 빨갛게 떠서, 강사가 한 마디 하기도 전에 화면이
+      "틀렸다" 고 말해 버렸다. 감출 곳을 한 군데 빠뜨리면 감춘 것이 아니다. ── */
 /** 이 문항이 지금 바퀴에 속하나 (범위가 없으면 전부 보인다) */
 const qInView = (st: ContentState, i: number) =>
   !st.visibleQ || (i >= st.visibleQ.from && i < st.visibleQ.to)
@@ -478,7 +481,8 @@ function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentSta
       {viewIdx.length > 1 && (
         <div className={`flex items-center gap-1.5 pb-2 ${pane ? 'shrink-0' : 'sticky top-0 z-10 bg-white pt-0.5'}`}>
           {viewIdx.map((i) => {
-            const graded = st.graded.has(i)
+            /* 채점 결과를 낼 수 있는가 — 채점됐고, 정오답을 감추는 자리가 아니어야 한다 */
+            const graded = st.graded.has(i) && !st.hideVerdict
             const correct = graded && st.answers[i] === qs[i].options.find((o) => o.correct)?.label
             const answered = !graded && !!st.answers[i]
             return (
