@@ -178,8 +178,12 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
   return attachPassageSets(ordered as UiDbQuestion[])
 }
 
-/** 한 파트의 문항 전체. 자율학습 '파트별 연습'이 여기서 문제를 받는다.
- *  큐레이션(Q_CODES)이나 앵커(Q_ANCHORS)로 좁히지 않고 DB에 든 것을 다 가져온다. */
+/** 한 파트의 **강의** 문항 전체. 자율학습 '파트별 연습'이 여기서 문제를 받는다.
+ *  큐레이션(Q_CODES)이나 앵커(Q_ANCHORS)로 좁히지 않고 DB에 든 것을 다 가져온다.
+ *
+ *  실전 모의고사 문항(0028, mock_test_id)은 **뺀다.** 파트로만 조회하면 회차 문항이 그대로 딸려
+ *  들어와 파트별 연습이 시험지 문항을 섞어 낸다 — 한 회차를 순서대로 푸는 자리가 따로 있는데
+ *  여기서 미리 새어 나가면 그 회차가 이미 풀어 본 문제가 된다. 회차는 fetchMockQuestions 로. */
 export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]> {
   const supabase = getSupabase()
   if (!supabase) return []
@@ -187,6 +191,7 @@ export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]
     .from('questions')
     .select(Q_SELECT)
     .eq('part', part)
+    .is('mock_test_id', null)
   if (error || !data) return []
   return attachPassageSets((data as any[])
     .map(mapQuestion)
