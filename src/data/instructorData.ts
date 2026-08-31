@@ -139,9 +139,77 @@ export const INST_PERSONA: Record<string, string> = {
    전용 목소리가 아직 없는 강사(서지안·오정자)는 박혜원 것으로 폴백한다. */
 export const INST_VOICE: Record<string, string> = {
   park_hyewon: 'aKMUzTQk58byFPNhpATt',
-  yun_daeun: 'QPFsEL6IBxlT15xfiD6C',
-  lee_doyun: 'MpbDJfQJUYUnp0i1QvOZ',
+  yun_daeun: 'xA5124tsajl7VRTHpFxg', // 한·영 발음용으로 새로 뽑은 목소리 (이전 QPFsEL6IBxlT15xfiD6C)
+  lee_doyun: 'DTEeVx29gq12EJ7qBYaP', // 억양을 살려 다시 뽑은 목소리 (앞선 후보 1HhRIC9l… 은 단조로웠다)
 }
+
+/* ── 강사 → ElevenLabs TTS 모델 ──
+   목소리마다 잘 맞는 모델이 다르다. 이도윤은 한 문장 안에서 한국어↔영어를 오가는 대본이 많아
+   코드스위칭이 나은 v3 을 쓴다. 적어두지 않은 강사는 api/tts 의 기본(multilingual v2).
+   ⚠️ v3 은 voice_settings.speed 를 받지 않는다(에러) — api/tts 가 v3 일 때 speed 를 빼고 보낸다.
+      대신 v3 은 응답이 느리고 한 번에 보낼 수 있는 글자도 절반(5,000자)이다. */
+export const INST_TTS_MODEL: Record<string, string> = {
+  lee_doyun: 'eleven_v3',
+  yun_daeun: 'eleven_v3',
+}
+
+/* ── 문장 사이 휴지를 조금 벌릴 강사 ──
+   이도윤 목소리는 문장을 거의 붙여 읽는다. 설명이 몰아쳐서 학생이 한 문장을 소화할 틈이 없다.
+   ⚠️ 전 강사에게 켜면 안 된다 — 박혜원은 "랩하듯 빠르게" 가 페르소나라 벌리면 그 사람이 아니게 된다.
+   ⚠️ v3 는 `<break time=…>` 를 받지 않는다(v2 계열만 된다). `[pause]` 같은 태그는 모델이
+      **그대로 소리내어 읽어 버리는** 사고가 있어 쓰지 않는다. 줄바꿈은 그냥 글자라 그 사고가 없다.
+   실제 처리는 api/tts 가 한다 — **읽을 때만** 벌리고 화면 글자는 그대로다. */
+export const INST_SENTENCE_PAUSE: Record<string, boolean> = {
+  lee_doyun: true,
+}
+
+/* ── 앱이 **대본 밖의 말을 얹지 않는** 강사 ──
+   켜면 셋이 같이 꺼진다(전부 앱이 지어내는 말이고, 대본에 없다):
+     · 스캐폴딩 질문을 틀렸을 때 되묻기 — "다시 한번 생각해 볼까요?" 없이 바로 짚고 넘어간다
+     · "몰라요" 에 대한 완충 — "괜찮아요, 같이 볼게요" 없이 바로 다음 단계를 말한다
+     · 못 맞혔을 때 답 알려주기 — "제가 짚어 줄게요. 이렇게 답하면 돼요 …" 를 얹지 않는다
+   ※ 맞혔을 때의 맞장구("좋아요, 맞았어요")는 그대로 둔다 — 이건 대본을 대신하는 말이 아니라
+     학생 답을 받아 주는 반응이고, 다음 대본이 같은 말로 시작하면 어차피 비켜선다(scriptWillAck).
+   이도윤은 콘텐츠팀 지정이다. 담백·분석적이 페르소나고, 대본이 다음 줄에서 곧바로 풀어 주므로
+   앱이 끼워 넣을 자리가 없다(정답 기준으로 쓰인 맞장구는 stripAck 이 떼어 준다).
+   적어두지 않은 강사는 예전 그대로 — 되묻고, 다독인다.
+   ※ 문항 정답 고르기(학생 풀이 단계)는 이것과 다른 축이다. 거긴 강사와 무관하게 언제나 한 번
+     뿐이고, 정오답은 대본이 정해 둔 자리(S5)에서 말한다. */
+export const INST_SCRIPT_ONLY: Record<string, boolean> = {
+  lee_doyun: true,
+}
+
+/* ── 답을 고른 뒤 보기 **네 개 글자를 한꺼번에** 열 것인가 ──
+   윤다은은 콘텐츠팀 지정이다(시트 FGI_윤다은 A2 공통사항):
+     "학생 문제 풀이 후 강사 설명이 진행되는 동안 보기 4개의 문장이 모두 보이도록 함"
+   이도윤은 켜지 않는다 — "이번에는 A를 볼게요" 하며 하나씩 짚어가는 구성이라, 네 개가 미리
+   열려 있으면 지금 어느 보기 이야기인지 화면에서 읽히지 않는다(실측).
+   ※ 켜지 않아도 그 문항의 **마지막 턴**에서는 네 개가 다 열린다 — 혼자 다시 보라고 여는 자리다. */
+export const INST_OPEN_ALL_OPTIONS: Record<string, boolean> = {
+  yun_daeun: true,
+}
+
+/* ── 강사별 말 속도 (1 = 원래 속도) ──
+   ⚠️ 이건 ElevenLabs 의 `speed` 가 **아니다.** v3 는 speed 를 받지 않아서(넣으면 400) 이도윤은
+      그쪽으로 늦출 방법이 없다. 그래서 **받아온 음원을 느리게 재생**한다(lib/tts 의 fetchTTSAudio).
+   음정은 브라우저가 유지해 준다(preservesPitch) — 그냥 느리게 틀면 목소리가 굵어진다.
+   0.85 아래로 내려가면 늘린 티(금속성)가 들리기 시작한다. 0.9~0.95 가 안전한 구간.
+   ※ 글자 흐름은 따라온다 — 재생 위치를 보고 있어서(playbackProgress) 느려지면 같이 느려진다. */
+/* ── 강사별 말 속도 — **비워 둔다. 채우지 말 것.** ──
+   한때 이도윤 0.93 · 윤다은 1.05 를 넣었다가 뺐다. 넣으면 **발화마다 앞뒤가 잘려 들린다**(실측:
+   두 강사 모두. 목소리는 다른데 증상이 같아 공통 처리가 원인임이 드러났고, 비우니 사라졌다).
+
+   왜: 속도가 1이 아니면 브라우저가 음정을 지키려고 **시간을 늘였다 줄이는 처리**를 건다
+   (preservesPitch). 그 처리는 앞뒤로 버퍼가 필요해서, 버퍼가 차기 전(머리)과 비우지 못한 채
+   끝난 자리(꼬리)가 깎인다. 재생 쪽 여유(HEAD_WAIT_MS·TAIL_HOLD_MS)로는 못 막는다 —
+   그건 타이밍을 늦출 뿐이고, 깎여 나간 소리를 되살리지는 못한다.
+
+   말이 빠르거나 느려서 고쳐야 한다면 **재생이 아니라 생성 단계에서** 잡아야 한다:
+     · 목소리를 다시 뽑는다 — 프롬프트에 말 빠르기를 적는다(제일 확실하다)
+     · v3 가 아닌 모델을 쓰는 강사라면 api/tts 의 voice_settings.speed 를 쓴다
+       (v3 는 speed 를 받지 않는다 — 넣으면 400 이 떨어져 브라우저 TTS 로 폴백한다)
+   그래도 굳이 재생으로 하겠다면 여기에 값을 넣으면 동작은 한다. 잘리는 것을 감수하는 것이다. */
+export const INST_TTS_RATE: Record<string, number> = {}
 
 /** 이 강사가 영상 클립을 갖고 있는가 (없으면 사진 아바타 그대로) */
 export const hasClips = (instructor: string) => Boolean(INST_CLIPS[instructor])
@@ -290,3 +358,46 @@ export const INST_MESSAGES: Record<string, { dashboard: string[]; status: string
     ],
   },
 }
+
+/* ── 홈 말풍선 (INST_MESSAGES.dashboard 의 후속) ──
+ *
+ * 기존 dashboard 배열은 응원 문구 5개를 15초마다 돌렸다. 내 학습 상태와 무관해서, 어제 뭘 했든
+ * 같은 말이 나온다 — 사람 얼굴을 걸어놓고 나를 모르는 말을 하면 안 거는 것보다 나쁘다.
+ * 그래서 문구를 **상황으로 고르고 돌리지 않는다.** 상황 판정은 homeToday.coachSituation.
+ * (docs/lesson-end-spec.md 가 말하는 "홈 말풍선이 상태로 갈린다"의 첫 구현이다. 정답률 3구간까지
+ *  가려면 채점 이력이 있어야 해서, 지금은 오늘 진행 상태 3구간 + 약점 파트 한 줄로 둔다.)
+ *
+ * 약점 한 줄은 INST_WEAK_COMMENTS 를 그대로 재사용한다 — 같은 말을 두 군데 쓰면 반드시 어긋난다.
+ */
+export type CoachSituation = 'start' | 'resume' | 'done'
+
+export const INST_HOME_COACH: Record<string, Record<CoachSituation, string>> = {
+  park_hyewon: {
+    start: '오늘 아직 하나도 안 했어. 첫 강의부터 바로 가자.',
+    resume: '여기까지 왔으면 남은 건 금방이야. 끝내야 복습이 열려.',
+    done: '오늘 강의는 다 했어. 틀린 것만 복습에서 다시 보고 마무리해.',
+  },
+  yun_daeun: {
+    start: '오늘도 와줬네요 😊 첫 강의만 가볍게 열어봐요.',
+    resume: '벌써 여기까지 왔어요. 남은 것도 천천히 하나만 더 해봐요 🌸',
+    done: '오늘 강의 다 끝냈어요! 복습으로 틀린 것만 짚고 마무리해요 ✨',
+  },
+  lee_doyun: {
+    start: '오늘 진행률 0%입니다. 첫 강의부터 순서대로 가시죠.',
+    resume: '남은 강의를 끝내야 오답 복습이 열립니다. 이어서 진행하시죠.',
+    done: '오늘 강의 완료. 이제 오답 유형만 복습에서 다시 확인하면 됩니다.',
+  },
+  seo_jian: {
+    start: '어렵지 않아요 💜 오늘 첫 강의만 열면 절반은 온 거예요!',
+    resume: '잘하고 있어요! 남은 것만 마무리하면 오늘 끝이에요 💪',
+    done: '오늘 강의 다 해냈어요 💜 복습까지 하면 완벽해요!',
+  },
+  oh_jungja: {
+    start: '천천히 시작하면 돼요. 첫 강의 하나만 열어봐요.',
+    resume: '여기까지 잘 왔어요. 남은 것 하나만 더 하면 돼요.',
+    done: '오늘 할 것 다 했어요. 복습에서 틀린 것만 다시 보면 돼요.',
+  },
+}
+
+export const homeCoachLine = (instructor: string, situation: CoachSituation): string =>
+  (INST_HOME_COACH[instructor] ?? INST_HOME_COACH.park_hyewon)[situation]

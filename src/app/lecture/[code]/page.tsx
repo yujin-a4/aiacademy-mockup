@@ -17,7 +17,7 @@ import { getTypeLesson } from '@/data/typeLearning'
 import TypeLessonPlayer from '@/components/type-lesson/TypeLessonPlayer'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { INST_NAME } from '@/data/instructorData'
-import { useDbLectureQuestions } from '@/data/db/questionStore'
+import { useDbLectureQuestions, useCurriculumLectures } from '@/data/db/questionStore'
 import { useLectureProgram } from '@/data/db/lectureProgramStore'
 import { buildLessonFromDb } from '@/data/typeLearning/fromDb'
 import { scenarioFor } from '@/data/typeLearning/fgiScenario'
@@ -27,6 +27,13 @@ import { useRailPrompts } from '@/data/typeLearning/railPrompts'
 /* 파트 → 형판으로 쓸 로컬 유형(같은 파트여야 buildLessonFromDb가 동작).
    FGI에서 LC도 시연하기로 해서(2026-07-28, D7) 듣기 2·3·4도 붙였다.
    형판은 제목·세션정리 폴백에만 쓰고, 스크립트·표·보기·레일은 전부 DB에서 온다. */
+/** FGI 시연 강의의 도입 화면 제목 — 콘텐츠팀이 부르는 이름 그대로.
+ *  DB `lectures.title` 은 'RC8강 — 능동태·수동태' 라 커리큘럼 번호(24강)와 어긋난다. */
+const INTRO_TITLE: Record<string, string> = {
+  'LC-P1-01': 'LC 1강 Part 1 사람·동작 사진 vs 사물·상태 사진',
+  'RC-P5-08': 'RC 24강 Part 5 능동태·수동태',
+}
+
 const TEMPLATE_BY_PART: Record<number, string> = {
   1: 't01',   // 사진 묘사
   2: 't02',   // 질의응답
@@ -69,6 +76,13 @@ export default function LecturePage() {
   /* 문항(재료)과 진행표(아이템 × 레일)를 따로 읽어 여기서 합친다.
      문항은 드래프트에서도 **정본을 그대로** 읽는다 — 드래프트가 바꾸는 것은 레일뿐이다. */
   const rows = useDbLectureQuestions(local ? code : '', (r) => r, [])
+  /* 도입 화면 제목 — **강의 제목**이어야 한다. 예전에는 로컬 프리셋의 typeLabel 을 썼는데
+     ("Part 1 · 단일 문항 · 사진+음원 선택지") 그건 렌더러 프리셋 이름이지 이 강의 이름이 아니다.
+     학생이 '내 학습'에서 누른 제목과 다른 제목이 뜨면 다른 강의를 연 것처럼 보인다.
+     FGI 시연 두 강의는 콘텐츠팀이 정한 이름을 그대로 쓴다(INTRO_TITLE) — DB 제목은
+     'RC8강 — …' 처럼 커리큘럼 번호(24강)와 어긋나 있어 그대로 쓸 수 없다. */
+  const lectures = useCurriculumLectures()
+  const lectureTitle = INTRO_TITLE[code] ?? lectures.find((l) => l.code === code)?.title
   const program = useLectureProgram(local ? code : '', instructor, draftId)
 
   const { lesson: builtLesson, rail } = useMemo(() => {
@@ -96,9 +110,15 @@ export default function LecturePage() {
 
   /* 학생 문구는 레일에 박아두지 않고 매번 만든다 (없거나 실패하면 원본이 그대로 남는다) */
   const steps = useMemo(() => program.items.flatMap((i) => i.steps), [program.items])
+  /* 대본이 있는지 **생성을 시키기 전에** 본다 — 아래 finalLesson 에서 보면 늦는다.
+     ⚠️ 예전에는 여기서 조건 없이 생성하고, 대본이 있으면 그 결과를 버렸다. 버릴 것을
+        만드느라 **강의를 열 때마다 LLM 이 발화를 통째로 생성했다** — FGI 두 강의가 지금
+        제일 자주 열리는 화면이라(콘텐츠 파트 QA) 요금이 여기서 났다(실측 2026-08-25,
+        구글 월 지출 한도 초과). 대본 수업은 할 말이 다 정해져 있어 만들 것이 없다. */
+  const scenario = scenarioFor(instructor, code)
   const promptState = useRailPrompts(
     builtLesson?.turns ?? [], steps, builtLesson?.content ?? null,
-    builtLesson?.part ?? 0, !!rail, builtLesson?.items,
+    builtLesson?.part ?? 0, !!rail && !scenario, builtLesson?.items,
     instructor,        // 말투 — 첫 마디는 낭독되므로 강사별로 달라져야 한다
   )
   /* ── 대본 수업 (FGI 시연) ──
@@ -108,8 +128,8 @@ export default function LecturePage() {
      문항(사진·보기·음원)은 그대로 DB 것을 쓴다. 바뀌는 것은 **진행**뿐이다.
 
      **강사마다 대본이 다르다.** 같은 문항이라도 짚는 순서와 시키는 방식이 갈리므로
-     (강사, 강의) 두 축으로 찾는다. 대본이 없는 강사로 열면 평소대로 레일 + LLM 이다. */
-  const scenario = scenarioFor(instructor, code)
+     (강사, 강의) 두 축으로 찾는다. 대본이 없는 강사로 열면 평소대로 레일 + LLM 이다.
+     (scenario 는 위 useRailPrompts 보다 먼저 구해 둔다 — 생성 자체를 건너뛰려고) */
   const finalLesson = builtLesson && scenario
     ? { ...builtLesson, turns: scenario.turns }
     : builtLesson && rail
@@ -150,8 +170,11 @@ export default function LecturePage() {
   return <TypeLessonPlayer lesson={finalLesson} instructor={instructor} rail={finalRail} scripted={!!scenario}
     /* 실전을 푼 뒤의 코칭도 대본이 있다 — 틀린 문항만이 아니라 시트에 적힌 문항 전부를 짚는다 */
     scriptedReview={scenario?.review}
+    /* 실전 뒤 결과 멘트 — 오답이 있을 때만 코칭 첫 마디로 나간다(점수는 화면이 채운다) */
+    scriptedPracticeOutro={scenario?.practiceOutro}
     scriptedIntro={scenario?.intro}
-    /* 마지막 정리 퀴즈도 시트에 있다 — 강의에 박아 둔 영어 문장 대신 그 강의의 판단 순서를 되짚는다 */
+    /* 마지막 정리 퀴즈도 시트에 있다 — 강의에 박아 둔 영어 문장 대신 그 강의의 판단 순서를
+       되짚는다. 묶음이 여럿일 수 있다(전략 정리 + 빈출 표현) */
     scriptedSummary={scenario?.summary}
     /* ?stage=practice — 도입·수업을 건너뛰고 실전 세트부터. 유형 그리드에서 온다:
        한 강의가 수업/실전에 서로 다른 지문 변종을 담는 경우(이중 일반형 ↔ 표형)가 있어,
@@ -159,6 +182,7 @@ export default function LecturePage() {
     initialStage={search.get('stage') === 'practice' ? 'practice' : undefined}
     /* 드래프트 미리보기는 학습 로그를 남기지 않는다(D-C) — 실험 데이터가 실사용 로그에 섞이면
        FGI 분석이 오염된다. lectureCode 가 로그의 스위치라(TypeLessonPlayer:624) 안 넘기면 꺼진다. */
+    lectureTitle={lectureTitle}
     lectureCode={draftId ? undefined : code}
     draftId={draftId}
     preparing={promptState.status === 'loading'} />

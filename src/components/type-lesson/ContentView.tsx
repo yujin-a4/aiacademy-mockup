@@ -19,6 +19,9 @@ export interface ContentState {
   marks: Set<string>
   /** 단어 탭(형광펜)을 쓸 수 있나 — 실전은 false. 지정하지 않으면 쓸 수 있다 */
   tapWords?: boolean
+  /** 지금이 **필기로 짚으라고 시킨 턴**인가 — 그때는 보기 위의 낱말 탭을 끈다
+   *  (구현 중 메모 67행). 짚을 곳은 지문이지 보기가 아니다. */
+  markTurn?: boolean
   tutorMarks: Set<string>
   onTapWord: (word: string) => void
   /** 문장 하나만 재생 (스크립트 문장 클릭) — 없으면 재생 버튼을 안 그린다(실전 단계 등) */
@@ -55,6 +58,11 @@ export interface ContentState {
   /** 잠깐 짚어 보여줄 문항 — '안 푼 문제가 있어요' 로 데려간 자리. 화면에 스크롤해 올리고 표시를 단다.
    *  focusQ 를 쓰면 '지금 읽어주는 문항' 과 뜻이 섞여서 따로 둔다. */
   spotlightQ?: number
+  /** 지금 턴이 **다시 고르라고 시키고 있는** 문항 — 채점이 끝났어도 보기를 열어 준다.
+   *  코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라 graded 가 처음부터 다 켜져 있는데,
+   *  그 안에 "보기에서 정답을 다시 골라볼까요?" 턴이 있다. graded 만 보면 그 보기가 잠겨 있어
+   *  **눌러도 아무 일이 없다**(실측 보고 08-20, 구현 중 메모 40행). */
+  askingQ?: number
   /** 'single': focusQ 문항만 선택 가능 / 'all': 전 문항 선택 가능 / 'none' */
   answerMode: 'none' | 'single' | 'all'
   answers: Record<number, string>
@@ -62,6 +70,11 @@ export interface ContentState {
   /** 틀리게 고른 보기 `${qIdx}:${label}` — 채점 전이라도 "이건 아니다"를 남겨둔다.
    *  (오답이면 다시 고를 수 있어야 하는데, 표시가 없으면 같은 걸 또 누른다) */
   wrongPicks?: Set<string>
+  /** 정오답을 **색으로 보여주지 않는다.** 채점 여부(graded)와는 다른 축이다 —
+   *  수업의 학생 풀이 단계는 채점은 하되(잠금·진행) 색은 내지 않는다: 피드백은 강사 말로만
+   *  하고, 화면에는 고른 보기가 파랗게만 남는다. 정답은 뒤따르는 풀이 단계에서 같이 연다.
+   *  실전 채점 화면과 코칭(오답 리뷰)은 결과를 보는 자리라 색을 낸다(이 값을 켜지 않는다). */
+  hideVerdict?: boolean
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
   /** 학생이 그어 지운 보기 `${qIdx}:${label}`. 시험지에 연필로 긋는 그 동작이다.
@@ -101,11 +114,48 @@ export const markedWords = (marks: Set<string>) => {
 }
 
 /* ── 단어 탭 텍스트 ── */
-function TapText({ text, st, className, scope = '' }: { text: string; st: ContentState; className?: string; scope?: string }) {
+/* ── 여러 낱말을 한 번에 짚기 (구현 중 메모 24행) ──
+   "주어 부분을 짚어보세요" 처럼 목표가 여러 낱말인데 하나씩만 찍혀서, 다 채우기 전에는 아무 반응이
+   없었다 — 콘텐츠 파트에는 "단어를 탭해도 인식을 안 함" 으로 보였다. 끌면 지나간 낱말이 다 켜진다.
+
+   ⚠️ **탭은 여전히 onClick 이 맡는다.** 여기서 낱말을 켜거나 `setPointerCapture` 로 포인터를
+      가두면 뒤따르는 click 이 낱말에 닿지 않아 **탭이 통째로 죽는다**(실측). 이 함수는 오직
+      '끌기' 만 본다 — 움직임이 없으면 아무 일도 하지 않는다.
+   ⚠️ 움직임은 **문서에서** 듣는다. 손가락은 처음 누른 요소가 이벤트를 붙잡고 있어 낱말마다
+      pointerenter 가 오지 않으므로, 좌표로 짚는다(elementFromPoint + 이미 있는 data-mk).
+   ⚠️ 낱말에 `touch-pan-y` — 세로로 끌면 지문이 그대로 스크롤되고, 가로로 끌 때만 낱말이 켜진다.
+      `select-none` 이 없으면 끄는 동안 브라우저가 텍스트 블록부터 잡는다. */
+function startWordDrag(st: ContentState, key: string, _e: React.PointerEvent) {
+  const already = new Set<string>()
+  let moved = false
+  const add = (k: string) => { if (!already.has(k) && !st.marks.has(k)) { already.add(k); st.onTapWord(k) } }
+  const move = (ev: PointerEvent) => {
+    const hit = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)
+      ?.closest('[data-mk]')?.getAttribute('data-mk')
+    if (!hit) return
+    /* 처음 움직인 순간 시작 낱말도 켠다 — 끌기로 끝나면 click 이 안 와서 시작 낱말이 빠진다 */
+    if (!moved) { moved = true; add(key) }
+    if (hit !== key) add(hit)
+  }
+  const end = () => {
+    document.removeEventListener('pointermove', move)
+    document.removeEventListener('pointerup', end)
+    document.removeEventListener('pointercancel', end)
+  }
+  document.addEventListener('pointermove', move)
+  document.addEventListener('pointerup', end)
+  document.addEventListener('pointercancel', end)
+}
+
+function TapText({ text, st, className, scope = '', noTap }: {
+  text: string; st: ContentState; className?: string; scope?: string
+  /** 이 자리만 탭을 끈다 — 화면 전체를 끄는 `tapWords` 와 달리 한 군데만 잠근다 */
+  noTap?: boolean
+}) {
   const tokens = text.split(/(\s+)/)
   /* 실전에는 형광펜이 없다 — 시험지에 밑줄을 긋고 싶으면 좌하단 연필(필기)을 쓴다.
      단어를 눌러 노랗게 칠하는 건 수업에서 강사가 "여기 짚어보세요" 할 때 쓰는 장치다. */
-  const tappable = st.tapWords !== false
+  const tappable = st.tapWords !== false && !noTap
   return (
     <span className={className}>
       {tokens.map((tk, i) => {
@@ -121,8 +171,14 @@ function TapText({ text, st, className, scope = '' }: { text: string; st: Conten
         const key = markKey(scope, i, word)
         const marked = st.marks.has(key)
         return (
-          <span key={i} onClick={() => st.onTapWord(key)}
-            className={`cursor-pointer rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
+          /* data-mk — **필기가 어느 낱말 위를 지나갔는지** 화면이 되짚을 수 있게 자리를 남긴다.
+             지문은 글자라 사진처럼 캔버스와 합성해 판정할 수가 없다. 이게 없으면 밑줄을 아무 데나
+             그어도 통과했다(실측: Part 5 에서 'easy' 에 밑줄을 그어도 "잘했어요"). 보기(data-opt)와
+             같은 방식이다. */
+          <span key={i} data-mk={key}
+            onClick={() => st.onTapWord(key)}
+            onPointerDown={(e) => startWordDrag(st, key, e)}
+            className={`cursor-pointer touch-pan-y select-none rounded-[3px] px-[1px] -mx-[1px] transition-colors ${
               marked ? 'bg-[#FDE68A]' : tMarked ? 'bg-[#DBEAFE] text-[#1D4ED8] font-semibold' : 'hover:bg-[#F3F4F6]'
             } ${marked && tMarked ? 'underline decoration-[#2563EB] decoration-2 underline-offset-2' : ''}`}>
             {tk}
@@ -143,12 +199,21 @@ function SentenceText({ text, st, focusBlank, scope = '' }: { text: string; st: 
         if (m || p === '______') {
           const n = m ? Number(m[1]) : undefined
           const focused = n !== undefined && focusBlank === n
+          /* ── 번호 없는 빈칸(P5)은 **시험지 그대로 밑줄 하나** ──
+             상자·배경을 씌우면 시험지가 아니라 입력폼처럼 보인다. inline-block 이라
+             밑줄이 줄 끝에서 두 동강 나지 않고 통째로 다음 줄로 내려간다. */
+          if (n === undefined) {
+            return (
+              <span key={i} aria-label="빈칸"
+                className="inline-block align-baseline w-[92px] mx-1 border-b-2 border-[#111] whitespace-nowrap" />
+            )
+          }
           return (
             <span key={i}
-              className={`inline-block min-w-[64px] text-center mx-0.5 px-2  border-b-2 text-[13px] font-black align-baseline ${
+              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 border-b-2 text-[13px] font-black align-baseline whitespace-nowrap ${
                 focused ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
               }`}>
-              {n ? `(${n})` : '____'}
+              {`(${n})`}
             </span>
           )
         }
@@ -182,7 +247,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const [scriptOverride, setScriptOverride] = useState<Record<string, boolean>>({})
   const focused = st.focusQ === qIdx
   const graded = st.graded.has(qIdx)
-  const selectable = !graded && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
+  /* 지금 이 문항을 다시 고르라고 시키는 턴이면 채점이 끝났어도 열어 준다 */
+  const asking = st.askingQ === qIdx
+  const selectable = (asking || !graded) && (st.answerMode === 'all' || (st.answerMode === 'single' && focused))
   const revealed = st.revealedOptions[qIdx]
   const correctLabel = q.options.find((o) => o.correct)?.label
   /* 지금 나가는 음원이 "전체 지문/스크립트"인가 — 보기(opt:)·문항 묶음(qaudio:)은 그 자리에서 켜지므로 뺀다 */
@@ -262,9 +329,11 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           const chosen = st.answers[qIdx] === o.label
           const isCorrect = o.label === correctLabel
           const playing = st.playingId === `opt:${qIdx}:${o.label}`
-          const showResult = graded
+          /* 채점됐다고 색을 내는 것이 아니다 — 수업의 학생 풀이 단계는 채점하되 색을 감춘다
+             (hideVerdict). 그때 보기는 아래 `chosen` 갈래로 떨어져 파랗게만 남는다. */
+          const showResult = graded && !st.hideVerdict
           // 채점 전이라도 이미 틀린 보기는 표시해 둔다 (정답은 공개하지 않는다)
-          const wrongTried = !showResult && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
+          const wrongTried = !showResult && !st.hideVerdict && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
           const rowCls = showResult
             ? isCorrect ? 'border-[#86EFAC] bg-[#F0FDF4]'
               : chosen ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E5E7EB] bg-white opacity-70'
@@ -339,7 +408,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                     )
                   ) : (
                     <span className={`${st.textCls ?? 'text-[13px] md:text-[14px]'} text-[#1C1B33] leading-snug flex-1`}>
-                      <TapText text={o.text} st={st} scope={`q${qIdx}.${o.label}`} />
+                      {/* 필기 지시 턴에는 **보기 위에서 형광펜이 안 켜진다** (구현 중 메모 67행)
+                          — 짚으라고 한 곳은 지문이다. 보기까지 켜지면 엉뚱한 데를 칠해 놓고
+                          맞게 짚은 줄 안다. 지문(q.q)과 지문 조각은 그대로 탭된다. */}
+                      <TapText text={o.text} st={st} scope={`q${qIdx}.${o.label}`} noTap={st.markTurn} />
                     </span>
                   )}
                   {playing && !textHidden && <SpeakerIcon pulse />}
@@ -406,7 +478,10 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
 
 /* ── 문항 탭(P3·P4·P6·P7) — 한 화면에 한 문항만.
    탭으로 이전/이후 문항을 자유롭게 오갈 수 있고, 턴이 다루는 문항(focusQ)이 바뀌면 그 탭으로 자동 이동한다.
-   탭 점: 채점 후엔 정/오답(초록/빨강), 채점 전 답만 고른 상태(실전)는 파랑. ── */
+   탭 점: 채점 결과를 내는 자리에서만 정/오답(초록/빨강), 그 밖에 답만 고른 상태는 파랑.
+   ⚠️ **hideVerdict 면 점도 색을 내지 않는다** (구현 중 메모 6행). 수업의 학생 풀이 단계는
+      보기 색을 감춰 놓고 정작 탭의 점이 빨갛게 떠서, 강사가 한 마디 하기도 전에 화면이
+      "틀렸다" 고 말해 버렸다. 감출 곳을 한 군데 빠뜨리면 감춘 것이 아니다. ── */
 /** 이 문항이 지금 바퀴에 속하나 (범위가 없으면 전부 보인다) */
 const qInView = (st: ContentState, i: number) =>
   !st.visibleQ || (i >= st.visibleQ.from && i < st.visibleQ.to)
@@ -441,7 +516,8 @@ function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentSta
       {viewIdx.length > 1 && (
         <div className={`flex items-center gap-1.5 pb-2 ${pane ? 'shrink-0' : 'sticky top-0 z-10 bg-white pt-0.5'}`}>
           {viewIdx.map((i) => {
-            const graded = st.graded.has(i)
+            /* 채점 결과를 낼 수 있는가 — 채점됐고, 정오답을 감추는 자리가 아니어야 한다 */
+            const graded = st.graded.has(i) && !st.hideVerdict
             const correct = graded && st.answers[i] === qs[i].options.find((o) => o.correct)?.label
             const answered = !graded && !!st.answers[i]
             return (
@@ -1367,8 +1443,10 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
        예전에는 passages[0] 만 봐서, 아이템 순회로 바뀐 뒤 **2번째 문항부터 문장이 안 나왔다.** */
     const sentences = (content.passages ?? []).flatMap((p) => p.sentences ?? [])
     const SentenceCard = ({ text }: { text: string }) => (
-      <div className=" border border-[#E5E7EB] bg-white px-5 py-6">
-        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-center">
+      <div className="border border-[#E5E7EB] bg-white px-5 py-6">
+        {/* 실제 시험지의 Part 5 는 **왼쪽 정렬**이다. 가운데로 모으면 한 줄짜리는 그럴듯해도
+            두 줄이 되는 순간 들쭉날쭉해져서 시험지로 안 보인다. */}
+        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-left">
           <SentenceText text={text} st={st} focusBlank={focusBlank} scope="p5" />
         </p>
       </div>

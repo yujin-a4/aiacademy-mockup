@@ -8,21 +8,25 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence } from '@/data/typeLearning'
+import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
 import { useFontSettingsStore, FONT_SIZE_CLASSES } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
-import { speakTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
+/* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
+import { koJosa, endsConsonant } from '@/lib/ttsText'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import TutorDock, { PulseAvatar, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
+import TutorDock, { PulseAvatar, SpeechDots, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
+/* 맞장구·대본 첫머리 떼기 — 미리 음원을 만드는 생성기와 나눠 쓴다(scriptedSpeech.ts 머리말) */
+import { ACK_OPENER, ackLine, stripAck } from '@/data/typeLearning/scriptedSpeech'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useLessonLog } from '@/data/db/learningEventStore'
 import { useCurriculumLectures } from '@/data/db/questionStore'
@@ -169,11 +173,20 @@ function subjectiveOk(said: string, expected?: string, accepts?: string[]): bool
     /* 조사를 뗀다 — "그림을" 과 "그림" 이 다른 낱말로 잡히면 맞은 답이 오답이 된다 */
     .map((w) => (w.length > 2 ? w.replace(/(으로|에서|에게|한테|까지|부터|을|를|이|가|은|는|에|와|과|도|의)$/, '') : w))
     .filter((w) => w.length >= 2 && !KO_STOP.has(w)))
+  /* ── 부정·포기가 섞인 답은 낱말이 겹쳐도 즉시 받지 않는다 ──
+     기대 "그림을 그리고 있어요" 에 "그림 몰라요" 를 치면 '그림' 이 겹쳐 정답이 됐다(실측).
+     기대 답에도 부정이 들어 있으면("없어요", "넘어져 있지 않고") 그건 정상이니 그대로 둔다.
+     여기 걸린 답은 틀렸다는 뜻이 아니라 **채점기가 뜻으로 봐야 한다**는 뜻이다. */
+  const NEG = /(몰라|모르|아니|없|안\s)/
+  if (NEG.test(said) && !wanted.some((w) => NEG.test(w))) return false
   const got = new Set(words(said))
   return wanted.some((one) => {
     const want = words(one)
     if (!want.length) return true
-    return want.some((w) => got.has(w) || Array.from(got).some((g) => g.includes(w) || w.includes(g)))
+    const hit = want.filter((w) => got.has(w) || Array.from(got).some((g) => g.includes(w) || w.includes(g))).length
+    /* 낱말 **하나가 스친 것**으로는 부족하다 — 기대 답이 여러 낱말이면 둘 이상 겹쳐야
+       즉시 받아준다. 못 미친 답은 틀린 것이 아니라 채점기로 넘어간다. */
+    return hit >= Math.min(2, want.length)
   })
 }
 
@@ -186,19 +199,31 @@ function stopVoice() {
   stopCurrentAudio()
 }
 
-/** 대본 발화가 **앞의 답을 받아주는 말로 시작하는가** ("맞아요. 사람이 중심인 사진이니까…").
- *  콘텐츠팀은 강사가 학생 답을 받아주고 이어가도록 쓴다 — 시트 42개 답하는 턴 중 25개가 이 꼴이다.
- *  그 앞에 앱이 "좋아요, 맞았어요." 를 또 붙이면 강사가 같은 말을 두 번 한다. */
-const ACK_OPENER = /^(맞아요|맞습니다|좋아요|좋습니다|그렇죠|그래요|정확해요|잘했어요|훌륭해요|네[,\s])/
-/** 대본 첫머리의 맞장구를 뗀다 — "맞아요. 인물이 …" → "인물이 …".
- *  뗄 것이 없거나 떼면 문장이 없어지는 줄은 그대로 둔다(맞장구만 있는 줄도 있다). */
-function stripAck(text: string): string {
-  const t = text.trim()
-  if (!ACK_OPENER.test(t)) return text
-  const cut = t.replace(/^[^.!?]*[.!?]\s*/, '').trim()
-  /* 너무 짧게 남으면 되돌린다 — 맞장구가 문장의 전부인 줄("좋아요, 잘했어요!")도 있다 */
-  return cut.length >= 10 ? cut : text
+
+/** **학생에게 무엇을 물은** 턴들 — 이 뒤에 오는 대본 줄은 그 대답에 대한 반응이다.
+ *  (여기 있는 종류는 전부 답을 받을 때 `prevOkRef` 를 채운다: choice·subjective →
+ *   handleScriptedAnswer, mark·match → finishMark, pickAnswer → handleScriptedPick) */
+const ASKING_KINDS = new Set(['choice', 'pickAnswer', 'subjective', 'mark', 'match'])
+
+/* ── 답 문장을 **확인하듯** 바꾼다 ── "그림을 그리고 있어요" → "그림을 그리고 있죠?"
+   오답 뒤에 "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요." 를 얹으면 받아쓰기를
+   시키는 것처럼 들린다(실측). 답은 알려주되 강사가 짚어 주는 말투로 둔다 — 두 강사 대본 다
+   "~죠?" 를 즐겨 쓴다.
+   ⚠️ 한국어 어미 변환을 일반 규칙으로 만들면 틀린 말이 나온다("그려요" → "그려죠?").
+      **시트에 실제로 있는 끝맺음만** 바꾼다(있어요 12 · 없어요 4 · 보여요 2 = 문장형 답의 대부분).
+      모르는 꼴은 그대로 둔다 — 어색한 것보다 틀린 말이 나쁘다. */
+const CONFIRM_TAIL: Array<[RegExp, string]> = [
+  [/있어요$/, '있죠?'],
+  [/없어요$/, '없죠?'],
+  [/보여요$/, '보이죠?'],
+]
+
+function asConfirm(s: string): string {
+  const t = s.trim().replace(/[.!?]+$/, '')
+  for (const [re, rep] of CONFIRM_TAIL) if (re.test(t)) return t.replace(re, rep)
+  return `${t}.`
 }
+
 
 /** 학생이 **모른다고 말한** 것인가 — 틀린 답과 다르게 다뤄야 한다.
  *  "몰라요" 에 "그건 조금 달라요, 다시 생각해 볼까요?" 로 답하면 말이 안 되고, 다시 물어도
@@ -219,6 +244,66 @@ function isReplayAsk(text: string): boolean {
 function isGiveUp(text: string): boolean {
   const t = text.replace(/[\s.,!?~·"'’”…]/g, '')
   return /^(잘|음|아|어)?(모르겠어요|모르겠는데요|모르겠다|모르겠어|모르겠네요|몰라요|몰라|모르겠습니다|글쎄요|글쎄|패스|스킵|넘어갈게요|넘어가요|안떠올라요|생각안나요|기억안나요)$/.test(t)
+}
+
+const normKo = (t: string) => t.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' ')
+
+/** 말이 아닌 입력인가 — 자판을 누른 자국("ㅇㅁㄴㄹㄹ"), 기호나 공백뿐인 줄.
+ *  자모(ㅇ·ㅁ)는 **음절이 아니다.** 마이크가 잡소리를 흘릴 때도 이런 꼴로 들어온다.
+ *  이런 건 채점기에 물어볼 것이 아니라 **못 알아들었다고 말하고 다시 받아야** 한다. */
+function isGibberish(text: string): boolean {
+  return !text.replace(/[^가-힣a-zA-Z0-9]/g, '')
+}
+
+/** 답에서 **찾아볼 낱말**만 뽑는다 (조사·정중어미·군말을 뗀 뒤 두 글자 이상). */
+function answerKeys(answer: string): string[] {
+  return normKo(answer).split(/\s+/)
+    .map((w) => (w.length > 2 ? w.replace(/(으로|에서|에게|한테|까지|부터|을|를|이|가|은|는|에|와|과|도|의)$/, '') : w))
+    .filter((w) => w.length >= 2 && !KO_STOP.has(w))
+}
+
+/** 다음 대본 줄이 **이 답을 이미 말하고 있는가.**
+ *
+ *  개념을 묻는 자리는 다음 줄이 곧 그 답의 설명이다 — "지금 하고 있는 동작은 어떤 형태로
+ *  표현할까요?" 다음에 "인물이 지금 하고 있는 동작은 주로 be + -ing 형태로 표현해요" 가 온다.
+ *  그 앞에 앱이 "답은 be + -ing 예요" 를 얹으면 학생은 같은 답을 두 번 듣는다(실측).
+ *
+ *  ⚠️ 낱말이 **다 들어 있기를** 요구하면 안 된다. 대본은 어미를 바꿔 쓴다 —
+ *     "놓여 있는 상태"(답) ↔ "놓여 있을 때"(대본). 대부분 겹치면 같은 말을 한 것으로 본다. */
+function lineCovers(line: string, keys: string[]): boolean {
+  if (!keys.length) return false
+  const hay = normKo(line)
+  return keys.filter((w) => hay.includes(w)).length / keys.length >= 0.6
+}
+
+/** 시트가 예시 답을 여러 줄 적어 둔 자리("- 남자가 있고 컵이 보여요. - 남자가 컵을…")에서
+ *  **하나만** 골라낸다. 사진 묘사에 정답이 하나일 수 없어 그렇게 쓴 것이니, 읽어 줄 때는 하나면 된다. */
+function firstExample(hint: string): string {
+  const t = hint.trim()
+  return t.startsWith('-') ? (t.replace(/^-\s*/, '').split(/\s+-\s+/)[0]?.trim() || t) : t
+}
+
+/** 낱말로 답하는 자리인가 — 맞으면 정중어미를 뗀 낱말, **문장으로 답하는 자리면 null.**
+ *  "동작이요." → "동작" / "위치나 상태요." → "위치나 상태" / "그림을 그리고 있어요." → null.
+ *  가르는 이유: 낱말 답에 "이렇게 답하면 돼요" 를 붙이면 말하기 연습처럼 들리고,
+ *  문장 답을 "답은 '…' 예요" 에 끼우면 문장이 겹쳐 읽힌다. */
+function bareWord(s: string): string | null {
+  /* 시트가 한 칸에 두 가지로 적어 둔 답("네 / 목적어예요")은 **긴 쪽**만 읽는다 —
+     빗금을 그대로 읽히면 "네 슬래시 목적어" 가 된다. */
+  const one = s.includes('/') ? s.split('/').map((p) => p.trim()).sort((a, b) => b.length - a.length)[0]! : s
+  const t = one.trim().replace(/[.!?…]+$/, '')
+  if (/(이에요|예요|이요)$/.test(t)) return t.replace(/(이에요|예요|이요)$/, '').trim() || null
+  /* '요' 앞 글자가 용언 어미면 문장이다("없어요"), 아니면 명사에 붙은 것이다("상태요") */
+  if (/요$/.test(t)) return /[어아해워려여세게죠네]요$/.test(t) ? null : (t.slice(0, -1).trim() || null)
+  if (/(습니다|합니다|입니다|이다|죠)$/.test(t)) return null
+  /* 정중어미가 아예 없는 답은 낱말로 본다 — 어절이 넷을 넘으면 사진 묘사 같은 문장이다 */
+  return t.split(/\s+/).length > 3 ? null : t
+}
+
+/** 끝소리가 자음이면 '이에요', 모음이면 '예요' — 읽어 주는 말이라 어긋나면 바로 들린다.
+ *  영단어도 **읽는 소리**로 본다: 'standardized' 는 [드] 로 끝나 '이에요' 다. */
+function koCopula(word: string): string {
+  return endsConsonant(word) ? '이에요' : '예요'
 }
 
 /** 보기 해석을 **인용문**으로 바꾼다 — "여자가 물감 한 개를 들고 있다." → "여자가 물감 한 개를 들고 있다고"
@@ -461,6 +546,30 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
 
 const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
+/* ── 잘못 짚은 낱말을 **강사가 읽을 말로** 바꾼다 (구현 중 메모 24행) ──
+   낱개로 쉼표로 이어 붙이면 "'all, component, parts'는 아니에요" 라고 또박또박 끊어 읽는다.
+   학생이 끌어서 짚은 것은 낱말 셋이 아니라 **구 하나**다 — 붙여서 한 덩어리로 읽어야 한다.
+   표시 키는 `자리|토큰번호|낱말` 이고, 지문 토큰은 낱말과 공백이 번갈아 든다(split(/(\s+)/)).
+   그래서 **자리가 같고 번호가 2 차이면 나란히 붙은 낱말**이다 — 그 줄만 공백으로 잇는다.
+   떨어진 자리를 여럿 짚었으면 그때만 쉼표로 나눈다. 길어지면 세 덩어리까지만 읽는다. */
+const readMarks = (keys: string[]) => {
+  const parsed = keys.map((k) => {
+    const bits = k.split('|')
+    const word = bits.pop() ?? ''
+    const idx = Number(bits.pop())
+    return { scope: bits.join('|'), idx, word }
+  }).filter((p) => p.word && Number.isFinite(p.idx))
+  parsed.sort((a, b) => (a.scope === b.scope ? a.idx - b.idx : a.scope < b.scope ? -1 : 1))
+
+  const runs: string[][] = []
+  parsed.forEach((p, i) => {
+    const prev = parsed[i - 1]
+    if (prev && prev.scope === p.scope && p.idx - prev.idx === 2) runs[runs.length - 1].push(p.word)
+    else runs.push([p.word])
+  })
+  return runs.slice(0, 3).map((r) => r.join(' ')).join(', ')
+}
+
 /* 단계명(S코드/Q번호 접두어)에서 사람이 읽을 라벨만 뽑는다. 남는 게 'S2+S4'처럼 코드성이면 버린다 —
    그런 조각은 화면 제목으로 노출하기엔 의미가 없다. */
 function cleanStageLabel(stage: string): string | null {
@@ -559,10 +668,15 @@ function PhaseStepper({ active, subtitle, onEnd, extra, onJump, steps }: {
 /* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
    콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
    실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
-function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
-  markDone, markChecking, markVerdict }: {
+function ContentActionHint({ turn, lesson, answers, graded, pickedQ, matchTapped,
+  markDone, markChecking, markVerdict, cuePlaying }: {
   turn: Turn; lesson: TypeLesson
-  answers: Record<number, string>; graded: Set<number>; matchTapped: Set<string>
+  answers: Record<number, string>; graded: Set<number>
+  /** **이 자리에서** 답한 문항 (graded 와 다르다 — pickedHere 머리말 참고) */
+  pickedQ: Set<number>
+  matchTapped: Set<string>
+  /** 강사가 틀어 준 자료 음원이 나가는 중인가 */
+  cuePlaying?: boolean
   markDone?: boolean; markChecking?: boolean
   markVerdict?: { read: string | null; ok: boolean; hint: string } | null
 }) {
@@ -572,18 +686,25 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   let sub = ''
   let done = false
   if (it.kind === 'mark') {
-    // 자료에 맞는 안내만 — 사진에는 탭할 단어가 없다
+    /* ── 여기에 **대본을 그대로 옮기지 않는다** ──
+       예전에는 it.prompt(= 강사 발화에서 뽑은 질문)를 그대로 적었다. 그런데 그 말은 강사가
+       방금 소리로 했고 말풍선에도 남아 있다 — 같은 문장이 화면에 두 번 있는 셈이고, 대본이
+       길면 이 배너가 그것으로 꽉 찬다(실측). 여기는 **무엇을 하면 되는지**만 말하는 자리다.
+       자료에 맞는 안내만 — 사진에는 탭할 단어가 없다. */
     const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
-    icon = '🖍️'; text = it.prompt
+    icon = '🖍️'
+    text = onPhoto ? '펜으로 사진에 동그라미 치기' : '단어를 탭하거나 펜으로 밑줄'
     sub = markChecking ? '표시한 것 확인 중…'
       : markVerdict?.read ? `${markVerdict.ok ? '✓' : '✗'} ${markVerdict.read}`
-        : markDone ? '표시 완료'
-          : onPhoto ? '펜으로 사진에 동그라미 치기' : '단어를 탭하거나 펜으로 밑줄'
+        : markDone ? '표시 완료' : ''
     done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
-    done = graded.has(it.qIdx)
+    done = pickedQ.has(it.qIdx)
     icon = '🎯'; text = it.prompt ?? '보기에서 정답을 선택하세요'
-    sub = done ? '정답 선택 완료' : `Q${it.qIdx + 1} 보기를 탭하세요`
+    /* 음원이 아직 나가는 중이면 **기다리는 중이라고 말해 준다** — 답을 고른 뒤 강사가 조용하면
+       학생은 앱이 멈춘 줄 안다. 실제 시험처럼 보기는 끝까지 들려주고 그 뒤에 이어간다. */
+    sub = cuePlaying ? '음원이 끝나면 이어갈게요'
+      : done ? '정답 선택 완료' : `Q${it.qIdx + 1} 보기를 탭하세요`
   } else if (it.kind === 'solveAll') {
     const total = lesson.content.questions.length
     const answered = lesson.content.questions.filter((_, i) => answers[i]).length
@@ -611,7 +732,7 @@ function ContentActionHint({ turn, lesson, answers, graded, matchTapped,
   )
 }
 
-export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, draftId, preparing, initialStage, scripted, scriptedReview, scriptedIntro, scriptedSummary }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedPracticeOutro, scriptedIntro, scriptedSummary }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과. 지금은 화면에 쓰지 않는다 —
@@ -621,18 +742,26 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   preparing?: boolean
   /** 강의 코드. 넘기면 학습 로그를 남긴다(STEP 6). 없으면 기록하지 않는다 */
   lectureCode?: string
+  /** 강의 제목(DB lectures.title) — 도입 화면에 뜬다. 없으면 예전처럼 파트·유형 라벨 */
+  lectureTitle?: string
   /** 대본 수업(FGI 시연 강의)인가 — 강사가 할 말이 시트에 다 정해져 있다.
    *  이때는 **에이전트를 켜지 않는다**: 진행·판정·낭독을 전부 앱이 소유한다.
    *  에이전트에 맡기면 학생 답을 못 받아들이고 같은 요구를 반복하다 대본을 벗어난다(실측). */
   scripted?: boolean
   /** 실전 뒤 코칭도 대본이 있는가 (시트 '실전 1~4' 블록).
-   *  있으면 **틀린 문항만 고르지 않는다** — 시트가 문항 전부를 짚도록 써 있고, 다 맞혀도 지나간다.
-   *  없으면 예전대로 화면이 틀린 문항만 골라 턴을 만든다(reviewTurns). */
+   *  대본은 문항 전부를 짚도록 쓰여 있지만, **트는 것은 틀린 문항뿐이다** — 시트 진행 규칙이
+   *  "맞은 문제는 pass, 틀린 문제만 진행"(두 강사 공통)이라 reviewTurns 가 focusQ 로 걸러낸다.
+   *  대본이 없으면 예전대로 화면이 틀린 문항을 골라 턴을 스스로 만든다(reviewTurns). */
   scriptedReview?: Turn[]
+  /** 실전을 풀고 난 뒤 **오답이 있을 때만** 코칭 첫 마디로 하는 말 (시트 '실전 문제 풀이 후 멘트').
+   *  '{전체수}'·'{맞은수}' 는 여기서 채점 결과로 채운다 — 대본에 박아 둘 수 없는 숫자다.
+   *  다 맞히면 코칭 단계 자체가 열리지 않으므로 따로 막지 않는다. */
+  scriptedPracticeOutro?: string
   /** 도입 화면 대본 — 강사 발화와 '오늘 배울 내용'. 없으면 단계명에서 뽑는다 */
   scriptedIntro?: { script: string; points: string[] }
-  /** 마지막 정리 화면의 퀴즈 대본 (시트 '핵심요약'). 없으면 강의에 박아 둔 문장 3개를 쓴다 */
-  scriptedSummary?: RecapSentence[]
+  /** 마지막 정리 화면의 퀴즈 대본 (시트 '핵심요약'). 없으면 강의에 박아 둔 문장 3개를 쓴다.
+   *  묶음이 여럿일 수 있다 — 이도윤은 전략 정리와 빈출 표현을 나눠 쓰고 제목을 따로 달았다 */
+  scriptedSummary?: RecapGroup[]
   /** 레일 편집기 드래프트로 열렸는가 — 배너를 띄운다. 정본과 헷갈리면 안 된다 */
   draftId?: string | null
   /** 'practice' 면 도입·수업을 건너뛰고 실전 세트부터 연다 (유형 그리드에서 오는 링크) */
@@ -652,6 +781,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [selfPlaying, setSelfPlaying] = useState(false)
   /* 대본을 읽는 중인가 — 에이전트가 없으면 아바타·파형이 볼 신호가 이것뿐이다 */
   const [narrating, setNarrating] = useState(false)
+  /** 말할 것은 정해졌는데 **소리가 아직 안 나가는** 동안 (음원을 받는 중, v3 는 몇 초 걸린다).
+   *
+   *  `narrating` 과 갈라 둔 이유: 이 시간은 **강사 차례이지만 강사가 말하고 있지는 않은** 상태라
+   *  두 가지가 서로 반대를 원한다.
+   *    · 마이크(voiceOn)  — 닫아 둬야 한다. 열면 곧 시작될 강사 목소리를 학생 답으로 전사한다
+   *    · 그림(포즈·파형)  — 말하는 클립을 돌리면 안 된다. 소리 없이 입만 움직이는 꼴이 된다
+   *  그래서 마이크는 `narrating`(차례)을, 그림은 `tutorVoicing`(실제 발성)을 본다. */
+  const [voiceLoading, setVoiceLoading] = useState(false)
   /** 강사가 **이 턴에서 할 말을 끝낸** 턴 번호. 선택지를 그 뒤에 내보내는 문이다.
    *
    *  `narrating` 을 그대로 보면 안 된다 — 턴이 바뀐 직후 발화가 시작되기 전까지 잠깐 false 라
@@ -702,12 +839,32 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      말한다. 백엔드=머리 / 에이전트=입 (docs/tutor-engine.md).
      ⚠️ 정답 보기의 근거는 넣지 않는다. 넣으면 에이전트가 답을 흘린다 — 다시 풀릴 수가 없다. */
   const reviewTurns = useMemo<Turn[]>(() => {
-    /* 대본이 있으면 만들지 않는다 — 시트에 문항별 코칭이 이미 다 적혀 있다 */
-    if (scriptedReview?.length) return scriptedReview
     const results = practiceScore?.results ?? []
     const picked = practiceScore?.answers ?? {}
     const qs = practiceContent.questions
     const wrongIdx = results.map((ok, i) => (ok ? -1 : i)).filter((i) => i >= 0)
+    /* ── 대본이 있으면 만들지 않는다 — 시트에 문항별 코칭이 이미 다 적혀 있다 ──
+       다만 **틀린 문항만** 남긴다. 시트는 문항 전부를 짚도록 쓰여 있어서 그대로 틀면
+       맞힌 문제까지 보기 하나하나 O/X 로 다시 훑는다 — 이미 맞힌 학생에게 그건 해설이
+       아니라 벌이다(실측: 다 맞혀도 4문항 32턴을 그대로 지나갔다).
+       리뷰 턴은 **전부 focusQ 로 자기 문항을 가리킨다**(시트 4블록 138턴 전수 확인) —
+       그러니 focusQ 하나로 고를 수 있다. 새 대본을 받으면 그 전제를 다시 확인할 것.
+       채점 결과가 아직 없으면(실전을 건너뛴 진입) 고를 근거가 없으니 손대지 않는다. */
+    if (scriptedReview?.length) {
+      if (!results.length) return scriptedReview
+      const wrong = new Set(wrongIdx)
+      const only = scriptedReview.filter((t) => t.focusQ != null && wrong.has(t.focusQ))
+      /* ── 실전 결과 한 마디 ──
+         시트 '실전 문제 풀이 후 멘트' — "5문제 중 3문제 맞혔어요. 틀린 문제 같이 보러 갈까요?".
+         점수가 들어가야 해서 대본에 박아 둘 수 없다. 여기서 채워 **코칭 첫 마디**로 붙인다.
+         실전 화면에는 강사 자리가 없어 결과를 말할 데가 여기뿐이고, 다 맞히면 이 단계로
+         오지 않으므로 "오답 없으면 하지 않는다" 는 저절로 지켜진다. */
+      if (!scriptedPracticeOutro || !only.length) return only
+      const said = scriptedPracticeOutro
+        .replace('{전체수}', String(results.length))
+        .replace('{맞은수}', String(results.filter(Boolean).length))
+      return [{ no: 0, stage: '실전 결과', tutor: said, focusQ: only[0].focusQ, interaction: { kind: 'next' } }, ...only]
+    }
     return wrongIdx.map((qIdx, n) => {
       const q = qs[qIdx]
       const myLabel = picked[qIdx]
@@ -728,7 +885,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         interaction: { kind: 'pickAnswer', qIdx, prompt: '다시 골라보세요' },
       } as Turn
     })
-  }, [practiceScore, practiceContent, scriptedReview])
+  }, [practiceScore, practiceContent, scriptedReview, scriptedPracticeOutro])
 
   /* 리뷰 단계에서는 **수업 렌더 경로를 그대로 재사용**한다 — 강사 창·에이전트·진행 게이트가
      이미 거기 붙어 있다. 콘텐츠와 턴만 갈아끼우면 되므로 lesson 자체를 바꿔치기한다. */
@@ -817,6 +974,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 도입(LessonIntro) → 수업 진입 여부. 실전으로 바로 들어온 경우엔 도입을 지나온 것으로 본다
      (도입 화면이 실전 위에 다시 뜨면 "시작하기"가 수업으로 되돌린다) */
   const [started, setStarted] = useState(initialStage === 'practice')
+  /* ── 첫 마디를 도입 화면에서 미리 받아둔다 ──
+     둘째 줄부터는 앞 발화가 대기를 가려 주지만(say 안의 prefetch), **첫 마디는 가려 줄 것이 없다.**
+     학생이 도입 화면을 읽고 [시작하기]를 누르기까지 몇 초가 그냥 비어 있으므로 그동안 받아둔다.
+     시작하지 않고 나가면 한 번 버려지는 셈이지만, 첫 인상이 걸린 자리라 그 값은 싸다. */
+  const warmedRef = useRef(false)
+  useEffect(() => {
+    if (started || warmedRef.current) return
+    const first = turns[0]?.tutor
+    if (!first) return
+    warmedRef.current = true
+    prefetchTTS(koLetters(first), ttsPersona, instructor)
+  }, [started, turns, ttsPersona, instructor])
   /* 수업 한 판 시작 — 몇 번째 수업인지, 앱을 처음 연 뒤 얼마 만인지가 여기서 붙는다
      (두 번째 수업으로 이어지는지 = FGI 규모에서 리텐션의 유일한 실물) */
   const lessonStartSentRef = useRef(false)
@@ -864,6 +1033,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   }
   const [inputText, setInputText] = useState('')
   const [chatLog, setChatLog] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
+  /** 강사가 **말한 적 있는** 표현 (소문자 키). 수업 중 트레이와 완료 화면이 같이 본다 */
+  const [metExpr, setMetExpr] = useState<Set<string>>(new Set())
 
   /* ── 강사 에이전트 (일레븐랩스) ──
      진행 주체는 에이전트다: 학생이 답하면 에이전트가 next_step을 호출 → 여기서 턴을 한 칸 넘기고
@@ -1199,8 +1370,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 마지막 문제의 끝도 경계다 — 거기서도 자동으로 실전으로 넘어가면 안 된다 */
   const atItemEnd = (phase === 'lesson' || phase === 'review') && !!curSpan && turnIdx >= curSpan.last
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
+  /** 이 문항에 **지금 이 자리에서** 답했는가.
+   *  ⚠️ graded 와 뜻이 다르다. 코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라
+   *  들어올 때 graded 를 **전부 켜 둔다**(내가 고른 보기·정답이 색으로 남아야 강사 말과 맞는다).
+   *  그걸 '답했다' 로 읽으면 학생이 누르기도 전에 다 끝난 것이 되어, 뒤에 남은 스캐폴딩을
+   *  못 듣고 '다음 문제' 만 켜졌다(실측 보고 08-20, 구현 중 메모 40행).
+   *  수업에서는 반대로 answeredQ 가 먼저 켜지고 graded 가 늦으므로(강사 반응 뒤 채점),
+   *  단계마다 맞는 쪽을 본다. */
+  const pickedHere = (qIdx: number) => (phase === 'review' ? answeredQ.has(qIdx) : graded.has(qIdx))
   const itemDone = atItemEnd
-    && (itemLastTurn?.interaction.kind !== 'pickAnswer' || graded.has(itemLastTurn.interaction.qIdx))
+    && (itemLastTurn?.interaction.kind !== 'pickAnswer' || pickedHere(itemLastTurn.interaction.qIdx))
   /* 공개 등급 — 단계가 오르면 그때 더 준다(stageGate). 컨텍스트는 누적돼 되돌릴 수 없으므로
      **처음부터 다 주지 않는 것**이 통제의 핵심이다. */
   const gates = useMemo(() => gateLevels(turns), [turns])
@@ -1332,7 +1511,87 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 근거 연결(match) — 지문에서 직접 탭한 근거. `${passageId}:${targetId}` 키로 저장 */
   const [matchTapped, setMatchTapped] = useState<Set<string>>(new Set())
 
-  /* 단어 마킹(mark) — 목표 단어를 모두 형광펜으로 표시하면 완료로 보고 에이전트에 알린다 */
+  /** 표시를 마쳤을 때 **대본 수업을 다음 단계로 넘긴다.**
+   *  예전에는 완료를 reportAction 으로 에이전트에만 알렸다 — 대본 수업에는 에이전트가 없어서
+   *  학생이 다 짚어 놓고도 화면이 멈춰 있었다(실측). 넘길 사람이 없으면 앱이 넘긴다.
+   *  한 턴에 한 번만 — 필기 판정과 단어 탭이 같이 끝나면 두 번 넘어간다. */
+  /* ⚠️ **턴 번호만으로는 안 된다** — 코칭(실전 오답 리뷰)에 들어갈 때 턴이 0 으로 되돌아가는데,
+     수업에서 이미 0번 턴에 표시를 하고 넘어왔으면(윤다은 RC 는 수업도 코칭도 0번이 표시 턴이다)
+     이 값이 0 이라 코칭의 첫 표시 턴이 **통째로 막힌다** — '표시 완료' 라고만 뜨고 다음 질문으로
+     넘어가지 않았다(실측 보고 08-20, 구현 중 메모 39행). 단계까지 넣어 자리를 구분한다. */
+  const markAdvancedRef = useRef('')
+  /** 지금 서 있는 자리 — 단계가 다르면 턴 번호가 같아도 다른 자리다 */
+  const spotKey = `${phase}:${turnIdx}`
+  /** 이 턴에 들어설 때 **이미 있던 표시** — 형광펜으로 칠한 낱말과 필기 획 수.
+   *
+   *  표시는 턴을 넘어 쌓인다(시험지에 그대로 남는다). 지금 있는 것만 보고 판단하면
+   *  **앞 문항에서 한 표시 때문에 새 턴이 손도 대기 전에 넘어간다** — 24강 2·3번이
+   *  들어서자마자 넘어간 것이 이것이다(실측: 1번에서 한 번 그은 획을 계속 세고 있었다).
+   *
+   *  ⚠️ 기준선을 **턴 진입 효과에서 잡으면 한 박자 늦는다.** 아래 두 효과가 그것보다 먼저
+   *     돌기 때문이다(선언 순서대로 실행된다). 그래서 먼저 도는 쪽이 스스로 잡는다. */
+  const enterBaseRef = useRef({ at: '', marks: new Set<string>(), strokes: 0 })
+  const enterBase = () => {
+    /* 자리 비교에 **단계까지** 넣는다 — 턴 번호만 보면 코칭 0번 턴이 수업 0번 턴의 기준선을
+       그대로 물려받는다. 그러면 수업 내내 쌓인 획이 '새로 그은 것' 으로 보여 손도 대기 전에
+       판정이 돌아간다(markAdvancedRef 머리말과 같은 사고). */
+    if (enterBaseRef.current.at !== spotKey) {
+      enterBaseRef.current = { at: spotKey, marks: markedWords(marks), strokes: draw.strokeCount }
+    }
+    return enterBaseRef.current
+  }
+  /** 잘못 짚었을 때 **다시 시킬 횟수** — 한 번만. 못 하는 학생을 계속 세워두는 게 더 나쁘다
+   *  (문항 다시 고르기 REVIEW_MAX_TRIES 와 같은 판단) */
+  const MARK_MAX_TRIES = 2
+  const markTriesRef = useRef(new Map<string, number>())
+
+  const finishMark = async (ok: boolean | null, hint?: string) => {
+    if (!scripted || markAdvancedRef.current === spotKey) return
+
+    /* ── 엉뚱한 곳을 짚었으면 그냥 넘어가지 않는다 (구현 중 메모 23행) ──
+       "필기로 뭘 체크해 보라 했을 때 다른 데에 해도 그냥 넘어간다" 는 보고.
+       ⚠️ **강사에 따라 갈린다.** 대본 밖의 말을 얹지 않는 강사(이도윤)는 그대로 넘어간다 —
+          그 대본은 다음 줄에 오답 갈래를 갖고 있어(표시 턴 3개 중 2개) 거기서 짚어 준다.
+          윤다은은 표시 턴 12개가 **전부** 갈래가 없어, 앱이 거들지 않으면 아무 말 없이 지나간다.
+       무엇이 답인지는 말하지 않는다 — 판정이 돌려준 hint 는 "어디를 다시 볼지" 한 줄이다
+       (api/mark-check 가 정답을 문장으로 알려주지 못하게 막아 둔다). */
+    if (ok === false && !INST_SCRIPT_ONLY[instructor]) {
+      const tries = (markTriesRef.current.get(spotKey) ?? 0) + 1
+      markTriesRef.current.set(spotKey, tries)
+      if (tries < MARK_MAX_TRIES) {
+        /* 기준선을 지금 획 수로 올린다 — 그래야 **다음에 새로 그은 것만** 다시 본다 */
+        enterBase().strokes = draw.strokeCount
+        setMarkDone(false)
+        setMarkVerdict(null)
+        /* plain — 이 줄은 **앱이 학생이 짚은 낱말을 인용한 것**이다. 따옴표를 강조로 읽으면
+           틀린 낱말이 굵어진다("'over'은 아니에요"). 대본의 따옴표(뜻풀이)와는 다른 자리다. */
+        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?', false, true)
+        return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
+      }
+      /* ── 두 번째도 못 짚었다 — 넘어가되 **정답 자리를 화면에 짚어 준다** ──
+         말로만 알려주고 넘어가면 학생은 어디가 답이었는지 끝내 못 본다(구현 중 메모 56행).
+         '표시 완료' 를 눌렀을 때와 같은 자리(tutorMarks)에 강사가 대신 표시한다.
+         짚을 낱말이 데이터에 없는 필기 턴(사진 위 동그라미 등)은 짚어 줄 자리가 없어 그대로 둔다. */
+      const mk = turn.interaction
+      if (mk.kind === 'mark' && mk.targetWords?.length) {
+        setTutorMarks((prev) => {
+          const n = new Set(prev)
+          targetTokens(mk.targetWords!).forEach((w) => n.add(w))
+          return n
+        })
+      }
+      if (hint) await say(hint, false, true)      // 위와 같은 이유로 plain
+    }
+
+    markAdvancedRef.current = spotKey
+    /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
+       prevOkRef 를 보고 떨어져 나간다(stripAck). */
+    prevOkRef.current = ok
+    if (ok !== false && !scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
+    goNext()
+  }
+
+  /* 단어 마킹(mark) — 목표 단어를 모두 형광펜으로 표시하면 완료로 본다 */
   useEffect(() => {
     const it = turn.interaction
     if (it.kind !== 'mark' || !it.targetWords?.length) return
@@ -1340,10 +1599,68 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 표시 키는 `자리|토큰번호|단어` 다(같은 단어가 여러 군데 있어도 짚은 자리만 칠하려고).
        완료 판정은 여전히 **단어** 기준이므로 키에서 단어만 뽑아 비교한다. */
     const words = markedWords(marks)
+    const base = enterBase()
     const allMarked = Array.from(targets).every((w) => words.has(w))
-    if (allMarked) reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
+    const alreadyAtEnter = Array.from(targets).every((w) => base.marks.has(w))
+    if (allMarked && !alreadyAtEnter) {
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
+      void finishMark(true)
+      return
+    }
+
+    /* ── 엉뚱한 낱말만 짚었으면 짚어 준다 ──
+       여기는 오래 **다 맞혔을 때만** 반응했다. 그래서 틀린 낱말을 누르면 노랗게 칠해지기만 하고
+       아무 말이 없었다 — 학생은 맞게 짚은 줄 알고 기다린다(실측 보고: Part 5 에서 'replacement'
+       를 눌러도 아무 반응이 없다). 잉크 판정과 같은 규칙으로 본다.
+       ⚠️ **짚어야 할 곳을 하나라도 눌렀으면 가만히 둔다** — 여러 낱말짜리 목표("by any user")를
+          하나씩 채우는 중일 수 있다. 그 중간에 끼어들면 맞게 하고 있는 학생을 나무라는 꼴이다.
+       ⚠️ 곧바로 말하지 않고 잠깐 기다린다 — 잘못 눌러 바로 다시 누르는(취소) 경우가 흔하다. */
+    const wrongKeys = Array.from(marks).filter((k) => {
+      const w = k.split('|').pop() ?? ''
+      return !!w && !targets.has(w) && !base.marks.has(w)
+    })
+    const touchedTarget = Array.from(words).some((w) => targets.has(w) && !base.marks.has(w))
+    if (!wrongKeys.length || touchedTarget) return
+
+    const t = setTimeout(() => {
+      const read = readMarks(wrongKeys)
+      /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다.
+         ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 대본만 말하는 강사(이도윤)는 여기서 아무
+            말도 하지 않는데, 지우기는 강사를 가리지 않아서 **칠한 것이 말없이 사라졌다** — 화면에서는
+            형광펜이 아예 안 먹는 것으로 보인다(실측). 아무 말도 안 할 것이면 칠한 채로 둔다. */
+      if (!INST_SCRIPT_ONLY[instructor]) {
+        setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
+      }
+      void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
+    }, 800)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marks, turnIdx])
+
+  /** 보기 네 개를 **이미 연 문항** (윤다은) — 음원이 끝난 뒤에 열고, 열면 닫지 않는다
+   *  (구현 중 메모 70행). 아래 효과가 채운다. */
+  const [openAllQ, setOpenAllQ] = useState<Set<number>>(new Set())
+
+  /** 정오답 색을 **이미 연 문항** — 한 번 열면 그 문항이 끝날 때까지 닫지 않는다
+   *  (구현 중 메모 45행). 아래 효과가 S5 에서 채운다. */
+  const [verdictShown, setVerdictShown] = useState<Set<number>>(new Set())
+
+  /* ── 강사가 정답을 공개하는 단계면 **정답 보기에 표시를 켠다** (구현 중 메모 43행) ──
+     정답 표시는 `graded` 가 켜져야 나오는데, 그건 학생이 보기를 골랐을 때만 켜졌다.
+     그런데 **이도윤 RC 수업에는 정답 고르기 턴이 아예 없다** — 강사가 처음부터 끝까지
+     같이 풀어 주는 대본이라 학생이 A~D 를 고르는 자리가 없다. 그래서 "그래서 정답은
+     C. waived예요" 라고 말하는 동안 화면의 네 보기는 넷 다 흰 채로 있었다(실측 보고).
+     정답을 감출 이유가 사라지는 자리(hideVerdict 가 풀리는 S5·정답 근거 연결)에서
+     화면도 같이 연다. 이미 풀어서 채점된 문항이면 아무 일도 하지 않는다. */
+  useEffect(() => {
+    if (!scripted || phase === 'review') return
+    const q = turn.focusQ
+    if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
+    setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
+    setVerdictShown((p) => (p.has(q) ? p : new Set(p).add(q)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnIdx, phase])
 
   /* 근거 연결(match) — 모든 근거를 지문에서 탭해 연결하면 완료로 보고 알린다 */
   useEffect(() => {
@@ -1394,6 +1711,48 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  글자를 캔버스에 못 담아서, 보기에 밑줄을 긋고 물으면 강사가 무엇을 가리키는지 몰랐다(실측).
    *  그래서 그림 대신 좌표로 푼다 — 보기 상자(data-opt)와 겹치는 자리에 잉크가 있는지 본다.
    *  vision 에 맡기는 것보다 정확하다: 밑줄이 흐리거나 짧아도 픽셀 하나면 잡힌다. */
+  /** 잉크가 지나간 **자리 목록**을 돌려준다 (`sel` = 자리를 심어 둔 속성 선택자).
+   *  사진은 캔버스와 합성해 그림으로 판정하지만(composeMarkedImage), **글자는 담을 수가 없다.**
+   *  그래서 좌표로 푼다 — 그 상자와 겹치는 자리에 잉크가 있는지 본다. 밑줄이 흐리거나 짧아도
+   *  픽셀 하나면 잡히니 vision 에 맡기는 것보다 정확하다. */
+  const inkedBoxes = (sel: string, attr: string): string[] => {
+    const canvas = draw.canvasRef.current
+    const root = contentRef.current
+    if (!canvas || !root || !draw.strokeCount) return []
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return []
+    const cr = canvas.getBoundingClientRect()
+    const sx = canvas.width / cr.width
+    const sy = canvas.height / cr.height
+    const hit: string[] = []
+    root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+      const r = el.getBoundingClientRect()
+      /* ── 상자를 **줄 간격만큼** 넉넉히 본다 ──
+         낱말 상자는 글자 크기만 하다(인라인 요소의 사각형은 글자 상자다). 그런데 **밑줄은 글자
+         아래로 지나간다.** 딱 맞게 보면 낱말 바로 밑에 제대로 그은 학생이 "엉뚱한 곳" 이 된다
+         (실측: 'easy replacement' 밑에 그었는데 못 잡았다).
+         고정값 대신 줄 높이에서 남는 만큼(반 줄 여백)을 쓴다 — 줄 간격이 좁은 화면에서도
+         옆 줄을 침범하지 않는다. 아래로는 조금 더 준다: 사람은 글자에 닿게 긋지 않는다. */
+      const lh = parseFloat(getComputedStyle(el).lineHeight)
+      const lead = Number.isFinite(lh) && lh > r.height ? (lh - r.height) / 2 : 6
+      const padUp = Math.max(2, lead * 0.6)
+      const padDown = Math.max(10, lead * 1.4)
+      const x = Math.max(0, Math.round((r.left - cr.left) * sx))
+      const y = Math.max(0, Math.round((r.top - padUp - cr.top) * sy))
+      const w = Math.min(canvas.width - x, Math.round(r.width * sx))
+      const h = Math.min(canvas.height - y, Math.round((r.height + padUp + padDown) * sy))
+      if (w <= 0 || h <= 0) return
+      const { data } = ctx.getImageData(x, y, w, h)
+      for (let i = 3; i < data.length; i += 16) {
+        if (data[i] > 8) { hit.push(el.dataset[attr] ?? ''); return }
+      }
+    })
+    return Array.from(new Set(hit.filter(Boolean)))
+  }
+
+  /** 잉크가 지나간 **낱말 자리**(markKey) — 지문에 그은 밑줄을 판정하는 근거 */
+  const inkedWords = (): string[] => inkedBoxes('[data-mk]', 'mk')
+
   const inkedOptions = (): string[] => {
     const canvas = draw.canvasRef.current
     const root = contentRef.current
@@ -1426,9 +1785,46 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (it.kind !== 'mark' || markChecking) return
     const image = composeMarkedImage()
     if (!image) {
-      // 사진이 없는 화면(지문 파트)은 아직 좌표 판정을 안 붙였다 — 표시만 완료로 본다
-      setMarkDone(true)
-      reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+      /* ── 사진이 없는 화면(지문) — **잉크가 어느 낱말을 지났는지로 판정한다** ──
+         예전에는 판정할 그림이 없다고 표시만 완료로 보고 넘어갔다. 그래서 Part 5 에서
+         엉뚱한 낱말('easy')에 밑줄을 그어도 "잘했어요" 하고 지나갔다(실측 보고).
+         이제 낱말마다 심어 둔 자리(data-mk)와 잉크를 견준다. */
+      const targets = it.targetWords?.length ? targetTokens(it.targetWords) : null
+      const hasBoxes = !!contentRef.current?.querySelector('[data-mk]')
+      const inkKeys = inkedWords()
+      if (!targets || !hasBoxes) {
+        /* 짚을 낱말이 정해져 있지 않거나, 화면에 되짚을 자리가 아예 없으면 판정할 수가 없다 —
+           예전처럼 통과시킨다(판정 못 하는 필기로 학생을 가둘 수는 없다). */
+        setMarkDone(true)
+        reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+        void finishMark(null)
+        return
+      }
+      if (!inkKeys.length) {
+        /* 그은 것은 있는데 **어느 낱말에도 닿지 않았다** — 여백에 그은 것이다.
+           예전에는 이것도 '못 읽었다' 로 보고 통과시켜서, 엉뚱한 데 그어도 "좋아요" 하고
+           넘어갔다(실측 보고). 낱말 위에 그으라고 말해 주고 다시 시킨다. */
+        setMarkVerdict({ read: null, ok: false, hint: '' })
+        reportAction(`${turnIdx}:mark`, actionMessage('화면에 표시했지만 지문의 낱말 위가 아닙니다', false))
+        void finishMark(false, '짚어야 할 낱말 **위에** 표시해 주세요.')
+        return
+      }
+      const wordOf = (k: string) => k.split('|').pop() ?? ''
+      const onTarget = inkKeys.filter((k) => targets.has(wordOf(k)))
+      /* 짚어야 할 곳을 하나라도 지났으면 **그 자리를 표시로 인정한다.**
+         그러면 낱말 탭과 같은 길로 합쳐져, 목표를 다 채우는 순간 기존 완료 판정이 알아서 돈다. */
+      if (onTarget.length) {
+        setMarks((prev) => { const n = new Set(prev); onTarget.forEach((k) => n.add(k)); return n })
+        /* ⚠️ 여기서 '표시 완료' 로 켜지 않는다 — 목표를 **다 채웠는지**는 기존 완료 판정이 본다.
+           반쯤 그은 채로 완료라고 띄우면 학생이 다 했다고 믿고 멈춘다. */
+        return
+      }
+      /* 목표는 하나도 안 지나고 **엉뚱한 곳만** 그었다 — 여기서 넘기면 안 된다 */
+      const read = readMarks(inkKeys)   // 밑줄이 여러 낱말을 지났으면 구 그대로 읽는다
+      setMarkVerdict({ read: read || null, ok: false, hint: '' })
+      reportAction(`${turnIdx}:mark`,
+        actionMessage(`화면에 "${read}"를 표시했습니다`, false))
+      void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
       return
     }
     setMarkChecking(true)
@@ -1454,9 +1850,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           ? actionMessage(`화면에 "${verdict.read}"를 표시했습니다`, verdict.ok,
             verdict.ok ? undefined : verdict.hint || undefined)
           : actionMessage('화면에 표시했지만 무엇을 표시했는지 읽지 못했습니다 — 무엇을 짚었는지 말로 물어보세요'))
+      void finishMark(verdict.read ? verdict.ok : null, verdict.hint || undefined)
     } catch {
       setMarkDone(true)
       reportAction(`${turnIdx}:mark`, actionMessage('화면에 핵심 단서를 표시했습니다'))
+      void finishMark(null)
     } finally { setMarkChecking(false) }
   }
 
@@ -1464,11 +1862,53 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      하면 흐름이 끊긴다. 획을 그을 때마다 타이머를 미루고, 1.2초 조용하면 그때 본다.
      (그리는 중에 보내면 반쯤 그린 동그라미를 판정한다) */
   useEffect(() => {
-    if (turn.interaction.kind !== 'mark' || !draw.strokeCount || markChecking) return
+    const base = enterBase()
+    if (turn.interaction.kind !== 'mark' || markChecking) return
+    /* ⚠️ 획 수는 **시험지 전체의 누적**이다. "획이 있으면" 으로 걸면 앞 문항에서 그은 획 때문에
+       이 턴에 손도 대기 전에 판정이 돈다 — 지문 화면은 판정할 사진이 없어 그대로 통과하고
+       다음 단계로 넘어가 버렸다(실측: 24강 2·3번). **이 턴에서 새로 그었을 때만** 본다. */
+    if (draw.strokeCount <= base.strokes) {
+      /* 지우개로 되돌렸으면 기준선도 내린다 — 안 내리면 다시 그어도 판정이 안 돈다 */
+      if (draw.strokeCount < base.strokes) base.strokes = draw.strokeCount
+      return
+    }
     const t = setTimeout(() => { void checkMark() }, 1200)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draw.strokeCount, turnIdx])
+
+  /* 문제가 바뀌면 필기를 지운다 — **턴이 아니라 문제 단위다.**
+     한 문제 안에서는 시험지처럼 그대로 남아야 한다(위 enterBase 주석). 그런데 다음 사진·문장으로
+     넘어간 뒤에도 남아 있으면 앞 문제에 친 동그라미가 새 사진 위에 떠 있다(실측 보고 08-18).
+     필기 도구를 껐다 켜면 다시 보이는 것도 같은 뿌리다 — 획이 ref 에 그대로 있어서다. */
+  const drawnItemRef = useRef<number | null>(null)
+  const curNavKey = navKeyOf(turn) ?? null
+  useEffect(() => {
+    if (drawnItemRef.current !== null && drawnItemRef.current !== curNavKey) draw.clearCanvas()
+    drawnItemRef.current = curNavKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curNavKey])
+
+  /* ── 필기 도구를 턴에 맞춰 여닫는다 (구현 중 메모 21·22행) ──
+       · 사진에 동그라미를 치라는 턴 → **켠다.** 펜 말고는 표시할 방법이 없는데, 학생이
+         팔레트를 먼저 찾아 눌러야 했다.
+       · 보기를 고르라는 턴 → **끈다.** 켜져 있으면 캔버스가 화면을 덮어 **보기 클릭을 먹는다.**
+         앞 표시 턴에서 켠 채로 넘어오면 학생은 "눌러도 안 된다" 를 겪는다.
+     ⚠️ **지문(사진이 없는 화면)의 표시 턴은 켜지 않는다** — 거기서 펜을 켜면 캔버스가 덮여
+        낱말 탭이 막힌다. 그런데 지문에서 판정되는 것은 **탭뿐이다**(targetWords). 펜은 판정할
+        그림이 없어 아무 데나 그어도 통과한다. 켜면 판정되는 길을 막고 안 되는 길을 여는 셈이다.
+     ⚠️ **오늘 대본에는 사진 위 표시 턴이 하나도 없다** — 표시 턴 15개가 전부 RC 지문이다.
+        그래서 지금은 이 줄이 아무 일도 하지 않는다. 사진 강의(LC)에 표시 턴이 생기면 그때 산다.
+        메모 21행("필기 시키는 턴에서 자동 활성화")을 제대로 받으려면 **지문의 필기를 판정할 수
+        있어야** 한다 — 낱말마다 자리를 심어 잉크가 어디에 닿았는지 되짚는 일(메모 23·24행과 한 덩어리). */
+  useEffect(() => {
+    if (phase !== 'lesson' && phase !== 'review') return
+    const it = turn.interaction
+    const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
+    if (it.kind === 'mark' && onPhoto) draw.setDrawMode(true)
+    else if (it.kind === 'choice' || it.kind === 'pickAnswer' || it.kind === 'solveAll') draw.setDrawMode(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnIdx, phase])
 
   /* ── 음원 재생 토큰 ──
      학생이 직접 돌린 재생(문장/보기)과 턴이 트는 음원이 겹치지 않게 세대를 센다.
@@ -1535,13 +1975,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 이 문항을 다루는 마지막 턴인가 — 다음 턴이 다른 문항으로 넘어가면 여기서 끝난 것이다.
        수업의 '마무리 멘트'·실전 코칭의 'S7 표현 정리' 가 여기 걸린다([다음 문제] 가 열리는 그 시점). */
     const lastOfQ = !!cur && (!turns[turnIdx + 1] || turns[turnIdx + 1].focusQ !== cur.focusQ)
-    if (!scripted || lastOfQ || freePlay) answeredQ.forEach((q) => { options[q] = 'all' })
+    if (!scripted || lastOfQ || freePlay) {
+      answeredQ.forEach((q) => { options[q] = 'all' })
+    }
+    /* 강사에 따라 답을 고른 문항의 네 개를 **미리** 여는 경우가 있다(윤다은) — 강사 설명이
+       진행되는 동안 보기 네 문장을 같이 보라는 뜻이다.
+       ⚠️ **음원이 나가는 중에는 열지 않는다** (구현 중 메모 70행). 예전에는 누르는 즉시 열려서,
+          보기 음원을 아직 듣고 있는데 네 문장이 통째로 떠 버렸다 — 듣고 고르는 자리가 읽고
+          고르는 자리가 된다. 판정은 아래 효과가 하고, 여기서는 그 결과만 쓴다(열었다 닫았다
+          하면 설명 중에 깜빡인다). */
+    openAllQ.forEach((q) => { options[q] = 'all' })
     if (scripted && (lastOfQ || freePlay) && cur?.focusQ !== undefined) {
       /* 다시 고르지 않는 단계(실전 코칭)는 answeredQ 가 비어 있어 위에서 안 열린다 — 여기서 연다 */
       options[cur.focusQ] = 'all'
     }
     return { revealedScript: script, revealedOptions: options, activePassageId: activeDoc }
-  }, [turns, turnIdx, answeredQ, scripted, freePlay])
+  }, [turns, turnIdx, answeredQ, scripted, freePlay, instructor, openAllQ])
 
   /** 앱이 턴을 넘길 때 — 에이전트에도 다음 단계 지시를 밀어준다.
    *  이걸 안 하면 진행 주체가 앱인 턴에서 에이전트가 지시를 못 받아 그냥 침묵한다
@@ -1593,15 +2042,32 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
            그런데 학생이 "몰라" 라고 해서 답을 알려주고 넘어온 자리에서도 그 "맞아요" 가 그대로
            나간다(실측). 방금 못 맞힌 학생에게 맞았다고 하는 셈이라 수업이 거짓말이 된다.
            **문장을 새로 짓지는 않는다** — 첫머리 한 마디만 떼고 나머지는 시트 그대로 읽는다. */
-        /* ── 정답·오답 갈래 ──
-           시트가 한 칸에 두 경우를 다 적어 둔 줄이 있다(tutorIfWrong). 지금 학생이 이 문항을
-           맞혔는지로 하나만 고른다. 판단 근거는 **화면에 남은 사실**이다 — 고른 보기가
-           정답인가. 직전 턴의 결과(prevOk)로 보면 사이에 들려주는 턴이 끼는 순간 어긋난다. */
+        /* ── 정답·오답 갈래 (tutorIfWrong) ──
+           시트가 한 칸에 두 경우를 다 적어 둔 줄이 있다. **무엇을 기준으로 고르느냐가 갈린다.**
+
+             · 문항 정오답을 알려주는 자리(S5 정답 근거 연결) → **그 문항을 맞혔는가**
+               근거는 화면에 남은 사실이다(고른 보기가 정답인가). 사이에 들려주는 턴이 껴도
+               흔들리지 않는다.
+             · 그 밖의 스캐폴딩 응답            → **직전 답을 맞혔는가**(prevOk)
+               "(오답) 다시 한번 봐보세요. 빈칸 바로 앞에 단어에 동그라미 쳐보세요." 같은 줄은
+               바로 앞 단계(필기·2지선다)에 대한 대답이지 문항 정답과는 상관이 없다. 문항 기준으로
+               고르면 문항을 맞힌 학생이 스캐폴딩을 틀려도 "잘했어요" 를 듣는다. */
         const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
         const picked = turn.focusQ !== undefined ? answers[turn.focusQ] : undefined
         const gotIt = !!picked && picked === q?.options.find((o) => o.correct)?.label
-        const scripted0 = turn.tutorIfWrong && picked && !gotIt ? turn.tutorIfWrong : turn.tutor
-        const line = prevOkRef.current === false ? stripAck(scripted0) : scripted0
+        /* ⚠️ 단계 이름만 보면 안 된다 — **바로 앞 턴이 학생에게 무엇을 물었는지**가 먼저다.
+           S5 안에도 스캐폴딩 질문이 있다("여기서 핵심 동작을 나타내는 표현이 뭐였죠? 1) is painting
+           2) on an easel"). 그 대답에 붙는 반응 줄까지 문항 기준으로 고르는 바람에, 문항을 틀린
+           학생이 스캐폴딩을 **맞혀도** 오답 갈래를 들었다(실측 보고 08-20, 이도윤 LC 1번).
+           앞 턴이 물어본 턴이면 이 줄은 그 대답에 대한 반응이다 — prevOk 로 고른다. */
+        const askedJustBefore = ASKING_KINDS.has(turns[turnIdx - 1]?.interaction.kind ?? '')
+        const verdictTurn = !askedJustBefore && /S5|정답\s*근거/.test(turn.stage) && picked !== undefined
+        const wrongNow = verdictTurn ? !gotIt : prevOkRef.current === false
+        const useWrong = !!turn.tutorIfWrong && wrongNow
+        const scripted0 = useWrong ? turn.tutorIfWrong! : turn.tutor
+        /* 오답 갈래를 골랐으면 맞장구를 떼지 않는다 — 그 줄은 이미 못 맞힌 학생에게 쓴 문장이라
+           첫머리를 자르면 시트가 의도한 말이 사라진다("아쉽지만 아니에요. 다시 봐볼게요."). */
+        const line = !useWrong && prevOkRef.current === false ? stripAck(scripted0) : scripted0
         prevOkRef.current = null
         await say(line)
         if (!alive) return
@@ -1658,7 +2124,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          · 마지막 턴은 넘기지 않는다 — 실전 문제로 튀지 않고 [실전 문제 풀기] 버튼을 학생이 누르게 한다 */
       if (alive && !askingRef.current && (scripted || agentOnRef.current) && !needsAnswer(turn) && turnIdx < turns.length - 1 && !atItemEnd) {
         await new Promise((res) => setTimeout(res, 700))
-        if (alive && turnIdxRef.current === turnIdx) advanceByApp(turnIdx + 1)
+        /* 기다리는 **사이에** 학생이 물어봤을 수 있다 — 그 700ms 안에 들어온 질문을 놓치면
+           강사가 답하는 동안 화면이 다음 단계로 넘어간다(두 목소리가 겹친다). 한 번 더 본다. */
+        if (alive && !askingRef.current && turnIdxRef.current === turnIdx) advanceByApp(turnIdx + 1)
       }
     })().catch(() => {
       /* 낭독이나 음원이 실패해도 **선택지는 열어야 한다.** 안 열면 학생이 아무것도 못 누르는
@@ -1694,11 +2162,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 직전 턴의 답이 맞았는가 — 다음 대본 첫머리의 맞장구를 뗄지 정한다.
    *  null 이면 판단할 것이 없다(들려주기 턴 등). 한 번 쓰고 비운다. */
   const prevOkRef = useRef<boolean | null>(null)
-  /* 질문 모드 — 대본을 잠시 세우고 학생이 묻는 자리. 진행은 이 동안 멈춘다 */
+  /** 맞장구를 몇 번 했나 — 같은 말을 반복하지 않으려고 돌려 쓴다(ackLine) */
+  const ackNoRef = useRef(0)
+  /* 질문에 답하는 동안 대본을 세워 두는 스위치. 학생이 켜는 것이 아니라(버튼은 없앴다)
+     대본 밖 질문이 들어오면 앱이 켠다 — 진행 게이트가 이 값을 본다 */
   const [asking, setAsking] = useState(false)
   const askingRef = useRef(false)
   askingRef.current = asking
   const [askBusy, setAskBusy] = useState(false)
+  /** 지금 대본 밖 질문에 답하는 중인가.
+   *  멈춤은 `asking` 이 맡는다 — 진행 게이트(자동 전진 차단)가 거기 걸려 있어서 따로 만들면
+   *  질문에 답하는 동안 화면이 다음 단계로 넘어간다. 이 값은 **겉모습**만 정한다:
+   *  수업을 세운 티를 내지 않고, 답하는 동안 한 줄만 띄운다. */
+  const [autoAsk, setAutoAsk] = useState(false)
   /* ── 말과 글자를 맞춘다 ──
      전에는 발화 전체가 한 번에 툭 떴다. 강사는 아직 첫 마디인데 화면에는 끝 문장까지 다 있으니
      학생은 글자를 먼저 읽고 소리를 기다린다 — 듣기 수업에서 그건 그냥 읽기다.
@@ -1706,7 +2182,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      않는다: 문장이 길든 짧든, 목소리가 빠르든 느리든 글자는 정확히 소리를 따라온다.
      음원이 없을 때(브라우저 TTS 폴백)만 글자 수로 대략 잡는다. */
   const revealRef = useRef<number | null>(null)
-  const startReveal = (text: string) => {
+  /** 지금 흐르고 있는 줄이 **앱이 만든 것**인가 — say(…, plain) 이 세운다.
+   *  대본 발화(turn.tutor)로 돌아가면 typed 가 비므로 아래 tutorLinePlain 이 저절로 꺼진다. */
+  const [plainLine, setPlainLine] = useState(false)
+  /** 글자를 **0에 세워 둔다.** 음원을 받는 동안 말풍선이 비어 있어야 그 자리에 점 세 개가 돈다.
+   *  흘리기 시작하는 것은 소리가 나가는 순간(speakTTS 의 onStart)이지 이때가 아니다. */
+  const armReveal = (text: string) => {
+    if (revealRef.current) cancelAnimationFrame(revealRef.current)
+    revealRef.current = null
+    setTyped({ text, shown: 0 })
+  }
+  /** @param hasAudio 강사 음원인가(false = 브라우저 TTS). 음원이면 재생 위치를 따라가고,
+   *    아니면 읽을 위치가 없으니 글자 수로 흘린다. */
+  const startReveal = (text: string, hasAudio: boolean) => {
     if (revealRef.current) cancelAnimationFrame(revealRef.current)
     const t0 = Date.now()
     let sawAudio = false
@@ -1716,9 +2204,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       let ratio: number
       if (p) { sawAudio = true; ratio = p.current / p.duration }
       else if (sawAudio) ratio = 1                       // 재생이 끝났다
-      /* 음원을 받아오는 동안(0.5~1.5초)은 한 글자도 내보내지 않는다 — 소리 없이 글자만 흐르면
-         그게 제일 이상하다. 그 시간이 지나도 소리가 없으면 브라우저 TTS 로 떨어진 것으로 본다. */
-      else if (Date.now() - t0 > 1500) ratio = (Date.now() - t0 - 1500) / Math.max(900, text.length * 95)
+      /* 음원이 있는데 아직 길이를 못 읽는 동안(메타데이터 로딩·autoplay 차단 해제 대기)은
+         한 글자도 내보내지 않는다. 소리 없이 글자만 흐르면 그게 제일 이상하다.
+         ⚠️ 예전에는 여기가 "1.5초 지나면 음원이 없는 것으로 친다" 였다 — v3 목소리는 받는 데
+            그보다 오래 걸려서, 글자가 먼저 흐르고 소리가 뒤늦게 따라붙었다(실측).
+            지금은 **소리가 나가기 시작한 뒤에야** 이 루프가 도니까 추측할 이유가 없다.
+            8초는 재생이 영영 안 시작되는 경우(제스처 대기)에 글자가 갇히지 않게 하는 안전판. */
+      else if (!hasAudio || Date.now() - t0 > 8000) {
+        const base = hasAudio ? 8000 : 0
+        ratio = (Date.now() - t0 - base) / Math.max(900, text.length * 95)
+      }
       else ratio = 0
       const want = Math.round(text.length * Math.min(1, Math.max(0, ratio)))
       /* 값이 그대로면 **같은 객체를 돌려준다** — 안 그러면 프레임마다 리렌더가 돈다 */
@@ -1735,16 +2230,40 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   /* 낭독은 반드시 이걸로 부른다 — 말하는 동안 아바타가 움직이고 파형이 떠야 한다.
      speakTTS 를 직접 부르면 화면은 강사가 말하는 줄 모른다(실측: 영상도 파형도 안 나왔다). */
-  const say = async (text: string, aside = false) => {
+  /** @param plain **앱이 만든 줄**인가(판정·힌트). 대본이 아니라 앱이 학생 답을 인용한
+   *    자리라 따옴표를 강조로 읽으면 틀린 것이 굵어진다 — 그럴 때는 글자를 그대로 둔다
+   *    (TutorDock 의 TutorText·parseEmphasis 머리말 참고). */
+  const say = async (text: string, aside = false, plain = false) => {
     /* 말한 것은 그대로 채팅에도 쌓는다 — 텍스트 모드에서 대화가 남아야 앞을 다시 볼 수 있다.
        낭독·피드백·질문 답변이 전부 이 문을 지나므로 여기 한 곳에서만 쌓으면 된다. */
-    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside }]))
+    setChatLog((prev) => (prev[prev.length - 1]?.text === text ? prev : [...prev, { role: 'ai', text, aside, plain }]))
+    setPlainLine(plain)
     setNarrating(true)
-    const stopReveal = startReveal(text)
+    /* 말풍선은 **비어 있는 채로** 먼저 세운다(자리는 잡되 글자는 없다) — 그 사이 점 세 개가 돈다.
+       글자는 소리가 나가는 순간부터 흐른다. 이 순서가 뒤집히면 학생이 글자를 먼저 읽어 버려서
+       듣기 수업이 읽기 수업이 된다. 아바타도 같은 시점에 맞춘다(voiceLoading). */
+    setVoiceLoading(true)
+    armReveal(text)
     /* 채팅·화면에는 시트 문장 그대로, **읽을 때만** 홀로 선 알파벳을 한글 음으로 바꾼다
        ("D에서는" → "디에서는"). 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다. */
-    try { await speakTTS(koLetters(text), ttsPersona, instructor) }
-    finally { stopReveal(); setTyped(null); setNarrating(false) }
+    try {
+      await speakTTS(koLetters(text), ttsPersona, instructor, (hasAudio) => {
+        setVoiceLoading(false)
+        startReveal(text, hasAudio)
+        /* ── 다음 줄을 지금 받아둔다 ──
+           소리가 나가기 시작한 이 순간부터 몇 초는 **네트워크가 놀고 있다.** 그동안 다음 턴의
+           발화를 받아두면 다음 대기가 0이 된다. 발화가 음원 받는 시간보다 길기만 하면 그렇다.
+           ⚠️ koLetters 를 여기서도 거쳐야 한다 — 실제로 보내는 문자열과 한 글자라도 다르면
+              캐시가 빗나가서 미리 받은 것이 버려진다. */
+        const next = turnsRef.current[turnIdxRef.current + 1]?.tutor
+        if (next) prefetchTTS(koLetters(next), ttsPersona, instructor)
+      })
+    }
+    finally {
+      if (revealRef.current) cancelAnimationFrame(revealRef.current)
+      revealRef.current = null
+      setTyped(null); setVoiceLoading(false); setNarrating(false)
+    }
   }
 
   /** 맞았을 때 앱이 추임새를 넣어야 하는가 — **다음 대본이 이미 받아주면 넣지 않는다.**
@@ -1768,11 +2287,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** O/X 선택지는 **화면엔 기호, 입엔 말**이다. 'X' 를 그대로 읽히면 한국어 목소리가
    *  영어 알파벳으로 뭉개 읽는다(koLetters 는 A~D 만 한글 음으로 바꾼다). */
   const asWord = (t: string) => (t === 'O' ? '맞아요' : t === 'X' ? '아니에요' : t)
+  /** 답을 매듭짓는 한 마디. O/X 를 "답은 '아니에요' 예요" 로 만들면 말이 겹쳐 들린다 —
+   *  O/X 는 판정이지 낱말이 아니라서 그대로 서술형으로 말한다. */
+  const verdict = (t: string) => (t === 'X' ? '이건 아니에요.' : t === 'O' ? '이건 맞아요.'
+    : `답은 '${t}' ${koCopula(t)}.`)
 
   const closingLine = (picked?: string): string => {
     const it = turn.interaction
     if (it.kind === 'subjective') {
-      return it.hint ? `이렇게 답하면 돼요. ${it.hint}` : '이건 같이 보고 넘어갈게요.'
+      if (!it.hint) return '이건 같이 보고 넘어갈게요.'
+      /* 문장으로 답하는 자리와 낱말로 답하는 자리를 가른다 — 낱말 답에 "이렇게 답하면 돼요" 를
+         붙이면 말하기 연습처럼 들리고("이렇게 답하면 돼요. 동작이요."), 문장 답을
+         "답은 '…' 예요" 에 끼우면 문장이 겹쳐 읽힌다. */
+      const one = firstExample(it.hint)
+      const word = bareWord(one)
+      return word === null ? asConfirm(one) : `답은 '${word}' ${koCopula(word)}.`
     }
     if (it.kind !== 'choice') return '이건 같이 보고 넘어갈게요.'
 
@@ -1788,30 +2317,77 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const no = right === 'X'
       /* 이어주는 말이 방향을 만든다 — 아닐 때는 '했는데'(반전), 맞을 때는 '했고'(순접) */
       const ground = no ? contraOf(lesson.part) : lesson.part === 1 ? '사진 그대로죠?' : '자료와 맞죠?'
-      return `${mine}${label}에서는 ${quoted(trans)} 했${no ? '는데' : '고'}, ${ground} 그래서 답은 '${asWord(right)}' 예요.`
+      return `${mine}${label}에서는 ${quoted(trans)} 했${no ? '는데' : '고'}, ${ground} 그래서 ${verdict(right)}`
     }
-    return `${mine}답은 '${asWord(right)}' 예요.`
+    return `${mine}${verdict(right)}`
   }
 
-  const handleScriptedAnswer = async (ok: boolean, picked?: string, gaveUp = false) => {
+  /** 붙잡기를 끝낼 때, **다음 대본이 답을 이미 말해 주는가.** 그러면 앱은 답을 얹지 않는다.
+   *
+   *  개념을 묻는 자리는 다음 줄이 곧 그 답의 설명이다 — "여자가 무엇을 하고 있나요?" 다음에
+   *  "여자가 앉아서 붓으로 그림을 그리고 있죠?" 가 온다. 그 앞에 앱이 "이렇게 답하면 돼요.
+   *  그림을 그리고 있어요" 를 얹으면 같은 답을 두 번 듣는다(실측).
+   *
+   *  대본이 답을 말하지 않고 지나가는 자리도 있다. 보기를 하나씩 지우는 O/X 턴이 그렇다 —
+   *  다음 줄이 곧장 다음 보기로 간다("이제 C를 볼게요"). 그런 자리에서만 앱이 답을 매듭짓는다. */
+  const scriptWillTell = (): boolean => {
+    /* ⚠️ 문제 끝에서는 다음 발화가 **바로 이어지지 않는다**([다음 문제] 버튼이 먼저 뜬다).
+       거기서 대본에 맡기면 학생은 답을 못 듣고 버튼만 본다 — 그 자리는 앱이 매듭짓는다. */
+    if (atItemEnd) return false
+    const it = turn.interaction
+    const answer = firstExample(it.kind === 'subjective' ? (it.hint ?? '')
+      : it.kind === 'choice' ? (it.choices.find((c) => c.correct)?.text ?? '')
+        : '')
+    const keys = answerKeys(answer)
+    /* 낱말이랄 게 없는 답("네", "X")은 대본에서 찾을 수가 없다. 말하기 답이면 다음 줄이
+       어차피 다 풀어 주므로 맡기고, O/X 는 앱이 말해 준다. */
+    if (!keys.length) return it.kind === 'subjective'
+    /* 다음 줄은 **맞장구를 뗀 뒤**의 모습으로 본다 — 못 맞힌 뒤라 그 줄은 stripAck 을
+       지나서 나간다. 떼기 전 문장으로 재면 이미 사라진 말을 "대본이 해 준다"고 착각한다. */
+    return lineCovers(stripAck(turnsRef.current[turnIdxRef.current + 1]?.tutor ?? ''), keys)
+  }
+
+  /** @param mode  'giveUp' 모른다고 했다 · 'unsure' **채점기가 판정을 못 했다** */
+  const handleScriptedAnswer = async (ok: boolean, picked?: string, mode?: 'giveUp' | 'unsure') => {
+    await waitForCue()          // 들려주던 음원이 끝나고 나서 말한다(위 waitForCue)
     const tries = (triesRef.current.get(turnIdx) ?? 0) + 1
     triesRef.current.set(turnIdx, tries)
     prevOkRef.current = ok
     if (ok) {
-      if (!scriptWillAck()) await say('좋아요, 맞았어요.')
+      /* ── 이도윤은 맞장구도 앱이 하지 않는다 (08-28 결정) ──
+         이 강사 대본은 **정오답에 따른 발화를 직접 갖고 있다**(tutorIfWrong, 대본에 46곳).
+         앞에 앱이 "잘했어요" 를 얹으면 곧바로 대본이 "아쉽지만 아니에요" 를 말하는 일이 생긴다 —
+         scriptWillAck 은 다음 줄의 `tutor` 만 보므로, 오답이라 tutorIfWrong 이 나갈 자리를
+         못 가려낸다. 판정은 대본에 맡기고 앱은 비켜선다.
+         ⚠️ **코칭(실전 오답 리뷰)에는 걸지 않는다.** 그쪽 대본은 32턴 전부 갈래가 없어서
+            (tutorIfWrong 0개) 앱까지 입을 다물면 틀린 학생이 아무 반응도 못 받는다. */
+      if (!scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
       goNext()
       return
     }
+    /* ── 판정을 못 했으면 **아무 판정도 하지 않는다** ──
+       맞다고 하면 틀린 답에 "좋습니다" 가 나가고, 틀렸다고 하면 맞은 답을 나무란다.
+       맞장구만 떼고(prevOk=false → stripAck) 대본으로 조용히 이어간다. */
+    if (mode === 'unsure') { goNext(); return }
     /* ── "몰라요" 는 오답이 아니다 ──
        모른다고 말한 학생에게 "그건 조금 달라요, 다시 생각해 볼까요?" 는 앞뒤가 안 맞고,
-       모르는 걸 한 번 더 물어봐야 나올 것도 없다. 바로 답을 보여주고 넘어간다. */
-    if (gaveUp) {
-      await say(`괜찮아요, 같이 볼게요. ${closingLine()}`)
+       모르는 걸 한 번 더 물어봐야 나올 것도 없다. 되묻지 않고 바로 넘어간다. */
+    if (mode === 'giveUp') {
+      /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다.
+         다독이지 않는 강사(INST_SCRIPT_ONLY)는 그냥 다음 단계를 말한다 — prevOk 가 false 라
+         대본이 맞장구로 시작해도 stripAck 이 떼어 주므로, 모른다는 학생에게 맞았다고 하지 않는다. */
+      if (!INST_SCRIPT_ONLY[instructor]) {
+        await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
+      }
       goNext()
       return
     }
-    if (tries === 1) {
-      await say('음, 그건 조금 달라요. 다시 한번 생각해 볼까요?')
+    /* 되묻지 않는 강사면(INST_SCRIPT_ONLY) 이 갈래를 건너뛰고 바로 아래로 간다 — 짚어 주고 넘어간다.
+       대본이 다음 줄에서 답을 풀어 주면 앱은 거기서도 비켜선다(scriptWillTell). */
+    if (tries === 1 && !INST_SCRIPT_ONLY[instructor]) {
+      /* "음, 그건 조금 달라요." 는 뺐다 — 틀렸다는 것은 화면이 이미 말하고 있고,
+         말로 한 번 더 얹으면 나무라는 것처럼 들린다. 다시 해보자는 말만 남긴다. */
+      await say('다시 한번 생각해 볼까요?')
       /* ⚠️ subjSent 를 반드시 되돌린다. 이게 켜져 있으면 answerSubjective 가 들어오는 답을
          그대로 버리고(1575행), voiceOn 도 false 라 마이크가 다시 안 열린다 →
          "다시 한번 생각해 볼까요?" 라고 해놓고 **두 번째 답을 받을 방법이 없다**(실측). */
@@ -1821,22 +2397,98 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setDockTick((n) => n + 1)
       return
     }
-    await say(`제가 짚어 줄게요. ${closingLine(picked)}`)
+    /* 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
+       "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
+       "여자가 앉아서 붓으로 그림을 그리고 있죠?" 라고 하면 같은 답이 두 번이다.
+       ⚠️ scriptWillTell 은 다음 줄이 답을 말하는지를 **글자로** 가늠하는 어림짐작이라 놓칠 때가
+          있다(실측: "뭐가 보이나요?" → 앱이 "제가 짚어 줄게요. 옷장, 행거에 걸린 옷, 선반" 을
+          얹고 곧바로 대본이 "행거에 옷이 걸려있고 …" 를 말했다). 대본만 읽는 강사는
+          (INST_SCRIPT_ONLY) 가늠하지 말고 언제나 비켜선다 — 답은 대본이 말한다. */
+    /* "제가 짚어 줄게요." 는 뗐다 — 짚어 주겠다고 예고하는 말은 그 자체로 내용이 없고,
+       뒤에 붙는 답까지 훈수처럼 들리게 만든다. 답만 강사 말투로 바로 말한다(asConfirm). */
+    if (!scriptWillTell() && !INST_SCRIPT_ONLY[instructor]) await say(closingLine(picked))
     goNext()
   }
 
   /* 정답 고르기(A~D)의 반응. 선택지 버튼과 달리 **오답마다 근거(why)가 있어** 그걸 실어 되묻는다.
      첫 오답에는 정답을 열지 않는다 — 열어 버리면 다시 고를 것이 없다. 두 번째에 열고 넘어간다. */
+  /** 이 턴이 **들려주던 음원이 끝날 때까지** 기다린다.
+   *
+   *  실제 시험은 네 보기를 끝까지 들려준다. 그런데 학생이 두 번째 보기쯤에서 답을 고르면
+   *  강사가 곧바로 말을 시작해 **남은 보기와 목소리가 겹쳐 들렸다**(실측).
+   *  고른 것은 그대로 받아 화면에 표시하고(그건 즉시 보여야 한다), **말과 진행만** 미룬다.
+   *  에이전트 경로에는 같은 게이트가 이미 있다(next_step 의 audioDoneRef 검사) — 대본 경로에만 없었다.
+   *
+   *  턴이 바뀌거나 20초가 지나면 그만 기다린다. 음원이 끝났다는 신호를 영영 못 받는 경우
+   *  (재생 실패·파일 없음)에 학생을 세워 두면 안 된다. */
+  const waitForCue = async () => {
+    if (!turn.audio) return
+    const at = turnIdxRef.current
+    const until = Date.now() + 20000
+    while (!audioDoneRef.current.has(at) && turnIdxRef.current === at && Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 120))
+    }
+  }
+
+  /** 음원을 기다리는 동안 학생이 **다시 고를 수 있다.** 그때 앞의 것까지 진행하면 두 칸 넘어간다.
+   *  표를 하나 두고 마지막에 고른 것만 살린다. */
+  const pickTokenRef = useRef(0)
+
   const handleScriptedPick = async (qIdx: number, ok: boolean, why?: string, label?: string) => {
+    const token = ++pickTokenRef.current
+    await waitForCue()
+    /* 음원이 나가는 동안 학생이 몇 번을 고쳐 골랐든, **여기까지 온 것은 마지막 클릭뿐이다.**
+       앞선 클릭들은 토큰이 밀려 여기서 되돌아간다. 그래서 채점·기록·대화를 이 자리에서 한다 —
+       클릭마다 하면 보기가 잠기고, 말풍선이 쌓이고, 학습 기록에 중간에 눌러 본 답이 다 남는다. */
+    if (pickTokenRef.current !== token) return
+    /* 대화에 남기는 것은 두 경로 공통 — 다만 여기서 해야 고쳐 고른 흔적이 쌓이지 않는다 */
+    const optText = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)?.text ?? ''
+    setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${optText}`.trim() }])
+    /* 채점·학습기록은 **수업에서만** 여기로 미뤘다. 코칭은 되묻는 자리라 클릭 즉시 해야 하고
+       (onSelect), 여기서 또 하면 두 번 기록된다. */
+    if (phase !== 'review') {
+      setGraded((p) => new Set(p).add(qIdx))
+      if (!ok && label) setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+      logResponse(label ?? '', ok)
+    }
     const key = turnIdx
     const tries = (triesRef.current.get(key) ?? 0) + 1
     triesRef.current.set(key, tries)
     prevOkRef.current = ok
+
+    /* ── 이도윤: 학생 풀이 단계에서 앱은 **아무 말도 하지 않는다** ──
+       이 강사는 정오답 확인을 대본이 정해 둔 자리에서 한다 — "S5 정답 근거 연결" 이 두 갈래를
+       다 갖고 있다("정답은 B죠? 잘 맞혔어요!" / tutorIfWrong "정답은 B였어요…"). 문제를 풀자마자
+       앱이 한 마디 얹으면 같은 자리가 두 번이 되고, 사이에 낀 S3 개념 코칭을 지나기도 전에 답을
+       알아 버린다 — 개념을 짚는 단계가 통째로 김이 샌다.
+       ⚠️ 맞장구도 안 된다. "맞아요" 한 마디가 곧 정답 공개다.
+       ⚠️ **강사별이다.** 콘텐츠팀 메모가 이도윤 단계에 대한 것이고, 실제로 이 강사 대본에만
+          오답 갈래가 있다(이도윤 3/3, 윤다은 0/11). 윤다은에 걸면 틀린 학생이 아무 반응도
+          못 받은 채 정답 기준으로 쓰인 S5 를 듣게 된다.
+       prevOkRef 는 남겨 둔다 — 다음 대본이 맞장구로 시작하면 stripAck 이 떼어 준다. */
+    if (phase !== 'review' && INST_SCRIPT_ONLY[instructor]) { goNext(); return }
+
     if (ok) {
-      if (!scriptWillAck()) await say('정확해요, 맞았어요.')
+      if (!scriptWillAck()) await say(ackLine(ackNoRef.current++))
       goNext()
       return
     }
+
+    /* ── 학생 풀이 단계는 **다시 고르게 하지 않는다** (강사 공통) ──
+       스캐폴딩 질문은 생각을 고쳐 잡는 자리라 되묻는 값이 있지만(handleScriptedAnswer 가 그쪽),
+       문항 정답 고르기는 실제 시험과 같은 자리다. 한 번 고르면 그걸로 끝낸다.
+       고른 보기를 되짚어 준다 — "아니에요." 만 하면 무엇이 아니라는 건지 붕 뜬다. 조사는 언제나
+       **는** 이다: A~D 는 읽을 때 에이·비·씨·디 로 모두 모음(이)으로 끝난다(koLetters 가 낭독
+       직전에 바꾼다. 화면 글자는 A~D 그대로다). 라벨이 A~D 가 아니면 붙이지 않는다.
+       **정답이 무엇인지는 말하지 않는다** — 여기서 알려주면 뒤따르는 풀이 단계가 빈다. */
+    if (phase !== 'review') {
+      await say(label && /^[A-Z]$/.test(label) ? `${label}는 아니에요.` : '아니에요.')
+      goNext()
+      return
+    }
+
+    /* ── 여기부터는 코칭(실전 오답 리뷰)뿐이다 ──
+       이미 채점 결과를 본 자리라 감출 것이 없고, 한 번 더 고쳐 볼 기회를 주는 것이 목적이다. */
     if (tries === 1) {
       /* **고른 보기가 무슨 말이었는지**를 학생 말로 되짚고, 자료에 그게 없다는 것만 짚는다.
          정답이 무엇인지는 아직 말하지 않는다 — 말해 버리면 다시 고를 것이 없다. */
@@ -1862,27 +2514,59 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     setChatLog((prev) => [...prev, { role: 'user', text }])
     setSubjSent(true)
     setSubjText(text)
-    if (isGiveUp(text)) { logResponse(text, false); void handleScriptedAnswer(false, text, true); return true }
+    if (isGiveUp(text)) { logResponse(text, false); void handleScriptedAnswer(false, text, 'giveUp'); return true }
+    /* ── 말이 아닌 입력은 **답으로 치지 않는다** ──
+       채점기에 보내 봐야 의미가 없고, 오답으로 몰면 "다시 생각해 볼까요?" 가 나가는데
+       생각이 아니라 입력이 문제다. 되돌려서 다시 받는다(질문 갈래와 같은 처리).
+       ⚠️ **되묻기는 이 턴에 한 번뿐이다.** 이 갈래가 횟수를 안 세는 바람에 자판을 계속 누르면
+          "잘 못 알아들었어요" 만 끝없이 나갔다(실측). 이미 한 번 되물었으면 짚고 넘어간다. */
+    if (isGibberish(text)) {
+      if ((triesRef.current.get(turnIdx) ?? 0) >= 1) {
+        logResponse(text, false); void handleScriptedAnswer(false, text); return true
+      }
+      triesRef.current.set(turnIdx, 1)
+      logResponse(text, null)
+      setSubjSent(false); setSubjText('')
+      void (async () => { await waitForCue(); await say('음, 잘 못 알아들었어요. 다시 한번 말해 줄래요?') })()
+      return true
+    }
     if (subjectiveOk(text, it.hint, it.accepts)) { logResponse(text, true); void handleScriptedAnswer(true, text); return true }
     /* ── 낱말이 안 겹친다고 바로 틀렸다고 하지 않는다 ──
        기대 답 "그림을 그리고 있어요" 에 학생이 "이젤 페인팅" 이라고 하면 겹치는 낱말이 없다.
        뜻은 맞는데 말이 다를 뿐이다(실측). 이때만 한 번 물어보고 판정한다 —
        **낱말이 겹치면 묻지 않으므로**(위에서 끝난다) 대부분의 답은 예전처럼 즉시 반응한다. */
     void (async () => {
-      const ok = await judgeSubjective(text, it)
+      const v = await judgeSubjective(text, it)
+      /* ── 답이 아니라 **질문**이었다 ──
+         "easel이 무슨 뜻이에요?" 를 답으로 채점하면 "그건 조금 달라요" 가 나간다(실측).
+         답한 것으로 치지 말고 되돌린 뒤 답해 주고, 이 턴에 그대로 머문다 — 학생은 아직 답을
+         안 한 것이므로 다시 말할 수 있어야 한다.
+         ⚠️ 이 갈래는 **낱말이 하나도 안 겹친 답**에만 닿는다. 기대 답과 겹치면 위에서 이미
+         끝나므로, 진짜 답이 질문으로 오해될 자리는 애초에 없다. */
+      if (v === 'Q') {
+        setSubjSent(false); setSubjText('')
+        await askAside(text, true)      // 학생 말은 위에서 이미 대화에 남겼다
+        return
+      }
+      if (v === '?') { logResponse(text, null); void handleScriptedAnswer(false, text, 'unsure'); return }
+      const ok = v === 'O'
       logResponse(text, ok)
       void handleScriptedAnswer(ok, text)
     })()
     return true
   }
 
-  /** 뜻으로 판정 — 실패하거나 느리면 **맞다고 본다.** 시연에서 맞은 답을 틀렸다고 하는 쪽이
-   *  훨씬 나쁘고, 판정을 기다리느라 침묵이 길어지는 것도 나쁘다(2.5초에서 끊는다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<boolean> => {
+  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 강사에게 묻는 말 · `?` **판정 못 함.**
+   *
+   *  ⚠️ 예전에는 실패·타임아웃을 **O 로 떨어뜨렸다.** 맞은 답을 틀렸다고 하는 것이 더 나쁘다는
+   *     이유였는데, 그 바람에 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 대본의 "좋습니다" 가 그대로
+   *     나갔다(실측). 못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
+   *  판정을 기다리느라 침묵이 길어지는 것도 나쁘므로 3.5초에서 끊는다(첫 호출이 느리다). */
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'Q' | '?'> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
-    if (!expected) return true
+    if (!expected) return 'O'                // 기대 답이 없는 자리는 무엇을 말해도 받아준다
     const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 2500)
+    const timer = setTimeout(() => ctrl.abort(), 3500)
     try {
       const res = await fetch('/api/gemini', {
         method: 'POST',
@@ -1893,10 +2577,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           message: `[강사 질문] ${turn.tutor}\n[기대 답] ${expected}\n[학생 답] ${said}`,
         }),
       })
+      /* 서버가 실패한 것과 '판정을 못 읽었다' 를 로그에서 갈라 둔다 — 둘 다 '?' 로 끝나지만
+         원인이 다르다(구현 중 메모 66행). 섞어 놓으면 LLM 이 통째로 죽어 있어도 프롬프트를
+         의심하게 된다. */
+      if (!res.ok) { console.warn('[judge] 서버가 실패했다', res.status); return '?' }
       const data = await res.json()
       const v = String(data.dialogue ?? '').trim().toUpperCase()
-      return !v.startsWith('X')          // 못 읽었으면 맞다고 본다
-    } catch { return true } finally { clearTimeout(timer) }
+      if (v.startsWith('Q')) return 'Q'
+      if (v.startsWith('X')) return 'X'
+      if (v.startsWith('O')) return 'O'
+      console.warn('[judge] 판정을 못 읽었다', data)
+      return '?'
+    } catch (e) { console.warn('[judge] 판정 실패', e); return '?' } finally { clearTimeout(timer) }
   }
 
   /* ── 학생 질문 (대본 밖) ──
@@ -1904,11 +2596,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      들고 있어서 답하다가 단계를 넘겨 버릴 수 있다(방금 고친 병이 그것이다).
      지금 단계에서 알아도 되는 사실만 실어 보낸다(buildLessonFacts + 게이트) — 그래야 질문에
      답하다 정답을 흘리지 않는다. */
-  const askTutor = async (question: string) => {
+  const askTutor = async (question: string, alreadyLogged = false) => {
     if (!question.trim() || askBusy) return
     setAskBusy(true)
     stopVoice()
-    setChatLog((prev) => [...prev, { role: 'user', text: question, aside: true }])
+    if (!alreadyLogged) setChatLog((prev) => [...prev, { role: 'user', text: question, aside: true }])
     try {
       /* ── 학생이 화면에 남긴 것도 같이 보낸다 ──
          질문은 대개 **화면의 무언가를 가리키며** 나온다("이거 왜 답이에요?"). 그 '이거' 를
@@ -1952,19 +2644,121 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
 `
             + '위 사실 범위에서 두 문장 안으로 짧게 답하라. 사실에 없으면 모른다고 하라. '
-            + '다음 단계로 넘어가자는 말은 하지 마라 — 진행은 화면이 한다.',
+            + '다음 단계로 넘어가자는 말은 하지 마라 — 진행은 화면이 한다. '
+            /* ⚠️ 되묻지 못하게 막는다. 답 끝에 물음표를 달면 학생이 거기에 대답하고, 그 대답이
+               또 질문으로 들어와 **대본으로 영영 못 돌아온다**(실측: 여덟 번을 주고받았다). */
+            + '**되묻지 마라.** 물어본 것에만 답하고 문장을 끝내라 — 답 끝에 질문을 달면 '
+            + '학생이 계속 대화하게 되어 수업으로 돌아오지 못한다.',
         }),
       })
+      /* ── 서버가 실패한 것을 **'답이 없다' 로 읽지 않는다** (구현 중 메모 66행) ──
+         res.ok 를 안 보고 data.dialogue 만 봤더니, 500(키 없음)·502(구글 호출 실패)가
+         전부 아래 폴백 문구로 떨어졌다 — 학생에게는 강사가 설명을 거부하는 말로 들리고,
+         화면에도 로그에도 아무 자국이 안 남아서 **고장 난 줄 아무도 몰랐다.**
+         실측 2026-08-25: 배포본에서 구글이 429(월 지출 한도 초과)를 내는 동안 자유 질문이
+         전부 "그건 제가 설명하기 어려운 부분이에요" 로 답했다. 못 가져온 것은 못 가져왔다고 한다. */
+      if (!res.ok) {
+        console.warn('[ask] 답을 못 가져왔다', res.status, await res.text().catch(() => ''))
+        await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true, true)
+        return
+      }
       const data = await res.json()
       /* LLM 답에는 **·*·`* 같은 기호가 섞여 나온다 — 그대로 읽으면 TTS 가 별표를 발음한다 */
       const answer = String(data.dialogue ?? '').replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
-        || '음, 그건 지금 단계에서는 답하기 어려워요.'
+        /* ⚠️ 이 말은 **답을 못 가져왔을 때**의 폴백이지 채점이 아니다. 예전 문구
+           ("그건 지금 단계에서는 답하기 어려워요")는 오답을 고른 자리에서 나오면 마치 답을
+           안 알려주겠다는 말로 들렸다(구현 중 메모 53행). 못 한 것은 설명이지 판정이 아니라고
+           분명히 말하고, 학생을 문제로 돌려보낸다(뒤이어 askAside 가 물음을 다시 읽어 준다). */
+        || '음, 그건 제가 설명하기 어려운 부분이에요.'
       await say(answer, true)
-    } catch {
-      await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true)
+    } catch (e) {
+      console.warn('[ask] 질문 요청이 실패했다', e)
+      await say('지금은 답을 가져오지 못했어요. 수업을 계속할게요.', true, true)
     } finally {
       setAskBusy(false)
     }
+  }
+
+  /** 선택지 하나를 고른 결과를 처리한다 — **버튼과 타이핑이 같은 문을 지나야** 한다.
+   *  (두 군데로 나뉘면 통로에 따라 같은 답이 다르게 채점된다) */
+  const pickChoice = (c: { text: string; correct?: boolean }) => {
+    const it = turn.interaction
+    if (it.kind !== 'choice') return
+    if (scripted) {
+      /* 정답 표시가 있는 선택지면 맞고 틀림을 앱이 안다 — 에이전트에 물어볼 것이 없다.
+         정답 표시가 없는 선택지(양쪽 다 받아주는 질문)는 무엇을 골라도 통과시킨다. */
+      const isGraded = it.choices.some((ch) => !!ch.correct)
+      const ok = isGraded ? c.correct === true : true
+      setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
+      logResponse(c.text, isGraded ? ok : null)
+      /* 넘기는 것은 **학생이 고른 것** 이다 — 짚어줄 때 '방금 고른 X 는 답이 아니에요' 로 쓴다 */
+      void handleScriptedAnswer(ok, c.text)
+      return
+    }
+    /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
+       (틀린 선택지는 correct가 undefined라, 그대로 넘기면 '채점 없음'으로 흘러가 교정을 못 했다) */
+    const isGraded = it.choices.some((ch) => !!ch.correct)
+    const ok = isGraded ? c.correct === true : undefined
+    reportAction(`${turnIdx}:choice`, actionMessage(`'${it.prompt}'에 대해 '${c.text}'라고 답함`,
+      ok, ok === false ? it.feedback : undefined))
+    logResponse(c.text, ok ?? null)
+  }
+
+  /** 친 글자가 **이 턴의 선택지 중 하나인가.** 없으면 -1.
+   *
+   *  선택지 턴에서도 학생은 그냥 타이핑한다("사람", "인물", "1", "O"). 그걸 답으로 안 받으면
+   *  화면은 아무 반응이 없고, 질문으로 넘기면 강사가 대화만 이어가며 대본으로 못 돌아온다(실측).
+   *  버튼을 눌러야만 답이 되는 것은 앱의 사정이지 학생의 사정이 아니다. */
+  const matchTypedChoice = (text: string, choices: { text: string }[]): number => {
+    const norm = (s: string) => s.toLowerCase().replace(/[\s.,!?'"·]/g, '')
+    const t = norm(text)
+    if (!t) return -1
+    /* 번호로 답하는 꼴 — "1", "1번", "①" */
+    const n = /^([1-9])번?$/.exec(t)?.[1] ?? (t === '①' ? '1' : t === '②' ? '2' : null)
+    if (n && Number(n) <= choices.length) return Number(n) - 1
+    /* O/X 는 기호로도 말로도 온다 */
+    const ox = /^(o|ㅇ|네|응|맞아|맞아요|예)$/.test(t) ? 'O' : /^(x|ㅌ|아니|아니요|아니에요)$/.test(t) ? 'X' : null
+    if (ox) {
+      const at = choices.findIndex((c) => norm(c.text) === ox.toLowerCase())
+      if (at >= 0) return at
+    }
+    /* 글자로 — 완전히 같거나 한쪽이 다른 쪽을 품으면 그 선택지다.
+       **둘 이상 걸리면 고르지 않는다** — 애매한 것을 임의로 정하느니 질문으로 보내는 편이 낫다. */
+    const hits = choices
+      .map((c, i) => ({ i, c: norm(c.text) }))
+      .filter(({ c }) => c && (c === t || c.includes(t) || t.includes(c)))
+    return hits.length === 1 ? hits[0].i : -1
+  }
+
+  /** 버튼을 안 누르고 그냥 물어본 경우 — **묻고 답하고 스스로 수업으로 돌아온다.**
+   *
+   *  `asking` 을 켜는 이유는 하나다: 진행 게이트가 거기에 걸려 있다(턴 효과의 자동 전진이
+   *  askingRef 를 본다). 따로 만들면 강사가 답하는 동안 화면이 다음 단계로 넘어가 버린다.
+   *  state 반영 전에 ref 를 직접 올려 그 틈까지 막는다. */
+  const askAside = async (question: string, alreadyLogged = false) => {
+    const at = turnIdxRef.current
+    setAsking(true); setAutoAsk(true)
+    askingRef.current = true
+    try { await askTutor(question, alreadyLogged) }
+    finally { setAsking(false); setAutoAsk(false); askingRef.current = false }
+
+    /* ── 답했으면 **대본으로 데려다 놓는다** ──
+       이게 없으면 학생이 질문 자리에 갇힌다(실측): 강사는 계속 대화를 이어가고, 화면은
+       멈춘 채로 다음 단계로 가지 않는다. 답이 끝나는 곳이 곧 수업으로 돌아오는 곳이어야 한다. */
+    if (turnIdxRef.current !== at) return          // 그 사이 화면이 옮겨갔다면 둘 것이 없다
+    const t = turnsRef.current[at]
+    if (!t) return
+    if (needsAnswer(t)) {
+      /* 학생이 답할 차례였다 — **무엇을 물었는지 다시 말해 준다.** 질문에 답하는 동안
+         원래 물음이 대화 위로 밀려 올라가서, 그냥 돌아오면 뭘 하라는 건지 알 수 없다. */
+      const it = t.interaction
+      const again = (it.kind === 'choice' || it.kind === 'subjective' || it.kind === 'mark' || it.kind === 'match')
+        ? it.prompt : ''
+      await say(again ? `자, 다시 볼게요. ${again}` : '자, 다시 볼게요.')
+      return
+    }
+    /* 들려주고 넘어가는 턴이었다 — 자동 전진이 질문 때문에 멈춰 있다. 여기서 이어 준다 */
+    if (turnIdxRef.current === at && at < turnsRef.current.length - 1 && !atItemEnd) advanceByApp(at + 1)
   }
 
   /* 다시 들려준 턴 — **한 턴에 한 번뿐이다.** 못 들었다고 하면 한 번은 더 들려주는 게 맞지만,
@@ -2000,27 +2794,35 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const ok = !!opt?.correct
       setAnswers((p) => ({ ...p, [qIdx]: label }))
       setAnsweredQ((p) => new Set(p).add(qIdx))
-      /* ⚠️ 오답이면 **채점하지 않는다.**
-         채점(graded)은 두 가지를 동시에 한다 — 보기를 잠그고, 정답을 초록으로 공개한다.
-         그래서 첫 클릭에 채점하면 강사가 "다시 골라봐" 해도 학생은 누를 수 없고,
-         이미 정답이 화면에 드러나 있다(실측). 맞혔을 때만 채점하고, 틀린 보기는 따로 표시한다. */
-      if (ok) setGraded((p) => new Set(p).add(qIdx))
-      else {
-        setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
-        /* 리뷰는 무한정 붙잡지 않는다 — 한 번 더 기회를 주고, 그래도 틀리면 정답을 열고 넘어간다.
-           못 하는 학생을 계속 세워두는 게 더 나쁘다(MAX_REASK 와 같은 판단). */
-        if (phase === 'review') {
-          const tries = (reviewTriesRef.current.get(qIdx) ?? 0) + 1
-          reviewTriesRef.current.set(qIdx, tries)
-          if (tries >= REVIEW_MAX_TRIES) setGraded((p) => new Set(p).add(qIdx))
+      /* ── 수업의 학생 풀이 단계는 **채점을 클릭 시점에 하지 않는다** ──
+         채점(graded)은 보기를 잠근다. 클릭 즉시 켜면 음원이 아직 나가는 중인데 답을 고칠 수
+         없다 — 실제 시험은 네 보기를 다 듣고 바꾼다. 게다가 잠기는 건 **정답을 눌러 본 학생만**
+         이라(오답은 graded 를 안 켰다) 먼저 맞힌 쪽이 손해를 보는 이상한 규칙이 된다(실측).
+         채점·기록은 강사가 반응하는 시점으로 미룬다(handleScriptedPick, 음원이 끝난 뒤).
+         그때까지는 파란 선택만 보기 사이를 옮겨 다닌다.
+         ⚠️ 코칭(실전 오답 리뷰)은 예전 그대로다 — 음원을 듣는 자리가 아니라 이미 채점된 것을
+            짚는 자리라, 고른 즉시 표시해 주지 않으면 같은 보기를 또 누른다. */
+      const deferVerdict = scripted && phase !== 'review'
+      if (!deferVerdict) {
+        if (ok) setGraded((p) => new Set(p).add(qIdx))
+        else {
+          setWrongPicks((p) => new Set(p).add(`${qIdx}:${label}`))
+          /* 리뷰는 무한정 붙잡지 않는다 — 한 번 더 기회를 주고, 그래도 틀리면 정답을 열고 넘어간다.
+             못 하는 학생을 계속 세워두는 게 더 나쁘다(MAX_REASK 와 같은 판단). */
+          if (phase === 'review') {
+            const tries = (reviewTriesRef.current.get(qIdx) ?? 0) + 1
+            reviewTriesRef.current.set(qIdx, tries)
+            if (tries >= REVIEW_MAX_TRIES) setGraded((p) => new Set(p).add(qIdx))
+          }
         }
+        // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
+        logResponse(label, ok)
       }
-      // 키에 보기까지 넣어야 **두 번째 시도도 강사에게 전달**된다 (턴 단위 키는 한 번만 보낸다)
-      logResponse(label, ok)
       /* 대본 수업은 에이전트가 없다 — reportAction 은 에이전트로 가는 통로라 아무 데도 닿지 않는다.
-         정오답 반응을 여기서 직접 말하고 진행까지 한다. */
+         정오답 반응을 여기서 직접 말하고 진행까지 한다.
+         ⚠️ 대화에 남기는 것도 handleScriptedPick 이 한다 — 여기서 남기면 고쳐 고를 때마다
+            말풍선이 쌓여서 "A. …" "C. …" "B. …" 가 줄줄이 남는다. 보낸 것은 마지막 하나다. */
       if (scripted) {
-        setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${opt?.text ?? ''}`.trim() }])
         void handleScriptedPick(qIdx, ok, opt?.why, label)
         return
       }
@@ -2062,6 +2864,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        동안 강사가 끼어들지 않는다. 문제를 넘기면 다음 문제 단계가 시작되며 다시 잠긴다.
        freePlay(수업 전체 종료)는 마지막 문제 뒤의 같은 상태다. */
     audioFree: freePlay || itemDone,
+    /* 필기로 짚으라고 시킨 턴 — 보기 위의 낱말 탭을 끈다(구현 중 메모 67행) */
+    markTurn: turn.interaction.kind === 'mark',
     /* 대본 수업은 강사가 지목한 보기의 스크립트를 그때그때 연다 (reveal.optionText) */
     autoScript: !!scripted,
     onPlayAudio: playLessonAudio,
@@ -2082,6 +2886,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     focusQ: turn.focusQ ?? (turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined),
     answerMode: turn.interaction.kind === 'pickAnswer' ? 'single' : turn.interaction.kind === 'solveAll' ? 'all' : 'none',
     answers, graded, wrongPicks, onSelect, showKo: false,
+    /* 다시 고르라고 시키는 턴이면 채점이 끝난 보기도 열어 준다 (코칭에서 잠겨 있던 문제) */
+    askingQ: turn.interaction.kind === 'pickAnswer' ? turn.interaction.qIdx : undefined,
+    /* 수업에서는 정오답을 색으로 내지 않는다 — 고른 보기가 파랗게만 남고, 맞고 틀림은 강사가
+       말로만 짚는다. 코칭(실전 오답 리뷰)은 이미 채점 결과를 본 자리라 색을 그대로 낸다 —
+       "내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다"(아래 review 진입부). */
+    /* S5(정답 근거 연결)에 들어서면 **정답 보기를 색으로 열어 준다** — 콘텐츠 파트 요청
+       (구현 중 메모 9행). 그 단계는 "왜 이것이 답인가" 를 짚는 자리라, 무엇이 답인지 화면에
+       보이지 않으면 강사 말만 따라가야 한다. 그 앞 단계(학생 풀이·개념 코칭)는 그대로 감춘다 —
+       거기서 정답이 보이면 학생이 풀 이유가 없다. */
+    /* ⚠️ **한 번 연 것은 다시 닫지 않는다** (구현 중 메모 45행). 예전에는 지금 턴의 단계만
+       보고 정해서, S5 를 지나 S6(오답 제거)·S7(표현 정리)로 넘어가는 순간 **정답·오답 색이
+       통째로 사라졌다** — 강사는 뒤이어 다른 보기를 설명하는데 화면에는 근거가 없어진다.
+       문항이 바뀌면 focusQ 가 바뀌므로 다음 문항은 저절로 다시 감춰진다. */
+    hideVerdict: phase !== 'review'
+      && !/^S5|정답\s*근거/.test(turn.stage)
+      && !(turn.focusQ !== undefined && verdictShown.has(turn.focusQ)),
     matchState,
   }
 
@@ -2108,12 +2928,36 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      학생이 직접 튼 음원(selfPlaying)은 둘 다 아니다 — 그건 강사와 아무 상관이 없다. */
   const tutorSpeaking = agentConnected ? conversation.isSpeaking : narrating
   const cuePlaying = playingId !== null && !selfPlaying
+  /** 강사가 **지금 실제로 소리를 내고 있는가.** 그림(포즈·클립·파동)은 전부 이걸 본다.
+   *  `tutorSpeaking` 은 "강사 차례" 라서 음원을 받는 몇 초 동안에도 켜져 있다 — 그걸 그대로
+   *  그림에 물리면 소리도 없이 손짓하며 말하는 클립이 돈다. 그동안은 듣는 자세(끄덕임)로 둔다. */
+  const tutorVoicing = tutorSpeaking && !voiceLoading
 
   /* 대본 모드에서 마이크를 여는 때 — 학생 차례이고 강사가 말하지 않는 동안만.
      낭독 중에 열어 두면 강사 목소리를 학생 답으로 전사한다. */
-  const voiceOn = !!scripted && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
+  /** ── 마이크를 여는 **단계** ──
+   *  ⚠️ 이 조건이 없어서 수업 마이크가 **실전·정리 화면에서도 계속 열려 있었다.**
+   *     단계를 넘어가도 `turn` 은 수업에서 멈춘 자리에 그대로라, 그 턴이 주관식이면 조건이
+   *     계속 참이다. 그러면 정리 화면에서 학생이 말한 문장을 **수업 쪽 인식기가 먼저 먹고**
+   *     (거기서는 쓸 데가 없어 그냥 버려진다), 정리 화면 마이크는 같은 마이크를 두고 다툰다.
+   *     "음성으로 답해도 하나도 입력이 안 된다" 가 이것이었다(실측 08-20).
+   *  말로 답하는 자리는 수업(스캐폴딩)과 오답 코칭뿐이다. 실전은 보기를 누르고, 정리는
+   *  자기 마이크 버튼을 쓴다. */
+  const voicePhase = phase === 'lesson' || phase === 'review'
+  /* 답을 고른 문항의 보기 네 개를 연다 — **자료 음원이 멎은 뒤**에만 (구현 중 메모 70행).
+     한 번 연 것은 도로 닫지 않는다(뒤이어 강사가 보기 음원을 하나씩 틀 때 깜빡이지 않게). */
+  useEffect(() => {
+    if (!INST_OPEN_ALL_OPTIONS[instructor] || cuePlaying) return
+    setOpenAllQ((prev) => {
+      let next = prev
+      answeredQ.forEach((q) => { if (!next.has(q)) { next = new Set(next); next.add(q) } })
+      return next
+    })
+  }, [answeredQ, cuePlaying, instructor])
+
+  const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
-  const getScriptedMicFreq = useScriptedVoice(!!scripted && chatMode === 'voice', voiceOn, (text) => {
+  const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
     if (asking) void askTutor(text)
     else answerSubjective(text)
   })
@@ -2132,6 +2976,30 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return () => clearTimeout(t)
   }, [itemDone, phase, agentConnected, tutorSpeaking, cuePlaying, endAgent])
 
+  /** 이 강의에서 다루는 표현 — 정리 대본의 '빈출 표현' 묶음이 원천이다 */
+  const exprList = useMemo(() => expressionsOf(scriptedSummary), [scriptedSummary])
+
+  /* ── 강사가 표현을 말하면 트레이에 담는다 ──
+     대본 발화든 앱이 지어낸 줄이든 **강사 말풍선에 오른 것**이면 다 본다(chatLog).
+     ⚠️ 담기만 하고 빼지 않는다 — 한 번 나온 표현은 수업이 끝날 때까지 남는다. */
+  useEffect(() => {
+    if (!exprList.length) return
+    const said = chatLog.filter((m) => m.role === 'ai').map((m) => m.text).join(' ').toLowerCase()
+    if (!said) return
+    setMetExpr((prev) => {
+      let added = false
+      const next = new Set(prev)
+      for (const e of exprList) {
+        const key = exprKey(e.en)
+        if (!next.has(key) && said.includes(key)) { next.add(key); added = true }
+      }
+      return added ? next : prev          // 새로 담긴 게 없으면 상태를 그대로 둔다(재렌더 방지)
+    })
+  }, [chatLog, exprList])
+
+  /** 완료 화면에 넘길 목록 — 실제로 나온 것만 */
+  const metExprList = exprList.filter((e) => metExpr.has(exprKey(e.en)))
+
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
   const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
@@ -2139,6 +3007,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      읽는 문장은 대본 발화만이 아니다(피드백·질문 답변도 이 자리를 쓴다) → typed 를 먼저 본다. */
   const tutorLine = typed ? typed.text.slice(0, typed.shown)
     : (agentConnected && lastAgentAi) || turn.tutor
+  /* 앱이 만든 줄인지는 **지금 흐르는 줄일 때만** 뜻이 있다. typed 가 비면 대본 발화라 늘 강조를 탄다. */
+  const tutorLinePlain = typed ? plainLine : false
 
   /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
      종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
@@ -2152,7 +3022,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (it.kind === 'choice' && choicePicked !== null) return it.choices[choicePicked]?.text ?? null
     if (it.kind === 'subjective' && subjSent && subjText.trim()) return subjText.trim()
     if (it.kind === 'mark' && markDone) return '표시했어요'
-    if (it.kind === 'pickAnswer' && graded.has(it.qIdx)) {
+    if (it.kind === 'pickAnswer' && pickedHere(it.qIdx)) {
       const picked = lesson.content.questions[it.qIdx]?.options.find((o) => o.label === answers[it.qIdx])
       return picked ? `${picked.label}) ${picked.text}` : null
     }
@@ -2192,7 +3062,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   if (!started) {
     return (
       <LessonIntro
-        tag={`Part ${lesson.part} · ${lesson.typeLabel}`}
+        tag={lectureTitle ?? `Part ${lesson.part} · ${lesson.typeLabel}`}
         /* 대본이 있으면 강사가 실제로 할 말을 그대로 — 없을 때만 강의 설명으로 때운다 */
         script={scriptedIntro?.script ?? `${lesson.desc} ${teacherName} 강사와 스캐폴딩 단계에 따라 하나씩 짚어볼게요.`}
         points={introPoints.map((text) => ({ text }))}
@@ -2211,19 +3081,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       <PracticeStage
         lesson={lesson}
         onJumpPhase={jumpPhase}
-        nextLabel={scriptedReview?.length ? '강사와 문제 같이 보기 →' : undefined}
+        /* 버튼 문구는 넘기지 않는다 — PracticeStage 가 점수를 보고 고른다
+           ('틀린 문제 같이 보기 →' / 다 맞혔으면 '핵심 요약으로 →'). 대본이 있다고 해서
+           '강사와 문제 같이 보기' 로 덮으면, 다 맞혀 정리로 가는 학생에게도 그 문구가 뜬다. */
         onExit={() => { stopVoice(); router.push('/lessons') }}
         onDone={(score) => {
           setPracticeScore(score)
           /* 채점 결과를 문항별로 남긴다 — 하루 끝의 복습이 이 기록에서 틀린 문항을 고른다 */
           log.practiceGraded(practiceContent.questions, score.results, score.answers)
           /* ── 대본이 있는 실전 ──
-             시트가 문항 **전부**를 짚도록 써 있다(보기 하나하나 O/X). 그래서 다 맞혀도 지나간다.
+             **틀린 문항이 있을 때만** 코칭으로 넘어간다. 다 맞혔으면 짚을 것이 없어 정리로 간다
+             (아래 갈래가 그대로 받는다). 짚을 턴은 reviewTurns 가 틀린 문항만 남겨 준다.
              채점 상태(graded)는 전부 켠다 — 이미 풀고 결과까지 본 문항이라 감출 것이 없고,
              내가 고른 보기·정답 보기가 색으로 남아야 강사 말과 화면이 맞는다.
              보기 **글자**는 미리 열지 않는다 — 강사가 "A를 볼게요" 하는 순간 그 보기만 열린다
              (턴의 reveal.optionText + st.autoScript). 네 개를 처음부터 펼치면 짚는 자리가 안 보인다. */
-          if (scriptedReview?.length) {
+          if (scriptedReview?.length && score.correct < score.total) {
             setTurnIdx(0)
             const all = practiceContent.questions.map((_, i) => i)
             setAnswers({ ...score.answers })
@@ -2306,6 +3179,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         actionSubtitle={goNextLecture
           ? '이어서 하면 오늘 목표를 채울 수 있어요'
           : '내일 이어서 만나요. 오늘은 여기까지!'}
+        expressions={metExprList}
         onHome={() => { stopVoice(); router.push('/lessons') }}
       />
     )
@@ -2396,6 +3270,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
                   {freePlay ? '수업 완료' : `문제 ${nth} / ${order.length}`}
                 </span>
+                {/* 오늘 강사가 짚어 준 표현이 여기 쌓인다 (구현 중 메모 73행).
+                    지금은 꺼 둔 상태 — 위 LESSON_EXPRESSION_TRAY 주석 참고 */}
+                {LESSON_EXPRESSION_TRAY && <ExpressionTray list={exprList} met={metExpr} />}
                 <button onClick={nav.go} disabled={!nav.can}
                   title={nav.can ? undefined : nav.hint}
                   className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
@@ -2434,10 +3311,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
-          poseSrc={instPose(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
+          poseSrc={instPose(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
           /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(poseForTurn)은
              사진과 똑같이 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
-          clipSrc={instClip(instructor, poseForTurn(turn, tutorSpeaking, cuePlaying))}
+          clipSrc={instClip(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
           allClips={instClips(instructor)}
           chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
@@ -2450,29 +3327,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 대본 모드는 **학생 차례에만** 마이크가 열린다 — 아래 입력칸도 그때만 살아 있어야
              "지금 말해도 되는가"가 화면에서 읽힌다(강사가 말하는 동안 파형이 뛰면 거짓말이다) */
           micActive={scripted ? voiceOn : undefined}
-          isSpeaking={tutorSpeaking}
+          isSpeaking={tutorVoicing}
+          /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
+          preparing={voiceLoading}
           /* 음성 모드 발화 박스 · 최소화 말풍선에 실시간으로 뜨는 "지금 하는 말" */
-          lastLine={tutorLine}
-          /* 질문 버튼은 **입력칸 아래**에 둔다 — 수업 진행(선택지)과 층이 다르다 */
-          footer={scripted && (
-  asking ? (
-    <div className="rounded-xl border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 space-y-1.5">
-      <p className="text-[12px] font-bold text-[#B45309]">
-        {askBusy ? '강사가 생각하는 중…' : '궁금한 걸 말하거나 입력해 주세요'}
-      </p>
-      <p className="text-[11px] text-[#92400E] leading-relaxed">수업은 잠시 멈춰 있어요.</p>
-      <button onClick={() => setAsking(false)} disabled={askBusy}
-        className="w-full rounded-lg border border-[#FDE68A] bg-white py-1.5 text-[12px] font-bold text-[#B45309] disabled:opacity-50">
-        수업으로 돌아가기
-      </button>
-    </div>
-  ) : (
-    <button onClick={() => { stopVoice(); setAsking(true) }}
-      className="w-full rounded-xl border border-[#E5E7EB] bg-white py-2 text-[12px] font-bold text-[#6B7280] hover:border-[#FDE68A] hover:text-[#B45309] transition-colors">
-      질문 있어요
-    </button>
-  )
-)}
+          lastLine={tutorLine} lastLinePlain={tutorLinePlain}
+          /* ── '질문 있어요' 버튼은 없앴다 ──
+             그냥 물어보면 알아서 답하고 대본으로 돌아오므로, 먼저 모드를 켜라고 시킬 이유가
+             없어졌다. 남은 것은 **답하는 동안의 한 줄**뿐이다 — 아무 표시도 없으면 학생이
+             "보낸 게 맞나" 를 알 수 없다. */
+          footer={scripted && autoAsk && (
+            <div className="w-full rounded-xl border border-[#FDE68A] bg-[#FFFBEB] py-2 text-center text-[12px] font-bold text-[#B45309]">
+              강사가 답하는 중…
+            </div>
+          )}
           /* 텍스트 모드 채팅 — 에이전트가 붙어 있으면 실제 대화, 아니면 레일 발화 + 이번 턴 응답 */
           messages={chatMessages}
           bodyRef={feedRef}
@@ -2481,18 +3349,52 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             const t = inputText.trim()
             if (!t) return
             if (scripted) {
+              /* 앞 질문에 아직 답하는 중이면 **입력칸을 비우지 않는다.** 비우면 askTutor 가
+                 askBusy 로 되돌아가면서 학생 문장만 조용히 사라진다("전송이 안 된다"). */
+              if (askBusy) return
               if (asking) { setInputText(''); void askTutor(t); return }
-              /* 지금 턴이 말로 받는 자리가 아니면(버튼 턴·듣기 턴) **입력칸을 비우지 않는다.**
-                 전에는 무조건 비워서, 학생이 보기엔 문장이 사라지고 강사는 반응이 없었다
-                 = "전송이 안 된다". 왜 안 갔는지도 한 줄 적어준다(낭독은 하지 않는다 —
-                 대본 밖 문장을 강사 목소리로 읽으면 수업이 어긋난다). */
               if (answerSubjective(t)) { setInputText(''); return }
               /* 음원이 있는 턴에서 "다시 들려주세요" 는 답이 아니라 **부탁**이다 — 받아준다 */
               if (turn.audio && isReplayAsk(t)) { setInputText(''); void replayOnAsk(t); return }
-              const why = turn.interaction.kind === 'subjective'
-                ? '이 질문에는 이미 답했어요. 강사 말을 듣고 다음으로 넘어갈게요.'
-                : '지금은 말로 답하는 차례가 아니에요. 화면의 버튼으로 답해 주세요.'
-              setChatLog((prev) => (prev[prev.length - 1]?.text === why ? prev : [...prev, { role: 'ai', text: why, aside: true }]))
+              /* ── 선택지 턴에서 친 글자는 **답이 먼저다** ──
+                 "사람과 사물 중에서?" 에 학생이 '인물' 이라고 치면 그건 답이지 질문이 아니다.
+                 이걸 질문으로 넘기면 강사가 대화만 이어가고 대본으로 못 돌아온다(실측). */
+              {
+                const it = turn.interaction
+                if (it.kind === 'choice' && choicePicked === null) {
+                  const at = matchTypedChoice(t, it.choices)
+                  if (at >= 0) { setInputText(''); setChoicePicked(at); pickChoice(it.choices[at]); return }
+                  /* 선택지 턴의 "모르겠어요" 도 질문이 아니다 — 아래로 흘려보내면 강사가 대화로
+                     받아 대본이 멈춘다. 주관식과 똑같이 짚어주고 넘어간다. */
+                  if (isGiveUp(t)) {
+                    setInputText('')
+                    setChatLog((prev) => [...prev, { role: 'user', text: t }])
+                    logResponse(t, false)
+                    void handleScriptedAnswer(false, undefined, 'giveUp')
+                    return
+                  }
+                  /* 말이 아닌 입력도 질문이 아니다 — 주관식과 같게 한 번만 되묻고 넘어간다 */
+                  if (isGibberish(t)) {
+                    setInputText('')
+                    setChatLog((prev) => [...prev, { role: 'user', text: t }])
+                    if ((triesRef.current.get(turnIdx) ?? 0) >= 1) {
+                      logResponse(t, false)
+                      void handleScriptedAnswer(false, undefined, 'giveUp')
+                      return
+                    }
+                    triesRef.current.set(turnIdx, 1)
+                    logResponse(t, null)
+                    void (async () => { await waitForCue(); await say('음, 잘 못 알아들었어요. 보기 중에서 골라 볼래요?') })()
+                    return
+                  }
+                }
+              }
+              /* ── 답을 받는 자리가 아니면, 그건 질문이다 ──
+                 예전에는 "지금은 말로 답하는 차례가 아니에요" 로 잘라냈다. 답이 아닌 게 확실한
+                 자리라서(듣기 턴, 이미 답한 주관식, 선택지에 없는 말) **되물을 것도 없이 질문이다.**
+                 '질문 있어요' 를 먼저 누르게 하는 것은 학생에게 앱의 사정을 시키는 일이다. */
+              setInputText('')
+              void askAside(t)
               return
             }
             if (!agentConnected) { setInputText(''); return }
@@ -2505,10 +3407,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           onStartAgent={startAgent}
           /* ── ① 행동 지시 (필기해 보세요·탭해 보세요…) — 수업 영역이 아니라 강사 창에서 뜬다 ── */
           hint={
-            <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded} matchTapped={matchTapped}
+            <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded}
+              pickedQ={phase === 'review' ? answeredQ : graded} matchTapped={matchTapped}
               /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
                  판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
-              markDone={markDone} markChecking={markChecking} markVerdict={markVerdict} />
+              markDone={markDone} markChecking={markChecking} markVerdict={markVerdict}
+              cuePlaying={cuePlaying} />
           }
           /* ── ② 선택지 / 다음 단계 버튼 ── */
           /* 단계가 바뀌면 텍스트 모드 채팅에서 카드가 새 말풍선처럼 다시 꽂힌다 */
@@ -2522,28 +3426,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 spoken={spokenTurn === turnIdx}
                 answers={answers} graded={graded} submitAll={submitAll}
                 choicePicked={choicePicked} setChoicePicked={setChoicePicked}
-                onChoicePick={(c) => {
-                  const it = turn.interaction
-                  if (it.kind !== 'choice') return
-                  if (scripted) {
-                    /* 정답 표시가 있는 선택지면 맞고 틀림을 앱이 안다 — 에이전트에 물어볼 것이 없다.
-                       정답 표시가 없는 선택지(양쪽 다 받아주는 질문)는 무엇을 골라도 통과시킨다. */
-                    const graded = it.choices.some((ch) => !!ch.correct)
-                    const ok = graded ? c.correct === true : true
-                    setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
-                    logResponse(c.text, graded ? ok : null)
-                    /* 넘기는 것은 **학생이 고른 것** 이다 — 짚어줄 때 '방금 고른 X 는 답이 아니에요' 로 쓴다 */
-                    void handleScriptedAnswer(ok, c.text)
-                    return
-                  }
-                  /* 정답 선택지가 있는 문항이면, 고른 게 정답 선택지가 아닐 때 명백한 오답(false)으로 넘긴다.
-                     (틀린 선택지는 correct가 undefined라, 그대로 넘기면 '채점 없음'으로 흘러가 교정을 못 했다) */
-                  const graded = it.choices.some((ch) => !!ch.correct)
-                  const ok = graded ? c.correct === true : undefined
-                  const label = `'${it.prompt}'에 대해 '${c.text}'라고 답함`
-                  reportAction(`${turnIdx}:choice`, actionMessage(label, ok, ok === false ? it.feedback : undefined))
-                  logResponse(c.text, ok ?? null)
-                }}
+                onChoicePick={pickChoice}
                 subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
                 scripted={scripted}
                 /* 판정은 answerSubjective 한 곳에만 둔다 — 두 군데서 따로 판정하면
@@ -2569,8 +3452,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 <div className="space-y-2">
                   <div className="rounded-xl border border-[#BFDBFE] bg-[#F8FAFF] px-3 py-2.5">
                     <p className="text-[12px] font-bold text-[#2563EB]">유형 학습이 끝났어요</p>
+                    {/* ⚠️ **읽기(RC)에는 음원이 없다** — 여기에 "음원을 눌러 다시 들어보세요" 를
+                        띄우면 있지도 않은 버튼을 찾게 된다(구현 중 메모 29행). */}
                     <p className="text-[11px] text-[#6B7280] leading-relaxed mt-0.5">
-                      실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.
+                      {lesson.area === 'RC'
+                        ? '이제 실전 문제로 넘어갈 수 있어요.'
+                        : '실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.'}
                     </p>
                   </div>
                   {/* 실전으로 가는 버튼은 아래 '앞으로 가는 줄' 에 있다 — 여기 또 두면 같은 일을 하는
@@ -2668,6 +3555,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
   pageRef.current = page
   const draw = useDrawingTool()
   const contentRef = useRef<HTMLDivElement>(null)
+
+  /* 문항을 넘기면 필기를 지운다 — 획은 판 하나짜리 캔버스에 쌓이므로, 안 지우면 앞 문항에 친
+     동그라미가 다음 문항 위에 그대로 떠 있다(실측 보고 08-18). 음원이 자동으로 넘긴 경우도 같다. */
+  const drawnPageRef = useRef(0)
+  useEffect(() => {
+    if (drawnPageRef.current !== page) { draw.clearCanvas(); drawnPageRef.current = page }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   /* ── 풀이 시간 ──
      실전은 시험처럼 푸는 단계라 "얼마나 걸렸는지"가 곧 실력의 일부다. 초 단위로 올라가다가
@@ -3324,79 +4219,454 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
   )
 }
 
-/* 빈칸 포함 문장 렌더.
-   **고른 것과 채점한 것은 다른 상태다** — 채점 전에는 고른 답을 파랗게만 두고 정오답 색을 쓰지 않는다.
-   한 칸 고를 때마다 초록/빨강이 뜨면 세 칸을 한 번에 채점한다는 말이 거짓말이 된다. */
-function RecapBlankSentence({ text, filled, correct, graded, answer }: {
-  text: string; filled?: string; correct?: boolean; graded?: boolean; answer: string
-}) {
-  const [pre, post] = text.split('___')
-  /* ── 채점한 뒤 빈칸에는 **정답**이 들어간다 ──
-     여기는 '핵심 요약' 이다 — 화면에 남는 문장은 읽었을 때 맞는 말이어야 한다. 틀린 답을 그대로
-     박아 두면 학생이 마지막으로 보고 나가는 문장이 틀린 문장이 된다.
-     내가 뭘 골랐는지는 아래 한 줄(내가 고른 답)과 선택지 버튼 색으로 그대로 남는다. */
-  const shown = graded ? answer : filled
+/** ── 오늘의 표현 ──
+ *  "빈출 표현 정리가 눈에 보이지 않음"(구현 중 메모 73행). 표현 목록은 **이미 있다** —
+ *  콘텐츠 파트가 정리 화면의 '핵심 빈출 표현 정리' 묶음에 뜻까지 달아 써 뒀다("rinse = 헹구다").
+ *  그걸 원천으로 쓴다. 새로 데이터를 만들지 않고, 강사가 그 표현을 말하는 순간 하나씩 쌓는다.
+ *  ⚠️ 대본에서 영어를 정규식으로 긁는 방법은 **버렸다** — 159종이 잡히는데 "the team"·
+ *     "the building" 같은 것이 태반이라 표현이라 부를 수 없었다(실측). */
+const VOCAB_ITEM = /^(.+?)\s*=\s*_{2,}\s*$/
+export interface Expression { en: string; ko: string }
+
+/** 표현을 **찾기 좋은 꼴**로 줄인다. 화면에는 원문 그대로 쓰고 대조에만 이걸 쓴다.
+ *  시트가 자리표시자를 `~` 로 적는다("a stack of ~", "reach into ~"). 그대로 찾으면
+ *  대본의 "a stack of documents" 를 못 잡는다 — 물결을 떼고 남는 말로 본다. */
+const exprKey = (s: string) => s.toLowerCase().replace(/~/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** 정리 대본에서 '표현 = 뜻' 꼴만 골라낸다. 같은 표현이 여러 묶음에 겹치면 하나로 친다. */
+function expressionsOf(groups: RecapGroup[] | undefined): Expression[] {
+  const out: Expression[] = []
+  for (const g of groups ?? []) {
+    for (const it of g.items) {
+      const m = VOCAB_ITEM.exec(it.en)
+      if (!m) continue
+      const en = m[1].trim()
+      if (!en || out.some((x) => exprKey(x.en) === exprKey(en))) continue
+      out.push({ en, ko: it.answer })
+    }
+  }
+  return out
+}
+
+/** 수업 화면에 표현 트레이를 띄울 것인가.
+ *  ⚠️ **08-28 현재 꺼 둔다.** 하단 줄의 칩으로 만들어 봤더니 화면에서 겉돌았다(사용자 확인).
+ *     UI 를 다시 생각하는 중이라 **표시만** 끈다 — 표현을 모으는 쪽(expressionsOf·metExpr)은
+ *     그대로 돌고, 완료 화면의 '오늘 배운 표현' 카드도 그대로다. 새 UI 가 정해지면 여기 한 줄. */
+const LESSON_EXPRESSION_TRAY = false
+
+/** ── 수업 중에 쌓이는 표현 트레이 ── (지금은 LESSON_EXPRESSION_TRAY 로 꺼 둠)
+ *  자리를 차지하면 안 된다 — 수업 화면은 지문과 보기가 주인이다. 그래서 하단 줄에 **칩 하나**로
+ *  접혀 있다가, 누르면 위로 펼쳐진다. 방금 담긴 표현은 잠깐 켜져서 "지금 하나 늘었다"를 알린다. */
+function ExpressionTray({ list, met }: { list: Expression[]; met: Set<string> }) {
+  const [open, setOpen] = useState(false)
+  const got = list.filter((e) => met.has(exprKey(e.en)))
+  if (!list.length) return null
   return (
-    <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed">
-      {pre}
-      <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5  border-b-2 font-black align-baseline transition-colors ${
-        shown === undefined ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
-          : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-            : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-      }`}>{shown ?? '____'}</span>
-      {post}
+    <div className="relative shrink-0">
+      <button onClick={() => setOpen((v) => !v)} disabled={!got.length}
+        className={`text-[11px] font-bold rounded-lg px-2.5 py-1.5 border transition-colors ${
+          got.length
+            ? open ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+              : 'border-[#E5E7EB] bg-white text-[#475569] hover:border-[#93C5FD]'
+            : 'border-[#F1F3F7] bg-[#F8FAFC] text-[#C4C9D4] cursor-default'
+        }`}>
+        오늘의 표현 {got.length}
+      </button>
+      {open && !!got.length && (
+        <div className="absolute bottom-full left-0 mb-2 z-30 w-[260px] max-h-[240px] overflow-y-auto
+                        rounded-xl border border-[#E5E7EB] bg-white shadow-lg divide-y divide-[#F1F3F7]">
+          {got.map((e) => (
+            <div key={e.en} className="flex items-baseline gap-2 px-3 py-2">
+              <span className="text-[12px] font-bold text-[#334155]">{e.en}</span>
+              <span className="text-[11px] text-[#64748B] ml-auto text-right">{e.ko}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* 전략 정리와 뜻 고르기(빈출 표현)를 가르던 자리였다 — 그쪽만 "틀려도 그대로 채점" 이었다.
+   이제는 **둘 다** 말한 그대로 받고 강사가 짚을 때 채점하므로 가를 이유가 없다(메모 46·53행). */
+
+/** ── 말한 문장 안에서 답 하나를 찾는다 ──
+ *  받아쓰기가 아니다. **한국어 STT 는 문장을 통째로 받으면 낱말을 흘린다** — 실측(08-20):
+ *    말한 것: "사물·풍경 사진에서는 사물의 위치와 상태를 먼저 확인한다"
+ *    들은 것: "서울 풍경 사진에서는 3월의 위치를 먼저 확인한다"   ← '와 상태' 가 통째로 날아갔다
+ *  그래서 답을 통째로 대조하면 제대로 말한 학생이 계속 튕긴다.
+ *
+ *  ① 답이 그대로 들어 있으면 그것으로 끝(가장 확실하다).
+ *  ② 아니면 답을 낱말로 쪼개 **조사를 떼고**('위치와'→'위치') 순서대로 찾아, **절반 이상**이
+ *     들어 있으면 맞은 것으로 본다. 한 낱말짜리 답('능동태')은 절반이 곧 전부라 느슨해지지 않는다.
+ *  어느 쪽이든 **찾은 자리**를 돌려준다 — 빈칸이 여럿일 때 순서를 따져야 하기 때문이다. */
+const PARTICLE = /(와|과|를|을|이|가|은|는|의|로|으로)$/
+function findAnswer(hay: string, from: number, answer: string): { at: number; len: number } | null {
+  const whole = answer.toLowerCase().replace(/[\s+·・.,()~]/g, '')
+  if (whole) {
+    const at = hay.indexOf(whole, from)
+    if (at >= 0) return { at, len: whole.length }
+  }
+  const parts = answer.split(/[\s·・/]+/).map((w) => w.replace(PARTICLE, '').toLowerCase().replace(/[+.,()~]/g, '')).filter((w) => w.length >= 1)
+  if (parts.length < 2) return null
+  const need = Math.ceil(parts.length / 2)
+  let cur = from, got = 0, first = -1, last = -1
+  for (const p of parts) {
+    const at = hay.indexOf(p, cur)
+    if (at < 0) continue
+    got += 1
+    if (first < 0) first = at
+    last = at + p.length
+    cur = last
+  }
+  return got >= need && first >= 0 ? { at: first, len: last - first } : null
+}
+
+/** loose 로 줄인 문자열 + 줄인 글자가 **원문 어디서 왔는지**의 표.
+ *  찾은 자리를 원문으로 되짚어 **학생이 실제로 한 말**을 잘라내는 데 쓴다.
+ *  ⚠️ 이게 없으면 정답 표기로 바꿔치기하게 된다 — "동작" 이라고 말했는데 칸에는
+ *     "인물의 동작" 이 떴다(08-28 지적). 맞혔다고 남의 말로 갈아 끼우면 안 된다. */
+const LOOSE_DROP = /[\s+·・.,()~]/
+function looseIndexed(s: string): { hay: string; idx: number[] } {
+  let hay = ''
+  const idx: number[] = []
+  for (let i = 0; i < s.length; i++) {
+    if (LOOSE_DROP.test(s[i])) continue
+    hay += s[i].toLowerCase()
+    idx.push(i)
+  }
+  return { hay, idx }
+}
+
+/** 닻 조각의 길이 범위.
+ *  · 최소 2 — "___ 확인" 처럼 **뒤 대본이 두 글자뿐인** 문항이 있다.
+ *  · 다만 **긴 대본을 두 글자까지 줄여 찾지는 않는다**(PROBE_MIN). 14글자짜리 대본의 꼬리를
+ *    "이면" 까지 줄이면 문장 뒤쪽의 "대상이면" 에 걸려 자리가 통째로 어긋난다(실측). */
+const ANCHOR_MIN = 2
+const ANCHOR_MAX = 14
+const PROBE_MIN = 4
+/** 빈칸 하나에 들어갈 만한 최대 길이 — 이보다 길게 잘렸으면 닻을 잘못 잡은 것이다 */
+const SLOT_MAX = 40
+
+/** 대본 조각을 학생 말에서 찾는다. 통째로 안 걸리면 **짧게 줄여 가며** 다시 본다 —
+ *  인식이 조사나 한두 글자를 흘려도 자리는 잡아야 한다.
+ *  `side`: 'tail' 은 조각의 **끝**(빈칸 바로 앞), 'head' 는 조각의 **처음**(빈칸 바로 뒤). */
+function matchAnchor(hay: string, from: number, part: string, side: 'tail' | 'head'): { at: number; len: number } | null {
+  const clean = looseIndexed(part).hay
+  if (clean.length < ANCHOR_MIN) return null
+  /* 조각이 짧으면 통째로만 찾는다. 길면 PROBE_MIN 까지만 줄인다. */
+  const floor = Math.min(clean.length, PROBE_MIN)
+  for (let len = Math.min(clean.length, ANCHOR_MAX); len >= floor; len--) {
+    const probe = side === 'tail' ? clean.slice(clean.length - len) : clean.slice(0, len)
+    const at = hay.indexOf(probe, from)
+    if (at >= 0) return { at, len }
+  }
+  return null
+}
+
+/** ── 학생이 읽은 문장을 **빈칸별로** 가른다 ──
+ *  빈칸이 둘 이상이면 키워드 찾기만으로는 모자란다. 틀리게 말하면 키워드가 안 걸리고,
+ *  그때 예전 코드는 **전체 전사를 빈 칸마다 똑같이 복사**했다 — 두 칸에 같은 말이 들어갔다
+ *  (08-28 지적). 답이 아니라 **대본의 고정된 글자**를 닻으로 잡으면 틀리게 말해도 자리는 잡힌다:
+ *
+ *    대본  "주어가 …주체이면 ___ , 주어가 …대상이면 ___를 쓴다."
+ *    학생  "주어가 …주체이면 [능동태] 주어가 …대상이면 [수동태]를 쓴다"
+ *                            └ 1번 칸                  └ 2번 칸
+ *
+ *  못 자른 칸은 null 이다 — 아무 말이나 채워 넣지 않는다. */
+function splitByTemplate(en: string, said: string): (string | null)[] {
+  const parts = en.split('___')
+  const n = parts.length - 1
+  if (n < 1) return []
+  const { hay, idx } = looseIndexed(said)
+  const out: (string | null)[] = []
+  let cur = 0
+  for (let i = 0; i < n; i++) {
+    const before = matchAnchor(hay, cur, parts[i], 'tail')
+    const start = before ? before.at + before.len : cur
+    const after = matchAnchor(hay, start, parts[i + 1], 'head')
+    /* ⚠️ **앞 대본이 있는데 못 찾았으면 자리를 못 믿는다.** 그냥 이어 붙이면 그 칸이 앞의 말을
+       통째로 삼킨다 — 인식이 조사 한 글자를 흘리기만 해도("주체이면"→"주체면") 첫 칸에
+       문장 절반이 들어갔다(실측). 그럴 땐 비워서 돌려보내고 키워드 찾기에 맡긴다. */
+    if (!before && looseIndexed(parts[i]).hay.length >= ANCHOR_MIN) {
+      out.push(null)
+      if (after) cur = after.at        // 뒤 닻이라도 잡혔으면 거기서부터 다음 칸을 본다
+      continue
+    }
+    /* 마지막 칸 뒤에 대본 글자가 없으면(문장이 빈칸으로 끝남) 남은 말이 통째로 그 칸이다 */
+    const end = after ? after.at : hay.length
+    if (end <= start) { out.push(null); continue }
+    const slot = said.slice(idx[start], idx[end - 1] + 1).trim()
+    /* 한 칸에 들어갈 말치고 지나치게 길면 닻을 잘못 잡은 것이다 — 넣지 않고 돌려보낸다 */
+    out.push(slot && slot.length <= SLOT_MAX ? slot : null)
+    cur = end
+  }
+  return out
+}
+
+/** ── 대본 문장을 **어디까지 읽었나** ──
+ *  낱말을 앞에서부터 차례로 들린 말에 맞춰 보고, **가장 멀리 맞은 낱말까지**의 길이를 돌려준다.
+ *  ⚠️ 못 맞은 낱말에서 **멈추지 않는다.** 멈추게 했더니 두 군데서 걸렸다(08-28 실측):
+ *     ① **빈칸(`___`)** — 학생이 그 자리에 넣은 말은 대본에 없으니 영영 못 찾는다. 그래서
+ *        빈칸 뒤 글자가 끝까지 안 진해졌다. 빈칸은 찾지 말고 지나가야 한다.
+ *     ② 인식이 낱말 하나를 흘리면 그 뒤가 통째로 흐린 채 남는다.
+ *     둘 다 "건너뛰고 계속" 으로 풀린다 — 어차피 **앞으로만** 찾으므로 순서는 지켜진다.
+ *  ⚠️ 이건 **보여주기 전용**이다 — 채점에는 쓰지 않는다(브라우저 내장 인식이라 못 믿는다). */
+const BLANK_WORD = /^_+$/
+function spokenWordCount(words: string[], said: string): number {
+  const hay = looseIndexed(said).hay
+  let cur = 0
+  let last = -1
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]
+    if (BLANK_WORD.test(w)) continue       // 빈칸 — 학생이 넣은 말은 대본에 없다
+    const lw = looseIndexed(w).hay
+    if (!lw) continue                      // 공백·기호
+    const at = hay.indexOf(lw, cur)
+    if (at < 0) continue                   // 흘려들은 낱말 하나 때문에 뒤를 다 끄지 않는다
+    cur = at + lw.length
+    last = i
+  }
+  return last + 1
+}
+
+/** 정리 화면에서 **글자로 답을 받는가.**
+ *  08-20 결정으로 껐다 — 빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메운다. 지금은 빈칸을
+ *  채운 문장 전체를 소리 내어 읽게 한다. 되돌리려면 이 한 줄을 true 로. */
+const RECAP_TEXT_INPUT = false
+
+/** 이 문항의 빈칸들 — 하나뿐이면 `answer`/`keywords` 가 그 칸이다.
+ *  화면·채점·강사 멘트가 전부 이 배열 하나만 보게 해서, 칸이 하나든 둘이든 길이 갈리지 않는다. */
+const blanksOf = (s: RecapSentence) => s.blanks?.length ? s.blanks : [{ answer: s.answer, keywords: s.keywords }]
+
+/* 빈칸 포함 문장 렌더 — 빈칸은 **여러 개일 수 있다.**
+   "주어가 하는 주체이면 ( ), 받는 대상이면 ( )를 쓴다" 처럼 한 문장이 두 개념을 짝지어
+   묻는 줄이 시트에 있다. 예전에는 '___' 하나만 앞뒤로 갈라서 그런 문항을 통째로 버렸다. */
+function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim }: {
+  text: string
+  /** 칸마다 학생이 넣은 말 (아직이면 undefined) */
+  filled?: (string | undefined)[]
+  /** 칸마다 맞았는가 */
+  corrects?: (boolean | undefined)[]
+  /** 칸마다 정답 */
+  answers: string[]
+  /** 아직 다 못 채웠나 — 그러면 문장을 **흐리게** 깔고, 읽은 데까지만 진하게 켠다.
+   *  다 채우면 평소 색으로 돌아온다(강사가 짚어 줄 때 흐린 문장을 읽게 할 수는 없다). */
+  dim?: boolean
+  /** **강사가 이 문항을 짚기 시작했나** — 채점 색은 그때 켠다 (구현 중 메모 46행) */
+  graded?: boolean
+  /** 지금 **말하는 중에** 들리는 말. 있으면 문장을 흐리게 깔고 읽은 데까지 진하게 켠다.
+   *  없으면(undefined) 평소대로 그린다. */
+  live?: string
+}) {
+  /* ── 무엇을 빈칸에 넣을 것인가 ──
+     **언제나 학생이 한 말 그대로다.** 맞았다고 시트의 정답 표기로 갈아 끼우지 않는다 —
+     "동작" 이라고 말했는데 칸에 "인물의 동작" 이 뜨면, 학생은 자기가 안 한 말을 자기 답으로
+     읽게 된다(08-28 지적).
+     · 강사가 아직 안 짚었으면 — 내 말이 파랗게만 남는다. 맞았는지는 아직 안 말한다.
+     · 짚으면서 — 맞았으면 초록, 틀렸으면 빨강. **틀린 칸에만** 정답을 옆에 함께 보여준다
+       (메모 53행 "계속 오답 시에 답 알려주고"). 맞은 칸에는 덧붙일 것이 없다. */
+  const parts = text.split('___')
+
+  /* ── 읽어가는 자리 비추기 ──
+     **아직 안 채운 문장은 처음부터 흐리다.** 소리 내어 읽어 가면 지나온 낱말이 차례로 진해지고,
+     다 채우면 문장 전체가 평소 색으로 돌아온다 — 강사가 짚어 줄 때 흐린 글자를 읽게 할 수는 없다.
+     학생이 "지금 내 말이 닿고 있나" 를 글자로 확인하는 자리다. Scribe 는 중간 결과가 없어서
+     이 표시는 브라우저 내장 인식이 만든다 — **못 받으면 흐린 채로 있을 뿐** 답은 그대로 들어간다. */
+  const reading = !!dim
+  /** 대본을 낱말로 쪼갠 순서 목록 (빈칸은 낱말 하나로 친다) */
+  const words: string[] = []
+  parts.forEach((part, i) => {
+    part.split(/(\s+)/).forEach((w) => words.push(w))
+    if (i < parts.length - 1) words.push('___')
+  })
+  const spoken = reading && live ? spokenWordCount(words, live) : 0
+  let wi = -1
+  const tone = (dim: string) => {
+    wi += 1
+    if (!reading) return ''
+    return wi < spoken ? 'text-[#1C1B33]' : dim
+  }
+
+  return (
+    <p className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors ${
+      reading ? 'text-[#CBD5E1]' : 'text-[#1C1B33]'}`}>
+      {parts.map((part, i) => {
+        const chunk = (
+          <>{part.split(/(\s+)/).map((w, k) => (
+            <span key={k} className={tone('text-[#CBD5E1]')}>{w}</span>
+          ))}</>
+        )
+        if (i === parts.length - 1) return <span key={i}>{chunk}</span>
+        const mine = filled?.[i]
+        const ok = graded ? corrects?.[i] : undefined
+        const shown = mine
+        wi += 1   // 빈칸도 낱말 한 자리를 차지한다
+        return (
+          <span key={i}>
+            {chunk}
+            <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 border-b-2 font-black align-baseline transition-colors ${
+              shown === undefined
+                /* ⚠️ 빈칸끼리 색을 달리하지 않는다. 예전에는 '다음에 채울 칸' 을 파랗게 띄웠는데,
+                   문장을 **통째로 한 번에** 읽는 지금 방식에서는 가리킬 순서가 없다 —
+                   두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
+                ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
+                : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+                  : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                    : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
+            }`}>{shown ?? '____'}</span>
+            {graded && ok === false && answers[i] && (
+              <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
+            )}
+          </span>
+        )
+      })}
     </p>
   )
 }
 
-/* 정리 카드 하나 — 클릭 선택 + 음성 입력 둘 다 가능 */
-function RecapCard({ index, sentence, filled, correct, graded, onPick, onSpeak, active }: {
-  index: number; sentence: RecapSentence; filled?: string; correct?: boolean
-  onPick: (choice: string) => void; onSpeak: (transcript: string) => void
-  /** 채점했는가 — 세 칸을 다 채우고 버튼을 눌러야 켜진다. 그전에는 정오답을 감춘다 */
-  graded?: boolean
+/** 주관식 답 한 칸 — 문장 사이 빈칸을 직접 적는 자리.
+ *  틀리면 **지우지 않는다.** 적은 말을 남겨 둬야 무엇을 고쳐야 할지 보인다(흔들림으로만 알린다). */
+function RecapAnswerInput({ onSubmit, shaking, order }: {
+  onSubmit: (said: string) => void; shaking?: boolean
+  /** 빈칸이 여럿인 문항에서 **지금 몇 번째 칸을 받는가** (0-based). 하나뿐이면 넘기지 않는다.
+   *  칸을 한꺼번에 늘어놓지 않고 순서대로 받는다 — 입력칸 두 개를 나란히 두면 어느 것이
+   *  어느 빈칸인지 알 수 없다(문장 안 빈칸에는 번호가 없다). */
+  order?: number
+}) {
+  const [text, setText] = useState('')
+  const send = () => { const t = text.trim(); if (t) { onSubmit(t); setText('') } }
+  const nth = order === undefined ? '' : `${['첫', '두', '세', '네', '다섯'][order] ?? String(order + 1)} 번째 `
+  return (
+    <div className={`flex items-center gap-2 ${shaking ? 'animate-shake' : ''}`}>
+      {order !== undefined && (
+        <span className="text-[11.5px] font-bold text-[#2563EB] bg-[#EFF6FF] rounded-md px-2 py-1 whitespace-nowrap">{nth}빈칸</span>
+      )}
+      <input value={text} onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+        placeholder={`${nth}빈칸에 들어갈 말을 적어 보세요`}
+        aria-label={`${nth}빈칸에 들어갈 말`}
+        className={`w-[220px] max-w-full text-[13px] font-semibold rounded-lg border px-3 py-1.5 outline-none transition-colors
+                    placeholder:text-[#9CA3AF] placeholder:font-medium
+                    ${shaking ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                              : 'border-[#E5E7EB] bg-white text-[#1C1B33] focus:border-[#2563EB]'}`} />
+      <button onClick={send} disabled={!text.trim()}
+        className={`text-[12px] font-bold rounded-lg px-3 py-1.5 border transition-colors ${
+          text.trim() ? 'border-[#2563EB] bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
+                      : 'border-[#E5E7EB] bg-white text-[#CBD5E1]'}`}>확인</button>
+    </div>
+  )
+}
+
+/* ── 정리 카드 하나 ──
+   **학생이 말한 대로 들어간다.** 되돌려 보내는 자리가 없다 — 틀려도 그대로 받아 넘어간다
+   (메모 46·53행). 맞았는지 틀렸는지는 **강사가 이 문항을 짚을 때** 색으로 켠다 —
+   그전까지는 내가 넣은 말이 파랗게만 남는다. 채점을 먼저 띄우면 강사가 말하기도 전에
+   답을 알아 버려서, 정리 멘트가 이미 아는 것을 되풀이하는 자리가 된다. */
+function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInterim, onStart, live, active, graded }: {
+  index: number; sentence: RecapSentence
+  /** 칸마다 학생이 넣은 말 — 빈칸이 하나면 길이 1이다 */
+  filled?: (string | undefined)[]
+  /** 답한다 — `blank` 는 몇 번째 빈칸인가(하나뿐이면 0) */
+  onPick: (choice: string, blank: number) => void
+  onSpeak: (transcript: string, blank: number) => void
+  /** 말하는 중에 들리는 말을 위로 올린다 (읽어가는 자리 표시용) */
+  onInterim?: (t: string) => void
+  /** 마이크를 눌러 **다시 말하기 시작**했다 — 이 문항의 답을 비운다 */
+  onStart?: () => void
+  /** 지금 이 문항을 읽는 중이면 그 말 — 아니면 undefined */
+  live?: string
+  /** 칸마다 맞았는가 — 넣은 말을 그대로 채점한 결과다(강사가 짚을 때만 화면에 낸다) */
+  corrects?: (boolean | undefined)[]
   /** 강사가 **지금 이 칸을 짚고 있는가** — 말과 화면이 같은 곳을 가리켜야 따라갈 수 있다 */
   active?: boolean
+  /** 강사가 **이 문항을 짚기 시작했나** — 채점 색은 그때 켠다 (메모 46행) */
+  graded?: boolean
 }) {
-  const done = filled !== undefined
+  const blanks = blanksOf(sentence)
+  const answers = blanks.map((b) => b.answer)
+  /** 지금 받을 빈칸 — 앞에서부터 아직 안 찬 칸. 다 찼으면 -1 */
+  const at = blanks.findIndex((_, i) => filled?.[i] === undefined)
+  const done = at === -1
+  /** ── 다 채운 뒤에도 **다시 말할 수 있다** ──
+   *  예전에는 칸이 다 차면 마이크를 감췄다. 그래서 잘못 들어간 말을 고칠 방법이 없었다
+   *  (08-28 지적). 이제 **강사가 이 문항을 짚기 전까지는** 몇 번이고 다시 말할 수 있다 —
+   *  다시 말하면 그 말로 덮어쓴다. 강사가 짚기 시작하면(graded) 채점이 끝난 자리라 닫는다.
+   *  보기를 고르는 문항(어휘)은 예전대로 한 번만 받는다 — 거기는 고르는 것이 문제 자체다. */
+  const canSpeak = sentence.choices.length ? at >= 0 : !graded
+  /** 한 칸이라도 틀렸는가 — 칸 색·테두리를 정한다 */
+  const anyWrong = corrects?.some((c) => c === false)
   return (
     /* 짚는 중인 칸은 파란 링으로 띄운다 — 어느 것을 말하는지 한눈에 보인다 */
     <div className={` border bg-white p-4 transition-all ${
       active ? 'border-[#2563EB] ring-2 ring-[#BFDBFE] shadow-[0_2px_14px_rgba(37,99,235,0.14)] scale-[1.01]'
-        : graded && done ? (correct ? 'border-[#86EFAC]' : 'border-[#FCA5A5]') : 'border-[#E5E7EB]'
+        : !done || !graded ? 'border-[#E5E7EB]'
+          : anyWrong ? 'border-[#FCA5A5]' : 'border-[#86EFAC]'
     }`}>
       <div className="flex items-start gap-2.5 mb-2.5">
+        {/* ── 번호는 ✓ 로 바뀌지 않는다 ──
+            ① 정답을 눌러야만 입력되므로 ✓ 는 '맞았다' 가 아니라 '답했다' 밖에 못 말한다.
+               그건 초록 빈칸과 잠긴 선택지가 이미 말하고 있어서 한 번 더 할 필요가 없다.
+            ② 강사가 순서대로 짚어 줄 때 **번호가 가리키는 자리**다. 다 풀고 나면 번호가
+               전부 ✓ 로 바뀌어, 정작 강사가 "두 번째 것" 을 말할 때 셀 것이 없어진다.
+            대신 색만 초록으로 바꿔 채워진 칸을 알린다. */}
         <span className={`shrink-0 w-7 h-7 rounded-full text-[12px] font-black flex items-center justify-center transition-colors ${
-          graded && done ? (correct ? 'bg-[#DCFCE7] text-[#15803D]' : 'bg-[#FEE2E2] text-[#B91C1C]') : 'bg-[#EFF6FF] text-[#2563EB]'
-        }`}>{graded && done ? (correct ? '✓' : '✗') : index + 1}</span>
-        <RecapBlankSentence text={sentence.en} filled={filled} correct={correct} graded={graded} answer={sentence.answer} />
+          !done || !graded ? 'bg-[#EFF6FF] text-[#2563EB]'
+            : anyWrong ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
+        }`}>{index + 1}</span>
+        <div className="flex-1 min-w-0">
+          <RecapBlankSentence text={sentence.en} filled={filled} corrects={corrects} answers={answers}
+            graded={graded} live={live} dim={!done} />
+        </div>
+        {/* ── 마이크는 **문장 옆**이다 ──
+            아래 줄에 두면 문항마다 버튼과 안내가 한 줄씩 더 쌓여, 문장보다 조작이 더 커 보인다.
+            말할 대상(문장) 바로 옆에 두면 무엇을 읽어야 하는지가 버튼이 가리켜 준다.
+            지시문은 여기 안 붙는다 — 목록 위에 한 번만 있다(label 을 안 넘긴다). */}
+        {canSpeak && (
+          <div className="shrink-0">
+            <MicButton lang={/[가-힣]/.test(sentence.en + sentence.answer) ? 'ko-KR' : 'en-US'}
+              onResult={(t) => onSpeak(t, Math.max(at, 0))} onInterim={onInterim} onStart={onStart} />
+          </div>
+        )}
       </div>
 
-      {/* 내가 고른 답은 **선택지 버튼에만** 남긴다 — 틀린 것은 빨강 + 취소선, 정답은 초록.
-          따로 "내가 고른 답 …" 줄을 두면 같은 사실이 화면에 두 번 있다. */}
+      {(sentence.choices.length > 0 || (RECAP_TEXT_INPUT && at >= 0)) && (
       <div className="flex flex-wrap items-center gap-2 pl-9">
+        {/* ── 보기가 없으면 **문장을 통째로 말한다** ──
+            문장 사이 빈칸(전략 정리)은 주관식인데, 08-20 결정으로 **글자 입력을 받지 않는다.**
+            빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메우게 된다 — 배운 말을 문장 안에서
+            꺼내 쓰는 것까지가 이 자리의 목적이라, 빈칸을 채운 **문장 전체**를 소리 내어 읽게 한다.
+            한 번 말하면 칸을 순서대로 찾아 한꺼번에 채운다(fillFromSpeech).
+            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다.
+            ⚠️ 글자 입력은 지운 것이 아니라 꺼 둔 것이다(RECAP_TEXT_INPUT) — 되돌리려면 여기 한 줄. */}
+        {RECAP_TEXT_INPUT && sentence.choices.length === 0 && at >= 0 && (
+          <RecapAnswerInput onSubmit={(said) => onPick(said, at)}
+            order={blanks.length > 1 ? at : undefined} />
+        )}
         {sentence.choices.map((c) => {
-          const picked = filled === c
           const isAnswer = c === sentence.answer
-          /* 채점 전에는 고친다 — 세 칸을 다 보고 마음을 바꿀 수 있어야 '한 번에 채점' 이 뜻이 산다.
-             채점한 뒤에는 잠근다(답이 열린 뒤 고쳐 봐야 의미가 없다).
-             채점 뒤에는 **정답 버튼이 안 고른 것이어도 초록**이다 — 틀린 학생에게 답을 보여줘야 한다. */
+          /* ⚠️ hover 에 **배경색을 주지 않는다.** 오답으로 빨개졌다가 풀리는 순간 마우스가
+             그 버튼 위에 그대로 있어서, 빨강이 곧바로 hover 하늘색으로 바뀐다 —
+             "빨강 → 하늘색" 으로 읽혀 무슨 뜻인지 알 수 없다(실측). 채워진 칸(초록)과도
+             헷갈린다. hover 는 테두리로만 알린다. */
           return (
-            <button key={c} disabled={graded} onClick={() => onPick(c)}
-              className={`text-[12px] font-semibold border  px-3 py-1.5 transition-colors ${
-                graded
+            <button key={c} disabled={done} onClick={() => onPick(c, 0)}
+              className={`text-[12px] font-semibold border px-3 py-1.5 transition-colors ${
+                done && graded
+                  /* 강사가 짚는 자리 — 정답은 초록, 내가 고른 오답은 빨강 취소선, 나머지는 흐림 */
                   ? isAnswer ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                    : picked ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
+                    : filled?.[0] === c ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
                       : 'border-[#E5E7EB] text-[#CBD5E1]'
-                  : picked ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-                    : 'border-[#E5E7EB] text-[#374151] hover:border-[#93C5FD] hover:bg-[#EFF6FF]'
+                  /* 고르기만 한 자리 — 내가 고른 것만 파랗게 남는다. 정답은 아직 말하지 않는다 */
+                  : done ? filled?.[0] === c ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+                      : 'border-[#E5E7EB] text-[#CBD5E1]'
+                    : 'border-[#E5E7EB] bg-white text-[#374151] hover:border-[#2563EB] hover:text-[#1D4ED8]'
               }`}>{c}</button>
           )
         })}
-        {/* 받아쓸 말이 어느 나라 말인가 — 기본 정리는 영어 문장 빈칸이지만, 대본 강의의 핵심요약은
-            "사람의 (___) 확인" 같은 **한국어 전략 퀴즈**다. en-US 로 받으면 한 마디도 못 알아듣는다. */}
-        {!graded && <MicButton lang={/[가-힣]/.test(sentence.answer) ? 'ko-KR' : 'en-US'} onResult={onSpeak} />}
       </div>
+      )}
+
     </div>
   )
 }
@@ -3408,112 +4678,277 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   /** 강사 코드 — 목소리·영상 클립을 고른다. 정리 화면도 **그 강사**여야 한다 */
   instructor: string
   /** 대본 수업의 정리 퀴즈 (시트 '핵심요약'). 대본 강의는 영어 문장 빈칸이 아니라
-   *  그 강의에서 세운 **판단 순서**를 되짚는 한국어 퀴즈다 */
-  scriptedSummary?: RecapSentence[]
+   *  그 강의에서 세운 **판단 순서**를 되짚는 한국어 퀴즈다. 묶음이 여럿일 수 있다 */
+  scriptedSummary?: RecapGroup[]
   onExit: () => void
   /** 개발용 단계 점프 (DEV_PHASE_JUMP) */
   onJumpPhase?: (i: number) => void
   /** 정리 정답률 — 완료 화면의 성취 배지에 쓴다 */
   onDone: (recap: { correct: number; total: number }) => void
 }) {
-  const [fills, setFills] = useState<Record<string, string>>({})
-  /** 채점했는가 — 세 칸을 다 채우고 버튼을 눌러야 켜진다. 그전에는 정오답을 보여주지 않는다 */
-  const [graded, setGraded] = useState(false)
-  const spokenRef = useRef(false)
+  /** 문항 id → **칸별** 학생 답. 빈칸이 하나면 길이 1이다 */
+  const [fills, setFills] = useState<Record<string, (string | undefined)[]>>({})
 
   /* 대본 강의는 정리 퀴즈도 시트가 정본이다 — 없으면 강의에 박아 둔 기본 문장 3개 */
   const scripted = !!scriptedSummary?.length
-  const sentences = scripted ? scriptedSummary! : lesson.recap.sentences
-  const allDone = sentences.every((s) => fills[s.id] !== undefined)
+  const groups: RecapGroup[] = scripted ? scriptedSummary!
+    : [{ title: '', intro: '', items: lesson.recap.sentences }]
 
-  /** 맞았는가 — **채점 버튼을 누른 뒤에 계산한다.**
-   *  누른 답이 정답과 같거나(클릭), 말한 문장에 정답 표현이 들어 있으면(음성) 정답이다. */
-  const correctOf = (s: RecapSentence): boolean | undefined => {
-    const f = fills[s.id]
-    if (f === undefined) return undefined
-    return f === s.answer || s.keywords.some((k) => f.toLowerCase().includes(k))
+  /* ── 묶음 하나가 화면 한 장이다 ──
+     시트가 정리를 '핵심 요약 (1) 전략' · '(2) 빈출 표현' 으로 나눠 쓰고 묶음마다 제목과
+     강사 도입을 달아 뒀다 — 그건 **두 화면**으로 그린 것이다. 한 장에 이어 붙이면
+     이도윤 24강이 15칸짜리 한 판이 되어, 다 채워야 채점이 열린다. */
+  const [page, setPage] = useState(0)
+  const group = groups[Math.min(page, groups.length - 1)]
+  const items = group.items
+  const lastPage = page >= groups.length - 1
+
+  const allDone = items.every((s) => blanksOf(s).every((_, i) => fills[s.id]?.[i] !== undefined))
+  /** 강사가 **짚기 시작한** 문항 id — 채점 색은 여기 들어온 뒤에 켠다 (메모 46행).
+   *  "학생이 말한 거 그대로 입력 → 강사가 피드백할 때 채점" 이라, 채우는 동안에는
+   *  맞았는지 틀렸는지를 화면이 먼저 말하지 않는다. */
+  const [revealed, setRevealed] = useState<Set<string>>(new Set())
+  /** 칸마다 맞았는가 — **넣을 때 정해서 들고 있는다.** 화면에 남는 글자로 되풀이 채점하지
+   *  않는다: 칸에는 학생이 한 말이 그대로 들어가는데, 그 말을 다시 채점기에 넣으면 판정이
+   *  글자에 따라 흔들린다(맞혔는데 잘라낸 조각이 키워드와 안 겹치는 일이 있다). */
+  const [verdicts, setVerdicts] = useState<Record<string, (boolean | undefined)[]>>({})
+  /** 지금 **소리 내어 읽는 중인** 문항과 거기서 들린 말 — 문장을 따라 밝히는 데만 쓴다 */
+  const [live, setLive] = useState<{ id: string; text: string } | null>(null)
+
+  /** 이 답이 맞는가 — 클릭이면 정답과 같은지, 음성이면 정답 표현이 들어 있는지 */
+  /** 이 답이 맞는가 — 보기를 누른 것이면 정답과 같은지, 직접 적거나 말한 것이면 넉넉히 본다.
+   *  ⚠️ 넉넉한 비교는 **주관식(보기 없는 칸)에만** 쓴다. 어휘 확인에 걸면 뜻이 겹치는 보기끼리
+   *     서로 정답으로 통과한다 — 거기는 고른 그대로 채점해야 무엇을 모르는지 보인다. */
+  const loose = (x: string) => x.toLowerCase().replace(/[\s+·・.,()~]/g, '')
+  const isRight = (s: RecapSentence, said: string, blank = 0) => {
+    const b = blanksOf(s)[blank] ?? blanksOf(s)[0]
+    if (said === b.answer) return true
+    if (s.choices.length) return b.keywords.some((k) => said.toLowerCase().includes(k))
+    /* 적은 말은 기호·띄어쓰기가 제각각이다("be + -ing" ↔ "be ing"). 조사만 붙여 쓴 답
+       ("동작이요")과 핵심만 쓴 답("동작")도 받아 준다 — 여기는 배운 말을 꺼내는 자리지
+       받아쓰기가 아니다. */
+    const a = loose(said)
+    if (a.length < 1) return false
+    return b.keywords.some((k) => { const c = loose(k); return !!c && (a.includes(c) || (c.includes(a) && a.length >= 2)) })
   }
-  const correctCount = sentences.filter((s) => correctOf(s)).length
+
+  /** 채운 답이 맞았는가 — 아직 안 채운 칸은 undefined 다(화면이 '덜 찼음' 을 그걸로 안다) */
+  const correctsOf = (s: RecapSentence): (boolean | undefined)[] =>
+    blanksOf(s).map((_, i) => (fills[s.id]?.[i] === undefined ? undefined : (verdicts[s.id]?.[i] ?? false)))
+  /** 문항 하나가 맞았는가 — **칸이 전부 맞아야** 맞은 것이다(아직 덜 찼으면 undefined) */
+  const correctOf = (s: RecapSentence): boolean | undefined => {
+    const cs = correctsOf(s)
+    if (cs.some((c) => c === undefined)) return undefined
+    return cs.every((c) => c === true)
+  }
+  /* 완료 화면에 넘기는 성적 — 전체 장을 합친다 */
+  const allItems = groups.flatMap((g) => g.items)
+  const correctCount = allItems.filter((s) => correctOf(s) === true).length
 
   /* ── 강사가 직접 짚어 준다 ──
-     예전에는 카드 밑에 회색 글씨로 피드백을 깔아두고, 마지막에 작은 썸네일 하나가 붙었다.
      정리는 **학생이 답할 것이 없는 자리**라 화면을 강사에게 내줘도 잃을 게 없다 —
      얼굴을 위에 세우고, 말풍선은 '지금 하는 말' 한 자리다(TutorDock 음성 모드와 같은 규칙).
      ⚠️ 목소리는 반드시 speakTTS(강사) 다. 예전 speakKorean 은 브라우저 TTS 라, 수업 내내
      강사 목소리로 듣다가 **마지막 화면에서만 기계 음성**으로 바뀌었다(실측). */
   const ttsPersona = INST_PERSONA[instructor] ?? 'park'
-  const [line, setLine] = useState('세 칸을 먼저 채워 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.')
+  /* 시트에 도입 문구가 없을 때만 쓰는 기본 안내 — 보기가 있으면 '골라', 없으면 '적어' 다.
+     화면에 없는 조작을 시키면 학생이 없는 버튼을 찾는다. */
+  const FILL_HINT = items[0]?.choices.length
+    ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+    : '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+  const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
   const say = async (text: string) => {
     if (!text) return
     stopCurrentAudio()                    // 앞 칸 피드백이 남아 있으면 끊는다
-    setLine(text)
-    setSpeaking(true)
-    try { await speakTTS(koLetters(text), ttsPersona, instructor) }
-    finally { setSpeaking(false) }
+    /* 글자는 **소리가 나갈 때** 띄운다(onStart) — 먼저 띄우면 학생이 읽어 버린 뒤에 강사가
+       같은 말을 시작한다. 비워 둔 동안에는 그 자리에 점 세 개가 돈다.
+       finally 에서 다시 넣는 이유: 화면 전환 등으로 소리가 아예 안 나가도 글자는 남아야 한다. */
+    setLine('')
+    /* 아바타도 **소리가 나갈 때** 말하는 클립으로 바뀐다. 먼저 켜면 음원을 받는 몇 초 동안
+       소리 없이 입만 움직인다 — 그동안은 끄덕임(listen)이 돈다. */
+    try { await speakTTS(koLetters(text), ttsPersona, instructor, () => { setLine(text); setSpeaking(true) }) }
+    finally { setLine(text); setSpeaking(false) }
   }
 
   /* ── 정리는 **다 채운 뒤 한 번에** 듣는다 ──
-     칸을 채울 때마다 강사가 끼어들면 세 번 끊긴다. 학생은 세 칸을 자기 속도로 먼저 채우고,
+     칸을 채울 때마다 강사가 끼어들면 여러 번 끊긴다. 학생은 이 장을 자기 속도로 먼저 채우고,
      버튼을 눌러 정리를 듣는다. 말하는 동안 **그 칸이 켜져서** 어느 것을 짚는지 눈으로 따라간다. */
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
   const [playing, setPlaying] = useState(false)
   const [played, setPlayed] = useState(false)
-  /** 건너뛰기·언마운트로 중간에 끊을 때 쓰는 표 — 지난 회차의 남은 await 가 화면을 되돌리지 못하게 한다 */
+  /** 건너뛰기·장 넘김·언마운트로 끊을 때 쓰는 표 — 지난 회차의 남은 await 가 화면을 되돌리지 못하게 한다 */
   const runRef = useRef(0)
-
-  /** 채점 + 정리를 한 번에. 버튼 하나로 **결과가 열리고 강사가 짚기 시작한다** */
-  const gradeAndWrapUp = async () => {
-    setGraded(true)
-    await runWrapUp()
-  }
-
-  const runWrapUp = async () => {
-    const token = ++runRef.current
-    setPlaying(true)
-    for (let i = 0; i < sentences.length; i++) {
-      const text = feedbackOf(sentences[i])
-      if (!text) continue
-      if (runRef.current !== token) return
-      setActiveIdx(i)
-      await say(text)
-    }
-    if (runRef.current !== token) return
-    setActiveIdx(null)
-    /* 마무리 한마디. **대본 강의에는 붙이지 않는다** — recap.closing 은 옛 샘플 강의에 박아 둔
-       문장이라 시트 대본에 없는 내용을 정리라며 읊게 된다. */
-    if (!scripted && lesson.recap.closing) await say(lesson.recap.closing)
-    if (runRef.current !== token) return
-    setPlaying(false)
-    setPlayed(true)
-  }
-
-  const skipWrapUp = () => {
-    runRef.current += 1
-    stopCurrentAudio()
-    setActiveIdx(null); setSpeaking(false); setPlaying(false); setPlayed(true)
-    setLine('정리를 건너뛰었어요. 완료하기를 눌러 마치면 돼요.')
-  }
-
-  /* 다 채웠으면 무엇을 하면 되는지 말해 준다 — 버튼만 바뀌고 강사는 가만히 있으면 눈치채기 어렵다 */
-  useEffect(() => {
-    if (!allDone || spokenRef.current) return
-    spokenRef.current = true
-    setLine('세 칸 다 채웠어요. 아래 버튼을 누르면 채점하고 하나씩 짚어 줄게요.')
-  }, [allDone])
-
-  useEffect(() => () => { runRef.current += 1; stopVoice(); stopCurrentAudio() }, [])
 
   /** 그 칸의 피드백 — 시트 '정답 후 강사 피드백' 그대로. 첫머리 맞장구만 뗀다
    *  ("맞아요. 사람 중심 사진은 …" → "사람 중심 사진은 …"). 틀렸는데 "맞아요" 로 시작하면 거짓말이 된다. */
   const feedbackOf = (s: RecapSentence) => stripAck(s.ko ?? '')
 
-  /* 고르기만 한다 — 채점은 세 칸을 다 채우고 버튼을 눌렀을 때 한 번에 */
-  const pick = (s: RecapSentence, choice: string) => setFills((p) => ({ ...p, [s.id]: choice }))
-  const speakAnswer = (s: RecapSentence, transcript: string) => {
+  const runWrapUp = async () => {
+    const token = ++runRef.current
+    setPlaying(true)
+    for (let i = 0; i < items.length; i++) {
+      if (runRef.current !== token) return
+      /* 채점 색은 **여기서** 켠다 — 강사가 이 문항을 짚기 시작하는 순간이다 (메모 46행).
+         말할 거리가 없는 문항(피드백 문구가 비어 있음)도 짚고 지나가는 것으로 친다.
+         안 그러면 그 문항만 끝까지 채점이 안 된 채 남는다. */
+      setRevealed((p) => new Set(p).add(items[i].id))
+      const text = feedbackOf(items[i])
+      if (!text) continue
+      setActiveIdx(i)
+      await say(text)
+    }
+    if (runRef.current !== token) return
+    setActiveIdx(null)
+    /* 마지막 장의 마무리 한마디. **대본 강의에는 붙이지 않는다** — recap.closing 은 옛 샘플
+       강의에 박아 둔 문장이라 시트 대본에 없는 내용을 정리라며 읊게 된다. */
+    if (!scripted && lastPage && lesson.recap.closing) await say(lesson.recap.closing)
+    if (runRef.current !== token) return
+    setPlaying(false)
+    setPlayed(true)
+  }
+
+  /** 장이 바뀌면 **맨 위부터** 보여준다 — 10문항짜리 장을 끝까지 내려간 자리에서 다음 장을
+   *  열면 새 장의 중간이 나온다(제목도 첫 문항도 화면 밖이다) */
+  const pageRef = useRef<HTMLDivElement>(null)
+
+  /** 다음 장 — 이 장의 상태를 접고 새 장의 도입을 강사가 말한다 */
+  const nextPage = () => {
+    runRef.current += 1
+    stopCurrentAudio()
+    setPage((p) => p + 1)
+    setPlayed(false); setPlaying(false); setActiveIdx(null); setSpeaking(false)
+    pageRef.current?.scrollTo({ top: 0 })
+  }
+
+  /* 장이 열리면 그 장의 강사 도입을 말한다 — 시트가 묶음마다 'AI 강사 도입' 을 따로 써 뒀다.
+     첫 장은 화면에 들어오자마자 말하면 실전 채점 소리와 겹칠 수 있어 글자로만 둔다. */
+  const openedRef = useRef(0)
+  useEffect(() => {
+    if (openedRef.current === page) return
+    const first = openedRef.current === 0 && page === 0
+    openedRef.current = page
+    if (first) { setLine(group.intro || FILL_HINT); return }
+    void say(group.intro || FILL_HINT)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
+
+  /* ── 마지막 칸을 채우면 **강사가 바로 짚기 시작한다** ──
+     누를 것을 하나 더 두지 않는다. 장마다 한 번만 돈다(장 번호로 표를 남긴다). */
+  const startedRef = useRef(-1)
+  useEffect(() => {
+    if (!allDone || startedRef.current === page) return
+    startedRef.current = page
+    void runWrapUp()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDone, page])
+
+  useEffect(() => () => {
+    runRef.current += 1; stopVoice(); stopCurrentAudio()
+  }, [])
+
+  /* 오답을 흔들어 되돌려 보내던 자리였다 — 이제 **되돌려 보내지 않는다.** 무엇을 넣든
+     그대로 받고, 맞고 틀림은 강사가 짚을 때 색으로 말한다 (메모 46행). */
+
+  /** 답 하나를 받는다 — **틀려도 그대로 받는다** (메모 46·53행).
+   *  예전에는 전략 정리에서 정답을 눌러야만 입력돼서, 못 맞히면 그 자리에 갇혔다
+   *  ("핵심 요약 … 못 맞추면 아예 안넘어가짐", 메모 53행). 지금은 말한 그대로 넣고,
+   *  맞았는지는 강사가 짚을 때 색으로 켠다. 틀린 것이 곧 정보이기도 하다.
+   *  마지막 칸이 채워지면 강사가 알아서 짚기 시작한다. */
+  /** ── 이 문항을 **처음 상태로 되돌린다** ── (마이크를 다시 누른 자리)
+   *  칸을 비우고 판정도 함께 버린다. 판정만 남으면 채우지도 않은 칸이 채점된 것으로 보인다. */
+  const clearItem = (id: string) => {
+    setFills((p) => { const n = { ...p }; delete n[id]; return n })
+    setVerdicts((p) => { const n = { ...p }; delete n[id]; return n })
+    /* 아직 강사가 시작하지 않았으면 **시작 표시도 풀어 준다** — 안 그러면 다시 채워도
+       "이 장은 이미 시작했다"로 남아 강사가 영영 시작하지 않는다. 이미 말하는 중이면
+       그대로 둔다(그 표시가 두 번 시작하는 것을 막고 있다). */
+    if (!playing) startedRef.current = -1
+  }
+
+  const answerOne = (s: RecapSentence, said: string, blank = 0) => {
+    if (!said.trim()) return
+    const ok = isRight(s, said, blank)
+    /** 칸 하나만 갈아 끼운다 — 나머지 칸에 이미 넣은 답은 그대로 둔다 */
+    setFills((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as string | undefined)
+      cur[blank] = said
+      return { ...p, [s.id]: cur }
+    })
+    setVerdicts((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as boolean | undefined)
+      cur[blank] = ok
+      return { ...p, [s.id]: cur }
+    })
+  }
+  const pick = (s: RecapSentence, choice: string, blank = 0) => answerOne(s, choice, blank)
+
+  /** ── 말한 문장 하나에서 칸을 **순서대로** 찾는다 ──
+   *  학생은 빈칸을 채운 문장 전체를 읽는다("주어가 동작을 직접 하는 주체이면 능동태, …").
+   *  칸마다 따로 듣지 않고 그 한 번의 말에서 앞 칸부터 차례로 찾아 나간다.
+   *
+   *  ⚠️ **순서를 지켜야 한다.** 찾은 자리 뒤에서만 다음 칸을 찾는다 — 그냥 "들어 있는가" 로
+   *     보면 능동태·수동태를 **바꿔 말해도** 둘 다 통과한다. 그 문항이 잡으려는 실수가 바로
+   *     그것이라, 자리가 어긋나면 못 맞힌 것으로 본다. */
+  const fillFromSpeech = (s: RecapSentence, said: string): { text: string | null; ok: boolean }[] => {
+    const blanks = blanksOf(s)
+    /* ① 대본의 고정 글자를 닻으로 칸을 가른다 — 틀리게 말해도 자리는 잡힌다 */
+    const bySlot = splitByTemplate(s.en, said)
+    /* ② 닻이 안 잡힌 칸만 키워드로 찾아 본다 (빈칸 하나짜리는 대개 이쪽으로 끝난다) */
+    const { hay, idx } = looseIndexed(said)
+    let from = 0
+    return blanks.map((b, i) => {
+      const slot = bySlot[i] ?? null
+      if (slot) {
+        /* 잘라낸 말 그대로 넣는다 — 맞았는지는 키워드로 따로 본다(시트 표기로 갈아 끼우지 않는다) */
+        return { text: slot, ok: isRight(s, slot, i) }
+      }
+      let hit: { at: number; len: number } | null = null
+      for (const k of (b.keywords.length ? b.keywords : [b.answer])) {
+        const at = findAnswer(hay, from, k)
+        if (at && (hit === null || at.at < hit.at)) hit = at
+      }
+      if (!hit) return { text: null, ok: false }
+      const start = idx[hit.at]
+      const end = idx[Math.min(hit.at + hit.len, idx.length) - 1]
+      from = hit.at + hit.len
+      return { text: said.slice(start, end + 1).trim() || said.trim(), ok: true }
+    })
+  }
+
+  /** 음성 답. 보기가 있는 자리(어휘)는 예전처럼 한 칸을 받고,
+   *  보기가 없는 자리(전략 정리)는 **문장 하나로 칸을 한꺼번에** 채운다. */
+  const speakAnswer = (s: RecapSentence, transcript: string, blank = 0) => {
     if (!transcript.trim()) return
-    setFills((p) => ({ ...p, [s.id]: transcript }))
+    if (s.choices.length) { answerOne(s, transcript, blank); return }
+    const found = fillFromSpeech(s, transcript)
+    /* 칸이 하나뿐이면 예전 판정도 한 번 더 본다 — 답의 일부만 말한 경우까지 받아 주던 자리다
+       ("be + -ing" 를 "비 아이엔지" 로 말하는 식). 칸이 여럿이면 자리를 따져야 해서 쓰지 않는다. */
+    if (found.length === 1 && !found[0].text && isRight(s, transcript, 0)) found[0] = { text: transcript.trim(), ok: true }
+
+    /* ── 아직 아무것도 못 담은 칸을 어떻게 할 것인가 ──
+       메모 46행은 "학생이 말한 거 그대로 입력" 이다. 그런데 **빈칸이 여럿일 때 전체 전사를
+       칸마다 복사하면 같은 말이 두 번 들어간다**(08-28 지적). 그래서 통째로 넣는 것은
+       **채울 칸이 하나 남았을 때뿐**이다. 여럿이면 비워 두고 다시 말하게 한다 —
+       화면의 빈칸이 어디가 안 찼는지 이미 보여 준다. */
+    const prev = fills[s.id]
+    const blanks = blanksOf(s)
+    const openIdx = blanks.map((_, i) => i).filter((i) => prev?.[i] === undefined && !found[i].text)
+    const soleOpen = openIdx.length === 1 && blanks.length > 1 ? openIdx[0] : (blanks.length === 1 ? 0 : -1)
+    const put = found.map((f, i) => (f.text ? f : i === soleOpen ? { text: transcript.trim(), ok: isRight(s, transcript, i) } : f))
+
+    setFills((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanks.map(() => undefined as string | undefined)
+      put.forEach((f, i) => { if (f.text) cur[i] = f.text })
+      return { ...p, [s.id]: cur }
+    })
+    /* 판정은 **여기서 정해 못 박는다** — 화면 글자를 나중에 되풀이 채점하지 않는다 */
+    setVerdicts((p) => {
+      const cur = p[s.id] ? [...p[s.id]] : blanks.map(() => undefined as boolean | undefined)
+      put.forEach((f, i) => { if (f.text) cur[i] = f.ok })
+      return { ...p, [s.id]: cur }
+    })
   }
 
   return (
@@ -3533,13 +4968,13 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           <div className="flex-1 min-w-0">
             <span className="text-[11px] font-bold text-[#6B7280]">{teacherName} 강사</span>
             <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium mt-0.5 max-h-[7.5em] overflow-y-auto">
-              {line}
+              {line ? <TutorText text={line} /> : <SpeechDots />}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
+      <div ref={pageRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-5">
         <div className="max-w-[640px] mx-auto space-y-4">
           {/* 카드 위의 안내 줄글(제목·"직접 채워보세요"·"탭하거나 🎤")은 두지 않는다 —
               그 말은 이제 **강사가 위에서 직접 한다.** 같은 말이 화면에 두 번 있으면
@@ -3552,35 +4987,60 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
             </div>
           )}
 
+          {/* 이 장의 제목 — 장이 여럿일 때만 뜬다(윤다은은 한 장이라 제목이 없다) */}
+          {group.title && (
+            <div className="flex items-baseline gap-2 pt-1">
+              <p className="text-[13px] font-black text-[#1C1B33]">{group.title}</p>
+              <span className="text-[11px] font-bold text-[#9CA3AF]">{items.length}문항</span>
+              {groups.length > 1 && (
+                <span className="ml-auto text-[11px] font-bold text-[#94A3B8] tabular-nums">
+                  {page + 1} / {groups.length}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* ── 조작법은 **여기 한 번만** ──
+              예전엔 문항마다 마이크 옆에 같은 문장이 붙어 있었다. 10문항짜리 장에서는 그 말이
+              열 번 반복돼 화면이 지시문으로 뒤덮인다(08-28 지적).
+              ⚠️ "카드 위에 안내 줄글을 두지 않는다"(강사가 위에서 말한다)는 앞선 결정이 있었는데,
+                 여기만 되살린다 — Scribe 는 배치 전사라 **한 번 더 눌러 끝내야** 글자가 온다.
+                 그 조작은 강사 대본에 없는 말이라, 화면이 알려주지 않으면 알 길이 없다. */}
+          {items.some((s) => !s.choices.length) && (
+            <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#64748B]">
+              <span aria-hidden className="text-[13px]">🎤</span>
+              문장 옆 마이크를 누르고 빈칸을 채워 소리 내어 읽은 뒤, 마이크를 한 번 더 눌러 주세요.
+            </p>
+          )}
+
           <div className="space-y-3">
-            {sentences.map((s, i) => (
+            {items.map((s, i) => (
               <RecapCard key={s.id} index={i} sentence={s} filled={fills[s.id]}
-                correct={correctOf(s)} graded={graded} active={activeIdx === i}
-                onPick={(c) => pick(s, c)} onSpeak={(t) => speakAnswer(s, t)} />
+                corrects={correctsOf(s)} graded={revealed.has(s.id)}
+                live={live?.id === s.id ? live.text : undefined}
+                onInterim={(t) => setLive(t === '' ? null : { id: s.id, text: t })}
+                onStart={() => clearItem(s.id)}
+                active={activeIdx === i}
+                onPick={(c, b) => pick(s, c, b)} onSpeak={(t, b) => speakAnswer(s, t, b)} />
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── 버튼 하나가 순서를 이끈다 ──
-          채우는 중 → [완료하기] 잠김 · 다 채움 → [채점하고 정리 듣기] · 말하는 중 → [건너뛰기] ·
-          다 들음 → [완료하기]. 셋을 나란히 두면 무엇을 눌러야 할지 매번 고르게 된다. */}
+      {/* ── 버튼은 '다음' 하나뿐이다 ──
+          채점은 강사가 짚을 때 되고, 마지막 칸을 채우면 **강사가 알아서** 시작한다.
+          누를 것을 하나 더 두면 학생이 "왜 아무 일도 안 일어나지" 하고 버튼을 찾게 된다.
+          ⚠️ **건너뛰기는 없앴다** (메모 51행, 콘텐츠 파트 답: "강사 말 얼마 안되니 끝까지
+             듣고 완료하기 버튼 활성화되게"). 정리 멘트가 이 화면의 알맹이라, 건너뛰면
+             남는 게 빈칸 채우기뿐이다. 말하는 동안에는 지금 무엇을 하는 중인지만 알린다. */}
       <div className="shrink-0 bg-white border-t border-[#EBEBF0] px-4 md:px-6 py-3">
-        <div className="max-w-[640px] mx-auto flex justify-end">
-          {allDone && !played ? (
-            playing ? (
-              <button onClick={skipWrapUp}
-                className="px-5 py-2.5  bg-white border border-[#E5E7EB] text-[#334155] text-sm font-bold">
-                건너뛰기
-              </button>
-            ) : (
-              <button onClick={() => void gradeAndWrapUp()} className={PRIMARY_BTN}>
-                채점하고 정리 듣기
-              </button>
-            )
+        <div className="max-w-[640px] mx-auto flex items-center justify-end gap-3">
+          {playing && <span className="text-[12px] font-bold text-[#94A3B8]">강사가 정리하는 중이에요</span>}
+          {!lastPage ? (
+            <button disabled={!played} className={PRIMARY_BTN} onClick={nextPage}>다음 →</button>
           ) : (
             <button disabled={!played} className={PRIMARY_BTN}
-              onClick={() => onDone({ correct: correctCount, total: sentences.length })}>완료하기</button>
+              onClick={() => onDone({ correct: correctCount, total: allItems.length })}>완료하기</button>
           )}
         </div>
       </div>

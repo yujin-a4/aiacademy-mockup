@@ -5,6 +5,9 @@
  * "동일 유형 오답 문제 풀이"(curriculumSchedule.REVIEW_LABEL). 그날 강의에서 **틀린 문항**이
  * 있으면 그 문항의 **유사 문항**을 낸다. 순서가 아니라 오답에 매단다.
  *
+ * 다만 **빈손으로 돌려보내지 않는다**(메모 54행, 콘텐츠 파트 요청): 오답에서 온 것이 3개가
+ * 안 되면 그날 복습 문항 중에서 무작위로 채우고, 5개에서 끊는다 → `reviewStore.useReviewPlan`.
+ *
  * **강사가 없다.** 실전 화면(PracticeStage)을 그대로 재사용해 풀고 채점만 한다 — 시트에 복습
  * 대본이 없어서, 강사를 붙이면 통제 안 된 LLM 자유 발화가 된다(docs/tutor-control-plan.md).
  *
@@ -73,15 +76,17 @@ export default function ReviewSessionPage() {
     return <div className="h-dvh flex items-center justify-center bg-[#F5F8FE] text-sm text-gray-500">복습할 문제를 고르는 중…</div>
   }
 
-  /* 틀린 것이 없으면 **아무 문제나 내지 않는다** — 복습은 오답에 매단 자리다 */
+  /* 여기까지 비어 있으면 **그날 복습 문항 자체가 DB 에 없다.** 틀린 것이 없어도 무작위로
+     채우기 때문에(메모 54행), 이제 빈 목록은 "오답이 없다"가 아니라 "낼 문항이 없다"이다. */
   if (!plan.codes.length) {
     return <Notice
-      title={plan.wrongCount ? '이 날 틀린 문항에는 짝지어 둔 복습 문제가 아직 없어요.' : `D${day} 에는 복습할 오답이 없어요.`}
-      body={plan.wrongCount
-        ? `틀린 문항 ${plan.wrongCount}개를 확인했지만, 그 유형의 유사 문항이 아직 준비되지 않았어요.`
-        : '이 날 강의를 다 맞혔거나, 아직 풀지 않았어요. 강의를 먼저 들으면 틀린 유형으로 문제를 내드려요.'}
+      title={`D${day} 에는 아직 복습 문제가 준비되지 않았어요.`}
+      body="이 날 강의에 짝지어 둔 복습 문항이 아직 없어요. 콘텐츠가 올라오면 여기서 바로 열려요."
       onBack={back} />
   }
+
+  /* 오답에서 온 것과 무작위로 채운 것은 **학생에게 다른 자리**다 — 말을 섞지 않는다 */
+  const allFilled = plan.filledCount === plan.codes.length
 
   if (!built) {
     return <div className="h-dvh flex items-center justify-center bg-[#F5F8FE] text-sm text-gray-500">문제를 불러오는 중…</div>
@@ -92,7 +97,8 @@ export default function ReviewSessionPage() {
     return <Notice
       title={`복습 ${score.total}문제 중 ${score.correct}개 맞혔어요.`}
       body={score.correct === score.total
-        ? '틀렸던 유형을 이번엔 다 맞혔어요. 오늘은 여기까지예요.'
+        ? (allFilled ? '오늘은 틀린 문제가 없어서 복습으로 한 번 더 짚었어요. 여기까지예요.'
+                     : '틀렸던 유형을 이번엔 다 맞혔어요. 오늘은 여기까지예요.')
         : '틀린 유형은 다음 복습에서 다시 만나요.'}
       onBack={back} />
   }
@@ -107,7 +113,7 @@ export default function ReviewSessionPage() {
       /* 복습은 수업 한 판의 4단계 흐름(도입·유형 학습·실전 문제·핵심 요약) 밖에 있다 —
          지나오지도 않을 단계가 회색으로 떠 있으면 아직 남은 것처럼 읽힌다. 자기 이름만 세운다. */
       steps={['복습']}
-      solvingHint="틀렸던 유형으로 다시 풀기"
+      solvingHint={allFilled ? '오늘 배운 유형으로 한 번 더 풀기' : '틀렸던 유형으로 다시 풀기'}
       /* 실전은 채점 뒤 강사와 오답을 같이 보지만 복습은 거기서 끝난다 */
       nextLabel="복습 마치기 →"
     />
