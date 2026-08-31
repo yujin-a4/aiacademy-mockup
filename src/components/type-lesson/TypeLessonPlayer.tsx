@@ -1031,6 +1031,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   }
   const [inputText, setInputText] = useState('')
   const [chatLog, setChatLog] = useState<{ role: 'ai' | 'user'; text: string }[]>([])
+  /** 강사가 **말한 적 있는** 표현 (소문자 키). 수업 중 트레이와 완료 화면이 같이 본다 */
+  const [metExpr, setMetExpr] = useState<Set<string>>(new Set())
 
   /* ── 강사 에이전트 (일레븐랩스) ──
      진행 주체는 에이전트다: 학생이 답하면 에이전트가 next_step을 호출 → 여기서 턴을 한 칸 넘기고
@@ -1583,7 +1585,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
        prevOkRef 를 보고 떨어져 나간다(stripAck). */
     prevOkRef.current = ok
-    if (ok !== false && !scriptWillAck()) await say(ackLine(ackNoRef.current++))
+    if (ok !== false && !scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
     goNext()
   }
 
@@ -2350,7 +2352,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     triesRef.current.set(turnIdx, tries)
     prevOkRef.current = ok
     if (ok) {
-      if (!scriptWillAck()) await say(ackLine(ackNoRef.current++))
+      /* ── 이도윤은 맞장구도 앱이 하지 않는다 (08-28 결정) ──
+         이 강사 대본은 **정오답에 따른 발화를 직접 갖고 있다**(tutorIfWrong, 대본에 46곳).
+         앞에 앱이 "잘했어요" 를 얹으면 곧바로 대본이 "아쉽지만 아니에요" 를 말하는 일이 생긴다 —
+         scriptWillAck 은 다음 줄의 `tutor` 만 보므로, 오답이라 tutorIfWrong 이 나갈 자리를
+         못 가려낸다. 판정은 대본에 맡기고 앱은 비켜선다.
+         ⚠️ **코칭(실전 오답 리뷰)에는 걸지 않는다.** 그쪽 대본은 32턴 전부 갈래가 없어서
+            (tutorIfWrong 0개) 앱까지 입을 다물면 틀린 학생이 아무 반응도 못 받는다. */
+      if (!scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++))
       goNext()
       return
     }
@@ -2965,6 +2974,30 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return () => clearTimeout(t)
   }, [itemDone, phase, agentConnected, tutorSpeaking, cuePlaying, endAgent])
 
+  /** 이 강의에서 다루는 표현 — 정리 대본의 '빈출 표현' 묶음이 원천이다 */
+  const exprList = useMemo(() => expressionsOf(scriptedSummary), [scriptedSummary])
+
+  /* ── 강사가 표현을 말하면 트레이에 담는다 ──
+     대본 발화든 앱이 지어낸 줄이든 **강사 말풍선에 오른 것**이면 다 본다(chatLog).
+     ⚠️ 담기만 하고 빼지 않는다 — 한 번 나온 표현은 수업이 끝날 때까지 남는다. */
+  useEffect(() => {
+    if (!exprList.length) return
+    const said = chatLog.filter((m) => m.role === 'ai').map((m) => m.text).join(' ').toLowerCase()
+    if (!said) return
+    setMetExpr((prev) => {
+      let added = false
+      const next = new Set(prev)
+      for (const e of exprList) {
+        const key = exprKey(e.en)
+        if (!next.has(key) && said.includes(key)) { next.add(key); added = true }
+      }
+      return added ? next : prev          // 새로 담긴 게 없으면 상태를 그대로 둔다(재렌더 방지)
+    })
+  }, [chatLog, exprList])
+
+  /** 완료 화면에 넘길 목록 — 실제로 나온 것만 */
+  const metExprList = exprList.filter((e) => metExpr.has(exprKey(e.en)))
+
   /* 강사 창 대화 영역 — 지난 대화를 쌓지 않고 **이번 턴의 주고받은 말만** 보여준다.
      에이전트가 붙어 있으면 실제 마지막 발화/학생 발화, 아니면 레일 발화 + 이번 턴에 학생이 한 응답. */
   const lastAgentAi = [...chatLog].reverse().find((m) => m.role === 'ai')?.text
@@ -3144,6 +3177,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         actionSubtitle={goNextLecture
           ? '이어서 하면 오늘 목표를 채울 수 있어요'
           : '내일 이어서 만나요. 오늘은 여기까지!'}
+        expressions={metExprList}
         onHome={() => { stopVoice(); router.push('/lessons') }}
       />
     )
@@ -3234,6 +3268,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
                   {freePlay ? '수업 완료' : `문제 ${nth} / ${order.length}`}
                 </span>
+                {/* 오늘 강사가 짚어 준 표현이 여기 쌓인다 (구현 중 메모 73행).
+                    지금은 꺼 둔 상태 — 위 LESSON_EXPRESSION_TRAY 주석 참고 */}
+                {LESSON_EXPRESSION_TRAY && <ExpressionTray list={exprList} met={metExpr} />}
                 <button onClick={nav.go} disabled={!nav.can}
                   title={nav.can ? undefined : nav.hint}
                   className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
@@ -4128,6 +4165,74 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
       <PenFab drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} bottomClass="bottom-20"
         tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />
       <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
+    </div>
+  )
+}
+
+/** ── 오늘의 표현 ──
+ *  "빈출 표현 정리가 눈에 보이지 않음"(구현 중 메모 73행). 표현 목록은 **이미 있다** —
+ *  콘텐츠 파트가 정리 화면의 '핵심 빈출 표현 정리' 묶음에 뜻까지 달아 써 뒀다("rinse = 헹구다").
+ *  그걸 원천으로 쓴다. 새로 데이터를 만들지 않고, 강사가 그 표현을 말하는 순간 하나씩 쌓는다.
+ *  ⚠️ 대본에서 영어를 정규식으로 긁는 방법은 **버렸다** — 159종이 잡히는데 "the team"·
+ *     "the building" 같은 것이 태반이라 표현이라 부를 수 없었다(실측). */
+const VOCAB_ITEM = /^(.+?)\s*=\s*_{2,}\s*$/
+export interface Expression { en: string; ko: string }
+
+/** 표현을 **찾기 좋은 꼴**로 줄인다. 화면에는 원문 그대로 쓰고 대조에만 이걸 쓴다.
+ *  시트가 자리표시자를 `~` 로 적는다("a stack of ~", "reach into ~"). 그대로 찾으면
+ *  대본의 "a stack of documents" 를 못 잡는다 — 물결을 떼고 남는 말로 본다. */
+const exprKey = (s: string) => s.toLowerCase().replace(/~/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** 정리 대본에서 '표현 = 뜻' 꼴만 골라낸다. 같은 표현이 여러 묶음에 겹치면 하나로 친다. */
+function expressionsOf(groups: RecapGroup[] | undefined): Expression[] {
+  const out: Expression[] = []
+  for (const g of groups ?? []) {
+    for (const it of g.items) {
+      const m = VOCAB_ITEM.exec(it.en)
+      if (!m) continue
+      const en = m[1].trim()
+      if (!en || out.some((x) => exprKey(x.en) === exprKey(en))) continue
+      out.push({ en, ko: it.answer })
+    }
+  }
+  return out
+}
+
+/** 수업 화면에 표현 트레이를 띄울 것인가.
+ *  ⚠️ **08-28 현재 꺼 둔다.** 하단 줄의 칩으로 만들어 봤더니 화면에서 겉돌았다(사용자 확인).
+ *     UI 를 다시 생각하는 중이라 **표시만** 끈다 — 표현을 모으는 쪽(expressionsOf·metExpr)은
+ *     그대로 돌고, 완료 화면의 '오늘 배운 표현' 카드도 그대로다. 새 UI 가 정해지면 여기 한 줄. */
+const LESSON_EXPRESSION_TRAY = false
+
+/** ── 수업 중에 쌓이는 표현 트레이 ── (지금은 LESSON_EXPRESSION_TRAY 로 꺼 둠)
+ *  자리를 차지하면 안 된다 — 수업 화면은 지문과 보기가 주인이다. 그래서 하단 줄에 **칩 하나**로
+ *  접혀 있다가, 누르면 위로 펼쳐진다. 방금 담긴 표현은 잠깐 켜져서 "지금 하나 늘었다"를 알린다. */
+function ExpressionTray({ list, met }: { list: Expression[]; met: Set<string> }) {
+  const [open, setOpen] = useState(false)
+  const got = list.filter((e) => met.has(exprKey(e.en)))
+  if (!list.length) return null
+  return (
+    <div className="relative shrink-0">
+      <button onClick={() => setOpen((v) => !v)} disabled={!got.length}
+        className={`text-[11px] font-bold rounded-lg px-2.5 py-1.5 border transition-colors ${
+          got.length
+            ? open ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+              : 'border-[#E5E7EB] bg-white text-[#475569] hover:border-[#93C5FD]'
+            : 'border-[#F1F3F7] bg-[#F8FAFC] text-[#C4C9D4] cursor-default'
+        }`}>
+        오늘의 표현 {got.length}
+      </button>
+      {open && !!got.length && (
+        <div className="absolute bottom-full left-0 mb-2 z-30 w-[260px] max-h-[240px] overflow-y-auto
+                        rounded-xl border border-[#E5E7EB] bg-white shadow-lg divide-y divide-[#F1F3F7]">
+          {got.map((e) => (
+            <div key={e.en} className="flex items-baseline gap-2 px-3 py-2">
+              <span className="text-[12px] font-bold text-[#334155]">{e.en}</span>
+              <span className="text-[11px] text-[#64748B] ml-auto text-right">{e.ko}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
