@@ -10,6 +10,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
+import { useFontSettingsStore, FONT_SIZE_CLASSES } from '@/store/fontSettingsStore'
+import FontSettingsController from '@/components/FontSettingsController'
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
@@ -2649,6 +2651,12 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState(false)
   const [marks, setMarks] = useState<Set<string>>(new Set())
+  /* 그어 지운 보기 `${qIdx}:${label}` — 시험지에 연필로 긋는 그 동작.
+     채점에는 안 쓴다(답과 별개의 표시다). 문항을 넘겨도 남아 있어야 되돌아왔을 때 그대로다. */
+  const [struck, setStruck] = useState<Set<string>>(new Set())
+  /* 글자 크기·서체 — 실전 모의고사 화면과 같은 설정을 쓴다(한 곳에서 정하면 두 화면이 같이 바뀐다) */
+  const { fontSize } = useFontSettingsStore()
+  const [showFont, setShowFont] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
   /* 지금 보고 있는 문항 — 실전은 한 문항씩 넘겨 푼다(아래 visibleQ 주석) */
   const [page, setPage] = useState(0)
@@ -3002,8 +3010,24 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
     answerMode: graded ? 'none' : 'all',
     answers, graded: graded ? new Set(qs.map((_, i) => i)) : new Set(),
+    struck,
+    /* 채점 전에만 그을 수 있다. 답으로 골라 둔 보기를 그으면 그 표기는 지운다 —
+       둘 다 켜져 있으면 무엇을 고른 건지 알 수 없다. */
+    onStrike: graded ? undefined : (q, l) => {
+      const key = `${q}:${l}`
+      setStruck((p) => {
+        const n = new Set(p)
+        if (n.has(key)) n.delete(key)
+        else n.add(key)
+        return n
+      })
+      setAnswers((p) => (p[q] === l && !struck.has(key) ? { ...p, [q]: '' } : p))
+    },
+    textCls: FONT_SIZE_CLASSES[fontSize]?.body ?? FONT_SIZE_CLASSES.normal.body,
     onSelect: (q, l) => {
       if (graded) return
+      // 그어 지운 보기는 고를 수 없다
+      if (struck.has(`${q}:${l}`)) return
       /* 골랐던 답을 **바꾸는가** — 확신 없이 찍고 있는지의 대리 지표.
          처음 고르는 것과 바꾸는 것을 갈라야 의미가 있다(처음 고르기는 그냥 푸는 것이다). */
       const before = answers[q]
@@ -3079,7 +3103,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
             {/* 풀이 시간 — 시험처럼 재되 재촉하지 않는다. 채점하면 멈추고 그 값이 기록으로 남는다.
                 RC 는 적정 시간을 넘기면 주황, 한참 넘기면 빨강으로 색만 바뀐다(위 paceBudget).
                 끊거나 넘기지는 않는다 — 실전 감각을 주는 것이 목적이지 탈락시키는 게 아니다. */}
-            <span className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold tabular-nums transition-colors ${
+            <span className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] font-bold tabular-nums transition-colors ${
               pace === 'over' ? 'bg-[#FEF2F2] text-[#DC2626]'
                 : pace === 'warn' ? 'bg-[#FFF7ED] text-[#EA580C]'
                   : graded ? 'bg-[#F1F5F9] text-[#64748B]' : 'bg-[#EFF6FF] text-[#2563EB]'
@@ -3089,8 +3113,34 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
               </svg>
               {clock}
             </span>
+            {/* 글자 크기 — 지문·문항·보기를 오래 들여다보는 화면이라 여기 둔다.
+                실전 모의고사(/mock-test/solve)와 **같은 설정을 공유한다**(fontSettingsStore). */}
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowFont((v) => !v)}
+                aria-label="글자 크기"
+                aria-expanded={showFont}
+                className={`flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] font-bold transition-colors ${
+                  showFont ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+                }`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+                  <path d="M4 20V7a3 3 0 0 1 3-3h1" /><path d="M13 20v-9a2 2 0 0 1 2-2h1" /><path d="M2 12h8" /><path d="M12 16h7" />
+                </svg>
+                가
+              </button>
+              {showFont && (
+                <>
+                  {/* 바깥을 누르면 닫힌다 — 문항을 누르려다 패널이 남아 가리는 일을 막는다 */}
+                  <button className="fixed inset-0 z-40 cursor-default" aria-hidden onClick={() => setShowFont(false)} />
+                  <div className="absolute right-0 mt-2 w-64 z-50 shadow-xl">
+                    <FontSettingsController />
+                  </div>
+                </>
+              )}
+            </div>
             {/* 해석 버튼은 두지 않는다 — 실전은 영어로 푸는 단계다(수업 화면도 같은 이유로 뺐다).
-                필기는 좌하단 연필 버튼(PenFab). 상단 도구줄에는 시간만 남는다. */}
+                필기는 좌하단 연필 버튼(PenFab). */}
           </>
         }
       />
@@ -3115,7 +3165,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
         {pLesson.part === 1 && !graded && runState === 'idle' && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/55 px-6">
             <button onClick={() => void runAll()}
-              className="rounded-3xl bg-[#2563EB] text-white px-9 py-6 flex flex-col items-center gap-2.5 shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-all hover:bg-[#1D4ED8] active:scale-[0.98] animate-cue">
+              className=" bg-[#2563EB] text-white px-9 py-6 flex flex-col items-center gap-2.5 shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-all hover:bg-[#1D4ED8] active:scale-[0.98] animate-cue">
               <span aria-hidden className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
                 <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 ml-1"><polygon points="5 3 19 12 5 21 5 3" /></svg>
               </span>
@@ -3142,7 +3192,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
         {countdown !== null && (() => {
           const urgent = countdown <= 3
           return (
-            <div className={`mx-auto mb-2 flex items-center gap-2.5 rounded-lg px-3 py-1.5 ${
+            <div className={`mx-auto mb-2 flex items-center gap-2.5  px-3 py-1.5 ${
               urgent ? 'bg-[#FEF2F2]' : 'bg-[#EFF6FF]'
             } ${splitReading ? 'max-w-[1440px]' : 'max-w-[900px]'}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -3182,7 +3232,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                 const idle = runState === 'idle'
                 return (
                   <button onClick={() => void runAll()} disabled={!idle}
-                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
+                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold  border px-2.5 py-1.5 transition-colors ${
                       !idle
                         ? runState === 'running' ? 'border-[#2563EB] bg-[#2563EB] text-white'
                           : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
@@ -3227,7 +3277,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                       : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
                     return (
                       <button key={i} onClick={() => goPage(i)} aria-label={pagedBySet ? `${i + 1}번 세트` : `${i + 1}번 문항`}
-                        className={`w-7 h-7 rounded-lg border text-[11px] font-black transition-colors hover:border-[#93C5FD] ${cls}`}>
+                        className={`w-7 h-7  border text-[11px] font-black transition-colors hover:border-[#93C5FD] ${cls}`}>
                         {i + 1}
                       </button>
                     )
@@ -3242,7 +3292,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
           <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
             {/* 안 푼 문항 안내 — 버튼 바로 옆이라야 누른 사람이 본다 */}
             {warn && !graded && (
-              <span className="shrink-0 flex items-center gap-1.5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-2.5 py-1.5 text-[11px] font-bold text-[#B91C1C] animate-fade-in">
+              <span className="shrink-0 flex items-center gap-1.5  border border-[#FCA5A5] bg-[#FEF2F2] px-2.5 py-1.5 text-[11px] font-bold text-[#B91C1C] animate-fade-in">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
                   <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" />
                 </svg>
@@ -3258,7 +3308,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                  하고 있어서(submit 의 앞부분), 잠그면 그 길이 막힌다. 색으로만 "아직이다" 를 말한다. */
               : <button onClick={submit}
                   className={answered === total ? PRIMARY_BTN
-                    : 'px-6 py-3 rounded-xl bg-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#BFDBFE] transition-all active:scale-[0.98]'}>
+                    : 'px-6 py-3  bg-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#BFDBFE] transition-all active:scale-[0.98]'}>
                   채점하기
                 </button>}
           </div>
@@ -3289,7 +3339,7 @@ function RecapBlankSentence({ text, filled, correct, graded, answer }: {
   return (
     <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed">
       {pre}
-      <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 rounded-md border-b-2 font-black align-baseline transition-colors ${
+      <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5  border-b-2 font-black align-baseline transition-colors ${
         shown === undefined ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
           : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
             : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
@@ -3311,7 +3361,7 @@ function RecapCard({ index, sentence, filled, correct, graded, onPick, onSpeak, 
   const done = filled !== undefined
   return (
     /* 짚는 중인 칸은 파란 링으로 띄운다 — 어느 것을 말하는지 한눈에 보인다 */
-    <div className={`rounded-2xl border bg-white p-4 transition-all ${
+    <div className={` border bg-white p-4 transition-all ${
       active ? 'border-[#2563EB] ring-2 ring-[#BFDBFE] shadow-[0_2px_14px_rgba(37,99,235,0.14)] scale-[1.01]'
         : graded && done ? (correct ? 'border-[#86EFAC]' : 'border-[#FCA5A5]') : 'border-[#E5E7EB]'
     }`}>
@@ -3333,7 +3383,7 @@ function RecapCard({ index, sentence, filled, correct, graded, onPick, onSpeak, 
              채점 뒤에는 **정답 버튼이 안 고른 것이어도 초록**이다 — 틀린 학생에게 답을 보여줘야 한다. */
           return (
             <button key={c} disabled={graded} onClick={() => onPick(c)}
-              className={`text-[12px] font-semibold border rounded-lg px-3 py-1.5 transition-colors ${
+              className={`text-[12px] font-semibold border  px-3 py-1.5 transition-colors ${
                 graded
                   ? isAnswer ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
                     : picked ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
@@ -3496,7 +3546,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
               어느 쪽을 읽어야 할지 흐려지고, 단계 이름은 상단 표시줄에 이미 있다. */}
 
           {practiceScore && (
-            <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-xl px-4 py-2.5">
+            <div className="flex items-center gap-2 bg-white border border-[#E5E7EB]  px-4 py-2.5">
               <span className="text-[11px] font-bold text-[#6B7280]">실전 결과</span>
               <span className="text-[13px] font-black text-[#2563EB]">{practiceScore.correct}/{practiceScore.total} 정답</span>
             </div>
@@ -3520,7 +3570,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
           {allDone && !played ? (
             playing ? (
               <button onClick={skipWrapUp}
-                className="px-5 py-2.5 rounded-xl bg-white border border-[#E5E7EB] text-[#334155] text-sm font-bold">
+                className="px-5 py-2.5  bg-white border border-[#E5E7EB] text-[#334155] text-sm font-bold">
                 건너뛰기
               </button>
             ) : (
@@ -3589,7 +3639,7 @@ function InteractionDock(props: {
               return (
                 <button key={i} disabled={done} onClick={() => { props.setChoicePicked(i); props.onChoicePick?.(c) }}
                   aria-label={c.text === 'O' ? '맞아요' : '아니에요'}
-                  className={`flex items-center justify-center h-14 rounded-xl border text-[26px] font-black leading-none
+                  className={`flex items-center justify-center h-14  border text-[26px] font-black leading-none
                               transition-all active:scale-[0.98] ${cls}`}>
                   {c.text}
                 </button>
@@ -3620,8 +3670,8 @@ function InteractionDock(props: {
               : 'bg-[#EFF6FF] text-[#2563EB]'
             return (
               <button key={i} disabled={done} onClick={() => { props.setChoicePicked(i); props.onChoicePick?.(c) }}
-                className={`w-full flex items-center gap-2.5 text-[13px] font-semibold border rounded-xl px-3.5 py-3 text-left transition-all active:scale-[0.99] ${cls}`}>
-                <span className={`shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[12px] font-black ${badgeCls}`}>{i + 1}</span>
+                className={`w-full flex items-center gap-2.5 text-[13px] font-semibold border  px-3.5 py-3 text-left transition-all active:scale-[0.99] ${cls}`}>
+                <span className={`shrink-0 w-6 h-6  flex items-center justify-center text-[12px] font-black ${badgeCls}`}>{i + 1}</span>
                 <span className="flex-1">{c.text}</span>
                 {done && c.correct && <span className="shrink-0 text-[#15803D]">✓</span>}
               </button>

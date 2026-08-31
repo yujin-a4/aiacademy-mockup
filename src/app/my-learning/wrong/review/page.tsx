@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { track, secSince } from '@/lib/analytics'
 import { useDrawingTool, DrawingOverlay, DrawToggleButton } from '@/components/DrawingOverlay'
+import { useFontSettingsStore, FONT_SIZE_CLASSES } from '@/store/fontSettingsStore'
+import FontSettingsController from '@/components/FontSettingsController'
 
 const LABELS = ['A', 'B', 'C', 'D']
 
@@ -23,6 +25,8 @@ function ReviewInner() {
   const { selectedInstructor: instructor } = useOnboardingStore()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { fontSize, fontType } = useFontSettingsStore()
+  const [showSettings, setShowSettings] = useState(false)
 
   const partId   = searchParams.get('partId')
   const category = searchParams.get('category')
@@ -163,10 +167,13 @@ function ReviewInner() {
     }
   }
 
+  const sizeClasses = FONT_SIZE_CLASSES[fontSize] || FONT_SIZE_CLASSES.normal
+  const fontStyleClass = fontType === 'serif' ? 'font-serif' : 'font-sans'
+
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-32">
       {/* 헤더 */}
-      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF] sticky top-0 z-10">
+      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30 sticky top-0 z-10">
         <button onClick={() => router.push('/my-learning?tab=wrong')} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6"/>
@@ -184,6 +191,35 @@ function ReviewInner() {
             <span className="text-[11px] text-[#9CA3AF] shrink-0">{index + 1} / {questions.length}</span>
           </div>
         </div>
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="글자 크기"
+            aria-expanded={showSettings}
+            className={`flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] font-bold transition-colors ${
+              showSettings ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+              <path d="M4 20V7a3 3 0 0 1 3-3h1" /><path d="M13 20v-9a2 2 0 0 1 2-2h1" /><path d="M2 12h8" /><path d="M12 16h7" />
+            </svg>
+            가
+          </button>
+          {showSettings && (
+            <>
+              {/* 바깥을 누르면 접힌다 — 열어둔 패널이 문제를 가린 채 남으면 다시 버튼을
+                  찾아 눌러야 한다. 화면 전체를 덮는 투명 판이 그 클릭을 받는다. */}
+              <button
+                aria-label="글자 크기 닫기"
+                onClick={() => setShowSettings(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div className="absolute right-0 mt-2 w-64 shadow-xl z-50">
+                <FontSettingsController />
+              </div>
+            </>
+          )}
+        </div>
         <DrawToggleButton drawMode={drawing.drawMode} toggleDraw={drawing.toggleDraw} />
       </header>
       <DrawingOverlay {...drawing} />
@@ -193,7 +229,7 @@ function ReviewInner() {
         {item.passageTitle && (
           <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
-            <p className="text-[#374151] text-[13px] font-medium">{item.passageTitle}</p>
+            <p className={`text-[#374151] whitespace-pre-wrap ${fontStyleClass} ${sizeClasses.body}`}>{item.passageTitle}</p>
           </div>
         )}
 
@@ -205,7 +241,7 @@ function ReviewInner() {
               <span className="text-[10px] font-bold bg-[#FEE2E2] text-[#DC2626] px-2 py-0.5 rounded-md">{item.category}</span>
             )}
           </div>
-          <p className="text-[#1C1B33] text-[14px] leading-relaxed font-medium">{item.questionText}</p>
+          <p className={`text-[#1C1B33] font-medium ${fontStyleClass} ${sizeClasses.body}`}>{item.questionText}</p>
         </div>
 
         {/* 선택지 */}
@@ -242,7 +278,7 @@ function ReviewInner() {
                 }`}>
                   {LABELS[i]}
                 </span>
-                <span className="flex-1 text-[14px] font-medium">{choice}</span>
+                <span className={`flex-1 font-medium ${fontStyleClass} ${sizeClasses.body}`}>{choice}</span>
                 {answered && isCorrectOpt && <span className="text-[11px] font-bold text-[#059669] shrink-0">정답</span>}
                 {answered && isWrong      && <span className="text-[11px] font-bold text-[#DC2626] shrink-0">내 선택</span>}
               </button>

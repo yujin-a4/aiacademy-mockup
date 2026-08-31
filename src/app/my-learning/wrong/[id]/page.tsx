@@ -3,6 +3,9 @@ import { useWrongAnswerStore, SCAFFOLDING } from '@/store/wrongAnswerStore'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useState } from 'react'
+import { useFontSettingsStore, FONT_SIZE_CLASSES } from '@/store/fontSettingsStore'
+import FontSettingsController from '@/components/FontSettingsController'
 
 const LABELS = ['A', 'B', 'C', 'D']
 
@@ -20,6 +23,8 @@ export default function WrongAnswerDetail() {
   const { wrongAnswers, removeWrongAnswer } = useWrongAnswerStore()
   const { selectedInstructor: instructor } = useOnboardingStore()
   const router = useRouter()
+  const { fontSize, fontType } = useFontSettingsStore()
+  const [showSettings, setShowSettings] = useState(false)
 
   const item = wrongAnswers.find((w) => w.id === id)
 
@@ -36,6 +41,8 @@ export default function WrongAnswerDetail() {
   const instColor = INST_COLOR[inst] ?? INST_COLOR.park_hyewon
   const scaffolding = item.category ? SCAFFOLDING[item.category] : null
   const dateStr = new Date(item.timestamp).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+  const sizeClasses = FONT_SIZE_CLASSES[fontSize] || FONT_SIZE_CLASSES.normal
+  const fontStyleClass = fontType === 'serif' ? 'font-serif' : 'font-sans'
 
   const handleDelete = () => {
     removeWrongAnswer(item.id)
@@ -45,7 +52,7 @@ export default function WrongAnswerDetail() {
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-24">
       {/* 헤더 */}
-      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF]">
+      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30">
         <Link href="/my-learning?tab=wrong" className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6"/>
@@ -60,7 +67,36 @@ export default function WrongAnswerDetail() {
           </div>
           <p className="text-[#9CA3AF] text-[11px] mt-0.5">{dateStr}</p>
         </div>
-        <button onClick={handleDelete} className="text-[#9CA3AF] hover:text-[#DC2626] transition-colors p-2">
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="글자 크기"
+            aria-expanded={showSettings}
+            className={`flex items-center gap-1 px-2 py-1 rounded-sm text-[11px] font-bold transition-colors ${
+              showSettings ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+              <path d="M4 20V7a3 3 0 0 1 3-3h1" /><path d="M13 20v-9a2 2 0 0 1 2-2h1" /><path d="M2 12h8" /><path d="M12 16h7" />
+            </svg>
+            가
+          </button>
+          {showSettings && (
+            <>
+              {/* 바깥을 누르면 접힌다 — 열어둔 패널이 문제를 가린 채 남으면 다시 버튼을
+                  찾아 눌러야 한다. 화면 전체를 덮는 투명 판이 그 클릭을 받는다. */}
+              <button
+                aria-label="글자 크기 닫기"
+                onClick={() => setShowSettings(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div className="absolute right-0 mt-2 w-64 shadow-xl z-50">
+                <FontSettingsController />
+              </div>
+            </>
+          )}
+        </div>
+        <button onClick={handleDelete} className="text-[#9CA3AF] hover:text-[#DC2626] transition-colors p-2 shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
           </svg>
@@ -73,14 +109,14 @@ export default function WrongAnswerDetail() {
         {item.passageTitle && (
           <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
-            <p className="text-[#374151] text-[13px] font-medium">{item.passageTitle}</p>
+            <p className={`text-[#374151] whitespace-pre-wrap ${fontStyleClass} ${sizeClasses.body}`}>{item.passageTitle}</p>
           </div>
         )}
 
         {/* 문제 */}
         <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-sm">
           <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-2">문제</p>
-          <p className="text-[#1C1B33] text-[14px] leading-relaxed font-medium">{item.questionText}</p>
+          <p className={`text-[#1C1B33] font-medium ${fontStyleClass} ${sizeClasses.body}`}>{item.questionText}</p>
         </div>
 
         {/* 선택지 */}
@@ -105,10 +141,10 @@ export default function WrongAnswerDetail() {
                 }`}>
                   {LABELS[i]}
                 </span>
-                <span className={`font-medium ${
+                <span className={`font-medium ${fontStyleClass} ${sizeClasses.body} ${
                   isCorrect ? 'text-[#059669]' :
                   isWrong   ? 'text-[#DC2626]' :
-                  'text-[#9CA3AF]'
+                  'text-[#374151]'
                 }`}>
                   {choice}
                 </span>

@@ -74,6 +74,45 @@ function sentences(list, audioUrl) {
   }));
 }
 
+/**
+ * Part 6 빈칸 정규화 — 교재 표기를 화면이 읽는 마커로.
+ *
+ * 교재는 지문 안에 `-131. ------` 로 빈칸을 박는다. 화면(ContentView)이 아는 마커는
+ * `___(n)___` 뿐이고 **n 은 한 자리다** — 시험지 번호(131~146)를 그대로 넣으면 정규식이
+ * 물지 않아 빈칸이 생 텍스트로 남는다. 그래서 지문 안 순번(1~4)으로 바꾼다.
+ * 강의 문항(RC-P6-01-Q001)도 같은 규칙이라 두 출처가 한 화면에서 같이 돈다.
+ *
+ * 한 줄에 빈칸이 둘 이상 앉는 경우가 있어(`-137. ------ ... . -138. ------.`)
+ * 마커를 바꾼 뒤 문장 경계로 다시 쪼갠다 — passage_sentences.blank_no 는 한 줄에 하나다.
+ */
+function normalizeP6(list, nos) {
+  const local = new Map(nos.map((no, i) => [no, i + 1]));   // 131→1, 132→2 …
+  const MARK = /___\((\d)\)___/;
+  const out = [];
+  for (const raw of list) {
+    const text = typeof raw === 'string' ? raw : raw.en;
+    /* 마커를 **먼저** 바꾼다 — `-137.` 의 마침표를 문장 끝으로 오해해 번호와 빈칸이 갈라지는 걸 막는다 */
+    const marked = String(text || '').replace(
+      /-(\d{2,3})\.\s*-{2,}/g,
+      (m, no) => { const k = local.get(Number(no)); return k ? `___(${k})___` : m; },
+    );
+    /* blank_no 는 한 줄에 하나다. 한 줄에 빈칸이 둘 이상 앉은 때만 문장 경계로 쪼갠다
+       (`… for this service. ___(4)___.`). 하나뿐이면 추출기가 이미 문장 단위로 잘라 놨으므로
+       건드리지 않는다 — 여기서 또 쪼개면 'Mr. Ortega' 같은 약어에서 반 토막이 난다. */
+    const many = (marked.match(/___\(\d\)___/g) || []).length > 1;
+    const pieces = many ? marked.split(/(?<=[.!?])\s+/) : [marked];
+    for (const piece of pieces) {
+      const en = piece.trim();
+      if (!en) continue;
+      const m = en.match(MARK);
+      out.push(typeof raw === 'string'
+        ? { en, blank_no: m ? Number(m[1]) : null }
+        : { ...raw, en, blank_no: m ? Number(m[1]) : null });
+    }
+  }
+  return out;
+}
+
 /* ══════════════════════════════════════════════════════════
    LC — Part 1·2 는 문항 하나가 곧 한 판, Part 3·4 는 세트가 한 판
    ══════════════════════════════════════════════════════════ */
@@ -146,8 +185,15 @@ function buildRc() {
     }));
     questions.push({
       question_code: qCode(area, q.num), part: 5, question_no: q.num,
-      content: { sentence: (q.sentence || '').replace(/\s*\n\s*/g, ' ').trim(),
-                 grammar_point: q.label || null },
+      // 키 이름은 강의 문항과 같아야 한다 — 화면 어댑터(fromDb 의 case 5)가 blank_sentence 를 읽는다
+      content: {
+        blank_sentence: (q.sentence || '').replace(/\s*\n\s*/g, ' ').trim(),
+        grammar_point: q.label || null,
+        /* 해설은 번역·해설·어휘 세 도막으로 나뉘어 온다(extract_rc_p5 의 split_solution).
+           통째로 두면 번역이 먼저 읽혀 정답이 한글로 새어 나간다 — 화면이 따로 열 수 있게 나눠 둔다. */
+        translation: q.translation || null,
+        vocab: q.vocab || null,
+      },
       options: options(opts, q.explanation),
     });
   }
@@ -155,6 +201,8 @@ function buildRc() {
   for (const s of readJson(path.join(DUMP, `mock_rc${VOL}_t${pad2(TEST)}.json`))) {
     const first = s.questions[0].no;
     const multi = s.passages.length > 1;
+    const isP6 = first <= 146;
+    const nos = s.questions.map((q) => q.no);
     s.passages.forEach((p, i) => {
       passages.push({
         passage_code: multi ? `${pCode(area, first)}-${i + 1}` : pCode(area, first),
@@ -165,14 +213,18 @@ function buildRc() {
         set_code: multi ? `${pCode(area, first)}-SET` : null,
         set_seq: i + 1,
         audio_url: null,
-        sentences: sentences(p.sentences || [], null),
+        sentences: sentences(isP6 ? normalizeP6(p.sentences || [], nos) : (p.sentences || []), null),
       });
     });
     for (const q of s.questions) {
       questions.push({
         question_code: qCode(area, q.no), part: q.no <= 146 ? 6 : 7, question_no: q.no,
         passage_code: multi ? `${pCode(area, first)}-1` : pCode(area, first),
-        content: { question_text: q.q || null, question_type: q.qtype || null },
+        content: {
+          question_text: q.q || null, question_type: q.qtype || null,
+          /* P6 는 지문 안 순번이 곧 문제다 — 화면이 '빈칸 (n)' 을 이 값으로 쓴다(normalizeP6 와 같은 번호) */
+          ...(isP6 ? { question_number: String(nos.indexOf(q.no) + 1) } : {}),
+        },
         options: options(q.options, q.explain),
       });
     }
@@ -183,7 +235,7 @@ function buildRc() {
 /* ── 검증 — 넣기 전에 회차가 완결인지 본다 ──
    모의고사는 한 문항만 비어도 시험이 아니다. dry run 에서 여기 걸리면 적재를 하지 않는다. */
 function verify(built) {
-  const { area, questions } = built;
+  const { area, questions, passages } = built;
   const want = area === 'LC' ? [1, 100] : [101, 200];
   const nos = new Set(questions.map((q) => q.question_no));
   const problems = [];
@@ -201,6 +253,24 @@ function verify(built) {
   if (area === 'LC') {
     const noAudio = questions.filter((q) => !q.content.audio_url).map((q) => q.question_no);
     if (noAudio.length) problems.push(`음원 없음 ${noAudio.length}개: ${noAudio.slice(0, 10).join(',')}`);
+  }
+  /* Part 6 은 **지문의 빈칸이 곧 문제**다. 문항 4개가 다 있어도 지문에 빈칸이 없으면 풀 수가 없다 —
+     문항 수만 세던 기존 검사를 통과하고도 화면에는 빈칸 없는 지문이 뜬다(실측: RC1 T01 의 135~138
+     세트는 편지 머리 3줄만 뽑혀 있었다). 지문 쪽에서 빈칸 번호를 되짚어 본다. */
+  if (area === 'RC') {
+    const byCode = new Map(passages.map((p) => [p.passage_code, p]));
+    const bySet = new Map();
+    for (const q of questions.filter((q) => q.part === 6)) {
+      if (!bySet.has(q.passage_code)) bySet.set(q.passage_code, []);
+      bySet.get(q.passage_code).push(q);
+    }
+    for (const [code, g] of bySet) {
+      const have = new Set((byCode.get(code)?.sentences ?? [])
+        .map((s) => s.blank_no).filter((n) => n != null));
+      const miss = g.filter((q) => !have.has(Number(q.content.question_number)))
+        .map((q) => q.question_no);
+      if (miss.length) problems.push(`${code}: 지문에 빈칸이 없다 — ${miss.join(',')}번`);
+    }
   }
   return problems;
 }

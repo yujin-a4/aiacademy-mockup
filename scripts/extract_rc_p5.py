@@ -47,6 +47,38 @@ for p in range(BOOK.page_count):
         # 보기 텍스트 뒤에 남는 잡텍스트 제거(줄바꿈 이후 첫 토큰군만) — 이미 $ 앵커라 대체로 OK
         book_q[(cur_test, num)] = {'sentence': sent, 'opts': opts}
 
+def split_solution(body):
+    """해설 한 덩이 → {translation, explanation, vocab}.
+
+    교재 해설은 `번역 \x07…  해설 \x07…  어휘 \x07…` 세 도막이 이어 붙어 온다.
+    (\x07 은 라벨과 본문을 가르는 조판 글리프다 — 화면에 그대로 뿌리면 네모로 보인다.)
+    통째로 두면 '번역'을 보기 싫은 사람에게도 정답이 한글로 먼저 읽혀 버린다. 나눠 둔다.
+
+    줄바꿈은 PDF 가 폭에 맞춰 접은 것이라 뜻이 없다. **앞뒤에 공백이 있었으면 한 칸으로,
+    없었으면 그냥 붙인다** — 한글은 단어 중간에서도 접히기 때문에 무조건 공백을 넣으면
+    '소유격 대명사 (C) his 가 정답이다' 처럼 조사가 떨어진다.
+    """
+    if not body:
+        return {'translation': '', 'explanation': '', 'vocab': ''}
+
+    def unwrap(t):
+        t = re.sub(r'\s*\n\s*', lambda m: ' ' if ' ' in m.group(0) or '\t' in m.group(0) else '', t)
+        t = t.replace('\u2003', ' · ')          # 어휘 항목 사이 EM SPACE
+        return re.sub(r'[ \t]{2,}', ' ', t).strip()
+
+    out = {'translation': '', 'explanation': '', 'vocab': ''}
+    # 2권은 '번역' 대신 '해석' 을 쓰고 라벨 뒤 BEL 도 없다. 게다가 앞 문장에 붙어 온다('…이다.어휘 wipe off').
+    KEY = {'번역': 'translation', '해석': 'translation', '해설': 'explanation', '어휘': 'vocab'}
+    parts = re.split(r'(?:^|(?<=[\s.]))(번역|해석|해설|어휘)[\x07\s]\s*', body)
+    if len(parts) == 1:
+        # 라벨이 없는 판(2권 일부) — 통째로 해설로 본다
+        out['explanation'] = unwrap(body.replace('\x07', ' '))
+        return out
+    for i in range(1, len(parts) - 1, 2):
+        out[KEY[parts[i]]] = unwrap(parts[i + 1].replace('\x07', ' '))
+    return out
+
+
 # ---------- 해설: (test,qnum) -> {answer, label, translation, explanation} ----------
 sol_ans = {}   # (test,num)->letter
 sol_exp = {}   # (test,num)->{label, body}
@@ -82,7 +114,7 @@ for key in sorted(set(book_q) & set(sol_exp)):
     bank.append({
         'test': test, 'num': num, 'answer': ans,
         'label': e['label'], 'sentence': b['sentence'], 'opts': b['opts'],
-        'translation': '', 'explanation': e['body'],
+        **split_solution(e['body']),
     })
 
 os.makedirs('scripts/dump', exist_ok=True)

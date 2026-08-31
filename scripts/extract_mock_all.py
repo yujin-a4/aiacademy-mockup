@@ -76,7 +76,7 @@ def run_rc(vol, tests):
             continue
         sets = rc.parse_bon(pdfs["bon"], rng[0], rng[1], None)
         nums = {q["no"] for s in sets for q in s["questions"]}
-        hae = rc.parse_hae(pdfs["hae"], nums, t)
+        hae = rc.parse_hae(pdfs["hae"], nums, t, vol)
         for s in sets:
             for q in s["questions"]:
                 q.update(hae.get(q["no"], {}))

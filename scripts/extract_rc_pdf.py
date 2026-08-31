@@ -40,10 +40,18 @@ import re
 import fitz
 
 import _book_paths
+import extract_answer_keys as ak
 
 # ── 세트 머리 ────────────────────────────────────────────────────────────
 HEAD = re.compile(r"Questions?\s+(\d{3})[-–](\d{3})\s+refer to the following\s+([^.]+)\.")
 QNUM = re.compile(r"^(\d{3})\.?\s+(.*)$")
+# **문항 영역이 어디서 시작하는가**를 볼 때만 쓰는, 더 엄한 판정.
+# QNUM 은 마침표를 선택으로 둔다(추출에서 점이 떨어진 문항을 살리려고). 그런데 그 느슨함을
+# 지문/문항 경계에 쓰면 **번지수가 문항이 된다** — 실측: TEST 1 의 편지 '349 Doyle Street' 에서
+# 문항이 시작된 것으로 봐서 그 아래 본문(빈칸 4개)이 통째로 문항 영역으로 넘어갔고,
+# 단 경계(read_order 의 qy)까지 그 높이로 잡혀 지문 마지막 줄이 문항 뒤로 밀렸다.
+# 진짜 문항 머리는 번호 뒤에 반드시 마침표가 있다.
+QSTART = re.compile(r"^(\d{3})\.\s+\S")
 OPT = re.compile(r"^\(([A-D])\)\s*(.*)$")
 # 파트가 끝난 **뒤**에 오는 시험지·교재 안내문. 문항 영역에 그대로 딸려 오는데, 보기 줄이 아니라서
 # '접힌 줄'로 오해되어 **마지막 문항의 (D) 보기가 통째로 삼킨다**(실측: 전 10회차의 146번·200번).
@@ -74,6 +82,11 @@ KIND_MAP = [
 EMAIL_META = re.compile(r"^(To|From|Subject|Date|Sent|Attachment|Re|Cc|Bcc)\s*:\s*(.*)$", re.I)
 # 'Topic:' 처럼 값이 없는 라벨 줄 (라벨 칸과 값 칸이 나뉜 조판)
 LABEL_ONLY = re.compile(r"^[A-Z][A-Za-z ./&'-]{1,20}:\s*$")
+# 편지·메일의 인사말은 라벨처럼 생겼지만('Dear Staff:') 값 칸이 없다. 라벨로 보면 **본문 첫 문장**을
+# 값으로 끌어가 지문에서 사라진다(실측: vol1 T09 의 135번 빈칸이 meta 안으로 들어갔다).
+SALUTATION = re.compile(r"^(Dear|To whom it may concern|Greetings|Hello|Hi)\b", re.I)
+# 교재가 지문 안에 박는 빈칸 — '-142. ------'. 번호와 밑줄이 줄바꿈으로 갈리는 조판이 있다.
+BLANK_MARK = re.compile(r"-\d{2,3}\.\s*-{2,}")
 INLINE_LABEL = re.compile(r"^([A-Z][A-Za-z ./&'-]{1,20}):\s+(\S.*)$")
 URLISH = re.compile(r"(https?://|www\.)\S+")
 # 문장 끝으로 보면 안 되는 약어 — 여기서 자르면 'Mr.' 뒤가 새 문장이 된다.
@@ -81,7 +94,11 @@ URLISH = re.compile(r"(https?://|www\.)\S+")
 #    (?<!Mr) 로 쓰면 직전 두 글자가 'r.' 이라 걸리지 않는다 — 실측으로 'Mr.' / 'Ortega' 가 갈렸다.
 ABBR = (r"(?<!Mr\.)(?<!Ms\.)(?<!Mrs\.)(?<!Dr\.)(?<!Inc\.)(?<!Ltd\.)(?<!Jr\.)(?<!Sr\.)"
         r"(?<!St\.)(?<!vs\.)(?<!No\.)(?<!Ave\.)(?<!a\.m\.)(?<!p\.m\.)")
-SENT_SPLIT = re.compile(ABBR + r"(?<=[.!?])[\"')\]]*\s+(?=[A-Z(\"'])")
+# 빈칸 표기(-145. ------)도 문장 시작으로 본다. 대문자만 시작으로 보면
+# '…the "All-Ride Pass." -145. ------ .' 처럼 앞 문장에 빈칸이 붙어 한 문장에 빈칸이
+# 둘이 된다. passage_sentences 는 문장 하나에 blank_no 하나라 뒤엣것이 통째로 사라진다
+# (실측: 2권 RC T07 145번이 이렇게 빠져 회차 적재가 막혔다).
+SENT_SPLIT = re.compile(ABBR + r"(?<=[.!?])[\"')\]”’]*\s+(?=[A-Z(\"'“‘]|-\d{2,3}\.\s*-{2,})")
 
 _WS = set(" \t") | {chr(0xA0)} | {chr(c) for c in range(0x2000, 0x200B)}
 
@@ -160,8 +177,10 @@ def blocks_of(page):
         t = "\n".join(clean(l) for l in txt.splitlines() if clean(l))
         if not t or FURNITURE.match(t):
             continue
-        # 측면 'TEST 1' 탭 같은 장식은 글자가 아니라 도형 글리프로 들어온다 — 영문/한글이 없으면 버린다
-        if not re.search(r"[A-Za-z가-힣]", t):
+        # 측면 'TEST 1' 탭 같은 장식은 글자가 아니라 도형 글리프로 들어온다 — 영문/한글이 없으면 버린다.
+        # 단 **빈칸 하나만 앉은 블록**은 예외다 — 문장삽입형(Part 6 의 마지막 문항)은 지문 끝에
+        # '-142. ------ .' 한 덩이로만 놓이는데 글자가 없어 통째로 버려졌다(실측: vol1 T10 의 142번).
+        if not re.search(r"[A-Za-z가-힣]", t) and not BLANK_MARK.search(t):
             continue
         col = 0 if (x0 + x1) / 2 < mid else 1
         out.append((fitz.Rect(x0, y0, x1, y1), t, col))
@@ -177,7 +196,7 @@ def read_order(blocks):
     (전체를 단 우선으로 정렬했더니 지문 본문이 오른단 취급되어 문항 뒤로 밀렸고,
      그 세트의 지문이 한 문장만 남았다 — 실측)
     """
-    qs = [b[0].y0 for b in blocks if QNUM.match(b[1].splitlines()[0])]
+    qs = [b[0].y0 for b in blocks if QSTART.match(b[1].splitlines()[0])]
     qy = min(qs) - 2 if qs else None
     top = [b for b in blocks if qy is None or b[0].y0 < qy]
     bot = [b for b in blocks if qy is not None and b[0].y0 >= qy]
@@ -311,7 +330,8 @@ def parse_passage(text, kind):
         # 라벨 칸 — 'Topic:' / 'Speaker:' 처럼 **줄 하나가 통째로 라벨**이고 값은 다음 줄이다.
         # 실물 공지·양식은 이렇게 두 칸으로 조판돼 있다. 본문에 섞으면 라벨 줄이 문장이 돼 버린다.
         # 본문이 시작되기 전(머리 블록)에만 본다 — 뒤에서 하면 'Note: …' 같은 문장까지 떼어낸다.
-        if in_head and LABEL_ONLY.match(l) and i + 1 < len(lines) and not LABEL_ONLY.match(lines[i + 1]):
+        if (in_head and LABEL_ONLY.match(l) and not SALUTATION.match(l)
+                and i + 1 < len(lines) and not LABEL_ONLY.match(lines[i + 1])):
             v, i = with_wrapped(lines[i + 1].strip(), lines, i + 1, in_head)
             meta.append({"k": l.rstrip(": ").strip(), "v": v})
             i += 1
@@ -440,7 +460,12 @@ def parse_bon(bon, lo, hi, want_part):
             if not cur:
                 continue
             first = text.splitlines()[0]
-            if QNUM.match(first) or cur["_q"]:
+            # 세 자리 숫자로 시작한다고 다 문항이 아니다 — **번지수**가 그렇게 생겼다.
+            # 실측: 'Questions 135-138' 편지의 '349 Doyle Street' 부터를 문항으로 보는 바람에
+            # 그 아래 본문 전체(빈칸 4개 포함)를 삼켰다 — 지문이 머리 3줄만 남았다.
+            # 문항 번호는 **세트 범위 안**이다. 범위 밖 숫자로 시작하는 줄은 지문의 일부로 본다.
+            mq = QSTART.match(first)
+            if (mq and cur["from"] <= int(mq.group(1)) <= cur["to"]) or cur["_q"]:
                 cur["_q"].append(text)          # 한 번 문항이 시작되면 그 뒤는 전부 문항
             else:
                 cur["_psg"].append((rect, text, col))
@@ -526,13 +551,22 @@ def answer_key(text):
     return {int(m.group(1)): m.group(2) for m in ANSWER_KEY.finditer(text)}
 
 
-def parse_hae(hae, nums, test_no):
+def parse_hae(hae, nums, test_no, vol=None):
     """해설에서 문항별 {정답, 유형, 해설}. 정답은 정답표, 없으면 '(A)가 정답이다' 문장."""
     info = {}
     pages = hae_pages(hae, test_no) or list(range(hae.page_count))
     text = "\n".join(hae[i].get_text() for i in pages)
     text = "\n".join(clean(l) for l in text.splitlines())
     key = answer_key(text)
+    # 정답 키 표 = 정본 (extract_lc_pdf 와 같은 규칙).
+    # 해설 페이지 텍스트에서 긁은 정답표는 회차에 따라 몇 문항을 조용히 놓친다 — 실측으로
+    # 2권 RC T01 174, T05 134, T07 144·154, T08 169, T09 154 가 비어 적재가 막혔다.
+    # 키 표는 좌표로 격자를 읽어 40개 회차 4000문항 결손이 0이므로 그쪽을 정본으로 삼는다.
+    if vol is not None:
+        for no, label in ak.answer_keys("RC", str(vol)).get(test_no, {}).items():
+            if key.get(no) and key[no] != label:
+                print(f"  ⚠ {no}: 페이지 정답표({key[no]}) ≠ 키 표({label}) — 키 표를 따른다")
+            key[no] = label
     # '156  Not / True' 처럼 번호 + 유형 라벨이 한 줄.
     # 정답표 줄('146 (B)')도 같은 모양이라 여기 걸린다 — 유형으로 오해하지 않게 걸러낸다.
     heads = [m for m in re.finditer(r"\n(\d{3})\s{1,4}([^\n]{0,24})\n", text)
@@ -575,7 +609,7 @@ def main():
         raise SystemExit(f"TEST {a.test} 를 못 찾았다")
     sets = parse_bon(pdfs["bon"], rng[0], rng[1], a.part)
     nums = {q["no"] for s in sets for q in s["questions"]}
-    hae = parse_hae(pdfs["hae"], nums, a.test)
+    hae = parse_hae(pdfs["hae"], nums, a.test, a.vol)
     for s in sets:
         for q in s["questions"]:
             q.update(hae.get(q["no"], {}))

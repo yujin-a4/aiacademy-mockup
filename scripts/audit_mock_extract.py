@@ -15,6 +15,9 @@
   - 보기수  : P2 는 3개, 나머지는 4개
   - 정답    : 정답 키 표(extract_answer_keys)와 대조. 키 표가 정본이다
   - 스크립트: LC P3·P4 는 지문이 곧 음원이라 비어 있으면 못 쓴다
+  - P6 빈칸: Part 6 은 **지문의 빈칸이 곧 문제**다. 문항 4개가 다 있어도 지문에 '-131. ------' 이
+             없으면 풀 수가 없다 — 문항만 세는 검사를 통과하고도 화면엔 빈칸 없는 지문이 뜬다
+             (실측: vol1 T01 의 135~138 은 편지 머리 3줄만 남아 있었다)
 
 사용
   TOEIC_PDF_ROOT=... python scripts/audit_mock_extract.py --vol 1 --test 1
@@ -24,6 +27,7 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
 
 import extract_answer_keys as ak
@@ -91,8 +95,34 @@ def rc_questions(path, p5_path=None, test=None, vol=1):
     return out, dup
 
 
+# 교재가 지문 안에 박는 빈칸 — '-131. ------'. 번호와 밑줄이 줄바꿈으로 갈리는 조판이 있다
+BLANK_MARK = re.compile(r"-(\d{3})\.\s*-{2,}")
+
+
+def p6_blanks(path):
+    """RC 덤프의 Part 6 세트별 → {문항번호: 지문에 그 빈칸이 있나}."""
+    if not os.path.exists(path):
+        return {}
+    d = json.load(io.open(path, encoding="utf-8"))
+    sets = d if isinstance(d, list) else d.get("sets", [])
+    out = {}
+    for s in sets:
+        nos = [q["no"] for q in s.get("questions", [])]
+        if not nos or nos[0] > 146:
+            continue
+        found = set()
+        for psg in s.get("passages", []):
+            for sent in psg.get("sentences", []):
+                t = sent if isinstance(sent, str) else sent.get("en", "")
+                found |= {int(m) for m in BLANK_MARK.findall(t or "")}
+        for n in nos:
+            out[n] = n in found
+    return out
+
+
 def audit(area, vol, test, verbose=True):
     keys = ak.answer_keys(area, str(vol)).get(test, {})
+    blanks = {}                        # RC 에서만 채운다 (P6 빈칸 유무)
     if area == "LC":
         path = os.path.join(DUMP, "mock_lc%d_t%02d.json" % (vol, test))
         if not os.path.exists(path):
@@ -103,6 +133,7 @@ def audit(area, vol, test, verbose=True):
         path = os.path.join(DUMP, "mock_rc%d_t%02d.json" % (vol, test))
         p5 = os.path.join(DUMP, "rc_p5_bank%s.json" % ("" if vol == 1 else vol))
         got, dup = rc_questions(path, p5, test, vol)
+        blanks = p6_blanks(path)
         parts = (5, 6, 7)
 
     rows = []
@@ -120,7 +151,9 @@ def audit(area, vol, test, verbose=True):
                 (o["label"] for o in q["options"] if o.get("is_correct") or o.get("correct")), None)
             if picked and picked != keys[n]:
                 wrongans.append((n, picked, keys[n]))
+        noblank = [n for n in want if p == 6 and n in got and not blanks.get(n)]
         rows.append({"part": p, "want": len(list(want)), "got": len(list(want)) - len(miss),
+                     "noblank": noblank,
                      "miss": miss, "dup": [n for n in dup if n in want],
                      "badopt": badopt, "noscript": noscript, "wrongans": wrongans})
     if verbose:
@@ -133,6 +166,8 @@ def audit(area, vol, test, verbose=True):
                      r["wrongans"] or "-"))
             if r["part"] in (3, 4) and r["noscript"]:
                 print("       스크립트 없음: %s" % r["noscript"])
+            if r.get("noblank"):
+                print("       !! 지문에 빈칸 없음: %s" % r["noblank"])
     return {"area": area, "vol": vol, "test": test, "rows": rows}
 
 
@@ -153,8 +188,9 @@ def main():
             if r.get("error"):
                 print("[%s TEST %02d] %s" % (area, t, r["error"]))
                 continue
-            total_miss += sum(len(x["miss"]) + len(x["dup"]) for x in r["rows"])
-    print("\n결손+중복 합계: %d" % total_miss)
+            total_miss += sum(len(x["miss"]) + len(x["dup"]) + len(x.get("noblank", []))
+                              for x in r["rows"])
+    print("\n결손+중복+빈칸없음 합계: %d" % total_miss)
     return 0 if total_miss == 0 else 1
 
 
