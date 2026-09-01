@@ -42,7 +42,9 @@ function ReviewInner() {
   const [chosen, setChosen]     = useState<number | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
   const [done, setDone]         = useState(false)
-  const drawing = useDrawingTool()
+  /* 연필을 든 채로 답을 고른다(구현 중 메모 75행) — 다른 풀이 화면과 같게 맞춘다.
+     여기는 캔버스가 화면 전체를 덮어서(bounds 없음) 안 켜면 보기가 통째로 안 눌린다. */
+  const drawing = useDrawingTool({ tapThrough: true })
 
   /* ── 측정 (GA) ──
      오답을 강사와 다시 보는 단계는 **얼마나 오래 붙잡고 있는지**가 곧 스캐폴딩이 먹히는지의 신호다.
