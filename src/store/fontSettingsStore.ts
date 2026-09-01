@@ -26,6 +26,16 @@ export const useFontSettingsStore = create<FontSettingsState>()(
   )
 )
 
+/** 시험지(지문·문장·표·머리글)용 배율 — 실물 시험지의 비례를 지켜야 해서 px 를 하나하나
+ *  갈아끼우지 않고 통째로 곱한다. `--fs` CSS 변수로 흘려보내면 아래 어디서든 받는다.
+ *  숫자는 FONT_SIZE_CLASSES.body(14/16/19/22px)와 같은 비율. */
+export const FONT_SCALE: Record<FontSize, number> = {
+  small: 0.875,
+  normal: 1,
+  large: 1.1875,
+  xlarge: 1.375,
+}
+
 export const FONT_SIZE_CLASSES = {
   small: {
     title: 'text-[16px]',

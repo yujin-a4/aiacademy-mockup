@@ -62,7 +62,8 @@ function Sidebar({ open, setOpen }: {
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
-      <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
+      {/* 사이드바 맨 윗줄(로고·접기 버튼)도 상태바 밑이다 — 안전영역만큼 내린다 */}
+      <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <div className="flex items-center gap-2.5 animate-fade-in">
             <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
@@ -238,7 +239,7 @@ function RegularDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 md:pt-safe-5 pb-28 md:pb-8">
           <div className="max-w-[1100px] mx-auto w-full space-y-4">
 
             {/* 데스크탑 상단 바 */}

@@ -173,7 +173,7 @@ function ReviewInner() {
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-32">
       {/* 헤더 */}
-      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30 sticky top-0 z-10">
+      <header className="px-6 pt-safe-4 pb-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30 sticky top-0 z-10">
         <button onClick={() => router.push('/my-learning?tab=wrong')} className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6"/>
