@@ -2356,9 +2356,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  근거는 **지어내지 않는다.** 이 턴이 어느 보기를 짚는지(reveal.optionText)와 그 보기의 해석
    *  (question_options.option_explanation)이 있을 때만 "보기가 뭐라고 했는지"를 읽어 준다.
    *  없으면 고른 것과 답만 분명히 말한다. */
-  /** O/X 선택지는 **화면엔 기호, 입엔 말**이다. 'X' 를 그대로 읽히면 한국어 목소리가
-   *  영어 알파벳으로 뭉개 읽는다(koLetters 는 A~D 만 한글 음으로 바꾼다). */
-  const asWord = (t: string) => (t === 'O' ? '맞아요' : t === 'X' ? '아니에요' : t)
+  /** 학생이 **무엇이라고 봤는지**를 되짚는 말.
+   *  O/X 는 **화면엔 기호, 입엔 말**이다 — 'X' 를 그대로 읽히면 한국어 목소리가 영어 알파벳으로
+   *  뭉개 읽는다(koLetters 는 A~D 만 한글 음으로 바꾼다). 그렇다고 낱말로 바꿔 끼워도 안 된다 —
+   *  `asWord('X')` 로 만들면 "방금 고른 '아니에요' 는 답이 아니에요" 가 된다(실측 09-01).
+   *  판정은 판정답게 **부사절로** 받는다: "아니라고 봤는데, 이건 맞아요." */
+  const asPicked = (t: string) => (t === 'O' ? '맞다고' : t === 'X' ? '아니라고' : null)
   /** 답을 매듭짓는 한 마디. O/X 를 "답은 '아니에요' 예요" 로 만들면 말이 겹쳐 들린다 —
    *  O/X 는 판정이지 낱말이 아니라서 그대로 서술형으로 말한다. */
   const verdict = (t: string) => (t === 'X' ? '이건 아니에요.' : t === 'O' ? '이건 맞아요.'
@@ -2382,7 +2385,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const label = turn.reveal?.optionText?.[0]?.labels?.[0]
     const q = turn.focusQ !== undefined ? lesson.content.questions[turn.focusQ] : undefined
     const trans = label ? q?.options.find((o) => o.label === label)?.why : undefined
-    const mine = picked && picked !== right ? `방금 고른 '${asWord(picked)}' 는 답이 아니에요. ` : ''
+    const said = picked && picked !== right ? asPicked(picked) : null
+    const mine = !picked || picked === right ? ''
+      /* O/X 는 "…라고 봤는데," 로 이어 붙이고, A~D 는 고른 것을 그대로 되짚는다 */
+      : said ? `${said} 봤는데, ` : `방금 고른 '${picked}' 는 답이 아니에요. `
 
     /* O/X 는 근거의 방향이 정해져 있다 — X 면 자료에 없다는 뜻, O 면 그대로라는 뜻 */
     if (trans && label && (right === 'X' || right === 'O')) {
@@ -2448,7 +2454,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다.
          다독이지 않는 강사(INST_SCRIPT_ONLY)는 그냥 다음 단계를 말한다 — prevOk 가 false 라
          대본이 맞장구로 시작해도 stripAck 이 떼어 주므로, 모른다는 학생에게 맞았다고 하지 않는다. */
-      if (!INST_SCRIPT_ONLY[instructor]) {
+      if (scriptWillAnswerWrong()) {
+        /* 대본이 **오답일 때 할 말을 갖고 있다** — 앱은 한 마디도 얹지 않는다.
+           얹으면 학생이 같은 말을 두 번 듣는다: 앱한테 한 번, 강사한테 또 한 번. */
+      } else if (!INST_SCRIPT_ONLY[instructor]) {
         await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
       } else if (!scriptWillTell()) {
         /* ── 대본만 읽는 강사도 **답은 알려준다** (간결본 09-01) ──
@@ -2494,7 +2503,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        나가는 쪽이, 틀린 학생이 답을 못 듣고 넘어가는 쪽보다 낫다. */
     /* "제가 짚어 줄게요." 는 뗐다 — 짚어 주겠다고 예고하는 말은 그 자체로 내용이 없고,
        뒤에 붙는 답까지 훈수처럼 들리게 만든다. 답만 강사 말투로 바로 말한다(asConfirm). */
-    if (!scriptWillTell()) await say(closingLine(picked))
+    /* 대본이 오답 갈래를 갖고 있으면(scriptWillAnswerWrong) 앱은 비켜선다 — 이도윤 선택지
+       31곳이 전부 그렇다(실측 09-01). 거기서 앱이 "아니라고 봤는데, 이건 맞아요" 를 얹으면
+       바로 뒤에 대본이 "(오답) 아쉽지만 아니에요…" 를 말해 같은 자리가 두 번이 된다. */
+    if (!scriptWillTell() && !scriptWillAnswerWrong()) await say(closingLine(picked))
     goNext()
   }
 
