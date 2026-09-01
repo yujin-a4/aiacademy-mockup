@@ -4,6 +4,7 @@
 배운 전략으로 직접 풀기
 핵심 요약
 00:00
+가
 지문 1 · 이메일
 지문 2 · 일정표
 *E-Mail*
@@ -36,12 +37,17 @@ To announce a new trainer
 다음 →
 채점하기
 [버튼] 나가기
+[버튼] 가
 [버튼] 지문 1 · 이메일
 [버튼] 지문 2 · 일정표
 [버튼] A To confirm his registration
+[버튼] 이 보기 소거
 [버튼] B To cancel a session
+[버튼] 이 보기 소거
 [버튼] C To request a payment
+[버튼] 이 보기 소거
 [버튼] D To announce a new trainer
+[버튼] 이 보기 소거
 [버튼] ← 이전 · 꺼짐
 [버튼] 1
 [버튼] 2
@@ -50,6 +56,6 @@ To announce a new trainer
 [버튼] 채점하기
 [버튼] 연필
 [버튼] 형광펜
-[버튼] 획 지우기
+[버튼] 대상 지우기
 [버튼] 전체 지우기
 [버튼] 필기 도구
