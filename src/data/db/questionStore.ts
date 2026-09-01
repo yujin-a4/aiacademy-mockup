@@ -242,6 +242,25 @@ export function groupByPassage(rows: UiDbQuestion[]): PassageGroup[] {
     .map(({ label, questions }) => ({ label, questions }))
 }
 
+/**
+ * 오답노트에 붙일 **유형 이름**.
+ *
+ * 파트마다 유형이 다른 칸에 들어 있다 — 한 필드만 보면 그 파트 오답이 전부 '미분류'로 쌓인다.
+ *   P2·P5·P6·P7 → `question_type_label` (Where 의문문 / 동사 자리 / 추론 …)
+ *   P5          → `grammar_point` (품사·시제 …) 이 더 굵은 분류라 라벨이 없을 때 받는다
+ *   P3·P4       → 문항 자체의 유형 칸이 없다. 지문 종류(`passage_type` — 공지·전화 메시지)가
+ *                 학습자가 아는 유형에 가장 가깝다
+ *   P1          → `photo_type` (인물 중심 사진 …)
+ * "Look at the graphic" 은 파트를 가리지 않는 **시각 정보 연계** 유형이라 먼저 집는다
+ * (해설 텍스트도 이 이름을 쓴다).
+ */
+export function questionCategory(q: UiDbQuestion): string | undefined {
+  const c = q.content ?? {}
+  if (/^\s*look at the graphic/i.test(c.question_text ?? '')) return '시각 정보 연계'
+  return c.question_type_label || c.grammar_point || c.blank_type
+    || c.passage_type || c.photo_type || undefined
+}
+
 /** 범용 훅: DB 로드 성공 시 adapt 결과, 실패 시 fallback */
 export function useDbQuestions<T>(codes: string[], adapt: (rows: UiDbQuestion[]) => T, fallback: T): T {
   const [data, setData] = useState<T>(fallback)

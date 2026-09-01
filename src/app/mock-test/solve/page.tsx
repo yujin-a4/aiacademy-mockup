@@ -371,12 +371,15 @@ function OptionRow({
         >
           {option.option_label}
         </span>
-        {struck && !reveal ? (
-          // 글자는 감추고 그어 놓은 자리만 남긴다
-          <span className="flex-1 h-px bg-[#D1D5DB]" aria-label="소거한 보기" />
-        ) : (
-          <span className={`${fontStyleClass} ${sizeClass} min-w-0`}>{option.option_text}</span>
-        )}
+        {/* 그어 지운 보기 — **글자는 남긴다.** 흐리게 깔고 줄만 긋는다.
+            시험지에서 연필로 그은 보기도 읽히기는 한다. 통째로 감추면 무엇을 지웠는지
+            안 보여서, 마지막에 둘 중 하나로 좁혀 놓고도 되짚을 수가 없다. */}
+        <span aria-label={struck && !reveal ? '소거한 보기' : undefined}
+          className={`${fontStyleClass} ${sizeClass} min-w-0 ${
+            struck && !reveal ? 'opacity-40 line-through decoration-[#6B7280] decoration-[1.5px]' : ''
+          }`}>
+          {option.option_text}
+        </span>
         {rightOne && <span className="ml-auto shrink-0 text-[10px] font-black text-[#16A34A]">정답</span>}
         {wrongPick && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답</span>}
       </button>
@@ -987,7 +990,7 @@ function TestSolverInner() {
     <div className={`min-h-screen bg-[#F8FAFF] flex flex-col ${isSubmitted ? 'pb-24' : 'h-screen'}`}>
       
       {/* Top Header */}
-      <header className="px-6 py-3.5 bg-white border-b border-[#DBEAFE] flex items-center justify-between shrink-0 z-20 font-sans shadow-sm">
+      <header className="px-6 pt-safe-3.5 pb-3.5 bg-white border-b border-[#DBEAFE] flex items-center justify-between shrink-0 z-20 font-sans shadow-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={() => (isSubmitted ? router.push('/my-learning?tab=mock') : setAskExit(true))}

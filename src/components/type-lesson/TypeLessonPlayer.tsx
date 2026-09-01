@@ -10,7 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
-import { useFontSettingsStore, FONT_SIZE_CLASSES } from '@/store/fontSettingsStore'
+import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
 import MicButton from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
@@ -456,7 +456,7 @@ function buildLessonFacts(lesson: TypeLesson, itemSeq: number | undefined, gate:
      보기·정답·오답 이유는 **그 단계에서 필요할 때만** 준다. 처음부터 다 주면 첫 턴부터
      "에이 비 씨 디 중에 골라봐"가 나온다(실측). 모르면 말할 수 없다 — stageGate.ts */
   questions.forEach((q, i) => {
-    lines.push(`문항 ${i + 1}: ${q.q}`)
+    lines.push(`문항 ${i + 1}: ${q.q || '위 문장의 빈칸에 들어갈 말 고르기'}`)
     if (gate === 1) return                       // 단서 단계 — 보기 자체를 주지 않는다
     q.options.forEach((o) => {
       const mark = gate >= 3 && o.correct ? ' ← 정답' : ''
@@ -628,7 +628,7 @@ function PhaseStepper({ active, subtitle, onEnd, extra, onJump, steps }: {
 }) {
   const labels = steps ?? ['도입', '유형 학습', '실전 문제', '핵심 요약']
   return (
-    <div className="shrink-0 flex items-center gap-4 md:gap-8 px-3 md:px-5 py-2 bg-white border-b border-[#EBEBF0]">
+    <div className="shrink-0 flex items-center gap-4 md:gap-8 px-3 md:px-5 pt-safe-2 pb-2 bg-white border-b border-[#EBEBF0]">
       <button onClick={onEnd} className="p-1 shrink-0 -ml-1" aria-label="나가기">
         <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-6 md:h-6"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
       </button>
@@ -3521,8 +3521,10 @@ export interface PracticeResult {
 /* ── 실전 문제 단계 — 스캐폴딩 없이 한 문항씩 넘겨 풀고 채점 ──
    export 는 화면 갤러리(/dev/screens)가 이 단계만 따로 띄우기 위한 것. 수업을 처음부터
    돌리지 않고 파트별 실전 화면을 바로 볼 수 있어야 검토가 된다. */
-export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, steps, solvingHint }: {
+export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, steps, solvingHint, paperLook }: {
   lesson: TypeLesson; onExit: () => void
+  /** 문항 카드의 테두리를 벗긴다 — 자율학습(파트별 연습)에서만 켠다. 수업의 실전 단계는 그대로 */
+  paperLook?: boolean
   onDone: (score: PracticeResult) => void
   /** 개발용 단계 점프 (DEV_PHASE_JUMP) */
   onJumpPhase?: (i: number) => void
@@ -3919,6 +3921,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
       setAnswers((p) => (p[q] === l && !struck.has(key) ? { ...p, [q]: '' } : p))
     },
     textCls: FONT_SIZE_CLASSES[fontSize]?.body ?? FONT_SIZE_CLASSES.normal.body,
+    paperLook,
     onSelect: (q, l) => {
       if (graded) return
       // 그어 지운 보기는 고를 수 없다
@@ -4045,7 +4048,11 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
       {/* 문항 영역 — 시작 전에는 그 위에 [시작하기] 가 덮인다(아래 오버레이) */}
       <div className="relative flex-1 min-h-0 flex flex-col">
         <div ref={contentRef} className={`flex-1 px-3 md:px-6 py-4 min-h-0 ${splitReading ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-          <div className={`mx-auto ${splitReading ? 'h-full max-w-[1440px]' : 'max-w-[900px]'}`}>
+          {/* 글자 크기 설정은 발문·보기만이 아니라 **시험지 전체**에 걸린다 —
+              Part 5 는 빈칸 문장이, P6·P7 은 지문이 학생이 실제로 읽는 글이다.
+              여기서 흘려보낸 --fs 를 ContentView 의 시험지 서체들이 받아 곱한다. */}
+          <div className={`mx-auto ${splitReading ? 'h-full max-w-[1440px]' : 'max-w-[900px]'}`}
+               style={{ '--fs': FONT_SCALE[fontSize] ?? 1 } as React.CSSProperties}>
             <ContentView lesson={pLesson} st={st} readingSideBySide={splitReading} />
           </div>
         </div>
