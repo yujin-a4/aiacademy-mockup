@@ -15,7 +15,12 @@
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 
-export type DockMode = 'sidebar' | 'mini'
+/** 강사 창 배치
+ *   sidebar — 화면 오른쪽 기둥(기본, 가로로 넘은 태블릿)
+ *   bottom  — 화면 아래에 깔때로 깔린 간소판. **세로 화면·핸드폰**은 이쪽이다 —
+ *             옆에 세울 폭도 안 되고, 띄우는 작은 창은 지문을 덮는다
+ *   mini    — 끌어 옮기는 작은 창. 넓은 화면에서 학생이 직접 접었을 때만 */
+export type DockMode = 'sidebar' | 'mini' | 'bottom'
 export interface ChatMsg {
   role: 'ai' | 'user'
   text: string
@@ -441,6 +446,20 @@ export default function TutorDock({
     if (el) el.scrollTop = el.scrollHeight
   }, [lastLine])
 
+  /* ── 하단 간소판 — 세로 화면·핸드폰 ── */
+  if (mode === 'bottom') {
+    return (
+      <BottomDock
+        faceSrc={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name}
+        connected={connected} connecting={connecting} isSpeaking={isSpeaking} preparing={preparing}
+        getTutorFreq={getTutorFreq} lastLine={lastLine} lastLinePlain={lastLinePlain}
+        chatMode={chatMode} setChatMode={setChatMode} micActive={micActive}
+        inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
+        actions={actions} hint={hint} footer={footer}
+        onExpand={canSidebar ? () => setMode('sidebar') : undefined} />
+    )
+  }
+
   /* ── 최소화 — 얼굴을 끌어 원하는 자리에 두는 작은 창 ── */
   if (mode === 'mini') {
     return (
@@ -458,8 +477,11 @@ export default function TutorDock({
   /* ── 우측 패널(기본) — 화면 오른쪽 기둥 ── */
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
-      {/* 최소화 — 강사 창의 우측 상단. 배치 전환은 이 버튼 하나뿐이다(하단 도크 없음).
-          아이콘만 두면 있는 줄도 모른다 — **'접기' 글자를 붙인 알약 버튼**으로 둔다. */}
+      {/* ── '접기' 버튼은 **숨겨 둔다** (사용자 지시 09-01) ──
+          작은 창(mini) 으로 가는 길을 학생에게 열어 두지 않는다 — 좁은 화면은 이제
+          하단 간소판(bottom)이 맡고, 넓은 화면에서 접을 이유는 없다.
+          **기능은 남겨 둔다** — mini 모드 자체는 그대로라, 다시 보이게 하려면
+          이 버튼만 되살리면 된다. (배치 판정은 TypeLessonPlayer 의 matchMedia)
       <button onClick={() => setMode('mini')} aria-label="강사 창 접기" title="강사 창을 작게 접어 옆으로 치웁니다"
         className="absolute top-2 right-2 z-10 flex items-center gap-1 h-7 pl-2 pr-2.5 rounded-full
                    bg-white/90 border border-[#E2E8F0] shadow-sm text-[11px] font-bold text-[#64748B]
@@ -468,7 +490,7 @@ export default function TutorDock({
           <path d="M9 6l6 6-6 6" />
         </svg>
         접기
-      </button>
+      </button> */}
 
       {/* 아바타 + 모드 토글 — 두 모드 공통. 단계 표시가 빠진 만큼 위로 붙는다 */}
       <div className="shrink-0 flex flex-col items-center pt-1.5 pb-2 bg-gradient-to-b from-[#F5F8FF] to-white">
@@ -636,6 +658,104 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
         </span>
         <span className={`absolute bottom-2 right-2 w-3 h-3 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
       </button>
+    </div>
+  )
+}
+
+/* ── 하단 간소판 (bottom) ──
+   세로 화면·핸드폰에서 강사가 앉는 자리. 옆 기둥(sidebar)은 이 폭에서 둘 다 못 읽고,
+   끌어 옮기는 작은 창(mini)은 문제 위에 떠서 지문·보기를 덮는다. 그래서 **아래에 깔고**,
+   그 자리에서 꼭 필요한 것만 남긴다.
+
+   남기는 것 넷 — 얼굴(누가 말하는가) · 방금 한 말 · 지금 할 일(지시·선택지) · 답하는 자리.
+   빼는 것 — 대화 이력, 리사이즈, 창 옮기기. 좁은 화면에서 이력을 펴면 문제가 사라진다.
+
+   ⚠️ **떠 있지 않고 자리를 차지한다**(fixed 아님). 수업 칸이 그만큼 줄어야 사진·보기가
+      이 판에 가려지지 않는다 — 그 배치는 TypeLessonPlayer 가 flex-col 로 잡는다. */
+function BottomDock({
+  faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq,
+  lastLine, lastLinePlain, chatMode, setChatMode, micActive, footer,
+  inputText, setInputText, onSend, onStartAgent, actions, hint, onExpand,
+}: {
+  faceSrc: string; clipSrc?: string | null; allClips?: string[]
+  name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
+  getTutorFreq?: () => Uint8Array | undefined
+  lastLine: string; lastLinePlain?: boolean
+  chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
+  micActive?: boolean
+  footer?: ReactNode
+  inputText: string; setInputText: (s: string) => void; onSend: () => void; onStartAgent: () => void
+  actions?: ReactNode; hint?: ReactNode
+  /** 옆 기둥으로 펼 수 있는 폭이면 그 문을 하나 둔다. 좁으면 없음 */
+  onExpand?: () => void
+}) {
+  /* 말이 길어지면 아래로 따라 내려간다 — 화면이 좁아 두세 줄만 보이는 자리라 더 중요하다 */
+  const liveRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = liveRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [lastLine])
+
+  return (
+    <div className="shrink-0 w-full border-t border-[#E5E7EB] bg-white"
+      style={{ boxShadow: '0 -6px 20px rgba(15,23,42,0.06)' }}>
+      {/* ① 누가 말하는가 + 방금 한 말 */}
+      <div className="flex items-start gap-2.5 px-3 pt-2.5">
+        <span className="relative shrink-0">
+          <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name}
+            speaking={isSpeaking} getFreq={getTutorFreq} size={44} />
+          <span className={`absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div ref={liveRef} className="max-h-[20vh] overflow-y-auto text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap">
+            {lastLine ? <TutorText text={lastLine} plain={lastLinePlain} />
+              : (isSpeaking || preparing) ? <SpeechDots />
+                : <span className="text-[12px] text-gray-400">{connecting ? '연결 중…' : `${name} 선생님`}</span>}
+          </div>
+          {/* 지금 말해도 되는가 — **강사 말 바로 밑에** 둔다. 왼쪽 끝(얼굴 아래)에 두면
+              무엇에 대한 말인지 안 보인다 — 물은 말 아래 답하는 자리가 맞다(사용자 지시 09-01). */}
+          {micActive && (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[#EFF6FF] px-2.5 py-1 text-[11px] font-bold text-[#2563EB]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+              지금 말해 보세요
+            </span>
+          )}
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          <ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} compact />
+          {onExpand && (
+            <button onClick={onExpand} className="text-[10.5px] font-bold text-[#94A3B8] hover:text-[#475569] px-1">
+              옆으로 펴기
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ② 지금 할 일 — 행동 지시와 선택지. 글자는 한 단계 줄인다 */}
+      <div className="px-3 py-2 space-y-2 max-h-[34vh] overflow-y-auto empty:hidden
+                      [&_button]:text-[12.5px] [&_p]:text-[12.5px]">
+        {hint}
+        {actions}
+      </div>
+
+      {/* ③ 답하는 자리 — 텍스트 모드는 마이크가 닫혀 있어 이 줄이 유일한 길이다 */}
+      {chatMode === 'text' && (
+        <div className="flex items-center gap-1.5 px-3 py-2 border-t border-gray-100">
+          <input className="flex-1 min-w-0 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
+            placeholder={connected ? '메시지를 입력하세요' : connecting ? '연결 중…' : '연결이 끊겼어요'}
+            value={inputText} disabled={!connected} maxLength={300}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSend() }} />
+          <button onClick={connected ? onSend : onStartAgent} disabled={connected ? !inputText.trim() : connecting}
+            aria-label={connected ? '전송' : '대화 시작'}
+            className="w-8 h-8 bg-[#2563EB] rounded-full flex items-center justify-center shrink-0 disabled:opacity-40">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {footer && <div className="px-3 pb-2">{footer}</div>}
     </div>
   )
 }

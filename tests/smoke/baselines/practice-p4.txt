@@ -40,10 +40,6 @@ D
 Submit a vacation request
 0/3 선택
 채점하기
-연필
-형광펜
-획 지우기
-그냥 지우기
 [버튼] 나가기
 [버튼] 시작하기 한 번 시작하면 마지막 문제까지 이어서 나가요
 [버튼] A A change to the vacation policy
@@ -59,11 +55,8 @@ Submit a vacation request
 [버튼] C Check their leave records
 [버튼] D Submit a vacation request
 [버튼] 채점하기
-[버튼] 필기 도구
-[버튼] (글자없음)
 [버튼] 연필
 [버튼] 형광펜
 [버튼] 획 지우기
-[버튼] 그냥 지우기
-[버튼] (글자없음)
-[버튼] (글자없음)
+[버튼] 전체 지우기
+[버튼] 필기 도구
