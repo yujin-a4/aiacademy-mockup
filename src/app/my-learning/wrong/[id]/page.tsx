@@ -52,7 +52,7 @@ export default function WrongAnswerDetail() {
   return (
     <div className="min-h-screen bg-[#F8FAFF] flex flex-col font-sans pb-24">
       {/* 헤더 */}
-      <header className="px-6 py-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30">
+      <header className="px-6 pt-safe-4 pb-4 flex items-center gap-3 bg-[#F8FAFF] border-b border-[#DBEAFE]/30">
         <Link href="/my-learning?tab=wrong" className="p-2 -ml-2 text-[#6B7280]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6"/>

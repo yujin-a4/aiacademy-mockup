@@ -85,6 +85,13 @@ export interface ContentState {
   /** 문항·보기 글자 크기 클래스 (실전 화면의 '글자 크기' 설정).
    *  없으면 기존 크기 그대로 — 강사 수업 화면까지 같이 커지지 않게 실전에서만 넘긴다. */
   textCls?: string
+  /** 시험지처럼 **문항 카드의 테두리를 벗긴다.**
+   *  실물 시험지에는 문항을 감싼 상자가 없다 — 번호와 문장과 (A)~(D) 가 그냥 놓여 있다.
+   *  테두리·그림자가 있으면 웹 폼처럼 보여서 시험지 느낌이 깨진다(LC 답안지 모드가 이미 같은 이유로
+   *  껍데기를 벗긴다). **자율학습에서만 켠다** — 실전 모의고사와 파트별 연습.
+   *  강사가 끌고 가는 수업 화면은 카드가 "지금 다루는 덩어리"를 짚어 주므로 그대로 둔다.
+   *  보기 테두리는 벗기지 않는다 — 그건 장식이 아니라 손가락으로 누르는 자리다. */
+  paperLook?: boolean
   /** 근거 연결(match) 진행 중일 때만 존재 — 지문의 문장/메타/표 행을 직접 탭하는 상호작용 상태.
    *  matchedTargets는 `${passageId}:${targetId}` 키로 이미 맞힌 근거를 담는다. */
   matchState?: { evidence: MatchEvidence[]; matchedTargets: Set<string>; onTap: (passageId: string, targetId: string) => void }
@@ -210,7 +217,7 @@ function SentenceText({ text, st, focusBlank, scope = '' }: { text: string; st: 
           }
           return (
             <span key={i}
-              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 border-b-2 text-[13px] font-black align-baseline whitespace-nowrap ${
+              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 border-b-2 text-[calc(13px*var(--fs,1))] font-black align-baseline whitespace-nowrap ${
                 focused ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
               }`}>
               {`(${n})`}
@@ -254,8 +261,13 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const correctLabel = q.options.find((o) => o.correct)?.label
   /* 지금 나가는 음원이 "전체 지문/스크립트"인가 — 보기(opt:)·문항 묶음(qaudio:)은 그 자리에서 켜지므로 뺀다 */
   const scriptPlaying = !!st.playingId && !st.playingId.startsWith('opt:') && !st.playingId.startsWith('qaudio:')
-  // 파트1·2는 실제 시험에서 문제 지문이 없음(사진/음성) → 문제 헤더 숨기고 보기만
+  /* 실제 시험지에 **발문이 없는** 파트 — 헤더를 통째로 접고 보기만 둔다.
+     P1·P2 는 사진·음성이 곧 문항이고, P5 는 빈칸 뚫린 문장 하나가 곧 문항이다
+     ("빈칸에 알맞은 것을 고르세요" 같은 한국어 지시문은 시험지 어디에도 없다).
+     문항이 여럿 펼쳐진 화면에서는 Q번호 칩만 남긴다 — 어느 빈칸을 채우는 건지 짚어야 한다. */
+  const stem = q.q?.trim() ?? ''
   const hideQ = lesson.part === 1 || lesson.part === 2
+    || (!stem && lesson.content.questions.length === 1)
 
   const spotted = st.spotlightQ === qIdx
   useEffect(() => {
@@ -272,7 +284,7 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   /* 답안지 모드(LC 실전, 채점 전)에서는 카드 껍데기를 통째로 벗긴다 — 실제 시험지의 마킹란은
      상자 안에 들어 있지 않고 (A)(B)(C)(D) 가 그냥 놓여 있다. 테두리·그림자가 있으면 웹 폼처럼
      보여서 시험지 느낌이 깨진다. 채점하면 보기·근거가 열려 해설 카드가 되므로 상자를 되돌린다. */
-  const bare = !!st.answerSheet && !graded
+  const bare = (!!st.answerSheet && !graded) || !!st.paperLook
   /* P3·P4 실전은 세 문항이 한 상자 안에 나란히 있다 — 음원이 지금 읽어주는 문항이 어느 것인지
      보이지 않으면 학생이 따라가지 못한다. 이때만 옅은 파랑으로 짚는다.
      (선택한 보기의 파란 테두리와 겹치지 않게 카드는 배경으로, 보기는 테두리로 구분한다) */
@@ -289,9 +301,11 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           <span className={`shrink-0 w-7 h-7  text-[12px] font-black flex items-center justify-center ${
             focused ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
           }`}>Q{qIdx + 1}</span>
-          <p className={`${st.textCls ?? 'text-[14px] md:text-[15px]'} font-semibold text-[#1C1B33] leading-relaxed pt-0.5`}>
-            <TapText text={q.q} st={st} scope={`q${qIdx}`} />
-          </p>
+          {stem && (
+            <p className={`${st.textCls ?? 'text-[14px] md:text-[15px]'} font-semibold text-[#1C1B33] leading-relaxed pt-0.5`}>
+              <TapText text={q.q} st={st} scope={`q${qIdx}`} />
+            </p>
+          )}
           {/* 전체 지문 음원이 나가는 중 — 재생 바를 없앤 대신 "지금 소리가 난다"를 여기서 알린다.
               스크립트가 잠긴 P3·P4는 이 표시가 유일한 재생 신호다. */}
           {/* 문항이 여러 개 펼쳐져 있으면(P3·P4 실전) 세 장에 다 붙는다 → **짚고 있는 문항에만** 단다.
@@ -397,8 +411,15 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                     {o.label}
                   </span>
                   {isStruck ? (
-                    /* 지운 자리 — 글자를 감추고 그은 줄만 남긴다. 라벨은 남겨야 되돌릴 수 있다 */
-                    <span className="flex-1 h-px bg-[#D1D5DB]" aria-label="소거한 보기" />
+                    /* 지운 자리 — **글자는 남긴다.** 흐리게 깔고 줄만 긋는다.
+                       실제 시험지에서 연필로 그은 보기도 읽히기는 한다. 통째로 감추면
+                       왜 지웠는지 되짚을 수 없고, 잘못 그었을 때 무엇을 지웠는지조차 안 보인다.
+                       ⚠️ 음성 보기(P1·P2)는 스크립트가 아직 잠겨 있으므로 여기서도 글자를 열지 않는다. */
+                    <span aria-label="소거한 보기"
+                      className={`${st.textCls ?? 'text-[13px] md:text-[14px]'} flex-1 leading-snug text-[#1C1B33]
+                                  opacity-40 line-through decoration-[#6B7280] decoration-[1.5px]`}>
+                      {textHidden ? '음성으로 들어요' : o.text}
+                    </span>
                   ) : textHidden ? (
                     /* 보기가 음성인 유형(P1·P2) — 재생 중인 보기가 곧 재생 표시다(별도 재생 바 없음) */
                     playing ? <EqLine label="재생 중" /> : (
@@ -601,7 +622,7 @@ function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: Content
                     }`}>{/* DB 화자는 교재 태그(W-Am·M-Cn…)라 성별 글자만 뽑아 쓴다 — 억양은 목소리로 들린다 */}
                       {s.speaker[0]}</span>
                   )}
-                  <p className="text-[13px] md:text-[14px] text-[#334155] leading-relaxed flex-1">
+                  <p className="text-[calc(13px*var(--fs,1))] md:text-[calc(14px*var(--fs,1))] text-[#334155] leading-relaxed flex-1">
                     <TapText text={s.en} st={st} scope={s.id} />
                   </p>
                   {/* 문장 재생은 별도 버튼 — 문장 안의 단어 탭은 형광펜이라 클릭 대상이 겹치면 안 된다 */}
@@ -764,8 +785,8 @@ function ExamBody({ doc, st, focusBlank, sans }: {
     <>
       {/* 서체는 다 Helvetica(실물 시험지). 문자·웹 지문만 글자를 조금 줄이고 줄간을 넓힌다 */}
       <p className={`text-[#111] font-exam ${sans
-        ? 'text-[13px] md:text-[14.5px] leading-[2.3]'
-        : 'text-[14px] md:text-[16px] leading-[1.75]'}`}>
+        ? 'text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] leading-[2.3]'
+        : 'text-[calc(14px*var(--fs,1))] md:text-[calc(16px*var(--fs,1))] leading-[1.75]'}`}>
         {ss.map((s) => <SentenceSpan key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />)}
       </p>
       {st.showKo && ss.some((s) => s.ko) && (
@@ -795,12 +816,12 @@ function MetaRow({ doc, m, st }: { doc: PassageDoc; m: { k: string; v: string };
   return (
     <div className="flex items-stretch gap-[5px]">
       <div className="w-[92px] md:w-[112px] shrink-0 bg-[#C6C6C6] border border-[#111] px-2 py-[3px]
-                      font-exam font-black text-[11px] md:text-[12px] text-[#111]">
+                      font-exam font-black text-[calc(11px*var(--fs,1))] md:text-[calc(12px*var(--fs,1))] text-[#111]">
         {m.k}{m.k.endsWith(':') ? '' : ':'}
       </div>
       <div
         onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[13px] md:text-[14.5px] text-[#111] truncate ${
+        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] text-[#111] truncate ${
           st.matchState ? 'cursor-pointer' : ''
         } ${matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : 'bg-white'}`}>
         {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{m.v}
@@ -820,7 +841,7 @@ function MetaLines({ doc, st, sans }: { doc: PassageDoc; st: ContentState; sans?
         return (
           <p key={m.k}
             onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-            className={`font-exam ${sans ? 'text-[12.5px] md:text-[13.5px]' : 'text-[13px] md:text-[14.5px]'} text-[#111] ${
+            className={`font-exam ${sans ? 'text-[calc(12.5px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))]' : 'text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))]'} text-[#111] ${
               st.matchState ? 'cursor-pointer' : ''
             } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] rounded-[2px]' : ''}`}>
             {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
@@ -837,7 +858,7 @@ function ExamTable({ table, docId, st }: { table: { headers: string[]; rows: str
   const active = !!(docId && st?.matchState)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse font-exam text-[13px] md:text-[14.5px] text-[#111]">
+      <table className="w-full border-collapse font-exam text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] text-[#111]">
         {table.headers.some(Boolean) && (
           <thead>
             <tr>
@@ -876,7 +897,7 @@ function ExamEmail({ doc, st }: { doc: PassageDoc; st: ContentState }) {
       {/* 타이틀 바 — 가운데 제목, 양옆 가로선 장식 */}
       <div className="flex items-center gap-2 pb-2">
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
-        <span className="font-exam font-bold text-[12px] md:text-[13.5px] text-[#111] whitespace-nowrap">
+        <span className="font-exam font-bold text-[calc(12px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))] text-[#111] whitespace-nowrap">
           {doc.title ?? '*E-Mail*'}
         </span>
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
@@ -901,7 +922,7 @@ function ExamWeb({ doc, st, url }: { doc: PassageDoc; st: ContentState; url: str
     <div className="border-[1.5px] border-[#111] bg-[#D6D6D6]">
       <div className="flex items-center gap-2 px-2 py-2">
         <span className="shrink-0 font-exam text-[11px] text-[#111] tracking-tighter">◀▶</span>
-        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam text-[12px] md:text-[13px] text-[#111] truncate">
+        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam text-[calc(12px*var(--fs,1))] md:text-[calc(13px*var(--fs,1))] text-[#111] truncate">
           {url}
         </span>
         <span className="shrink-0 flex items-center gap-[3px] pl-1">
@@ -944,12 +965,12 @@ function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
                 className={`max-w-[84%] bg-white border border-[#111] rounded-[3px] px-2.5 py-1.5 ${
                   st.matchState ? 'cursor-pointer' : ''
                 } ${matched ? 'ring-2 ring-[#86EFAC]' : ''}`}>
-                <p className="font-exam text-[12px] md:text-[13px] font-bold text-[#111] mb-0.5">
+                <p className="font-exam text-[calc(12px*var(--fs,1))] md:text-[calc(13px*var(--fs,1))] font-bold text-[#111] mb-0.5">
                   {matched && <span className="mr-1 text-[#16A34A]">✓</span>}
                   {c.speaker}
                   {c.time && <span className="ml-1.5">[{c.time}]</span>}
                 </p>
-                <p className="font-exam text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
+                <p className="font-exam text-[calc(12.5px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))] text-[#111] leading-[1.6]">
                   <TapText text={c.text} st={st} scope={c.id} />
                 </p>
               </div>
@@ -969,7 +990,7 @@ function ExamDoc({ doc, st, focusBlank, sans }: {
     <div className="border-[1.5px] border-[#111] bg-white px-4 py-4 md:px-6 md:py-5">
       {doc.title && (
         <p className={`text-center font-bold text-[#111] mb-2.5 font-exam ${
-          sans ? 'text-[14px] md:text-[15px]' : 'text-[16px] md:text-[19px]'}`}>
+          sans ? 'text-[calc(14px*var(--fs,1))] md:text-[calc(15px*var(--fs,1))]' : 'text-[calc(16px*var(--fs,1))] md:text-[calc(19px*var(--fs,1))]'}`}>
           {doc.title}
         </p>
       )}
@@ -1404,7 +1425,8 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                 <span className="shrink-0 text-[11px] font-black px-2 py-0.5  bg-[#EFF6FF] text-[#2563EB]">
                   Questions {set.from + 1}–{set.to}
                 </span>
-                <span className="text-[11px] text-[#9CA3AF] truncate">한 {kind}에 딸린 {set.to - set.from}문항입니다</span>
+                {/* "한 대화에 딸린 3문항입니다" 같은 설명은 두지 않는다 — 옆의 `Questions 7–9` 가
+                    이미 같은 말을 하고, 실물 시험지에도 그런 한국어 줄은 없다 */}
               </div>
 
               {/* 세트 음원 — '이 문항의 음원' 이 없으므로 세트 머리에서 한 번 튼다.
@@ -1442,11 +1464,13 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
          · 예전 실전 세트      — 지문 1개 안에 문장 N개          → [s1,s2,s3]
        예전에는 passages[0] 만 봐서, 아이템 순회로 바뀐 뒤 **2번째 문항부터 문장이 안 나왔다.** */
     const sentences = (content.passages ?? []).flatMap((p) => p.sentences ?? [])
+    /* 시험지에는 문장 하나를 감싼 상자가 없다 — 자율학습(paperLook)에서는 여백만 남긴다.
+       수업은 강사가 "이 문장을 봅시다" 하고 짚는 자리라 상자를 그대로 둔다. */
     const SentenceCard = ({ text }: { text: string }) => (
-      <div className="border border-[#E5E7EB] bg-white px-5 py-6">
+      <div className={st.paperLook ? 'px-1 py-3' : 'border border-[#E5E7EB] bg-white px-5 py-6'}>
         {/* 실제 시험지의 Part 5 는 **왼쪽 정렬**이다. 가운데로 모으면 한 줄짜리는 그럴듯해도
             두 줄이 되는 순간 들쭉날쭉해져서 시험지로 안 보인다. */}
-        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-left">
+        <p className="text-[calc(15px*var(--fs,1))] md:text-[calc(16px*var(--fs,1))] text-[#1C1B33] leading-[2.1] text-left">
           <SentenceText text={text} st={st} focusBlank={focusBlank} scope="p5" />
         </p>
       </div>

@@ -189,7 +189,12 @@ export async function GET(req: NextRequest) {
         passage_code: p?.passage_code ?? null,
         /* 유형(question_type)은 **풀이 중에 보여주지 않는다** — '형용사 어휘' 같은 값은
            사실상 푸는 법을 알려주는 것이라 실전 시험지에 없다. 채점 뒤 오답노트가 쓴다. */
-        qtype: (content.question_type as string) || (content.grammar_point as string) || undefined,
+        /* 회차 문항도 파트마다 유형이 다른 칸에 있다 — 한 필드만 보면 P1 오답이 통째로 '미분류'가
+           된다. P3·P4 는 아직 유형 칸 자체가 없어 시각 정보 연계만 잡힌다(적재 때 채워야 한다). */
+        qtype: /^\s*look at the graphic/i.test(String(content.question_text ?? ''))
+          ? '시각 정보 연계'
+          : (content.question_type as string) || (content.grammar_point as string)
+            || (content.blank_type as string) || (content.photo_type as string) || undefined,
         content,
         options: ((row.question_options as any[]) ?? [])
           .map((o) => ({

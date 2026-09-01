@@ -155,7 +155,8 @@ function Sidebar() {
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
-      <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
+      {/* 사이드바 맨 윗줄(로고·접기 버튼)도 상태바 밑이다 — 안전영역만큼 내린다 */}
+      <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
             <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
@@ -342,7 +343,7 @@ function MyLearningInner() {
         </header>
 
         {/* 데스크탑 탑바 */}
-        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
+        <header className="hidden md:flex px-8 pt-safe-4 pb-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <p className="text-[#1C1B33] font-bold text-[20px]">자율학습</p>
           <div className="flex items-center gap-2">
             {ddayLabel && (

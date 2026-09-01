@@ -37,6 +37,19 @@ const ONLY = onlyArg > -1 ? process.argv[onlyArg + 1] : null;
 /* ── 시각자료(그래픽 연계) ──
    교재의 표는 PDF 안에서 선으로 그린 그림이라 파서가 못 뽑는다. 본권 쪽에서 눈으로 옮겨 적는다.
    화면은 `passages.body.table` 을 그대로 그린다(fromDb 의 lcVisual). */
+const VISUAL_INVOICE = {
+  visual_title: 'INVOICE',                           // 실전토익 LC 1000 TEST 1 Q65~67 위 송장
+  table: {
+    headers: ['Item', 'Quantity', 'Price'],
+    rows: [
+      ['Pens', '3 boxes', '$10'],
+      ['Sticky notes', '5 boxes', '$75'],
+      ['Paperclips', '7 boxes', '$11'],
+      ['Binders', '4 boxes', '$120'],
+    ],
+  },
+};
+
 const VISUAL_WORKSHOP = {
   visual_title: '시각자료 · Staff Development Day',   // 본권 TEST 6 p.97 에서 옮겨 적음
   table: {
@@ -106,7 +119,7 @@ const PLAN = [
     practice: [
       { test: 3, range: '38-40' },            // 세탁기 배송 시간 안내 + 설치 요청
       { test: 1, range: '59-61' },            // 자전거 주문 출하 일정
-      { test: 1, range: '65-67' },            // 사무용품 배송 도착 + 송장(시각자료)
+      { test: 1, range: '65-67', visual: VISUAL_INVOICE },   // 사무용품 배송 도착 + 송장(시각자료)
     ] },
 
   /* Part 4 — 담화 1 + 문항 3 */
