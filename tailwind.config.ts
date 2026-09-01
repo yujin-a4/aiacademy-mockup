@@ -84,6 +84,9 @@ const config: Config = {
         /* '여기 누르세요' — 크기를 키우지 않고 테두리 밖으로 옅은 파란 물결만 퍼진다.
            실전은 시험 화면이라 요소가 커졌다 작아졌다 하면 시험지 느낌이 깨진다. */
         'cue':         'cue 1.7s ease-out infinite',
+        /* 화면 한가운데 잠깐 떴다 사라지는 안내 — 뜨는 것·머무는 것·사라지는 것이 한 애니메이션이라
+           띄운 쪽은 시간(5s)만 맞춰 지우면 된다 */
+        'toast':       'toast 5s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       keyframes: {
         eq: {
@@ -148,6 +151,11 @@ const config: Config = {
         particleFly: {
           '0%':   { transform: 'translate(0, 0) scale(1)', opacity: '1' },
           '100%': { transform: 'translate(var(--dx), var(--dy)) scale(0)', opacity: '0' },
+        },
+        toast: {
+          '0%':       { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
+          '8%, 84%':  { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '100%':     { opacity: '0', transform: 'translateY(-6px) scale(0.99)' },
         },
         popBadge: {
           '0%':   { transform: 'scale(0)', opacity: '0' },
