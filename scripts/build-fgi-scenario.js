@@ -49,17 +49,19 @@ const OUT = path.join(__dirname, '..', 'src', 'data', 'typeLearning', 'fgiScenar
    **한 탭에 강의가 둘 있다. 다만 나뉜 방향이 강사마다 다르다.**
      · FGI_윤다은  — 위아래. 'LC 1강 …' / 'RC 24강 …' 제목 줄로 나뉜다  → `section`
      · FGI_이도윤  — 좌우.   왼쪽 c0~c7 = LC 1강, 오른쪽 c8~ = RC 24강 → `range` */
+/* ⚠️ 2026-09-01 — 대본이 **간결본으로 통째 교체**됐다(콘텐츠 파트). 옛 탭은 시트에 남아
+   있지만 더 이상 읽지 않는다 — 'FGI_윤다은', 'FGI_이도윤'. 되돌릴 일이 생기면 이름만 바꾸면 된다. */
 const SOURCES = [
-  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: 'FGI_윤다은', section: /^LC\s*1강/ },
-  { instructor: 'yun_daeun', lecture: 'RC-P5-08', tab: 'FGI_윤다은', section: /^RC\s*24강/ },
+  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: 'FGI_윤다은_간결', section: /^LC\s*1강/ },
+  { instructor: 'yun_daeun', lecture: 'RC-P5-08', tab: 'FGI_윤다은_간결', section: /^RC\s*24강/ },
   /* 이도윤 — 같은 문항, 다른 대본. 표 모양도 윤다은 탭과 다르다:
        · 도입이 '화면 텍스트 | AI 강사 대사' 두 칸이다 — 화면 텍스트가 곧 '오늘 배울 내용'.
        · 본편 사이에 곁가지가 섞여 있다('유형 학습 3 → 실전 문제 버전' = 시간 없을 때 쓰는 대체본,
          '실전 문제로 넘어갈 때 멘트'). parse 가 홀로 선 제목 줄에서 블록을 닫아 걸러낸다. */
   /* ⚠️ 열 자리는 개정마다 밀린다. 08-13 최종본에서 한 칸씩 옮겨갔다(왼쪽 c0→c1, 오른쪽 c8→c9).
      "블록을 하나도 못 찾는다" 는 대개 이것 — 덤프를 열어 제목이 몇 번째 열인지 먼저 볼 것. */
-  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤', range: [1, 9] },
-  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤', range: [9] },
+  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤 (간략버전)', range: [1, 9] },
+  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤 (간략버전)', range: [9] },
 ]
 
 const go = process.argv.includes('--go')
@@ -439,11 +441,11 @@ function parse(tabName, range, section) {
        (실측 보고 08-20, 구현 중 메모 12행). 앞 줄이 (정답)-만이고 이 줄이 (오답)-만이면 붙인다.
        ⚠️ 학생에게 무엇을 시키는 줄은 붙이지 않는다 — 상호작용이 통째로 사라진다. */
     const prevTurn = cur.turns[cur.turns.length - 1]
-    const loneWrong = /^\(\s*오답\s*\)/.test(tutor)
-    const prevLoneOk = prevTurn && /^\(\s*정답\s*\)/.test(prevTurn.tutor) && !/\(\s*오답\s*\)/.test(prevTurn.tutor)
+    const loneWrong = RE_LONE_NG.test(tutor)
+    const prevLoneOk = prevTurn && RE_LONE_OK.test(prevTurn.tutor) && !RE_ANY_NG.test(prevTurn.tutor)
     const idleRow = !clean(modeRaw) || /^[-–]$/.test(clean(modeRaw))
     if (loneWrong && prevLoneOk && idleRow && !prevTurn.wrongLine) {
-      prevTurn.wrongLine = tutor.replace(/^\(\s*오답\s*\)\s*/, '')
+      prevTurn.wrongLine = tutor.replace(RE_STRIP_NG, '')
       continue
     }
 
@@ -613,6 +615,21 @@ function labelsOf(t) {
  *     풀이 결과가 오답일 때 이제 선택지 봐볼게요. 정답은 B였어요. …"
  *
  *  그대로 읽으면 강사가 **두 경우를 다 읊는다**(실측). 갈라서 담고 화면이 하나만 고른다. */
+/* 갈래를 여는 표기 — 개정마다 달라진다. 한 곳에 모아 둔다.
+     · (정답)/(오답)               — 이도윤 탭(31회씩)
+     · (맞았을 경우)/(틀렸을 경우)   — 간결본에서 새로 들어왔다(두 탭 모두, 09-01)
+   ⚠️ 모르는 표기가 들어오면 **갈라지지 않고 그대로 읽힌다** — 강사가 "(맞았을 경우) 정답이에요!
+      (틀렸을 경우) 정답은 B였어요" 를 통째로 읽었다(실측 09-01). 아래 출력의
+      '⑂ 정답/오답 갈래' 개수를 시트와 대조하면 새는 것을 잡을 수 있다. */
+/* ⚠️ **정규식 리터럴로 쓴다.** 문자열을 이어 붙여 `new RegExp` 로 만들면 백슬래시가 한 겹
+      깎여(`\s` → `s`) 아무것도 안 걸리는데, 에러는 안 난다 — 그냥 조용히 다 통과한다(실측 09-01). */
+const RE_PAIR = /\(\s*(?:정답|맞았을\s*경우|맞은\s*경우)\s*\)\s*([\s\S]+?)\s*\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)\s*([\s\S]+)$/
+const RE_LONE = /^\(\s*(?:정답|오답|맞았을\s*경우|틀렸을\s*경우|맞은\s*경우|틀린\s*경우)\s*\)\s*([\s\S]+)$/
+const RE_LONE_NG = /^\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)/
+const RE_LONE_OK = /^\(\s*(?:정답|맞았을\s*경우|맞은\s*경우)\s*\)/
+const RE_ANY_NG = /\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)/
+const RE_STRIP_NG = /^\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)\s*/
+
 function branchOf(tutor) {
   const t = clean(tutor)
   /* ① 옛 표기 — 시트가 한 칸에 두 경우를 문장으로 적던 때 */
@@ -621,10 +638,10 @@ function branchOf(tutor) {
   /* ② 지금 표기 — "(정답) …" 줄바꿈 "(오답) …" 을 한 칸에 적는다.
      ⚠️ 이 갈래를 몰라서 오답 문구 21개가 통째로 버려지고 있었다(08-18 실측). 시트가 표기를
         바꾸면 여기가 조용히 새므로, 아래 출력의 '⑂ 정답/오답 갈래' 개수를 시트와 대조할 것. */
-  const cur = /\(\s*정답\s*\)\s*([\s\S]+?)\s*\(\s*오답\s*\)\s*([\s\S]+)$/.exec(t)
+  const cur = RE_PAIR.exec(t)
   if (cur) return { ok: clean(cur[1]), wrong: clean(cur[2]) }
   /* ③ 한쪽만 적힌 칸 — 표시만 떼고 그대로 쓴다. 그냥 두면 강사가 "정답" 을 소리내어 읽는다. */
-  const lone = /^\(\s*(?:정답|오답)\s*\)\s*([\s\S]+)$/.exec(t)
+  const lone = RE_LONE.exec(t)
   if (lone) return { ok: clean(lone[1]), wrong: null }
   return null
 }
