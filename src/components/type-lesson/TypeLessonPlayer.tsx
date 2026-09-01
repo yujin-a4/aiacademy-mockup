@@ -2320,6 +2320,22 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return !!nx && ACK_OPENER.test(nx.tutor.trim())
   }
 
+  /** 문항을 고른 직후, **바로 뒤 대본이 오답까지 받아 주는가** (구현 중 메모: 간결본 09-01).
+   *
+   *  시트가 "(맞았을 경우) … (틀렸을 경우) …" 로 적어 둔 자리는 생성기가 두 갈래로 갈라
+   *  담는다(tutor / tutorIfWrong). 그런 자리에서 앱이 "A는 아니에요" 를 얹으면 같은 말이
+   *  두 번 나간다 — 학생은 앱한테 한 번, 강사한테 또 한 번 틀렸다는 말을 듣는다.
+   *
+   *  ⚠️ **강사로 가르면 안 된다.** 같은 강사 안에서도 강의마다 다르다 —
+   *     윤다은은 LC 1강 채점 턴 3개가 모두 갈래를 갖는데 RC 24강은 하나도 없다(실측 09-01).
+   *     갈래가 없는 자리에서 앱까지 비켜서면 틀린 학생이 **아무 반응도 못 받는다.**
+   *  문제 끝(atItemEnd)에서는 다음 발화가 바로 안 이어지므로 앱이 매듭짓는다 — scriptWillTell 과 같다. */
+  const scriptWillAnswerWrong = (): boolean => {
+    if (atItemEnd) return false
+    const nx = turnsRef.current[turnIdxRef.current + 1]
+    return !!nx?.tutorIfWrong
+  }
+
   /** 붙잡기를 끝내고 넘어갈 때 하는 말 — **무엇이 왜 아니고 답이 무엇인지**를 담는다.
    *
    *  전에는 정답 문구만 끼워 넣어 "이번엔 제가 짚어 줄게요. 아니에요 이렇게 보면 돼요." 가 나갔다.
@@ -2506,11 +2522,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        앱이 한 마디 얹으면 같은 자리가 두 번이 되고, 사이에 낀 S3 개념 코칭을 지나기도 전에 답을
        알아 버린다 — 개념을 짚는 단계가 통째로 김이 샌다.
        ⚠️ 맞장구도 안 된다. "맞아요" 한 마디가 곧 정답 공개다.
-       ⚠️ **강사별이다.** 콘텐츠팀 메모가 이도윤 단계에 대한 것이고, 실제로 이 강사 대본에만
-          오답 갈래가 있다(이도윤 3/3, 윤다은 0/11). 윤다은에 걸면 틀린 학생이 아무 반응도
-          못 받은 채 정답 기준으로 쓰인 S5 를 듣게 된다.
-       prevOkRef 는 남겨 둔다 — 다음 대본이 맞장구로 시작하면 stripAck 이 떼어 준다. */
-    if (phase !== 'review' && INST_SCRIPT_ONLY[instructor]) { goNext(); return }
+
+       ── **강사가 아니라 대본을 본다** (2026-09-01) ──
+       예전에는 강사별로 갈랐다(INST_SCRIPT_ONLY). "이 강사 대본에만 오답 갈래가 있다
+       (이도윤 3/3, 윤다은 0/11)" 가 그때의 사실이었기 때문이다. 간결본이 들어오면서 그 사실이
+       바뀌었다 — **윤다은 LC 1강은 채점 턴 3개가 모두 오답 갈래를 갖고, RC 24강은 하나도 없다.**
+       그러니 강사로 가르면 한쪽이 반드시 틀린다: 윤다은에 걸면 RC 에서 틀린 학생이 아무 반응도
+       못 받고, 안 걸면 LC 에서 같은 말이 두 번 나간다.
+       그래서 **바로 뒤 대본이 이 문항의 오답을 받아 주는가**로 정한다. 받아 주면 앱은 비켜서고,
+       아니면 예전대로 짚어 준다. 대본이 바뀌어도 저절로 맞는다. */
+    if (phase !== 'review' && (INST_SCRIPT_ONLY[instructor] || scriptWillAnswerWrong())) { goNext(); return }
 
     if (ok) {
       if (!scriptWillAck()) await say(ackLine(ackNoRef.current++))

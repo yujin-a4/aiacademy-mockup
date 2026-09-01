@@ -50,7 +50,9 @@ def scenario():
     return json.loads(out.stdout)
 
 
-TABS = {'yun_daeun': 'FGI_윤다은', 'lee_doyun': 'FGI_이도윤'}
+# 2026-09-01 — 대본이 간결본으로 통째 교체됐다. build-fgi-scenario.js 의 SOURCES 와 **같은 탭**을 봐야 한다 —
+# 한쪽만 고치면 검수가 옛 시트와 대조해서 '발화가 시트에 없다' 가 수십 건 뜼다(실측).
+TABS = {'yun_daeun': 'FGI_윤다은_간결', 'lee_doyun': 'FGI_이도윤 (간략버전)'}
 
 # 화면(TypeLessonPlayer.ACK_OPENER)과 **같은 규칙**이어야 한다. 이걸로 못 잡는 맞장구가 있으면
 # 앱이 자기 맞장구를 하나 더 얹어 "잘했어요. 잘했어요. are이 있죠?" 가 나간다(실측).
