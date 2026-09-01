@@ -1712,7 +1712,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchTapped, turnIdx])
 
-  const draw = useDrawingTool()
+  /* 수업에서도 **연필을 든 채로 보기를 고른다**(구현 중 메모 75행) — 끌면 선이 그어지고,
+     툽 누르면 그 클릭이 아래 보기로 넘어간다. 실전과 같은 장치를 쓴다. */
+  const draw = useDrawingTool({ tapThrough: true })
   const contentRef = useRef<HTMLDivElement>(null)
 
   /* ── 표시(동그라미·밑줄) 판정 ──
@@ -1945,8 +1947,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (phase !== 'lesson' && phase !== 'review') return
     const it = turn.interaction
     const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
+    /* ⚠️ 답을 받는 턴에서 **필기를 꺼 버리지 않는다**(구현 중 메모 75행). 예전에는 꺼다 —
+       캔버스가 덮고 있으면 보기를 못 눌렀기 때문이다. 이제 툽 누르면 클릭이 보기로 넘어가므로
+       끕 이유가 없고, 끄면 학생이 방금 켜기 필기가 저절로 꺼진다("필기가 꺼짐" 이 그 말이다). */
     if (it.kind === 'mark' && onPhoto) draw.setDrawMode(true)
-    else if (it.kind === 'choice' || it.kind === 'pickAnswer' || it.kind === 'solveAll') draw.setDrawMode(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnIdx, phase])
 
