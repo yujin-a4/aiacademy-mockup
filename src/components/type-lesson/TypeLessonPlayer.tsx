@@ -549,6 +549,18 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
   }
 }
 
+/** 강사가 **답을 밝히는 단계**인가 — 화면의 정오답 표시도 여기서 같이 열린다.
+ *
+ *  · S5 정답 근거 연결 — "왜 이것이 답인가" 를 짚는 자리. 예전부터 여기서 열었다(메모 9행).
+ *  · 채점            — 간결본에서 새로 생겼다. "(맞았을 경우) 정답이에요 / (틀렸을 경우)
+ *                      정답은 B였어요" 로 **그 자리에서 답을 말한다**. 그런데 표시는 한참 뒤
+ *                      S5 에서야 켜져서, 강사가 답을 말하는 동안 보기 넷이 다 흰 채였다
+ *                      (실측 09-01). 말과 화면이 같은 순간에 움직여야 한다.
+ *
+ *  ⚠️ **두 군데가 이걸 본다** — 표시를 켜는 효과와 hideVerdict. 하나만 고치면 색이 켜졌다
+ *     꺼지거나(효과만) 켜지지 않는다(hideVerdict 만). 그래서 상수로 묶어 둔다. */
+const TELLS_ANSWER = /^S5|정답\s*근거|^채점/
+
 const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
 /* ── 잘못 짚은 낱말을 **강사가 읽을 말로** 바꾼다 (구현 중 메모 24행) ──
@@ -1696,7 +1708,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   useEffect(() => {
     if (!scripted || phase === 'review') return
     const q = turn.focusQ
-    if (q === undefined || !/^S5|정답\s*근거/.test(turn.stage)) return
+    if (q === undefined || !TELLS_ANSWER.test(turn.stage)) return
     setGraded((p) => (p.has(q) ? p : new Set(p).add(q)))
     setVerdictShown((p) => (p.has(q) ? p : new Set(p).add(q)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2438,6 +2450,15 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          대본이 맞장구로 시작해도 stripAck 이 떼어 주므로, 모른다는 학생에게 맞았다고 하지 않는다. */
       if (!INST_SCRIPT_ONLY[instructor]) {
         await say(scriptWillTell() ? '괜찮아요, 이건 같이 볼게요.' : `괜찮아요, 같이 볼게요. ${closingLine()}`)
+      } else if (!scriptWillTell()) {
+        /* ── 대본만 읽는 강사도 **답은 알려준다** (간결본 09-01) ──
+           여기서 아무 말도 안 하던 근거는 "대본이 다음 줄에서 곧바로 풀어 준다" 였다.
+           간결본에서 그 전제가 깨졌다 — 이도윤의 말하기 턴 3개는 다음 줄이 모두
+           "맞아요. 이제 선택지 듣고 문제 풀어볼게요." 다. 답이 어디에도 없다.
+           모른다고 한 학생이 답을 못 들은 채 넘어가면 그 단계는 아무것도 가르치지 않는다.
+           다독임("괜찮아요")은 그대로 뺀다 — 담백한 말투가 이 강사의 지정이고,
+           여기서 더할 것은 위로가 아니라 답이다. */
+        await say(closingLine())
       }
       goNext()
       return
@@ -2462,11 +2483,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        "여자가 앉아서 붓으로 그림을 그리고 있죠?" 라고 하면 같은 답이 두 번이다.
        ⚠️ scriptWillTell 은 다음 줄이 답을 말하는지를 **글자로** 가늠하는 어림짐작이라 놓칠 때가
           있다(실측: "뭐가 보이나요?" → 앱이 "제가 짚어 줄게요. 옷장, 행거에 걸린 옷, 선반" 을
-          얹고 곧바로 대본이 "행거에 옷이 걸려있고 …" 를 말했다). 대본만 읽는 강사는
-          (INST_SCRIPT_ONLY) 가늠하지 말고 언제나 비켜선다 — 답은 대본이 말한다. */
+          얹고 곧바로 대본이 "행거에 옷이 걸려있고 …" 를 말했다).
+
+       ── **강사로 가르지 않는다** (간결본 09-01) ──
+       예전에는 대본만 읽는 강사(INST_SCRIPT_ONLY)를 여기서 통째로 비켜서게 했다. "답은 대본이
+       말한다" 가 그때의 사실이었기 때문이다. 간결본이 그 전제를 깼다 — 이도윤의 말하기 턴 3개는
+       다음 줄이 모두 "맞아요. 이제 선택지 듣고 문제 풀어볼게요." 로, **답이 어디에도 없다.**
+       그래서 학생이 "옷을 입어" 라고 틀리게 답해도 아무 말 없이 다음 단계로 넘어갔다(실측 09-01).
+       이제 강사를 보지 않고 **다음 줄이 답을 말하는지**만 본다. 어림짐작이 놓쳐 같은 답이 두 번
+       나가는 쪽이, 틀린 학생이 답을 못 듣고 넘어가는 쪽보다 낫다. */
     /* "제가 짚어 줄게요." 는 뗐다 — 짚어 주겠다고 예고하는 말은 그 자체로 내용이 없고,
        뒤에 붙는 답까지 훈수처럼 들리게 만든다. 답만 강사 말투로 바로 말한다(asConfirm). */
-    if (!scriptWillTell() && !INST_SCRIPT_ONLY[instructor]) await say(closingLine(picked))
+    if (!scriptWillTell()) await say(closingLine(picked))
     goNext()
   }
 
@@ -2851,8 +2879,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       await say(again ? `자, 다시 볼게요. ${again}` : '자, 다시 볼게요.')
       return
     }
-    /* 들려주고 넘어가는 턴이었다 — 자동 전진이 질문 때문에 멈춰 있다. 여기서 이어 준다 */
-    if (turnIdxRef.current === at && at < turnsRef.current.length - 1 && !atItemEnd) advanceByApp(at + 1)
+    /* 들려주고 넘어가는 턴이었다 — 자동 전진이 질문 때문에 멈춰 있다. 여기서 이어 준다.
+       ⚠️ 문제 경계는 **지금 값으로** 본다. `atItemEnd` 는 렌더 시점 값이라, 질문에 답하는
+          몇 초 사이에 화면이 움직였으면 어긋난다 — 어긋나면 수업이 멈춘 채로 남는다. */
+    const here = turnsRef.current[at]
+    const next = turnsRef.current[at + 1]
+    const itemEnds = !next || (here?.itemSeq !== undefined && next.itemSeq !== here.itemSeq)
+    if (turnIdxRef.current === at && !itemEnds) advanceByApp(at + 1)
   }
 
   /* 다시 들려준 턴 — **한 턴에 한 번뿐이다.** 못 들었다고 하면 한 번은 더 들려주는 게 맞지만,
@@ -3002,7 +3035,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        통째로 사라졌다** — 강사는 뒤이어 다른 보기를 설명하는데 화면에는 근거가 없어진다.
        문항이 바뀌면 focusQ 가 바뀌므로 다음 문항은 저절로 다시 감춰진다. */
     hideVerdict: phase !== 'review'
-      && !/^S5|정답\s*근거/.test(turn.stage)
+      && !TELLS_ANSWER.test(turn.stage)
       && !(turn.focusQ !== undefined && verdictShown.has(turn.focusQ)),
     matchState,
   }
@@ -3064,7 +3097,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || freeAsk || (turn.interaction.kind === 'subjective' && !subjSent))
   const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
-    if (asking) void askTutor(text)
+    /* ⚠️ **askTutor 로 바로 가지 않는다** — 그 함수에는 대본으로 돌아오는 길이 없다.
+       이어서 물으면(asking 이 아직 켜진 채) 강사가 답만 하고 수업이 멈춰 있었다(실측 09-01).
+       돌아오는 길은 askAside 끝에만 있으므로 두 번째 질문도 그리로 보낸다. */
+    if (asking) void askAside(text)
     /* 수업이 끝난 뒤의 말은 답이 아니라 **질문**이다 — answerSubjective 로 보내면 받을 자리가
        없어 그대로 사라진다(학생에게는 말해도 아무 일도 안 일어나는 것으로 보인다) */
     else if (freeAsk) void askAside(text)
@@ -3517,7 +3553,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               /* 앞 질문에 아직 답하는 중이면 **입력칸을 비우지 않는다.** 비우면 askTutor 가
                  askBusy 로 되돌아가면서 학생 문장만 조용히 사라진다("전송이 안 된다"). */
               if (askBusy) return
-              if (asking) { setInputText(''); void askTutor(t); return }
+              if (asking) { setInputText(''); void askAside(t); return }   // askTutor 는 대본으로 안 돌아온다(위 주석)
               if (answerSubjective(t)) { setInputText(''); return }
               /* 음원이 있는 턴에서 "다시 들려주세요" 는 답이 아니라 **부탁**이다 — 받아준다 */
               if (turn.audio && isReplayAsk(t)) { setInputText(''); void replayOnAsk(t); return }
