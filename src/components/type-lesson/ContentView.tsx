@@ -77,6 +77,21 @@ export interface ContentState {
   hideVerdict?: boolean
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
+  /** 학생이 그어 지운 보기 `${qIdx}:${label}`. 시험지에 연필로 긋는 그 동작이다.
+   *  **답과 별개의 표시**라 채점에는 쓰지 않는다 — 소거만 해두고 답을 안 고른 문항은 미표기다.
+   *  onStrike 가 없으면 소거 칸 자체를 그리지 않는다(강사 수업 화면은 그대로). */
+  struck?: Set<string>
+  onStrike?: (qIdx: number, label: string) => void
+  /** 문항·보기 글자 크기 클래스 (실전 화면의 '글자 크기' 설정).
+   *  없으면 기존 크기 그대로 — 강사 수업 화면까지 같이 커지지 않게 실전에서만 넘긴다. */
+  textCls?: string
+  /** 시험지처럼 **문항 카드의 테두리를 벗긴다.**
+   *  실물 시험지에는 문항을 감싼 상자가 없다 — 번호와 문장과 (A)~(D) 가 그냥 놓여 있다.
+   *  테두리·그림자가 있으면 웹 폼처럼 보여서 시험지 느낌이 깨진다(LC 답안지 모드가 이미 같은 이유로
+   *  껍데기를 벗긴다). **자율학습에서만 켠다** — 실전 모의고사와 파트별 연습.
+   *  강사가 끌고 가는 수업 화면은 카드가 "지금 다루는 덩어리"를 짚어 주므로 그대로 둔다.
+   *  보기 테두리는 벗기지 않는다 — 그건 장식이 아니라 손가락으로 누르는 자리다. */
+  paperLook?: boolean
   /** 근거 연결(match) 진행 중일 때만 존재 — 지문의 문장/메타/표 행을 직접 탭하는 상호작용 상태.
    *  matchedTargets는 `${passageId}:${targetId}` 키로 이미 맞힌 근거를 담는다. */
   matchState?: { evidence: MatchEvidence[]; matchedTargets: Set<string>; onTap: (passageId: string, targetId: string) => void }
@@ -202,7 +217,7 @@ function SentenceText({ text, st, focusBlank, scope = '' }: { text: string; st: 
           }
           return (
             <span key={i}
-              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 rounded-md border-b-2 text-[13px] font-black align-baseline whitespace-nowrap ${
+              className={`inline-block min-w-[64px] text-center mx-0.5 px-2 border-b-2 text-[calc(13px*var(--fs,1))] font-black align-baseline whitespace-nowrap ${
                 focused ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
               }`}>
               {`(${n})`}
@@ -221,7 +236,7 @@ function MiniBtn({ label, active, disabled, onClick, children }: {
 }) {
   return (
     <button onClick={(e) => { e.stopPropagation(); onClick() }} disabled={disabled} aria-label={label}
-      className={`shrink-0 flex items-center gap-1 text-[10px] font-bold rounded-lg border px-2 py-1 transition-colors ${
+      className={`shrink-0 flex items-center gap-1 text-[10px] font-bold  border px-2 py-1 transition-colors ${
         disabled ? 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-not-allowed'
           : active ? 'border-[#2563EB] bg-[#2563EB] text-white'
           : 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
@@ -246,8 +261,13 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const correctLabel = q.options.find((o) => o.correct)?.label
   /* 지금 나가는 음원이 "전체 지문/스크립트"인가 — 보기(opt:)·문항 묶음(qaudio:)은 그 자리에서 켜지므로 뺀다 */
   const scriptPlaying = !!st.playingId && !st.playingId.startsWith('opt:') && !st.playingId.startsWith('qaudio:')
-  // 파트1·2는 실제 시험에서 문제 지문이 없음(사진/음성) → 문제 헤더 숨기고 보기만
+  /* 실제 시험지에 **발문이 없는** 파트 — 헤더를 통째로 접고 보기만 둔다.
+     P1·P2 는 사진·음성이 곧 문항이고, P5 는 빈칸 뚫린 문장 하나가 곧 문항이다
+     ("빈칸에 알맞은 것을 고르세요" 같은 한국어 지시문은 시험지 어디에도 없다).
+     문항이 여럿 펼쳐진 화면에서는 Q번호 칩만 남긴다 — 어느 빈칸을 채우는 건지 짚어야 한다. */
+  const stem = q.q?.trim() ?? ''
   const hideQ = lesson.part === 1 || lesson.part === 2
+    || (!stem && lesson.content.questions.length === 1)
 
   const spotted = st.spotlightQ === qIdx
   useEffect(() => {
@@ -264,26 +284,28 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   /* 답안지 모드(LC 실전, 채점 전)에서는 카드 껍데기를 통째로 벗긴다 — 실제 시험지의 마킹란은
      상자 안에 들어 있지 않고 (A)(B)(C)(D) 가 그냥 놓여 있다. 테두리·그림자가 있으면 웹 폼처럼
      보여서 시험지 느낌이 깨진다. 채점하면 보기·근거가 열려 해설 카드가 되므로 상자를 되돌린다. */
-  const bare = !!st.answerSheet && !graded
+  const bare = (!!st.answerSheet && !graded) || !!st.paperLook
   /* P3·P4 실전은 세 문항이 한 상자 안에 나란히 있다 — 음원이 지금 읽어주는 문항이 어느 것인지
      보이지 않으면 학생이 따라가지 못한다. 이때만 옅은 파랑으로 짚는다.
      (선택한 보기의 파란 테두리와 겹치지 않게 카드는 배경으로, 보기는 테두리로 구분한다) */
   const readingNow = focused && !!st.selfAudio && (lesson.part === 3 || lesson.part === 4) && !graded
   return (
     <div ref={ref}
-      className={bare ? `py-1 ${spotted ? 'rounded-2xl ring-2 ring-[#FCA5A5] bg-[#FEF2F2]' : ''}` : `rounded-2xl border p-4 transition-all ${
+      className={bare ? `py-1 ${spotted ? ' ring-2 ring-[#FCA5A5] bg-[#FEF2F2]' : ''}` : ` border p-4 transition-all ${
         spotted ? 'border-[#FCA5A5] bg-[#FEF2F2] ring-2 ring-[#FCA5A5]/40'
           : readingNow ? 'border-[#BFDBFE] bg-[#F5F9FF] shadow-[0_2px_16px_rgba(37,99,235,0.10)]'
             : `border-[#E5E7EB] bg-white ${focused ? 'shadow-[0_2px_16px_rgba(15,23,42,0.08)]' : ''}`
       }`}>
       {!hideQ && (
         <div className="flex items-start gap-2.5 mb-3">
-          <span className={`shrink-0 w-7 h-7 rounded-lg text-[12px] font-black flex items-center justify-center ${
+          <span className={`shrink-0 w-7 h-7  text-[12px] font-black flex items-center justify-center ${
             focused ? 'bg-[#2563EB] text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
           }`}>Q{qIdx + 1}</span>
-          <p className="text-[14px] md:text-[15px] font-semibold text-[#1C1B33] leading-relaxed pt-0.5">
-            <TapText text={q.q} st={st} scope={`q${qIdx}`} />
-          </p>
+          {stem && (
+            <p className={`${st.textCls ?? 'text-[14px] md:text-[15px]'} font-semibold text-[#1C1B33] leading-relaxed pt-0.5`}>
+              <TapText text={q.q} st={st} scope={`q${qIdx}`} />
+            </p>
+          )}
           {/* 전체 지문 음원이 나가는 중 — 재생 바를 없앤 대신 "지금 소리가 난다"를 여기서 알린다.
               스크립트가 잠긴 P3·P4는 이 표시가 유일한 재생 신호다. */}
           {/* 문항이 여러 개 펼쳐져 있으면(P3·P4 실전) 세 장에 다 붙는다 → **짚고 있는 문항에만** 단다.
@@ -361,6 +383,9 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
              실전(selfAudio)은 시험 화면이라 자기 규칙(재생 횟수)을 따르므로 그대로 둔다. */
           const optPlayable = optAudio && (!!st.selfAudio || !!st.audioFree)
           const playOpt = () => st.onPlaySentence?.(`opt:${qIdx}:${o.label}`, `${o.label}. ${o.text}`)
+          /* 그어 지운 보기 — 채점하고 나면 소거는 의미가 없다(정답·오답이 이미 보인다) */
+          const strikable = !!st.onStrike && !showResult
+          const isStruck = !showResult && !!st.struck?.has(`${qIdx}:${o.label}`)
           return (
             /* data-opt — **필기가 어느 보기 위에 있는지**를 화면이 되짚을 수 있게 표시를 남긴다.
                사진은 그림이라 캔버스와 합성해 보여줄 수 있지만 보기는 글자다. 대신 이 상자와
@@ -371,15 +396,31 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                   /* ⚠️ optAudio(보기가 음성인 유형인가)가 아니라 **optPlayable**(지금 틀 수 있나)을 본다.
                      둘을 헷갈리면 수업 중에도 보기를 눌러 음원이 나간다 — 강사가 들려주기 전에
                      학생이 먼저 들어버리면 '듣고 고르는' 단계가 성립하지 않는다(실측). */
-                  disabled={!selectable && !optPlayable}
+                  /* 지운 보기는 고를 수 없다 — 지운 걸 답으로 찍는 건 실수지 선택이 아니다 */
+                  disabled={isStruck || (!selectable && !optPlayable)}
                   onClick={() => (selectable ? st.onSelect(qIdx, o.label) : optPlayable ? playOpt() : undefined)}
-                  className={`flex-1 min-w-0 flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all ${rowCls} ${
-                    selectable || optPlayable ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
+                  className={`flex-1 min-w-0 flex items-center gap-3  border px-3.5 py-2.5 text-left transition-all ${
+                    isStruck ? 'border-[#E5E7EB] bg-[#F9FAFB]' : rowCls
+                  } ${
+                    isStruck ? 'cursor-default'
+                      : selectable || optPlayable ? 'hover:border-[#93C5FD] hover:shadow-sm active:scale-[0.995] cursor-pointer' : 'cursor-default'
                   }`}>
-                  <span className={`shrink-0 w-6 h-6 rounded-full border-2 text-[11px] font-black flex items-center justify-center ${circleCls}`}>
+                  <span className={`shrink-0 w-6 h-6 rounded-full border-2 text-[11px] font-black flex items-center justify-center ${
+                    isStruck ? 'border-[#D1D5DB] text-[#9CA3AF]' : circleCls
+                  }`}>
                     {o.label}
                   </span>
-                  {textHidden ? (
+                  {isStruck ? (
+                    /* 지운 자리 — **글자는 남긴다.** 흐리게 깔고 줄만 긋는다.
+                       실제 시험지에서 연필로 그은 보기도 읽히기는 한다. 통째로 감추면
+                       왜 지웠는지 되짚을 수 없고, 잘못 그었을 때 무엇을 지웠는지조차 안 보인다.
+                       ⚠️ 음성 보기(P1·P2)는 스크립트가 아직 잠겨 있으므로 여기서도 글자를 열지 않는다. */
+                    <span aria-label="소거한 보기"
+                      className={`${st.textCls ?? 'text-[13px] md:text-[14px]'} flex-1 leading-snug text-[#1C1B33]
+                                  opacity-40 line-through decoration-[#6B7280] decoration-[1.5px]`}>
+                      {textHidden ? '음성으로 들어요' : o.text}
+                    </span>
+                  ) : textHidden ? (
                     /* 보기가 음성인 유형(P1·P2) — 재생 중인 보기가 곧 재생 표시다(별도 재생 바 없음) */
                     playing ? <EqLine label="재생 중" /> : (
                       <span className="text-[13px] font-medium flex items-center gap-1.5 text-[#9CA3AF]">
@@ -387,7 +428,7 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                       </span>
                     )
                   ) : (
-                    <span className="text-[13px] md:text-[14px] text-[#1C1B33] leading-snug flex-1">
+                    <span className={`${st.textCls ?? 'text-[13px] md:text-[14px]'} text-[#1C1B33] leading-snug flex-1`}>
                       {/* 필기 지시 턴에는 **보기 위에서 형광펜이 안 켜진다** (구현 중 메모 67행)
                           — 짚으라고 한 곳은 지문이다. 보기까지 켜지면 엉뚱한 데를 칠해 놓고
                           맞게 짚은 줄 안다. 지문(q.q)과 지문 조각은 그대로 탭된다. */}
@@ -401,6 +442,21 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                       정답은 여전히 공개하지 않는다 — "이건 아니다"만 남긴다. */}
                   {wrongTried && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답 · 오답</span>}
                 </button>
+
+                {strikable && (
+                  <MiniBtn label={isStruck ? '소거 되돌리기' : '이 보기 소거'} active={isStruck}
+                    onClick={() => st.onStrike?.(qIdx, o.label)}>
+                    {isStruck ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                      </svg>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <path d="M4 12h16" />
+                      </svg>
+                    )}
+                  </MiniBtn>
+                )}
 
                 {optAudio && (
                   <MiniBtn label="스크립트 보기" disabled={!coached} active={scriptShown}
@@ -500,7 +556,7 @@ function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentSta
             const answered = !graded && !!st.answers[i]
             return (
               <button key={i} onClick={() => setActive(i)}
-                className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                className={`text-[11px] font-bold px-3 py-1.5  border transition-colors flex items-center gap-1.5 ${
                   idx === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
                 }`}>
                 Q{i + 1}
@@ -538,7 +594,7 @@ function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: Content
   // 잠금 상태 — 정답 확인 전
   if (!anyRevealed) {
     return (
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-[#E5E7EB] bg-[#FAFAFA] px-3 py-2.5">
+      <div className="mt-3 flex items-center gap-2  border border-dashed border-[#E5E7EB] bg-[#FAFAFA] px-3 py-2.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B7C3" strokeWidth="2" strokeLinecap="round">
           <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
@@ -549,7 +605,7 @@ function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: Content
 
   // 해제 상태 — 접기/펼치기
   return (
-    <div className="mt-3 rounded-xl border border-[#E5E7EB] overflow-hidden">
+    <div className="mt-3  border border-[#E5E7EB] overflow-hidden">
       <button
         onClick={() => setOpen((v) => {
           /* LC 실전에서 **스크립트를 실제로 펼쳐 보는가** — 채점 뒤 해설을 읽는지 판단하는 근거 */
@@ -572,14 +628,14 @@ function ScriptAccordion({ lesson, st, only }: { lesson: TypeLesson; st: Content
             const playThis = () => st.onPlaySentence?.(s.id, s.en)
             return (
               <div key={s.id}>
-                <div className={`flex gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors ${playing ? 'bg-[#EFF6FF] ring-1 ring-[#93C5FD]' : ''}`}>
+                <div className={`flex gap-2.5  px-2.5 py-1.5 transition-colors ${playing ? 'bg-[#EFF6FF] ring-1 ring-[#93C5FD]' : ''}`}>
                   {s.speaker && (
                     <span className={`shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center mt-0.5 ${
                       s.speaker.startsWith('W') ? 'bg-[#FCE7F3] text-[#DB2777]' : 'bg-[#DBEAFE] text-[#2563EB]'
                     }`}>{/* DB 화자는 교재 태그(W-Am·M-Cn…)라 성별 글자만 뽑아 쓴다 — 억양은 목소리로 들린다 */}
                       {s.speaker[0]}</span>
                   )}
-                  <p className="text-[13px] md:text-[14px] text-[#334155] leading-relaxed flex-1">
+                  <p className="text-[calc(13px*var(--fs,1))] md:text-[calc(14px*var(--fs,1))] text-[#334155] leading-relaxed flex-1">
                     <TapText text={s.en} st={st} scope={s.id} />
                   </p>
                   {/* 문장 재생은 별도 버튼 — 문장 안의 단어 탭은 형광펜이라 클릭 대상이 겹치면 안 된다 */}
@@ -638,7 +694,7 @@ function LessonAudioButton({ st, qIdx, playing, label = '음원 듣기' }: {
     <button type="button" disabled={!free} onClick={() => st.onPlayAudio?.(qIdx)}
       aria-label={free ? label : '강사가 들려주는 음원'}
       title={free ? label : '유형 학습 중에는 강사가 들려줍니다'}
-      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 transition-colors ${
+      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold  border px-2.5 py-1.5 transition-colors ${
         playing ? 'border-[#93C5FD] bg-[#EFF6FF] text-[#2563EB]'
           : free ? 'border-[#BFDBFE] bg-white text-[#2563EB] hover:bg-[#EFF6FF]'
             : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4] cursor-default'
@@ -666,7 +722,7 @@ function SetAudioButton({ kind, st, from, to }: { kind: string; st: ContentState
   return (
     <button type="button" disabled={out} onClick={() => st.onPlaySentence?.(id, '')}
       aria-label={`${kind} 음원 듣기`}
-      className={`w-full flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
+      className={`w-full flex items-center gap-3  border px-3.5 py-2.5 text-left transition-colors ${
         playing ? 'border-[#93C5FD] bg-[#EFF6FF]'
           : out ? 'border-[#EEF0F4] bg-white cursor-not-allowed'
             : 'border-[#BFDBFE] bg-white hover:border-[#93C5FD] hover:bg-[#F8FAFF]'
@@ -742,8 +798,8 @@ function ExamBody({ doc, st, focusBlank, sans }: {
     <>
       {/* 서체는 다 Helvetica(실물 시험지). 문자·웹 지문만 글자를 조금 줄이고 줄간을 넓힌다 */}
       <p className={`text-[#111] font-exam ${sans
-        ? 'text-[13px] md:text-[14.5px] leading-[2.3]'
-        : 'text-[14px] md:text-[16px] leading-[1.75]'}`}>
+        ? 'text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] leading-[2.3]'
+        : 'text-[calc(14px*var(--fs,1))] md:text-[calc(16px*var(--fs,1))] leading-[1.75]'}`}>
         {ss.map((s) => <SentenceSpan key={s.id} s={s} st={st} focusBlank={focusBlank} docId={doc.id} />)}
       </p>
       {st.showKo && ss.some((s) => s.ko) && (
@@ -773,12 +829,12 @@ function MetaRow({ doc, m, st }: { doc: PassageDoc; m: { k: string; v: string };
   return (
     <div className="flex items-stretch gap-[5px]">
       <div className="w-[92px] md:w-[112px] shrink-0 bg-[#C6C6C6] border border-[#111] px-2 py-[3px]
-                      font-exam font-black text-[11px] md:text-[12px] text-[#111]">
+                      font-exam font-black text-[calc(11px*var(--fs,1))] md:text-[calc(12px*var(--fs,1))] text-[#111]">
         {m.k}{m.k.endsWith(':') ? '' : ':'}
       </div>
       <div
         onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[13px] md:text-[14.5px] text-[#111] truncate ${
+        className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] text-[#111] truncate ${
           st.matchState ? 'cursor-pointer' : ''
         } ${matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : 'bg-white'}`}>
         {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{m.v}
@@ -798,7 +854,7 @@ function MetaLines({ doc, st, sans }: { doc: PassageDoc; st: ContentState; sans?
         return (
           <p key={m.k}
             onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
-            className={`font-exam ${sans ? 'text-[12.5px] md:text-[13.5px]' : 'text-[13px] md:text-[14.5px]'} text-[#111] ${
+            className={`font-exam ${sans ? 'text-[calc(12.5px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))]' : 'text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))]'} text-[#111] ${
               st.matchState ? 'cursor-pointer' : ''
             } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] rounded-[2px]' : ''}`}>
             {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
@@ -815,7 +871,7 @@ function ExamTable({ table, docId, st }: { table: { headers: string[]; rows: str
   const active = !!(docId && st?.matchState)
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse font-exam text-[13px] md:text-[14.5px] text-[#111]">
+      <table className="w-full border-collapse font-exam text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] text-[#111]">
         {table.headers.some(Boolean) && (
           <thead>
             <tr>
@@ -854,7 +910,7 @@ function ExamEmail({ doc, st }: { doc: PassageDoc; st: ContentState }) {
       {/* 타이틀 바 — 가운데 제목, 양옆 가로선 장식 */}
       <div className="flex items-center gap-2 pb-2">
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
-        <span className="font-exam font-bold text-[12px] md:text-[13.5px] text-[#111] whitespace-nowrap">
+        <span className="font-exam font-bold text-[calc(12px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))] text-[#111] whitespace-nowrap">
           {doc.title ?? '*E-Mail*'}
         </span>
         <span className="flex-1 h-[7px] border-t-[3px] border-b border-[#8A8A8A]" />
@@ -879,7 +935,7 @@ function ExamWeb({ doc, st, url }: { doc: PassageDoc; st: ContentState; url: str
     <div className="border-[1.5px] border-[#111] bg-[#D6D6D6]">
       <div className="flex items-center gap-2 px-2 py-2">
         <span className="shrink-0 font-exam text-[11px] text-[#111] tracking-tighter">◀▶</span>
-        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam text-[12px] md:text-[13px] text-[#111] truncate">
+        <span className="flex-1 min-w-0 bg-white border border-[#111] px-2 py-[3px] font-exam text-[calc(12px*var(--fs,1))] md:text-[calc(13px*var(--fs,1))] text-[#111] truncate">
           {url}
         </span>
         <span className="shrink-0 flex items-center gap-[3px] pl-1">
@@ -922,12 +978,12 @@ function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
                 className={`max-w-[84%] bg-white border border-[#111] rounded-[3px] px-2.5 py-1.5 ${
                   st.matchState ? 'cursor-pointer' : ''
                 } ${matched ? 'ring-2 ring-[#86EFAC]' : ''}`}>
-                <p className="font-exam text-[12px] md:text-[13px] font-bold text-[#111] mb-0.5">
+                <p className="font-exam text-[calc(12px*var(--fs,1))] md:text-[calc(13px*var(--fs,1))] font-bold text-[#111] mb-0.5">
                   {matched && <span className="mr-1 text-[#16A34A]">✓</span>}
                   {c.speaker}
                   {c.time && <span className="ml-1.5">[{c.time}]</span>}
                 </p>
-                <p className="font-exam text-[12.5px] md:text-[13.5px] text-[#111] leading-[1.6]">
+                <p className="font-exam text-[calc(12.5px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))] text-[#111] leading-[1.6]">
                   <TapText text={c.text} st={st} scope={c.id} />
                 </p>
               </div>
@@ -947,7 +1003,7 @@ function ExamDoc({ doc, st, focusBlank, sans }: {
     <div className="border-[1.5px] border-[#111] bg-white px-4 py-4 md:px-6 md:py-5">
       {doc.title && (
         <p className={`text-center font-bold text-[#111] mb-2.5 font-exam ${
-          sans ? 'text-[14px] md:text-[15px]' : 'text-[16px] md:text-[19px]'}`}>
+          sans ? 'text-[calc(14px*var(--fs,1))] md:text-[calc(15px*var(--fs,1))]' : 'text-[calc(16px*var(--fs,1))] md:text-[calc(19px*var(--fs,1))]'}`}>
           {doc.title}
         </p>
       )}
@@ -1006,7 +1062,7 @@ function PassageTabs({ docs, lesson, st, focusBlank }: { docs: PassageDoc[]; les
                 if (active !== i) track('passage_tab_switched', { lecture: lesson.id, part: lesson.part, to: i + 1, of: docs.length })
                 setActive(i)
               }}
-              className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1 ${
+              className={`text-[11px] font-bold px-3 py-1.5  border transition-colors flex items-center gap-1 ${
                 active === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
               }`}>
               {pending && <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] animate-pulse shrink-0" />}
@@ -1076,9 +1132,9 @@ function PhotoZoom({ src, alt, imgClass, btnClass = '', badgeTop, ratioBox }: {
             if (el.naturalWidth && el.naturalHeight) setRatio(el.naturalWidth / el.naturalHeight)
           }} />
         {/* 누를 수 있다는 걸 알려주는 표시 — 사진 위에 얹되 작게. 사진 자체를 가리면 안 된다.
-            fit 이면 사진과 **같은 그리드 칸**에 넣는다 — 칸 크기가 사진을 따라가므로 사진이 놓인
-            자리가 어디든 모서리가 맞는다(절대 위치는 버튼 기준이라 사진 밖 허공에 떴다). */}
-        <span aria-hidden className={`absolute right-2 ${badgeTop ? 'top-2' : 'bottom-2'} flex items-center gap-1 rounded-lg bg-black/45 px-2 py-1 text-[10px] font-bold text-white opacity-80 transition-opacity group-hover:opacity-100`}>
+            칸이 사진보다 크면 이 표시가 사진 밖 허공에 뜨므로, 그럴 자리에서는 ratioBox 로
+            칸을 사진 비율에 맞춘다. 사진을 칸 위로 붙인 자리는 badgeTop 으로 위쪽 모서리에. */}
+        <span aria-hidden className={`absolute right-2 ${badgeTop ? 'top-2' : 'bottom-2'} flex items-center gap-1 bg-black/45 px-2 py-1 text-[10px] font-bold text-white opacity-80 transition-opacity group-hover:opacity-100`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3 h-3">
             <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
           </svg>
@@ -1092,7 +1148,7 @@ function PhotoZoom({ src, alt, imgClass, btnClass = '', badgeTop, ratioBox }: {
         <div onClick={() => setOpen(false)} role="dialog" aria-modal="true" aria-label={alt}
           className={`${host ? 'absolute' : 'fixed'} inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 animate-fade-in`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={alt} className="max-h-full max-w-full rounded-xl object-contain" />
+          <img src={src} alt={alt} className="max-h-full max-w-full  object-contain" />
           <button type="button" onClick={() => setOpen(false)} aria-label="닫기"
             className="absolute right-4 top-4 w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -1149,12 +1205,12 @@ function Part2View({ lesson, st, children }: { lesson: TypeLesson; st: ContentSt
           시험지 문구를 그대로 적는다. 수업에서도 같게 둔다 — 수업에서만 한국어 안내를 달면
           실전에 들어갈 때 화면이 달라져서, 시험지가 어떻게 생겼는지 익히는 자리가 사라진다. */}
       <div className="flex items-center gap-2">
-        <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{qIdx + 1}</span>
+        <span className="shrink-0 w-7 h-7  bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{qIdx + 1}</span>
         <span className="text-[12px] font-medium text-[#9CA3AF] truncate">Mark your answer on your answer sheet.</span>
       </div>
       <button type="button" onClick={playQ} disabled={out}
         aria-label={st.selfAudio ? '음원 듣기' : '질문 음원 재생'}
-        className={`w-full rounded-2xl border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
+        className={`w-full  border px-5 py-6 flex flex-col items-center gap-2.5 transition-colors ${
           playing ? 'border-[#93C5FD] bg-[#EFF6FF]'
             : out ? 'border-[#EEF0F4] bg-[#FAFAFA] cursor-not-allowed'
               /* 아직 안 들은 문항 — 여기부터 시작하라고 가리킨다 (P1 의 음원 버튼과 같은 신호) */
@@ -1303,7 +1359,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                   다섯 줄짜리 영문 안내가 사진 위 자리를 먹기만 한다. 한국어 안내도 두지 않는다:
                   수업과 실전의 문항 화면이 달라지면 시험지가 어떻게 생겼는지 익히는 자리가 사라진다. */}
               {st.selfAudio && i === 0 && (
-                <p className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[11px] leading-relaxed text-[#6B7280]">
+                <p className=" border border-[#E5E7EB] bg-[#F8FAFC] px-3.5 py-2.5 text-[11px] leading-relaxed text-[#6B7280]">
                   <span className="font-bold text-[#1C1B33]">Directions:</span> For each question in this part, you will hear
                   four statements about a picture in your test book. When you hear the statements, you must select the one
                   statement that best describes what you see in the picture. Then find the number of the question on your
@@ -1312,7 +1368,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                 </p>
               )}
               <div className={`flex items-center gap-2 ${solo ? `w-full mx-auto ${SOLO_W}` : ''}`}>
-                <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
+                <span className="shrink-0 w-7 h-7  bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
                 {/* 시험지에는 번호 옆에 아무것도 없다 — 자리만 비워 둔다 */}
                 <span className="flex-1 min-w-0" />
                 {/* 음원 듣기 버튼은 **실전에서만**. 수업에서는 강사가 틀어주고,
@@ -1330,7 +1386,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                   const playing = st.playingId === `qaudio:${i}` || !!st.playingId?.startsWith(`opt:${i}:`)
                   return (
                     <span
-                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold rounded-lg border px-2.5 py-1.5 ${
+                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold  border px-2.5 py-1.5 ${
                         playing ? 'border-[#2563EB] bg-[#2563EB] text-white'
                           : 'border-[#EEF0F4] bg-[#FAFAFA] text-[#C4C9D4]'
                       }`}>
@@ -1355,9 +1411,6 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                      브라우저가 그 규칙을 **버린다.** 그러면 사진이 제 원본 비율대로 자라 버튼 밖으로
                      흘러나와 **아래 보기를 덮는다**(실측: 386px 자리에 533px 사진 → A·B 가 가려졌다).
                      칸(flex-1)은 높이가 정해져 있으니 버튼에 `h-full` 을 줘서 그 높이를 물려준다. */
-                  /* 폭은 **보기 카드와 같은 620px 까지**. 세로로만 풀어 두면 화면이 큰 기기
-                     (아이패드 프로)에서 사진이 보기보다 훨씬 넓어져 둘이 따로 논다 —
-                     사진과 보기는 한 쌍이라 같은 폭 안에 있어야 한다(콘텐츠 파트 09-01). */
                   /* ── 사진과 보기는 **한 덩어리**다 ──
                      둘을 위아래 끝으로 갈라 붙이면(사진=위, 보기=바닥) 남는 높이가 둘 사이를
                      벌려 놓는다. 붙여 놓고 남는 것은 **아래로** 보낸다.
@@ -1367,12 +1420,12 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                   <div className={`flex-1 min-h-0 w-full mx-auto flex flex-col gap-3 ${SOLO_W}`}>
                     <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} badgeTop ratioBox
                       btnClass="w-full shrink-0 max-h-[max(140px,calc(100%-260px))]"
-                      imgClass="w-full h-full max-h-full rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]" />
+                      imgClass="w-full h-full max-h-full border border-[#E5E7EB] object-contain bg-[#F8FAFC]" />
                     <div className="shrink-0 w-full"><QuestionCard q={q} qIdx={i} lesson={lesson} st={st} /></div>
                   </div>
                 ) : (
                   <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} btnClass="w-full"
-                    imgClass={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
+                    imgClass={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'}  border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
                 )
               )}
               {/* solo 는 위 덩어리 안에 사진과 같이 들어가 있다 — 여기서는 그리지 않는다.
@@ -1396,7 +1449,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
              퍼센트라 무시되고, 사진이 원본 비율대로 자라 아래 보기를 덮는다(위 solo 주석 참고) */
           <div className="flex-1 min-h-0 flex items-start justify-center">
             <PhotoZoom src={content.photo} alt="문제 사진" badgeTop btnClass="h-full w-fit max-w-full flex items-start justify-center"
-              imgClass="max-h-full max-w-full rounded-2xl border border-[#E5E7EB] object-contain" />
+              imgClass="max-h-full max-w-full  border border-[#E5E7EB] object-contain" />
           </div>
         )}
         <div className="shrink-0 min-w-0 overflow-y-auto">{questionsBlock}</div>
@@ -1423,15 +1476,16 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         <div className="space-y-5">
           {/* 넘기는 단위가 세트라 지금 세트만 그린다 — 9문항을 한 화면에 이어 붙이면 스크롤만 길다 */}
           {sets.map((set, si) => !qInView(st, set.from) ? null : (
-            <div key={si} className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-3 md:p-4 space-y-3">
+            <div key={si} className=" border border-[#E5E7EB] bg-[#F8FAFC] p-3 md:p-4 space-y-3">
               <div className="flex items-center gap-2 px-1">
                 {sets.length > 1 && (
-                  <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#1C1B33] text-white">세트 {si + 1}/{sets.length}</span>
+                  <span className="shrink-0 text-[11px] font-black px-2 py-0.5  bg-[#1C1B33] text-white">세트 {si + 1}/{sets.length}</span>
                 )}
-                <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB]">
+                <span className="shrink-0 text-[11px] font-black px-2 py-0.5  bg-[#EFF6FF] text-[#2563EB]">
                   Questions {set.from + 1}–{set.to}
                 </span>
-                <span className="text-[11px] text-[#9CA3AF] truncate">한 {kind}에 딸린 {set.to - set.from}문항입니다</span>
+                {/* "한 대화에 딸린 3문항입니다" 같은 설명은 두지 않는다 — 옆의 `Questions 7–9` 가
+                    이미 같은 말을 하고, 실물 시험지에도 그런 한국어 줄은 없다 */}
               </div>
 
               {/* 세트 음원 — '이 문항의 음원' 이 없으므로 세트 머리에서 한 번 튼다.
@@ -1469,11 +1523,13 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
          · 예전 실전 세트      — 지문 1개 안에 문장 N개          → [s1,s2,s3]
        예전에는 passages[0] 만 봐서, 아이템 순회로 바뀐 뒤 **2번째 문항부터 문장이 안 나왔다.** */
     const sentences = (content.passages ?? []).flatMap((p) => p.sentences ?? [])
+    /* 시험지에는 문장 하나를 감싼 상자가 없다 — 자율학습(paperLook)에서는 여백만 남긴다.
+       수업은 강사가 "이 문장을 봅시다" 하고 짚는 자리라 상자를 그대로 둔다. */
     const SentenceCard = ({ text }: { text: string }) => (
-      <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-6">
+      <div className={st.paperLook ? 'px-1 py-3' : 'border border-[#E5E7EB] bg-white px-5 py-6'}>
         {/* 실제 시험지의 Part 5 는 **왼쪽 정렬**이다. 가운데로 모으면 한 줄짜리는 그럴듯해도
             두 줄이 되는 순간 들쭉날쭉해져서 시험지로 안 보인다. */}
-        <p className="text-[15px] md:text-[16px] text-[#1C1B33] leading-[2.1] text-left">
+        <p className="text-[calc(15px*var(--fs,1))] md:text-[calc(16px*var(--fs,1))] text-[#1C1B33] leading-[2.1] text-left">
           <SentenceText text={text} st={st} focusBlank={focusBlank} scope="p5" />
         </p>
       </div>
@@ -1525,11 +1581,11 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         const set = readingSets?.find((s) => s.from === inView[0])
         return (
           <div className="shrink-0 flex items-center gap-2 pb-2">
-            <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB]">
+            <span className="shrink-0 text-[11px] font-black px-2 py-0.5  bg-[#EFF6FF] text-[#2563EB]">
               Questions {(inView[0] ?? 0) + 1}–{(inView[inView.length - 1] ?? 0) + 1}
             </span>
             {readingSets && readingSets.length > 1 && set && (
-              <span className="shrink-0 text-[11px] font-black px-2 py-0.5 rounded-md bg-[#1C1B33] text-white">
+              <span className="shrink-0 text-[11px] font-black px-2 py-0.5  bg-[#1C1B33] text-white">
                 세트 {readingSets.indexOf(set) + 1}/{readingSets.length}
               </span>
             )}

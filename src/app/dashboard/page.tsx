@@ -10,6 +10,7 @@ import { INST_NAME, INST_THUMBS, INST_MESSAGES, INST_PERSONA } from '@/data/inst
 import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { DEMO_DDAY } from '@/data/curriculumSchedule'
+import HomeB, { HomeVariantToggle } from './homeB'
 
 type CallState = 'idle' | 'ringing' | 'active' | 'log'
 
@@ -61,7 +62,8 @@ function Sidebar({ open, setOpen }: {
 }) {
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
-      <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
+      {/* 사이드바 맨 윗줄(로고·접기 버튼)도 상태바 밑이다 — 안전영역만큼 내린다 */}
+      <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <div className="flex items-center gap-2.5 animate-fade-in">
             <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
@@ -123,6 +125,17 @@ function RegularDashboard() {
   const { userName, selectedInstructor, examDate } = useOnboardingStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const streakDay = useStreakDay()
+
+  /* 홈 시안 A/B 전환 (검토용). 새로고침해도 보던 쪽이 유지되게 localStorage 에 남긴다.
+     첫 렌더는 서버와 같아야 해서 'a' 로 시작하고, 마운트 뒤에 저장값을 읽는다. */
+  const [variant, setVariant] = useState<'a' | 'b'>('a')
+  useEffect(() => {
+    if (localStorage.getItem('homeVariant') === 'b') setVariant('b')
+  }, [])
+  const changeVariant = (v: 'a' | 'b') => {
+    setVariant(v)
+    localStorage.setItem('homeVariant', v)
+  }
   const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
   const instThumb = INST_THUMBS[selectedInstructor ?? 'park_hyewon'] ?? ''
 
@@ -226,7 +239,7 @@ function RegularDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pt-5 md:pt-safe-5 pb-28 md:pb-8">
           <div className="max-w-[1100px] mx-auto w-full space-y-4">
 
             {/* 데스크탑 상단 바 */}
@@ -243,7 +256,12 @@ function RegularDashboard() {
               <AccountMenu userName={userName ?? ''} />
             </div>
 
-            {/* ── 메인 레이아웃: 코칭 카드 + 오른쪽 스탯 카드 ── */}
+            {/* ── 홈 B · 오늘 할 일 중심 시안 (homeB.tsx) ── */}
+            {/* B 는 온보딩 스토어·연속학습·D-day 를 스스로 읽는다 (A 와 데이터 경로가 갈리지 않게) */}
+            {variant === 'b' && <HomeB />}
+
+            {/* ── 홈 A · 메인 레이아웃: 코칭 카드 + 오른쪽 스탯 카드 ── */}
+            {variant === 'a' && (
             <div className="flex flex-col md:flex-row gap-4 items-stretch" style={{ maxWidth: '1080px' }}>
 
               {/* ① 코칭 카드 (사진 35% + 말풍선·CTA 65%) */}
@@ -350,6 +368,7 @@ function RegularDashboard() {
 
               </div>
             </div>
+            )}
 
 
           </div>
@@ -374,6 +393,8 @@ function RegularDashboard() {
           onClose={() => setSurveyOpen(false)}
         />
       )}
+
+      <HomeVariantToggle variant={variant} onChange={changeVariant} />
     </div>
   )
 }

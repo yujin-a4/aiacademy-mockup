@@ -5,19 +5,12 @@
    사용: python scripts/extract_rc_p5.py [--vol 1|2]
    1권과 2권은 파일명 규칙이 다르다(1권만 뒤에 ' (2024)'가 붙는다).
 """
-import fitz, io, re, json, os, sys, glob
+import fitz, io, re, json, os, sys
+import _book_paths
 VOL = 2 if '--vol' in sys.argv and sys.argv[sys.argv.index('--vol') + 1] == '2' else 1
-BASE = f"YBM 실전토익 {VOL} 최종 pdf 웹용"
 
-def pick(kind):
-    """'본권' / '해설' PDF 를 파일명 흔들림에 관계없이 집는다"""
-    hits = [p for p in glob.glob(os.path.join(BASE, '*.pdf')) if 'RC' in p and kind in p]
-    if len(hits) != 1:
-        raise SystemExit(f"{BASE} 에서 RC {kind} PDF 를 하나로 못 집었다: {hits}")
-    return hits[0]
-
-BOOK = fitz.open(pick('본권'))
-SOL  = fitz.open(pick('해설'))
+BOOK = fitz.open(_book_paths.pick(VOL, 'RC', '본권'))
+SOL  = fitz.open(_book_paths.pick(VOL, 'RC', '해설'))
 SUFFIX = '' if VOL == 1 else str(VOL)
 
 def norm(s):
@@ -54,6 +47,38 @@ for p in range(BOOK.page_count):
         # 보기 텍스트 뒤에 남는 잡텍스트 제거(줄바꿈 이후 첫 토큰군만) — 이미 $ 앵커라 대체로 OK
         book_q[(cur_test, num)] = {'sentence': sent, 'opts': opts}
 
+def split_solution(body):
+    """해설 한 덩이 → {translation, explanation, vocab}.
+
+    교재 해설은 `번역 \x07…  해설 \x07…  어휘 \x07…` 세 도막이 이어 붙어 온다.
+    (\x07 은 라벨과 본문을 가르는 조판 글리프다 — 화면에 그대로 뿌리면 네모로 보인다.)
+    통째로 두면 '번역'을 보기 싫은 사람에게도 정답이 한글로 먼저 읽혀 버린다. 나눠 둔다.
+
+    줄바꿈은 PDF 가 폭에 맞춰 접은 것이라 뜻이 없다. **앞뒤에 공백이 있었으면 한 칸으로,
+    없었으면 그냥 붙인다** — 한글은 단어 중간에서도 접히기 때문에 무조건 공백을 넣으면
+    '소유격 대명사 (C) his 가 정답이다' 처럼 조사가 떨어진다.
+    """
+    if not body:
+        return {'translation': '', 'explanation': '', 'vocab': ''}
+
+    def unwrap(t):
+        t = re.sub(r'\s*\n\s*', lambda m: ' ' if ' ' in m.group(0) or '\t' in m.group(0) else '', t)
+        t = t.replace('\u2003', ' · ')          # 어휘 항목 사이 EM SPACE
+        return re.sub(r'[ \t]{2,}', ' ', t).strip()
+
+    out = {'translation': '', 'explanation': '', 'vocab': ''}
+    # 2권은 '번역' 대신 '해석' 을 쓰고 라벨 뒤 BEL 도 없다. 게다가 앞 문장에 붙어 온다('…이다.어휘 wipe off').
+    KEY = {'번역': 'translation', '해석': 'translation', '해설': 'explanation', '어휘': 'vocab'}
+    parts = re.split(r'(?:^|(?<=[\s.]))(번역|해석|해설|어휘)[\x07\s]\s*', body)
+    if len(parts) == 1:
+        # 라벨이 없는 판(2권 일부) — 통째로 해설로 본다
+        out['explanation'] = unwrap(body.replace('\x07', ' '))
+        return out
+    for i in range(1, len(parts) - 1, 2):
+        out[KEY[parts[i]]] = unwrap(parts[i + 1].replace('\x07', ' '))
+    return out
+
+
 # ---------- 해설: (test,qnum) -> {answer, label, translation, explanation} ----------
 sol_ans = {}   # (test,num)->letter
 sol_exp = {}   # (test,num)->{label, body}
@@ -89,7 +114,7 @@ for key in sorted(set(book_q) & set(sol_exp)):
     bank.append({
         'test': test, 'num': num, 'answer': ans,
         'label': e['label'], 'sentence': b['sentence'], 'opts': b['opts'],
-        'translation': '', 'explanation': e['body'],
+        **split_solution(e['body']),
     })
 
 os.makedirs('scripts/dump', exist_ok=True)

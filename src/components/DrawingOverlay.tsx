@@ -9,9 +9,36 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 
 const ORANGE = '#F97316'
 type Tool = 'pen' | 'highlighter' | 'eraseStroke' | 'erasePixel' | 'cursor'
-interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: number; y: number }[] }
+export interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: number; y: number }[] }
 
-export function useDrawingTool() {
+const HL_WIDTH = 18
+
+/**
+ * 형광펜이 덮는 사각형.
+ *
+ * 손으로 그은 곡선을 그대로 칠하면 밑줄이 물결친다 — 실물 형광펜은 자를 대고 긋지 않아도
+ * 종이 위에서 곧게 나간다(펜촉이 넓고 납작해서). 그래서 **시작점과 지금 점만** 보고
+ * 가로로 더 갔으면 가로 띠, 세로로 더 갔으면 세로 띠를 만든다.
+ */
+function hlRect(pts: { x: number; y: number }[]) {
+  const a = pts[0]
+  const b = pts[pts.length - 1]
+  const dx = Math.abs(b.x - a.x)
+  const dy = Math.abs(b.y - a.y)
+  return dx >= dy
+    ? { x: Math.min(a.x, b.x), y: a.y - HL_WIDTH / 2, w: Math.max(dx, 2), h: HL_WIDTH }
+    : { x: a.x - HL_WIDTH / 2, y: Math.min(a.y, b.y), w: HL_WIDTH, h: Math.max(dy, 2) }
+}
+
+export function useDrawingTool(opts?: {
+  /** 끌지 않고 **툭 누르면** 그 클릭을 캔버스 아래 요소로 넘긴다.
+   *
+   *  필기를 켜면 캔버스가 화면을 덮어 보기 클릭을 통째로 삼킨다. 그래서 지금까지는
+   *  `필기 켬 → 답 고르려고 필기 끔 → 고름 → 다시 켬` 을 문항마다 반복해야 했다.
+   *  시험지에서는 연필을 든 채로 답을 고른다 — 긋는 동작(끌기)과 고르는 동작(누르기)은
+   *  손이 이미 구분하고 있으므로, 움직임이 거의 없는 입력은 필기로 치지 않고 흘려보낸다. */
+  tapThrough?: boolean
+}) {
   const [drawMode, setDrawMode] = useState(false)
   /** 획을 하나 그을 때마다 오르는 수 — 화면이 "필기가 멈췄다"를 알아야 자동 판정을 걸 수 있다.
    *  (ref 로 두면 리렌더가 안 돼서 감지 못 한다) */
@@ -21,20 +48,31 @@ export function useDrawingTool() {
   const strokesRef = useRef<Stroke[]>([])
   const currentRef = useRef<Stroke | null>(null)
   const isDrawing = useRef(false)
+  /* 누르기 시작한 자리와 시각 — 끝날 때 '끈 것'인지 '툭 누른 것'인지 가른다 */
+  const downRef = useRef<{ x: number; y: number; cx: number; cy: number; t: number } | null>(null)
 
   const drawStroke = (ctx: CanvasRenderingContext2D, s: Stroke) => {
     if (!s.points.length) return
     ctx.save()
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
+    if (s.tool === 'highlighter') {
+      // 곡선이 아니라 **띠**다 — 획을 잇지 않고 사각형 하나를 칠한다
+      const r = hlRect(s.points)
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = 0.35
+      ctx.fillStyle = ORANGE
+      ctx.fillRect(r.x, r.y, r.w, r.h)
+      ctx.restore()
+      return
+    }
     if (s.tool === 'erasePixel') {
       ctx.globalCompositeOperation = 'destination-out'
       ctx.lineWidth = 28
     } else {
       ctx.globalCompositeOperation = 'source-over'
       ctx.strokeStyle = ORANGE
-      if (s.tool === 'highlighter') { ctx.globalAlpha = 0.35; ctx.lineWidth = 18 }
-      else { ctx.lineWidth = 3 }
+      ctx.lineWidth = 3
     }
     ctx.beginPath()
     const p0 = s.points[0]
@@ -63,9 +101,15 @@ export function useDrawingTool() {
 
   const eraseAt = (pos: { x: number; y: number }) => {
     const before = strokesRef.current.length
-    strokesRef.current = strokesRef.current.filter((s) =>
-      s.tool === 'erasePixel' ? true : !s.points.some((p) => Math.hypot(p.x - pos.x, p.y - pos.y) < 14)
-    )
+    strokesRef.current = strokesRef.current.filter((s) => {
+      if (s.tool === 'erasePixel') return true
+      // 형광펜은 점이 둘뿐이라 점 거리로 재면 띠 한가운데를 문질러도 안 지워진다
+      if (s.tool === 'highlighter') {
+        const r = hlRect(s.points)
+        return !(pos.x >= r.x - 4 && pos.x <= r.x + r.w + 4 && pos.y >= r.y - 4 && pos.y <= r.y + r.h + 4)
+      }
+      return !s.points.some((p) => Math.hypot(p.x - pos.x, p.y - pos.y) < 14)
+    })
     if (strokesRef.current.length !== before) redraw()
   }
 
@@ -76,6 +120,14 @@ export function useDrawingTool() {
     e.preventDefault()
     isDrawing.current = true
     const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
+    const ne = e.nativeEvent as MouseEvent | TouchEvent
+    const touch = 'touches' in ne && ne.touches.length > 0 ? ne.touches[0] : null
+    downRef.current = {
+      x: pos.x, y: pos.y,
+      cx: touch ? touch.clientX : (ne as MouseEvent).clientX,
+      cy: touch ? touch.clientY : (ne as MouseEvent).clientY,
+      t: Date.now(),
+    }
     if (tool === 'eraseStroke') { eraseAt(pos); return }
     currentRef.current = { tool, points: [pos] }
     redraw()
@@ -88,22 +140,66 @@ export function useDrawingTool() {
     e.preventDefault()
     const pos = getPos(e.nativeEvent as MouseEvent | TouchEvent, canvas)
     if (tool === 'eraseStroke') { eraseAt(pos); return }
-    if (currentRef.current) { currentRef.current.points.push(pos); redraw() }
+    if (!currentRef.current) return
+    if (currentRef.current.tool === 'highlighter') {
+      // 중간 점들은 필요 없다 — 시작점과 지금 점이 띠의 두 끝이다
+      currentRef.current.points = [currentRef.current.points[0], pos]
+    } else {
+      currentRef.current.points.push(pos)
+    }
+    redraw()
   }, [tool, redraw])
 
   const endDraw = useCallback(() => {
+    const down = downRef.current
+    downRef.current = null
+
+    /* 툭 누른 것인가 — 거의 안 움직였고 짧게 끝났다. 그러면 필기가 아니라 **클릭**이다.
+       점 하나짜리 획을 남기지 않고, 캔버스를 잠깐 비켜 세워 아래 요소에 클릭을 전달한다. */
+    if (opts?.tapThrough && down && currentRef.current) {
+      const pts = currentRef.current.points
+      const last = pts[pts.length - 1]
+      const moved = Math.hypot(last.x - down.x, last.y - down.y)
+      if (moved < 6 && Date.now() - down.t < 400) {
+        currentRef.current = null
+        isDrawing.current = false
+        redraw()
+        const c = canvasRef.current
+        if (c) {
+          const keep = c.style.pointerEvents
+          c.style.pointerEvents = 'none'
+          const el = document.elementFromPoint(down.cx, down.cy)
+          c.style.pointerEvents = keep
+          const hit = el?.closest('button, a, input, select, textarea, [role="button"]')
+          if (hit instanceof HTMLElement) hit.click()
+        }
+        return
+      }
+    }
+
     if (currentRef.current) {
       strokesRef.current.push(currentRef.current)
       currentRef.current = null
       setStrokeCount((n) => n + 1)
     }
     isDrawing.current = false
-  }, [])
+  }, [opts?.tapThrough, redraw, canvasRef])
 
   const clearCanvas = useCallback(() => {
     strokesRef.current = []
     currentRef.current = null
     setStrokeCount(0)
+    redraw()
+  }, [redraw])
+
+  /* 지금 캔버스의 획을 꺼낸다 / 다른 획으로 갈아 끼운다.
+     문항을 넘길 때 잉크를 문항별로 따로 들고 있으려고 쓴다 — 안 그러면 5번에 그은 표시가
+     6번 위에 그대로 남는다(캔버스는 하나다). */
+  const exportStrokes = useCallback(() => strokesRef.current.slice(), [])
+  const loadStrokes = useCallback((list: Stroke[]) => {
+    strokesRef.current = list.slice()
+    currentRef.current = null
+    setStrokeCount(list.length)
     redraw()
   }, [redraw])
 
@@ -116,6 +212,7 @@ export function useDrawingTool() {
     drawMode, setDrawMode, toggleDraw,
     tool, setTool,
     canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw,
+    exportStrokes, loadStrokes,
     strokeCount,
   }
 }
@@ -145,10 +242,10 @@ function ToolBtn({ active, onClick, title, icon, children }: {
 type PaletteProps = Pick<DrawingOverlayProps, 'tool' | 'setTool' | 'clearCanvas' | 'setDrawMode'>
 
 /* 도구 버튼 묶음 (플로팅 팔레트·인라인 바 공용)
-   `minimal` — **네 개만 남긴다**: 연필 · 형광펜 · 획 지우기 · 전체 지우기 (콘텐츠 파트 요청 09-01).
+   `minimal` — **네 개만 남긴다**: 연필 · 형광펜 · 대상 지우기 · 전체 지우기 (콘텐츠 파트 요청 09-01).
    빠지는 것과 그래도 되는 이유:
      · 커서(답 선택) — 연필 버튼을 다시 누르면 필기가 꺼지고 보기가 눌린다. 같은 일을 하는 문이 둘이었다.
-     · 그냥 지우기(문지르기) — 획 지우기로 다 된다. 둘을 나란히 두면 무엇이 다른지부터 알아야 한다.
+     · 픽셀 지우기(문지르기) — 대상 지우기로 다 된다. 둘을 나란히 두면 무엇이 다른지부터 알아야 한다.
      · 주황 점 — 색이 하나뿐이라 고를 것이 없다. 색 고르는 자리처럼 보이기만 했다.
      · 닫기(X) — 연필 버튼이 그 일을 한다. */
 function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row }: PaletteProps & { minimal?: boolean; row?: boolean }) {
@@ -172,9 +269,10 @@ function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row 
     </ToolBtn>
   )
   const eraseStroke = (
-    <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')} title="획 지우기" icon={minimal}>
+    <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')}
+      title={minimal ? '대상 지우기' : '대상 지우기 — 누른 선 하나가 통째로 지워집니다'} icon={minimal}>
       <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
-      {!minimal && '획 지우기'}
+      {!minimal && '대상 지우기'}
     </ToolBtn>
   )
   const clearAll = (
@@ -218,11 +316,12 @@ function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row 
 
       <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
 
+      {/* 대상 지우기 */}
       {eraseStroke}
       {/* 그냥 지우기 */}
-      <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="그냥 지우기 (문지르기)">
+      <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="픽셀 지우기 — 문지른 자리만 지워집니다">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="14" width="18" height="6" rx="1" /><path d="M8 14l6-9 5 3-4 6" /></svg>
-        그냥 지우기
+        픽셀 지우기
       </ToolBtn>
       {clearAll}
 

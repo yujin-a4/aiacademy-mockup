@@ -49,7 +49,7 @@ export function factsOf(
   /* 게이트 — 생성되는 문구가 아직 안 배운 것을 흘리지 않게 (stageGate.ts).
      화면 배너 문구도 여기서 나오므로, 단서 단계에서 보기를 주면 "보기 중에 골라봐"가 나온다. */
   qs.forEach((q, i) => {
-    lines.push(`문항 ${i + 1}: ${q.q}`)
+    lines.push(`문항 ${i + 1}: ${q.q || '위 문장의 빈칸에 들어갈 말 고르기'}`)
     if (gate === 1) return
     q.options.forEach((o) => {
       const mark = gate >= 3 && o.correct ? ' [정답]' : ''

@@ -8,6 +8,19 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /* ── 안전영역(노치·상태바) ──
+         layout.tsx 가 `viewportFit: 'cover'` 로 화면을 상태바 밑까지 채운다. 그러면 맨 위 막대의
+         나가기·타이머·글자 크기 버튼이 아이패드의 시계 줄에 깔려 손가락이 안 닿는다(실측).
+         맨 위 막대의 `py-*` 를 같은 크기의 `pt-safe-*` + `pb-*` 로 바꾸면 그만큼 내려온다.
+         인셋이 없는 기기·브라우저에서는 env() 가 0 이라 원래 값 그대로다. */
+      spacing: {
+        'safe-0':   'env(safe-area-inset-top)',
+        'safe-2':   'calc(0.5rem + env(safe-area-inset-top))',
+        'safe-3':   'calc(0.75rem + env(safe-area-inset-top))',
+        'safe-3.5': 'calc(0.875rem + env(safe-area-inset-top))',
+        'safe-4':   'calc(1rem + env(safe-area-inset-top))',
+        'safe-5':   'calc(1.25rem + env(safe-area-inset-top))',
+      },
       colors: {
         // ── 디자인 시스템 v2 Primary ───────────────────────────────────
         primary: {

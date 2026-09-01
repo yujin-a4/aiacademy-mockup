@@ -5,13 +5,15 @@ import { useOnboardingStore } from '@/store/onboardingStore'
 import { useBookmarkStore } from '@/store/bookmarkStore'
 import { useVocaStore } from '@/store/vocaStore'
 import { useWrongAnswerStore, WrongAnswer, SCAFFOLDING } from '@/store/wrongAnswerStore'
-import { useState, useMemo, Suspense } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AccountMenu from '@/components/AccountMenu'
 import { IncomingCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
 import { INST_NAME, INST_THUMBS } from '@/data/instructorData'
 import { useStreakDay } from '@/hooks/useStreakDay'
+import { useMockTestStore, attemptKey, totalScore } from '@/store/mockTestStore'
+import { getSupabase } from '@/lib/supabaseClient'
 
 /* ── 데이터 ── */
 const PARTS = [
@@ -50,6 +52,54 @@ function Ring({ current, total }: { current: number; total: number }) {
   )
 }
 
+
+/* ── 파트 카드 ──────────────────────────────────────────────────────────────
+   흰 바탕에 실선 하나. 색·무늬·둥근 모서리를 다 뺐다 — 일곱 장이 나란히 놓이는 자리라
+   카드마다 색이 다르면 목록이 아니라 색표가 된다. 남긴 강조는 아래를 가로지르는 정답률 선뿐이다. */
+function PartCard({ p, onClick }: {
+  p: (typeof PARTS)[number]
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative flex flex-col overflow-hidden w-full text-left p-4 pb-6 min-h-[120px]
+        bg-white border border-[#DBEAFE] hover:border-[#C7D2FE] transition-colors
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+    >
+      {/* 파트 번호 — 훑을 때 숫자가 먼저 잡히라고 크게 두되, 배경으로 가라앉힌다 */}
+      <span aria-hidden className="absolute right-2 -bottom-5 font-black leading-none tracking-tighter
+        text-[#EFF6FF] select-none pointer-events-none text-[92px]">
+        {p.id.slice(1)}
+      </span>
+
+      <div className="relative flex items-start justify-between gap-2">
+        <span className="text-[10px] font-bold text-[#9CA3AF] tracking-[0.14em]">{p.type}</span>
+        {p.status === 'recommended' && (
+          <span className="text-[10px] font-bold text-[#2563EB] bg-[#EFF6FF] px-2 py-0.5 shrink-0">AI 추천</span>
+        )}
+        {p.status === 'done' && (
+          <span className="text-[10px] font-bold text-[#059669] bg-[#F0FDF4] px-2 py-0.5 shrink-0">자신있음</span>
+        )}
+      </div>
+
+      <div className="relative mt-auto pt-3">
+        <p className="text-[#1C1B33] font-semibold text-[17px] leading-none">Part {p.id.slice(1)}</p>
+        <p className="text-[#6B7280] text-[12px] mt-1.5">{p.name}</p>
+        <p className={`text-[11px] font-semibold mt-2.5 tabular-nums ${
+          p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#9CA3AF]' : 'text-[#DC2626]'
+        }`}>
+          정답률 {p.accuracy}%
+        </p>
+      </div>
+
+      {/* 정답률 — 아래 모서리를 가로지르는 실선. 카드끼리 나란히 두면 어디가 약한지 한눈에 보인다 */}
+      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-[#EFF6FF]">
+        <div className="h-full bg-[#2563EB]" style={{ width: `${Math.min(p.accuracy, 100)}%` }} />
+      </div>
+    </button>
+  )
+}
 
 /* ── 오답 카드 ── */
 function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }) {
@@ -105,7 +155,8 @@ function Sidebar() {
   const [open, setOpen] = useState(false)
   return (
     <aside className={`hidden md:flex flex-col bg-[#F8FAFF] border-r border-[#DBEAFE] h-screen sticky top-0 shrink-0 z-30 transition-all duration-300 overflow-hidden ${open ? 'w-[240px]' : 'w-[56px]'}`}>
-      <div className={`flex items-center min-h-[60px] shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
+      {/* 사이드바 맨 윗줄(로고·접기 버튼)도 상태바 밑이다 — 안전영역만큼 내린다 */}
+      <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
             <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
@@ -172,9 +223,32 @@ function MyLearningInner() {
   const { initTodayWords } = useVocaStore()
   const { wrongAnswers } = useWrongAnswerStore()
   const searchParams = useSearchParams()
-  const [tab, setTab] = useState<'part' | 'wrong' | 'voca'>(
-    (searchParams.get('tab') as 'part' | 'wrong' | 'voca') || 'part'
+  const [tab, setTab] = useState<'part' | 'mock' | 'wrong' | 'voca'>(
+    (searchParams.get('tab') as 'part' | 'mock' | 'wrong' | 'voca') || 'part'
   )
+  const [activeVol, setActiveVol] = useState<1 | 2>(1)
+  /* 회차별 응시 기록 — 카드가 '이어하기 / 완료 / 예상 점수'를 여기서 읽는다 */
+  const attempts = useMockTestStore(s => s.attempts)
+
+  /* ── 실제로 열 수 있는 회차 ──
+     추출은 20회분 다 끝났지만 **적재는 회차마다 따로** 한다(음원 용량 때문에 1회차만 넣어 뒀다).
+     10회차를 다 그려 놓고 누르면 오류가 나는 것보다, 없는 회차는 안 눌리는 편이 낫다.
+     mock_tests 는 read for all 이라 클라이언트에서 바로 읽는다(0028). */
+  const [readyTests, setReadyTests] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const sb = getSupabase()
+    if (!sb) return
+    let alive = true
+    sb.from('mock_tests').select('book, area, test_no').then(({ data }) => {
+      if (!alive || !data) return
+      setReadyTests(new Set(data.map((r) => `${r.book}-${r.area}-${r.test_no}`)))
+    })
+    return () => { alive = false }
+  }, [])
+  const resetAttempt = useMockTestStore(s => s.reset)
+  /* 처음부터 다시 풀 대상 — 지운 답은 되돌릴 수 없으니 한 번 묻는다.
+     한 회차는 LC·RC 두 판이라 키가 둘이다(둘 다 지운다 — '이 회차를 다시 푼다'는 뜻이므로). */
+  const [askReset, setAskReset] = useState<{ keys: string[]; label: string } | null>(null)
   const [filter, setFilter] = useState<'전체' | 'LC' | 'RC'>('전체')
   const [wrongSubTab, setWrongSubTab] = useState<'유형별' | '파트별' | 'AI 추천'>('유형별')
 
@@ -208,7 +282,14 @@ function MyLearningInner() {
   }, [examDate])
 
   const router = useRouter()
-  const filteredParts = filter === '전체' ? PARTS : PARTS.filter((p) => p.type === filter)
+  /* Part 1~7 순서로 세운다. PARTS 배열은 추천 순서(P1·P5·P3…)로 섞여 있는데,
+     학습자가 파트를 찾을 때 기대하는 순서는 시험지 순서다 — 'Part 5 어디 있지' 하고 훑게 된다. */
+  const filteredParts = (filter === '전체' ? PARTS : PARTS.filter((p) => p.type === filter))
+    .slice()
+    .sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)))
+  /* 지금 보고 있는 목록 안에서의 추천. 필터를 RC 로 좁혔는데 LC 추천 띠가 남으면
+     띠를 눌렀을 때 목록에 없는 파트로 튄다 */
+  const recommended = filteredParts.find((p) => p.status === 'recommended')
 
   const categoryGroups = useMemo(() => {
     const groups: Record<string, WrongAnswer[]> = {}
@@ -262,7 +343,7 @@ function MyLearningInner() {
         </header>
 
         {/* 데스크탑 탑바 */}
-        <header className="hidden md:flex px-8 py-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
+        <header className="hidden md:flex px-8 pt-safe-4 pb-4 items-center justify-between bg-white border-b border-[#DBEAFE] sticky top-0 z-20">
           <p className="text-[#1C1B33] font-bold text-[20px]">자율학습</p>
           <div className="flex items-center gap-2">
             {ddayLabel && (
@@ -306,10 +387,10 @@ function MyLearningInner() {
             )}
 
             {/* 메인 탭 */}
-            <div className="max-w-[680px] flex border-b border-[#DBEAFE] mb-5">
-              {([['part', '파트별 연습'], ['wrong', 'AI 오답노트'], ['voca', '보카런']] as const).map(([key, label]) => (
+            <div className="max-w-[680px] flex border-b border-[#DBEAFE] mb-5 overflow-x-auto scrollbar-none">
+              {([['part', '파트별 연습'], ['mock', '실전 모의고사'], ['wrong', 'AI 오답노트'], ['voca', '보카런']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setTab(key)}
-                  className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${tab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                  className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${tab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
                   {label}
                 </button>
               ))}
@@ -324,43 +405,196 @@ function MyLearningInner() {
                 <div className="flex gap-2 mb-4">
                   {(['전체', 'LC', 'RC'] as const).map((f) => (
                     <button key={f} onClick={() => setFilter(f)}
-                      className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${filter === f ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#DBEAFE] bg-white text-[#6B7280] hover:border-[#C7D2FE]'}`}>
+ className={`text-[12px] font-semibold px-4 py-1.5 rounded-full border transition-all ${filter === f ? 'border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]' : 'border-[#DBEAFE] bg-white text-[#6B7280] hover:border-[#C7D2FE]'}`}>
                       {f}
                     </button>
                   ))}
                 </div>
+                {/* 추천은 격자 안에서 넓히지 않는다 — 두 칸짜리가 다섯 번째에 앉으면 격자에 구멍이 난다.
+                    아래 카드들은 시험지 순서(Part 1~7)를 지켜야 '5번 어디 있지' 하고 훑을 때 손이 맞는다. */}
+                {recommended && (
+                  <button
+                    onClick={() => router.push(`/my-learning/part/${recommended.id.toLowerCase()}`)}
+                    className="w-full text-left mb-3 border border-[#C7D2FE] bg-[#EFF6FF] px-4 py-3.5
+                      flex items-start gap-3 transition-colors hover:bg-[#E0E7FF]
+                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+                  >
+                    <span className="mt-0.5 shrink-0 text-[10px] font-bold text-white bg-[#2563EB] px-2 py-0.5">
+                      AI 추천
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-bold text-[#1C1B33]">
+                        Part {recommended.id.slice(1)} · {recommended.name} 부터 시작해보세요
+                      </span>
+                      <span className="block text-[12px] text-[#4B5563] leading-relaxed mt-0.5">{recommended.desc}</span>
+                    </span>
+                  </button>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {filteredParts.map((p) => (
-                    <div key={p.id}
-                      className={`bg-white rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md ${p.status === 'recommended' ? 'border border-[#06B6D4] shadow-[0_1px_8px_rgba(6,182,212,0.10)]' : 'border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)]'}`}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-[12px] font-black shrink-0 ${p.status === 'done' ? 'bg-[#F0FDF4] text-[#059669]' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>
-                          {p.id}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[#1C1B33] text-[13px] font-semibold">{p.name}</p>
-                          <p className="text-[#9CA3AF] text-[11px]">{p.type}</p>
-                        </div>
-                        {p.status === 'done' && <span className="text-[10px] font-bold bg-[#F0FDF4] text-[#059669] px-2 py-0.5 rounded-md">자신있음</span>}
-                        {p.status === 'recommended' && <span className="text-[10px] font-bold bg-[#ECFEFF] text-[#0891B2] px-2 py-0.5 rounded-md">AI 추천</span>}
-                      </div>
-                      <p className="text-[#374151] text-[12px] leading-relaxed mb-3 line-clamp-2">{p.desc}</p>
-                      <div className="flex items-center justify-between">
-                        <button
-                          /* LC 도 연다 — 음원·사진이 DB 에 다 있어 P1~P4 가 실제로 풀린다 */
-                          onClick={() => router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
-                          className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${p.status === 'recommended' ? 'bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'bg-[#EFF6FF] text-[#2563EB] hover:bg-[#E0E7FF]'}`}>
-                          {p.status === 'recommended' ? 'AI 맞춤 문제' : '문제 풀기'}
-                        </button>
-                        <span className={`text-[11px] font-semibold ${p.accuracy >= 80 ? 'text-[#059669]' : p.accuracy >= 65 ? 'text-[#9CA3AF]' : 'text-[#DC2626]'}`}>
-                          정답률 {p.accuracy}%
-                        </span>
-                      </div>
-                    </div>
+                    <PartCard
+                      key={p.id}
+                      p={p}
+                      /* LC 도 연다 — 음원·사진이 DB 에 다 있어 P1~P4 가 실제로 풀린다 */
+                      onClick={() => router.push(`/my-learning/part/${p.id.toLowerCase()}`)}
+                    />
                   ))}
                 </div>
               </div>
             )}
+
+            {/* ── 실전 모의고사 ── */}
+            {tab === 'mock' && (
+              <div className="max-w-[680px] animate-fade-in space-y-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[#6B7280] text-[13px] leading-relaxed">
+                    실전과 동일한 문항 수와 제한 시간으로 모의고사를 풀어보세요. 채점된 오답은 AI 오답노트에 자동으로 등록됩니다.
+                  </p>
+                </div>
+                
+                {/* Volume Selector */}
+                <div className="flex gap-2 p-1 bg-[#F3F4F6] rounded-xl w-fit">
+                  {([1, 2] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setActiveVol(v)}
+                      className={`text-[12px] font-bold px-5 py-2 rounded-lg transition-all ${
+                        activeVol === v
+                          ? 'bg-white text-[#2563EB] shadow-sm'
+                          : 'text-[#6B7280] hover:text-[#1C1B33]'
+                      }`}
+                    >
+                      Vol. {v}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── 회차 카드 (2열) ──
+                    한 줄에 하나씩 쌓으면 10회차가 화면 두 배를 먹어 뒤쪽 회차는 스크롤해야 보인다.
+                    카드 안에 LC·RC 상태가 각각 붙으므로 세로로 접어 2열로 세운다. */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Array.from({ length: 10 }, (_, idx) => idx + 1).map((testNum) => {
+                    const lc = attempts[attemptKey(activeVol, testNum, 'LC')]
+                    const rc = attempts[attemptKey(activeVol, testNum, 'RC')]
+                    const total = totalScore(lc, rc)
+                    /* 한 영역만 끝냈을 때 총점을 내면 반토막 난 숫자가 '내 점수'로 남는다 —
+                       둘 다 끝났을 때만 합산하고, 그 전에는 끝낸 영역 점수만 보여준다. */
+                    const half = !total && (lc?.status === 'done' || rc?.status === 'done')
+
+                    return (
+                      <div
+                        key={testNum}
+                        className="bg-white border border-[#DBEAFE] rounded-sm p-3.5 shadow-[0_1px_8px_rgba(37,99,235,0.06)] flex flex-col gap-3"
+                      >
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className="text-[#1C1B33] font-bold text-[15px]">
+                            TEST {String(testNum).padStart(2, '0')}
+                          </h3>
+                          {total !== null ? (
+                            <span className="text-[12px] font-black text-[#2563EB]">
+                              예상 {total}점
+                            </span>
+                          ) : half ? (
+                            <span className="text-[11px] font-bold text-[#9CA3AF]">
+                              {lc?.status === 'done' ? 'RC' : 'LC'}가 남았어요
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-[#9CA3AF]">200문항</span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {([
+                            { area: 'LC' as const, label: 'LC 듣기', mins: 45, at: lc,
+                              tone: 'text-[#2563EB] bg-[#EFF6FF] border-[#C7D2FE] hover:bg-[#E0E7FF]' },
+                            { area: 'RC' as const, label: 'RC 독해', mins: 75, at: rc,
+                              tone: 'text-[#0891B2] bg-[#ECFEFF] border-[#A5F3FC] hover:bg-[#CFFAFE]' },
+                          ]).map(({ area, label, mins, at, tone }) => {
+                            const done = at?.status === 'done'
+                            const going = at?.status === 'progress'
+                            /* 적재된 회차만 열린다 — 없는 회차를 눌러 오류 화면을 보는 것보다 낫다 */
+                            const ready = readyTests.has(`${activeVol}-${area}-${testNum}`)
+                            return (
+                              <button
+                                key={area}
+                                disabled={!ready}
+                                onClick={() => router.push(`/mock-test/solve?vol=${activeVol}&test=${testNum}&area=${area}`)}
+                                className={`border px-3 py-2 text-left transition-all ${
+                                  !ready
+                                    ? 'border-[#F3F4F6] bg-[#FAFAFA] text-[#C4C7CE] cursor-not-allowed'
+                                    : done
+                                      ? 'border-[#E5E7EB] bg-[#F9FAFB] text-[#6B7280] hover:bg-[#F3F4F6]'
+                                      : tone
+                                }`}
+                              >
+                                <span className="block text-[12px] font-bold">{label}</span>
+                                <span className="block text-[10px] mt-0.5 opacity-80">
+                                  {!ready
+                                    ? '준비 중'
+                                    : done
+                                      ? `${at!.correct}/${at!.total} · ${at!.score}점`
+                                      : going
+                                        /* 이어하기 — 몇 문항까지 했는지가 다시 열 이유가 된다 */
+                                        ? `이어하기 · ${Object.values(at!.answers ?? {}).filter(Boolean).length}문항`
+                                        : `${mins}분`}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {/* 풀던 것도 제출한 것도 여기서 다시 시작한다.
+                            들어가면 이어하기로 이어지므로(제출한 회차는 결과가 남아 있으므로)
+                            '처음부터'로 가는 길이 여기 말고는 없다. */}
+                        {(lc || rc) && (
+                          <button
+                            onClick={() => setAskReset({
+                              keys: [
+                                attemptKey(activeVol, testNum, 'LC'),
+                                attemptKey(activeVol, testNum, 'RC'),
+                              ],
+                              label: `TEST ${String(testNum).padStart(2, '0')}`,
+                            })}
+                            className="w-full border border-[#E5E7EB] bg-white py-2 text-[12px] font-bold text-[#6B7280] hover:border-[#FCA5A5] hover:text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                          >
+                            다시 풀기
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 지운 답은 되돌릴 수 없다 — 한 번 묻는다 */}
+                {askReset && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-6">
+                    <div role="dialog" aria-modal="true"
+                      className="w-full max-w-sm bg-white border border-[#E5E7EB] shadow-xl p-5 space-y-4">
+                      <div className="space-y-1.5">
+                        <h2 className="text-[16px] font-black text-[#1C1B33]">처음부터 다시 풀까요?</h2>
+                        <p className="text-[13px] text-[#6B7280] leading-relaxed">
+                          {askReset.label} 의 LC·RC 기록이 모두 지워집니다. 채점 결과도 함께 사라집니다.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setAskReset(null)}
+                          className="flex-1 py-2.5 border border-[#DBEAFE] bg-white text-[#374151] font-bold text-[13px] hover:bg-[#F8FAFF] transition-colors"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => { askReset.keys.forEach(resetAttempt); setAskReset(null) }}
+                          className="flex-1 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-[13px] transition-colors"
+                        >
+                          지우고 다시
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )/* ── AI 오답노트 ── */}
 
             {/* ── AI 오답노트 ── */}
             {tab === 'wrong' && (

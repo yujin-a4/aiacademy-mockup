@@ -488,7 +488,8 @@ function buildPart5(local: TypeLesson, rows: UiDbQuestion[], anchor: UiDbQuestio
     desc: anchor.content.blank_type ? `${anchor.content.blank_type} · 빈칸 앞뒤 구조로 판단하기` : local.desc,
     content: {
       passages: [{ id: 'p1', kind: 'text', sentences: [{ id: 's1', en: sentence, blank: 1 }] }],
-      questions: [toQuestion(anchor, '빈칸에 알맞은 것을 고르세요.')],
+      /* 실제 시험지의 Part 5 에는 발문이 없다 — 문장과 (A)~(D) 가 전부다 */
+      questions: [toQuestion(anchor, '')],
     },
     turns: part5Turns(anchor, sentence),
     recap: part5Recap(rows, anchor, local.recap),
@@ -952,7 +953,7 @@ export function buildPracticeContent(part: number, rows: UiDbQuestion[]): TypeLe
             id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
           })),
         }],
-        questions: group.map((q) => toQuestion(q, '빈칸에 알맞은 것을 고르세요.')),
+        questions: group.map((q) => toQuestion(q, '')),
       }
     /* RC(6·7) — **지문 하나(이중·삼중이면 한 묶음) = 세트 하나 = 문항 여럿**이다.
        LC 3·4 와 같은 규칙으로 지문(passage.code)으로 묶는다. 예전엔 group[0] 의 지문만 보고
@@ -1025,7 +1026,7 @@ export function buildReviewContent(part: number, rows: UiDbQuestion[]): TypeLess
           id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
         })),
       }],
-      questions: group.map((q) => toQuestion(q, '빈칸에 알맞은 것을 고르세요.')),
+      questions: group.map((q) => toQuestion(q, '')),
     }
   }
   return null
