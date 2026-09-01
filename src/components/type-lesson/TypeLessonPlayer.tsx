@@ -13,7 +13,7 @@ import ContentView, { targetTokens, markedWords, type ContentState } from '@/com
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
 import MicButton from '@/components/type-lesson/MicButton'
-import { DrawingOverlay, PenFab, useDrawingTool } from '@/components/DrawingOverlay'
+import { DrawingOverlay, PenFab, useDrawingTool, type Stroke } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
 /* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
@@ -3719,14 +3719,25 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
      state 를 클로저로 잡으면 판이 시작될 때의 값에 머문다 */
   const pageRef = useRef(0)
   pageRef.current = page
-  const draw = useDrawingTool()
+  /* ── 필기 (구현 중 메모 75행) ──
+     `tapThrough` — **연필을 든 채로 답을 고른다.** 끌면 선이 그어지고, 툭 누르면 그 클릭이
+     아래 보기로 넘어간다. 이게 없어서 문항마다 '필기 켬 → 답 고르려 끔 → 고름 → 다시 켬' 을
+     반복해야 했다(강유진 08-28). 실전 모의고사 화면이 쓰던 방식을 그대로 가져온다. */
+  const draw = useDrawingTool({ tapThrough: true })
   const contentRef = useRef<HTMLDivElement>(null)
 
-  /* 문항을 넘기면 필기를 지운다 — 획은 판 하나짜리 캔버스에 쌓이므로, 안 지우면 앞 문항에 친
-     동그라미가 다음 문항 위에 그대로 떠 있다(실측 보고 08-18). 음원이 자동으로 넘긴 경우도 같다. */
-  const drawnPageRef = useRef(0)
+  /* 잉크는 **문항마다 따로** 보관한다. 캔버스는 판 하나짜리라, 안 갈아 끼우면 앞 문항에 친
+     동그라미가 다음 문항 위에 그대로 뜬다(실측 08-18). 예전에는 넘길 때 통째로 지웠는데,
+     그러면 되돌아왔을 때 내가 친 표시가 사라져 있다 — 시험지에서 앞 장을 넘겼다 돌아오면
+     연필 자국은 그대로다. **필기 모드(켜짐)도 문항을 넘겨도 유지된다.** */
+  const inkRef = useRef<Record<number, Stroke[]>>({})
+  const inkPageRef = useRef<number | null>(null)
   useEffect(() => {
-    if (drawnPageRef.current !== page) { draw.clearCanvas(); drawnPageRef.current = page }
+    if (inkPageRef.current !== null && inkPageRef.current !== page) {
+      inkRef.current[inkPageRef.current] = draw.exportStrokes()
+    }
+    if (inkPageRef.current !== page) draw.loadStrokes(inkRef.current[page] ?? [])
+    inkPageRef.current = page
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
