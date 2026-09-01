@@ -219,13 +219,20 @@ export function useDrawingTool(opts?: {
 
 type DrawingOverlayProps = ReturnType<typeof useDrawingTool>
 
-/* 팔레트 버튼 */
-function ToolBtn({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+/* 팔레트 버튼.
+   `icon` — 글자 없이 아이콘만. 판이 작아야 화면을 안 가리고, 작으면 감추고 싶을 이유도 없어진다.
+   손가락으로 누르는 것이라 칸은 40px 을 준다 — 아이콘만 줄이고 칸까지 줄이면 빗나간다. */
+function ToolBtn({ active, onClick, title, icon, children }: {
+  active: boolean; onClick: () => void; title: string; icon?: boolean; children: React.ReactNode
+}) {
   return (
     <button
       onClick={onClick}
       title={title}
-      className={`flex items-center gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold transition-colors ${active ? 'bg-[#F97316] text-white' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}
+      aria-label={title}
+      className={`flex items-center transition-colors ${
+        icon ? 'w-10 h-10 justify-center rounded-xl' : 'gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold'
+      } ${active ? 'bg-[#F97316] text-white' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}
     >
       {children}
     </button>
@@ -234,8 +241,64 @@ function ToolBtn({ active, onClick, title, children }: { active: boolean; onClic
 
 type PaletteProps = Pick<DrawingOverlayProps, 'tool' | 'setTool' | 'clearCanvas' | 'setDrawMode'>
 
-/* 도구 버튼 묶음 (플로팅 팔레트·인라인 바 공용) */
-function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode }: PaletteProps) {
+/* 도구 버튼 묶음 (플로팅 팔레트·인라인 바 공용)
+   `minimal` — **네 개만 남긴다**: 연필 · 형광펜 · 대상 지우기 · 전체 지우기 (콘텐츠 파트 요청 09-01).
+   빠지는 것과 그래도 되는 이유:
+     · 커서(답 선택) — 연필 버튼을 다시 누르면 필기가 꺼지고 보기가 눌린다. 같은 일을 하는 문이 둘이었다.
+     · 픽셀 지우기(문지르기) — 대상 지우기로 다 된다. 둘을 나란히 두면 무엇이 다른지부터 알아야 한다.
+     · 주황 점 — 색이 하나뿐이라 고를 것이 없다. 색 고르는 자리처럼 보이기만 했다.
+     · 닫기(X) — 연필 버튼이 그 일을 한다. */
+function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row }: PaletteProps & { minimal?: boolean; row?: boolean }) {
+  const sz = minimal ? 17 : 14
+  const pen = (
+    <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필" icon={minimal}>
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+      {!minimal && '연필'}
+    </ToolBtn>
+  )
+  const highlighter = (
+    <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜" icon={minimal}>
+      {/* ── 연필과 갈리는 지점은 **밑줄의 두께**다 ──
+          예전 아이콘(꺾인 촉 모양)은 작게 그리면 무엇인지 알아볼 수 없었다(콘텐츠 파트 09-01).
+          연필과 같은 자세로 세우고, 뒤에 남는 자국만 굵게 그어 둔다 — 연필은 가는 선, 형광펜은 굵은 띠. */}
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 20.5h16" strokeWidth="4.5" opacity="0.5" />
+        <path d="M15.8 3.7a2.2 2.2 0 0 1 3.1 3.1l-8.5 8.5-4.1 1 1-4.1 8.5-8.5z" />
+      </svg>
+      {!minimal && '형광펜'}
+    </ToolBtn>
+  )
+  const eraseStroke = (
+    <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')}
+      title={minimal ? '대상 지우기' : '대상 지우기 — 누른 선 하나가 통째로 지워집니다'} icon={minimal}>
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
+      {!minimal && '대상 지우기'}
+    </ToolBtn>
+  )
+  const clearAll = (
+    /* ⚠️ **다른 아이콘과 같은 회색이어야 한다.** 되돌릴 수 없는 버튼이라 예전에는 옅게(#9CA3AF)
+       칠해 뒀는데, 글자를 떼고 아이콘만 세우니 그 하나만 흐려서 **꺼진 버튼으로 보였다**(09-01).
+       조심하라는 신호는 누를 때 빨개지는 것으로 충분하다 — 흐린 색은 "못 누른다" 는 뜻이다. */
+    <button onClick={clearCanvas} title="전체 지우기" aria-label="전체 지우기"
+      className={`flex items-center justify-center text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors ${
+        minimal ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'}`}>
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+    </button>
+  )
+
+  if (minimal) {
+    return (
+      <>
+        {pen}
+        {highlighter}
+        {/* 구분선 — 누워 놓으면 세로로 긋고, 눈혀 놓으면 가로로 세운다 */}
+        <div className={row ? 'w-px h-5 bg-[#E5E7EB] mx-0.5' : 'h-px w-full bg-[#E5E7EB] my-0.5'} />
+        {eraseStroke}
+        {clearAll}
+      </>
+    )
+  }
+
   return (
     <>
       {/* 커서 (답 선택) */}
@@ -245,36 +308,22 @@ function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode }: PaletteProp
 
       <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
 
-      {/* 연필 */}
-      <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-        연필
-      </ToolBtn>
-      {/* 형광펜 */}
-      <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h3l6-6" /><path d="m17 7-1.5-1.5a2 2 0 0 0-3 0L9 8.5l4 4 3.5-3.5a2 2 0 0 0 .5-2z" /></svg>
-        형광펜
-      </ToolBtn>
+      {pen}
+      {highlighter}
 
       {/* 주황 단색 표시 */}
       <span className="w-4 h-4 rounded-full ml-0.5" style={{ background: ORANGE }} title="주황" />
 
       <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
 
-      {/* 획 지우기 */}
-      <ToolBtn active={tool === 'eraseStroke'} onClick={() => setTool('eraseStroke')} title="대상 지우기 — 누른 선 하나가 통째로 지워집니다">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l10-10 7 7-2.5 2.5" /><path d="M6 11l7 7" /></svg>
-        대상 지우기
-      </ToolBtn>
+      {/* 대상 지우기 */}
+      {eraseStroke}
       {/* 그냥 지우기 */}
       <ToolBtn active={tool === 'erasePixel'} onClick={() => setTool('erasePixel')} title="픽셀 지우기 — 문지른 자리만 지워집니다">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="14" width="18" height="6" rx="1" /><path d="M8 14l6-9 5 3-4 6" /></svg>
         픽셀 지우기
       </ToolBtn>
-      {/* 전체 지우기 */}
-      <button onClick={clearCanvas} title="전체 지우기" className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9CA3AF] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
-      </button>
+      {clearAll}
 
       <div className="w-px h-5 bg-[#E5E7EB] mx-0.5" />
 
@@ -299,44 +348,67 @@ export function DrawPalette({ className, ...p }: PaletteProps & { className?: st
 /* ── 연필 FAB — 동그란 버튼 하나가 도구 바를 품고 있다 ──
    상단 도구줄의 '필기' 버튼을 대신한다. 누르면 옆으로 도구 바가 쭉 늘어나고, 다시 누르면 접힌다.
    필기는 지문 위에서 하는 일이라 도구도 지문 가까이(화면 좌하단)에 둔다. */
-export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass = 'bottom-5', ...p }: PaletteProps & {
+export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass = 'bottom-5', anchor = 'fixed', open = 'up', ...p }: PaletteProps & {
   drawMode: boolean; toggleDraw: () => void
   /** 지금 단계가 "필기해 보세요"인가 — 버튼 주변을 뛰게 해 여기를 누르라고 알린다 */
   attention?: boolean; className?: string
+  /** 무엇을 기준으로 앉는가. `pane` 은 가장 가까운 relative 칸 — 강사 판이
+   *  화면 아래를 차지하는 세로 배치에서는 화면 기준(fixed)으로 두면 그 판 위에 올라앉는다 */
+  anchor?: 'fixed' | 'pane'
+  /** 도구 판이 펼쳐지는 방향. `up` — 위로(가로 배치: 왼쪽 여백이 좀아 옆으로 못 늘인다)
+   *  `right` — 옆으로(세로 배치: 연필이 낮게 앉아 위로 펼치면 문제를 덮는다) */
+  open?: 'up' | 'right'
   /** 아래쪽 띄우는 높이. 화면 하단에 바가 있으면 그만큼 올린다(실전은 제출/채점 바가 깔린다).
    *  className 으로 bottom-* 를 덧씌우면 Tailwind 규칙상 어느 쪽이 이길지 정해지지 않아 프롭으로 받는다. */
   bottomClass?: string
 }) {
   const nudge = !!attention && !drawMode
   return (
-    <div className={`fixed ${bottomClass} left-4 z-50 flex items-center gap-2 ${className ?? ''}`}>
+    /* ── 도구는 **위로 쌓는다** ──
+       옆으로 늘어나던 때는 도구 바가 문제 영역을 가로질러 **보기 D 를 덮었다**(실측 09-01,
+       아이패드 가로). 화면 왼쪽 여백은 어느 파트에서든 비어 있으므로(사진·보기·지문은 가운데로
+       모인다) 그 좁은 칸에 세로로 세운다. 연필 버튼 자리는 그대로다. */
+    <div className={`${anchor === 'pane' ? 'absolute' : 'fixed'} ${bottomClass} left-4 z-50 flex gap-2 ${
+      open === 'right' ? 'flex-row-reverse items-center' : 'flex-col items-start'} ${className ?? ''}`}>
+      {/* 늘어나는 도구 판 — 접힘은 크기로만 준다(언마운트하면 늘어나는 맛이 없다) */}
+      <div className={`flex gap-0.5 rounded-2xl bg-white overflow-hidden whitespace-nowrap
+                       [&>*]:shrink-0 duration-200 ${
+        open === 'right'
+          ? `flex-row items-center transition-[max-width,opacity,padding] ${
+            drawMode ? 'max-w-[280px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
+              : 'max-w-0 opacity-0 py-1.5 px-0 border-0'}`
+          : `flex-col items-stretch transition-[max-height,opacity,padding] ${
+            drawMode ? 'max-h-[240px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
+              : 'max-h-0 opacity-0 px-1.5 py-0 border-0'}`
+      }`}>
+        <PaletteButtons {...p} minimal row={open === 'right'} />
+      </div>
+      <div className="flex items-center gap-2">
       <div className="relative shrink-0">
         {/* 퍼지는 링 — 필기를 시켜놓고 도구가 어디 있는지 모르면 수업이 멈춘다 */}
         {nudge && <span className="absolute inset-0 rounded-full bg-[#F97316]/40 animate-ping pointer-events-none" />}
-        <button onClick={toggleDraw} title="필기" aria-label="필기 도구"
+        <button onClick={toggleDraw} title={drawMode ? '필기 끄기' : '필기'}
+          aria-label={drawMode ? '필기 도구 닫기' : '필기 도구'}
           className={`relative w-12 h-12 rounded-full flex items-center justify-center border shadow-lg transition-colors ${
             drawMode ? 'bg-[#F97316] border-[#F97316] text-white'
               : nudge ? 'bg-[#FFF7ED] border-[#F97316] text-[#F97316] ring-4 ring-[#F97316]/20'
                 : 'bg-white border-[#E5E7EB] text-[#F97316] hover:bg-[#FFF7ED]'
           }`}>
+          {/* 펴 놓았을 때는 **X** 다 — 바로 위 도구 판의 첫 칸도 주황 연필이라, 여기까지 연필이면
+              같은 그림이 둘로 겹쳐서 어느 쪽이 끄는 문인지 알 수 없다(실측 09-01). */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            {drawMode
+              ? <path d="M18 6L6 18M6 6l12 12" />
+              : <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></>}
           </svg>
         </button>
       </div>
-      {/* 도구 바가 접혀 있을 때만 뜨는 안내 — 펼치면 도구 바가 이 자리를 쓴다 */}
+      {/* 옆에 붙는 안내 — 필기를 시킨 단계에서만 */}
       {nudge && (
         <span className="shrink-0 rounded-full bg-[#F97316] px-3 py-1.5 text-[11px] font-bold text-white shadow-lg whitespace-nowrap">
           여기를 눌러 필기하세요
         </span>
       )}
-      {/* 늘어나는 도구 바 — 접힘은 max-width 로만 준다(언마운트하면 늘어나는 맛이 없다) */}
-      <div className={`flex items-center gap-1 rounded-full bg-white overflow-hidden whitespace-nowrap
-                       [&>*]:shrink-0 transition-[max-width,opacity,padding] duration-200 ${
-        drawMode ? 'max-w-[68vw] opacity-100 px-2 py-1.5 border border-[#E5E7EB] shadow-lg'
-          : 'max-w-0 opacity-0 px-0 py-1.5 border-0'
-      }`}>
-        <PaletteButtons {...p} />
       </div>
     </div>
   )

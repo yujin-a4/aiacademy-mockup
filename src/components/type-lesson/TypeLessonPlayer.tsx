@@ -466,7 +466,12 @@ function buildLessonFacts(lesson: TypeLesson, itemSeq: number | undefined, gate:
     })
   })
   lines.push(`[지금 단계에서 말해도 되는 범위] ${GATE_RULE[gate]}`)
-  lines.push('규칙: 학생이 오답을 고르면 정답을 바로 말하지 말고 위 근거로 왜 틀렸는지 짚고 다시 생각하게 하라. 학생이 물으면 위 사실 범위에서 답하라. 사실에 없는 건 모른다고 하라.')
+  /* ⚠️ "사실에 없으면 모른다고 하라" 를 **영어 지식에까지** 적용하면 안 된다 (구현 중 메모 74행).
+     "저 사진에 옷 걸려 있는 저거 영어로 뭐라고 해?" 에 강사가 "자료에 명칭이 없어요" 라고 답했다
+     (실측 09-01). 지어내면 안 되는 것은 **이 화면 자료의 내용**(정답·지문·사진 속 사실)이지,
+     영어 선생이면 당연히 아는 단어·표현이 아니다. 자료를 핑계로 영어를 안 가르치면 강사가 아니다. */
+  lines.push('규칙: 학생이 오답을 고르면 정답을 바로 말하지 말고 위 근거로 왜 틀렸는지 짚고 다시 생각하게 하라.')
+  lines.push('규칙: 정답·지문·사진 속 사실은 위에 있는 것만 말하고 없는 것을 지어내지 마라. 다만 단어·표현이 무슨 뜻인지, 저것을 영어로 뭐라고 하는지 같은 물음은 자료에 없어도 아는 대로 알려줘라.')
   return lines.join('\n')
 }
 
@@ -803,6 +808,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 수업 화면에 있을 때만 뜻이 있다 — 실전·리뷰로 넘어간 뒤에도 켜져 있으면
      리뷰 화면에 '수업이 끝났어요' 가 그대로 뜬다 */
   const freePlay = afterLesson && phase === 'lesson'
+  /** 수업이 끝난 뒤(혼자 듣는 구간) **지금 펴 놓은 문제**. null 이면 마지막 문제 그대로.
+   *
+   *  수업이 끝나도 화면엔 마지막 문제만 남아 있어서 앞의 문제를 다시 볼 수가 없었다
+   *  (구현 중 메모 74행). 되돌리는 방법으로 턴 번호를 옮기지 **않는다** — 그러면 강사가 그
+   *  대목을 처음부터 다시 읽는다. 턴은 마지막에 세워 둔 채 **보이는 문항 범위만** 바꾼다.
+   *  앞 문제의 보기·스크립트는 이미 다 열려 있다(reveal 은 0번 턴부터 쌓인다). */
+  const [freeItem, setFreeItem] = useState<number | null>(null)
   const [practiceScore, setPracticeScore] = useState<PracticeResult | null>(null)
   const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
 
@@ -1367,6 +1379,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /* 아래 '앞으로 가는 줄' 이 전진을 맡는 단계인가 — 아이템 순회로 만든 수업(대부분의 DB 강의)과 리뷰.
      아이템이 없는 옛 방식 강의는 강사 창의 버튼이 그대로 그 일을 한다. */
   const stripNav = (phase === 'lesson' || phase === 'review') && navKey != null
+  /* 문제가 여럿인 수업인가 — 수업이 끝난 뒤 '앞으로 가는 줄' 이 번호 버튼을 다는 조건 */
+  const multiItem = stripNav && itemSpan.size > 1
   /* 마지막 문제의 끝도 경계다 — 거기서도 자동으로 실전으로 넘어가면 안 된다 */
   const atItemEnd = (phase === 'lesson' || phase === 'review') && !!curSpan && turnIdx >= curSpan.last
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
@@ -1380,6 +1394,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const pickedHere = (qIdx: number) => (phase === 'review' ? answeredQ.has(qIdx) : graded.has(qIdx))
   const itemDone = atItemEnd
     && (itemLastTurn?.interaction.kind !== 'pickAnswer' || pickedHere(itemLastTurn.interaction.qIdx))
+  /** 수업의 **마지막 문제까지 끝났다** — [유형 학습 마치기] 가 열리는 그 시점.
+   *  문제 번호로 오갈 수 있게 되는 것도 여기서부터다. [마치기] 를 눌러야(freePlay) 번호가
+   *  생기게 두면, 정작 "다 끝났다" 는 말을 듣는 화면에서는 앞 문제로 못 돌아간다
+   *  (구현 중 메모 74행 — 학생이 서 있는 곳은 이 화면이다). */
+  const lessonEnd = phase === 'lesson' && stripNav && nextItemAt === null && itemDone
+  /** 문제 번호로 자유롭게 오갈 수 있는 자리인가 — 수업이 다 끝난 뒤뿐이다.
+   *  수업 중에 열어두면 아직 안 다룬 문제로 건너뛸 수 있어 순회가 어긋난다. */
+  const canPickItem = multiItem && (freePlay || lessonEnd)
   /* 공개 등급 — 단계가 오르면 그때 더 준다(stageGate). 컨텍스트는 누적돼 되돌릴 수 없으므로
      **처음부터 다 주지 않는 것**이 통제의 핵심이다. */
   const gates = useMemo(() => gateLevels(turns), [turns])
@@ -1455,6 +1477,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      동안 강사가 그 소리에 반응해 말을 얹는다(마이크가 계속 열려 있다). 실전 전환을 기다렸다가
      끊으면 그 사이가 통째로 그 상태다. */
   useEffect(() => { if (freePlay) endAgent() }, [freePlay, endAgent])
+
+  /* ── 끝났다는 말은 **마무리 멘트와 같이** 한다 (구현 중 메모 74행) ──
+     예전에는 수업을 닫은 뒤 강사 창에 안내 상자가 그대로 떴다. 눈에 잘 안 들어오는 데다,
+     [실전 문제 풀기] 를 누르고 나서 뜨는 것처럼 보여 순서가 거꾸로 읽혔다.
+     이제 **강사가 마지막 턴(마무리 멘트)을 시작하는 그때** 화면 한가운데 잠깐 떴다 사라진다. */
+  const [endToast, setEndToast] = useState(false)
+  useEffect(() => {
+    if (!started || phase !== 'lesson' || afterLesson) return
+    if (turnIdx !== turns.length - 1) return
+    setEndToast(true)
+    const t = setTimeout(() => setEndToast(false), 5000)
+    return () => { clearTimeout(t); setEndToast(false) }
+  }, [started, phase, afterLesson, turnIdx, turns.length])
   /* 도입 화면 "오늘 배울 내용" — 대본이 있으면 그대로, 없으면 수업 단계 S코드에서 파생.
      파생본은 'S1 핵심 단서 찾기' 같은 **단계 이름**이라 학생에게는 아무 말도 아니다.
      시연 강의처럼 무엇을 배우는지 적어 둔 곳이 있으면 그쪽이 언제나 낫다. */
@@ -1478,13 +1513,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      경계는 폭 700px: 강사 창 최소 320 + 지문 최소 380. 그 밑은 옆에 세워도 둘 다 못 읽는다. */
   const SIDEBAR_MIN_W = 700
   const [narrow, setNarrow] = useState(false)
-  const autoMiniRef = useRef(false)      // 좁아서 자동으로 접은 것인가 (넓어지면 되돌린다)
+  const autoMiniRef = useRef(false)      // 좁아서 자동으로 옥긴 것인가 (넓어지면 되돌린다)
   useEffect(() => {
+    /* ── 옆에 세울 수 없는 화면 = 폭 700 미만 ──
+       강사 창 320 + 지문 380 이 안 나오는 폭. 사실상 **핸드폰**이다 —
+       태블릿은 세로로 세워도 폭이 남아서 옆 기둥을 그대로 둔다(사용자 지시 09-01).
+       그때 강사는 **화면 아래 간소판(bottom)**으로 간다 — 끌어 옮기는 작은 창(mini)은
+       문제 위에 떠서 지문·보기를 덮어 이 폭에서는 쓸 수 없다. */
     const mq = window.matchMedia(`(max-width: ${SIDEBAR_MIN_W - 1}px)`)
     const apply = () => {
       setNarrow(mq.matches)
       if (mq.matches) {
-        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDock('mini', 'auto') }
+        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDock('bottom', 'auto') }
       } else if (autoMiniRef.current) {
         autoMiniRef.current = false
         setDock('sidebar', 'auto')        // 학생이 직접 접은 건 되돌리지 않는다
@@ -2609,8 +2649,25 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
            · 필기 — 좌표로 풀 수 없으므로 **사진 + 필기 캔버스를 합성해 그림으로** 보낸다
              (표시 판정에 이미 쓰던 방법이다. /api/gemini 는 imageBase64 를 받는다) */
       const penned = Array.from(markedWords(marks))
-      const drawn = draw.strokeCount > 0 ? composeMarkedImage() : null
+      /* ── 사진은 **필기가 없어도 같이 보낸다** (구현 중 메모 74행) ──
+         예전에는 필기가 있을 때만 그림을 실었다(표시 판정에 쓰던 길을 그대로 썼다). 그래서
+         "저 사진에 옷 걸려 있는 저거 영어로 뭐라고 해?" 에 강사가 **사진을 못 본 채**
+         "자료에 명칭이 없다" 고 답했다(실측 09-01). 학생의 '저거' 는 대개 화면 사진 안에 있다.
+         화면에 그림이 없으면 composeMarkedImage 가 null 을 내므로 저절로 안 실린다. */
+      const drawn = composeMarkedImage()
+      const penMarked = drawn != null && draw.strokeCount > 0
       const inked = inkedOptions()
+      /* ── 되돌아가 펴 놓은 문제가 있으면 **그 문제로 답한다** (구현 중 메모 74행) ──
+         수업이 끝난 뒤 번호로 앞 문제를 열어 놓고 물으면, 학생의 '이거' 는 화면에 있는 그 문제다.
+         턴은 마지막에 세워 둔 채라(그래야 강사가 그 대목을 다시 읽지 않는다) `turn.itemSeq` 를
+         그대로 쓰면 **화면과 다른 문제**를 설명한다 — 실측으로 마지막 문제 이야기만 나왔다.
+         게이트도 풀어 준다: 수업이 다 끝난 자리라 정답·오답 근거를 감출 이유가 없다. */
+      const lookBackAt = canPickItem && freeItem != null && freeItem !== turn.itemSeq
+        ? lesson.items?.find((it) => it.seq === freeItem)
+        : undefined
+      const askSeq = lookBackAt ? lookBackAt.seq : curItemSeq
+      const askGate: Gate = lookBackAt ? 4 : gate
+      const lookBackNo = lookBackAt ? (lesson.items?.indexOf(lookBackAt) ?? 0) + 1 : 0
       const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2620,18 +2677,26 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
              대신 답하던 원인). 강사별 프롬프트가 없으면 서버가 알아서 persona 로 떨어진다. */
           instructor,
           ...(drawn ? { imageBase64: drawn.replace(/^data:image\/\w+;base64,/, '') } : {}),
-          message: `${buildLessonFacts(lesson, curItemSeq, gate)}
+          message: `${buildLessonFacts(lesson, askSeq, askGate)}
 
 `
-            + `[지금 단계] ${turn.stage}
+            + (lookBackAt
+              ? `[지금 화면] 수업은 다 끝났고, 학생이 ${lookBackNo}번 문제를 다시 펴 놓고 보고 있다.
+학생의 '이거'·'여기' 는 그 문제를 가리킨다. 마지막에 다룬 문제 이야기로 돌아가지 마라.
+
+`
+              : `[지금 단계] ${turn.stage}
 [방금 강사가 한 말] ${turn.tutor}
 
-`
+`)
             + (penned.length ? `[학생이 형광펜으로 칠한 낱말] ${penned.join(', ')}
 
 ` : '')
-            + (drawn ? `[학생이 사진 위에 직접 표시한 것] 함께 보낸 그림에 학생의 필기가 얹혀 있다.
+            + (penMarked ? `[학생이 사진 위에 직접 표시한 것] 함께 보낸 그림에 학생의 필기가 얹혀 있다.
 무엇을 동그라미·밑줄로 짚었는지 그림에서 보고, 그것을 가리키는 질문으로 읽어라.
+
+` : drawn ? `[지금 화면의 그림] 함께 보낸 것이 학생이 지금 보고 있는 사진이다.
+학생의 '저거'·'이거' 는 대개 이 그림 안에 있다. 그림을 보고 답하라 — 자료 설명에 없다고 넘기지 마라.
 
 ` : '')
             /* 보기 위의 필기는 그림으로 못 보낸다(글자라서) — 어느 보기인지를 글로 알려준다.
@@ -2643,7 +2708,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             + `[학생 질문] ${question}
 
 `
-            + '위 사실 범위에서 두 문장 안으로 짧게 답하라. 사실에 없으면 모른다고 하라. '
+            + '두 문장 안으로 짧게 답하라. 정답·지문·사진 속 사실은 위 자료(와 함께 보낸 그림)에 '
+            + '있는 것만 말하고 없는 것을 지어내지 마라. '
+            /* 자료 밖이라고 영어를 안 가르치면 강사가 아니다 — 위 buildLessonFacts 주석 참고 */
+            + '다만 저것을 영어로 뭐라고 하는지, 이 단어가 무슨 뜻인지 같은 물음은 자료에 없어도 '
+            + '네가 아는 대로 바로 알려줘라. "자료에 없다" 로 넘기지 마라. '
             + '다음 단계로 넘어가자는 말은 하지 마라 — 진행은 화면이 한다. '
             /* ⚠️ 되묻지 못하게 막는다. 답 끝에 물음표를 달면 학생이 거기에 대답하고, 그 대답이
                또 질문으로 들어와 **대본으로 영영 못 돌아온다**(실측: 여덟 번을 주고받았다). */
@@ -2853,8 +2922,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     },
   } : undefined
 
+  /* 화면에 펴 놓을 아이템 — 수업 중에는 지금 도는 아이템, 끝난 뒤에는 학생이 고른 번호 */
+  const viewSeq = canPickItem && freeItem != null ? freeItem : turn.itemSeq
+  const viewItem = lesson.items?.find((it) => it.seq === viewSeq)
+  /* 앞 문제로 되돌아가면 지문도 그 문제 것으로 — 안 바꾸면 마지막 지문 위에 앞 문제 보기가 얹힌다 */
+  const viewPassageId = (canPickItem && freeItem != null && viewItem?.passageIds.length)
+    ? viewItem.passageIds[viewItem.passageIds.length - 1]
+    : activePassageId
+
   const st: ContentState = {
-    revealedScript, revealedOptions, activePassageId,
+    revealedScript, revealedOptions, activePassageId: viewPassageId,
     playingId, marks, tutorMarks,
     onTapWord: (w) => setMarks((p) => { const n = new Set(p); if (n.has(w)) n.delete(w); else n.add(w); return n }),
     onPlaySentence: playSentence,
@@ -2873,11 +2950,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     // 문항이 세로로 다 쌓여서 한눈에 안 들어온다. 나머지는 단계가 넘어가면 나온다.
     /* 리뷰는 턴 하나가 곧 문항 하나다 — 틀린 문항이 여러 개여도 세로로 쌓지 않고
        한 화면에 하나만 두고 턴으로 넘긴다(실전 페이저와 같은 방식). */
+    /* 수업이 끝난 뒤에는 학생이 고른 문제를 편다(freeItem) — 그 전에는 지금 도는 아이템 */
     visibleQ: phase === 'review'
       ? (turn.focusQ !== undefined ? { from: turn.focusQ, to: turn.focusQ + 1 } : undefined)
-      : lesson.items?.find((it) => it.seq === turn.itemSeq)
-        ? { from: lesson.items.find((it) => it.seq === turn.itemSeq)!.qFrom,
-            to:   lesson.items.find((it) => it.seq === turn.itemSeq)!.qTo }
+      : viewItem
+        ? { from: viewItem.qFrom, to: viewItem.qTo }
         : undefined,
     /* 정답 고르기 턴은 **그 문항이 선택 가능해야** 한다.
        focusQ 는 문항이 여러 개일 때만 실리는데(fromSteps), Part1 처럼 아이템당 문항이 1개면
@@ -2955,10 +3032,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     })
   }, [answeredQ, cuePlaying, instructor])
 
+  /** 수업이 끝난 뒤 — **아무 때나 물어볼 수 있는 자리**(구현 중 메모 74행).
+   *  여기서 마이크를 닫아 두면 토스트로 "궁금한 건 물어보세요" 라고 해 놓고 정작 말은 못 받는다.
+   *  대본이 끝나 강사가 조용한 자리라, 열어 둬도 강사 목소리를 학생 답으로 받아 적을 일이 없다. */
+  const freeAsk = !!scripted && (freePlay || lessonEnd)
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
-    && (asking || (turn.interaction.kind === 'subjective' && !subjSent))
+    && (asking || freeAsk || (turn.interaction.kind === 'subjective' && !subjSent))
   const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
     if (asking) void askTutor(text)
+    /* 수업이 끝난 뒤의 말은 답이 아니라 **질문**이다 — answerSubjective 로 보내면 받을 자리가
+       없어 그대로 사라진다(학생에게는 말해도 아무 일도 안 일어나는 것으로 보인다) */
+    else if (freeAsk) void askAside(text)
     else answerSubjective(text)
   })
 
@@ -3185,6 +3269,91 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     )
   }
 
+
+  /* 앞으로 가는 줄 — 놓이는 자리가 배치에 따라 달라진다.
+     옆 기둥(sidebar)이면 문제 영역 바로 아래, **세로 배치는 강사 판보다 더 아래** —
+     화면 맨 밑이 '다음 으로 가는 문' 자리여야 한다(사용자 지시 09-01). */
+          {/* ── 앞으로 가는 줄 ──
+              **문제 영역 아래 이 한 줄이 전진을 통째로 맡는다.** 다음 문제든, 수업을 닫는 것이든,
+              실전으로 넘어가는 것이든 버튼은 늘 여기 있다 — 마지막 문제에서만 강사 창으로 옮겨가면
+              학생은 그때 버튼을 다시 찾아야 한다.
+              강사 창의 단계 버튼과는 섞지 않는다. 저건 이 단계 안에서 할 일이고 이건 나가는 것이라
+              층이 다르다. 잠겨 있을 때도 자리는 보인다 — 몇 문제짜리 수업인지가 이 줄에서 읽힌다. */}
+  const navStrip = !stripNav ? null : (() => {
+            const order = Array.from(itemSpan.keys()).sort((a, b) => a - b)
+            const nth = order.indexOf(navKey!) + 1
+            /* 갈래는 넷이다. 문제가 더 있으면 다음 문제, 마지막 문제를 마쳤으면 수업을 닫고,
+               닫은 뒤(혼자 듣는 구간)에는 실전으로 간다. **리뷰의 마지막은 핵심 요약으로.** */
+            const nav = nextItemAt !== null
+              ? { label: '다음 문제 →', can: itemDone, hint: '이 문제의 단계를 마치면 열려요',
+                  /* 다음 문제로 넘어가면 대화도 다시 연다 — 문제 하나가 곧 대화 한 판이다.
+                     **대본 수업은 열지 않는다.** 열면 에이전트가 자기 인사말부터 시작해서
+                     앱이 읽는 대본과 목소리가 두 개로 겹친다(실측: 2번 문제로 넘어가는 순간). */
+                  go: () => { stopVoice(); setTurnIdx(nextItemAt); if (!scripted) startAgent() } }
+              : phase === 'review'
+                ? { label: '핵심 요약으로 →', can: itemDone, hint: '이 문제를 마치면 열려요',
+                    go: () => { stopVoice(); setPhase('wrap') } }
+                : !freePlay
+                  ? { label: '유형 학습 마치기 →', can: itemDone, hint: '마지막 문제의 단계를 마치면 열려요',
+                      go: () => { stopVoice(); setAfterLesson(true) } }
+                  : { label: '실전 문제 풀기 →', can: true, hint: '',
+                      go: () => setPhase('practice') }
+            return (
+              <div className="shrink-0 border-t border-[#EBEBF0] px-3 md:px-6 py-2.5 flex items-center gap-3">
+                {/* ── 끝난 뒤에는 번호로 오간다 (구현 중 메모 74행) ──
+                    수업 중에는 몇 번째인지만 알려준다 — 아직 안 다룬 문제로 건너뛰면 순회가 어긋난다.
+                    수업이 끝나면 그럴 이유가 없어지고, 오히려 **앞 문제를 다시 못 보는 것**이 문제다. */}
+                {canPickItem ? (
+                  <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto">
+                    <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
+                      {freePlay ? '수업 완료' : '다시 보기'}
+                    </span>
+                    {order.map((key, i) => {
+                      const on = (freeItem ?? navKey) === key
+                      return (
+                        <button key={key} onClick={() => setFreeItem(key)}
+                          title={`문제 ${i + 1} 다시 보기`}
+                          className={`shrink-0 w-7 h-7 rounded-lg text-[12px] font-black border transition-colors ${
+                            on ? 'border-[#2563EB] bg-[#2563EB] text-white'
+                              : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#93C5FD] hover:bg-[#EFF6FF]'
+                          }`}>{i + 1}</button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
+                    {freePlay ? '수업 완료' : `문제 ${nth} / ${order.length}`}
+                  </span>
+                )}
+                {/* 오늘 강사가 짚어 준 표현이 여기 쌓인다 (구현 중 메모 73행).
+                    지금은 꺼 둔 상태 — 위 LESSON_EXPRESSION_TRAY 주석 참고 */}
+                {LESSON_EXPRESSION_TRAY && <ExpressionTray list={exprList} met={metExpr} />}
+                <button onClick={nav.go} disabled={!nav.can}
+                  title={nav.can ? undefined : nav.hint}
+                  className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
+                    nav.can ? 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-[0.99]'
+                      : 'bg-[#F1F3F7] text-[#C4C9D4] cursor-not-allowed'
+                  }`}>
+                  {nav.label}
+                </button>
+              </div>
+            )
+  })()
+
+  /* 필기 버튼 — 놓이는 자리만 배치에 따라 달라진다(아래 두 군데 중 한 곳에만 그려진다) */
+  const penFab = (
+    <PenFab drawMode={draw.drawMode} toggleDraw={draw.toggleDraw}
+      /* 세로 배치에서는 수업 칸 안에 앉으므로 밑으로 붙인다 — 그 칸의 밑이 곰 강사 판 위다 */
+      bottomClass={dockMode === 'bottom' ? 'bottom-2' : 'bottom-20'}
+      anchor={dockMode === 'bottom' ? 'pane' : 'fixed'}
+      /* 세로 배치에서는 **옆으로** 펼친다 — 연필이 칸 밑에 앉아 위로 펼치면 보기를 덮고,
+         그 줄은 오른쪽이 통째로 비어 있다. 가로 배치는 반대로 옆이 문제 영역이라 위로 세운다 */
+      open={dockMode === 'bottom' ? 'right' : 'up'}
+      /* 표시(mark) 턴 = 필기로 짚어보라는 단계 — 다 짚기 전까지 버튼이 뛴다 */
+      attention={turn.interaction.kind === 'mark' && !markDone}
+      tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />
+  )
+
   return (
     <div className="h-dvh flex flex-col bg-[#F5F8FE] overflow-hidden">
       {/* ── 드래프트 미리보기 배너 ──
@@ -3210,7 +3379,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
       {/* ── 본문: 좌 콘텐츠 · 우 강사 창.
            최소화(mini)는 fixed라 자리를 차지하지 않아 콘텐츠가 전체 폭을 쓴다 */}
-      <div ref={splitRef} className="flex-1 flex min-h-0 bg-white flex-row">
+      <div ref={splitRef} className={`flex-1 flex min-h-0 bg-white ${
+        /* 하단 간소판은 **띄우지 않고 자리를 차지한다** — 수업 칸이 그만큼 줄어야
+           사진·보기가 강사 판에 가려지지 않는다 */
+        dockMode === 'bottom' ? 'flex-col' : 'flex-row'}`}>
         {/* 좌: 지문/문제/사진 (파트별 ContentView) — 필기 켜면 상단에 도구 바(인라인, 콘텐츠 위로 밀어냄).
             폭은 비율이되 **강사 창 몫 320px 은 남긴다** — 세로 화면에서 72% 를 그대로 쓰면
             강사 창이 200px대로 눌려 선택지 버튼이 두 줄로 깨진다. */}
@@ -3221,7 +3393,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           className={`relative min-h-0 flex flex-col border-gray-100 ${
             /* 오른쪽 테두리는 두지 않는다 — 경계선은 리사이즈 핸들이 그리는 1px 하나뿐이다.
                둘 다 그리면 10px 간격을 두고 선이 두 줄 생긴다 */
-            dockMode === 'sidebar' ? 'h-full shrink-0' : 'flex-1 h-full w-full'
+            dockMode === 'sidebar' ? 'h-full shrink-0'
+              : dockMode === 'bottom' ? 'flex-1 min-h-0 w-full'
+                : 'flex-1 h-full w-full'
           }`}
           style={dockMode === 'sidebar'
             /* 320 = 강사 창 최소 폭, 16 = 그 사이 리사이즈 손잡이 */
@@ -3233,57 +3407,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               사진과 보기가 한 화면에 있어야 하는 수업이라 스크롤이 생기면 안 된다.
               실전(문항 여러 개)은 사진이 장마다 달라 세로로 쌓이므로 스크롤을 유지한다. */}
           <div ref={contentRef} className={`flex-1 min-h-0 px-3 md:px-6 py-4 ${
+            /* 파트1 수업은 **문항이 몇 개든** 화면에 한 장뿐이다(아이템 한 바퀴 = 사진 한 장).
+               예전에는 `questions.length === 1` 일 때만 높이를 묶어서, 사진 여러 장짜리 강의는
+               스크롤 화면이 되고 사진이 34vh 로 쪼그라들었다 — 아이패드에서 아래가 반이 비었다. */
+            /* 파트1 은 **잠그지 않는다** — 핸드폰 가로처럼 높이가 모자라는 화면에서는
+               사진+보기가 아예 안 들어가서, 막아 두면 그냥 잘려 보이지 않는다(실측 09-01).
+               들어가는 화면에서는 어차피 스크롤이 안 생긴다. */
             lesson.part === 6 || lesson.part === 7
-              || (lesson.part === 1 && lesson.content.questions.length === 1)
-              ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'
+              ? 'overflow-hidden flex flex-col'
+              : lesson.part === 1 ? 'overflow-y-auto flex flex-col' : 'overflow-y-auto'
           }`}>
             <ContentView lesson={lesson} st={st} readingSideBySide={dockMode === 'mini'} />
           </div>
 
-          {/* ── 앞으로 가는 줄 ──
-              **문제 영역 아래 이 한 줄이 전진을 통째로 맡는다.** 다음 문제든, 수업을 닫는 것이든,
-              실전으로 넘어가는 것이든 버튼은 늘 여기 있다 — 마지막 문제에서만 강사 창으로 옮겨가면
-              학생은 그때 버튼을 다시 찾아야 한다.
-              강사 창의 단계 버튼과는 섞지 않는다. 저건 이 단계 안에서 할 일이고 이건 나가는 것이라
-              층이 다르다. 잠겨 있을 때도 자리는 보인다 — 몇 문제짜리 수업인지가 이 줄에서 읽힌다. */}
-          {stripNav && (() => {
-            const order = Array.from(itemSpan.keys()).sort((a, b) => a - b)
-            const nth = order.indexOf(navKey!) + 1
-            /* 갈래는 넷이다. 문제가 더 있으면 다음 문제, 마지막 문제를 마쳤으면 수업을 닫고,
-               닫은 뒤(혼자 듣는 구간)에는 실전으로 간다. **리뷰의 마지막은 핵심 요약으로.** */
-            const nav = nextItemAt !== null
-              ? { label: '다음 문제 →', can: itemDone, hint: '이 문제의 단계를 마치면 열려요',
-                  /* 다음 문제로 넘어가면 대화도 다시 연다 — 문제 하나가 곧 대화 한 판이다.
-                     **대본 수업은 열지 않는다.** 열면 에이전트가 자기 인사말부터 시작해서
-                     앱이 읽는 대본과 목소리가 두 개로 겹친다(실측: 2번 문제로 넘어가는 순간). */
-                  go: () => { stopVoice(); setTurnIdx(nextItemAt); if (!scripted) startAgent() } }
-              : phase === 'review'
-                ? { label: '핵심 요약으로 →', can: itemDone, hint: '이 문제를 마치면 열려요',
-                    go: () => { stopVoice(); setPhase('wrap') } }
-                : !freePlay
-                  ? { label: '유형 학습 마치기 →', can: itemDone, hint: '마지막 문제의 단계를 마치면 열려요',
-                      go: () => { stopVoice(); setAfterLesson(true) } }
-                  : { label: '실전 문제 풀기 →', can: true, hint: '',
-                      go: () => setPhase('practice') }
-            return (
-              <div className="shrink-0 border-t border-[#EBEBF0] px-3 md:px-6 py-2.5 flex items-center gap-3">
-                <span className="text-[11px] font-bold text-[#9CA3AF] shrink-0">
-                  {freePlay ? '수업 완료' : `문제 ${nth} / ${order.length}`}
-                </span>
-                {/* 오늘 강사가 짚어 준 표현이 여기 쌓인다 (구현 중 메모 73행).
-                    지금은 꺼 둔 상태 — 위 LESSON_EXPRESSION_TRAY 주석 참고 */}
-                {LESSON_EXPRESSION_TRAY && <ExpressionTray list={exprList} met={metExpr} />}
-                <button onClick={nav.go} disabled={!nav.can}
-                  title={nav.can ? undefined : nav.hint}
-                  className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
-                    nav.can ? 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-[0.99]'
-                      : 'bg-[#F1F3F7] text-[#C4C9D4] cursor-not-allowed'
-                  }`}>
-                  {nav.label}
-                </button>
-              </div>
-            )
-          })()}
+          {/* 옆 기둥 배치에서는 문제 영역 바로 아래에 둔다 */}
+          {dockMode !== 'bottom' && navStrip}
+          {/* 세로 배치에서만 — 필기 버튼이 수업 칸 안에 앉는다(아래 강사 판을 안 덮게) */}
+          {dockMode === 'bottom' && penFab}
         </div>
 
         {/* ── 세로 리사이즈 핸들 ──
@@ -3450,16 +3590,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                   강사가 조용해진 이유를 모르면 학생은 고장 난 줄 안다. */}
               {freePlay && (
                 <div className="space-y-2">
-                  <div className="rounded-xl border border-[#BFDBFE] bg-[#F8FAFF] px-3 py-2.5">
-                    <p className="text-[12px] font-bold text-[#2563EB]">유형 학습이 끝났어요</p>
-                    {/* ⚠️ **읽기(RC)에는 음원이 없다** — 여기에 "음원을 눌러 다시 들어보세요" 를
-                        띄우면 있지도 않은 버튼을 찾게 된다(구현 중 메모 29행). */}
-                    <p className="text-[11px] text-[#6B7280] leading-relaxed mt-0.5">
-                      {lesson.area === 'RC'
-                        ? '이제 실전 문제로 넘어갈 수 있어요.'
-                        : '실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.'}
-                    </p>
-                  </div>
+                  {/* **알리는 일은 토스트가 한다**(위 endToast) — 여기 남는 것은 조용해진 이유를
+                      적어 두는 한 줄뿐이다. 상자로 띄우면 학생이 [실전 문제 풀기] 를 누른 뒤에
+                      알림이 뜬 것처럼 읽힌다(구현 중 메모 74행).
+                      ⚠️ **읽기(RC)에는 음원이 없다** — 여기에 "음원을 눌러 다시 들어보세요" 를
+                      띄우면 있지도 않은 버튼을 찾게 된다(구현 중 메모 29행). */}
+                  <p className="text-[11px] text-[#9CA3AF] leading-relaxed px-0.5">
+                    수업은 여기까지예요.
+                    {multiItem && ' 아래 번호로 앞 문제를 다시 볼 수 있어요.'}
+                    {lesson.area !== 'RC' && ' 음원도 직접 눌러 몇 번이든 들을 수 있어요.'}
+                    {scripted && ' 궁금한 건 아무 때나 물어보세요.'}
+                  </p>
                   {/* 실전으로 가는 버튼은 아래 '앞으로 가는 줄' 에 있다 — 여기 또 두면 같은 일을 하는
                       버튼이 화면에 둘이다. 아이템이 없는 옛 강의에서만 이 자리가 그 일을 한다. */}
                   {!stripNav && (
@@ -3477,15 +3618,38 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             </>
           }
         />
+        {/* 세로 배치 — '다음 문제' 줄은 **강사 판보다 아래**, 화면 맨 밑이다.
+            나가는 문은 항상 맨 아래에 있어야 한다 — 강사 판 위에 두면 대화 중간에 끼어든다 */}
+        {dockMode === 'bottom' && navStrip}
       </div>
+
+      {/* ── 수업이 끝났다는 안내 ──
+          강사가 마무리 멘트를 시작할 때 **화면 한가운데** 잠깐 떴다 사라진다(구현 중 메모 74행).
+          누르는 것이 아니라 읽고 지나가는 것이라 pointer-events 를 죽여 아래 화면을 가리지 않는다. */}
+      {endToast && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-6">
+          <div className="animate-toast max-w-[360px] rounded-2xl bg-[#1C1B33]/95 px-5 py-4 text-center text-white shadow-high">
+            <p className="text-[14px] font-black">유형 학습이 끝났어요</p>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-white/85">
+              {/* RC 에는 음원이 없다 — 없는 버튼을 찾게 하지 않는다(구현 중 메모 29행) */}
+              {lesson.area === 'RC'
+                ? '실전 문제에 들어가기 전에 문제를 다시 훑어보세요.'
+                : '실전 문제에 들어가기 전에 음원을 직접 눌러 다시 들어보세요. 여기서는 몇 번이든 들을 수 있어요.'}
+              {multiItem && ' 아래 번호를 누르면 앞 문제도 다시 볼 수 있어요.'}
+            </p>
+            {scripted && (
+              <p className="mt-1 text-[12px] leading-relaxed text-white/85">궁금한 건 아무 때나 물어봐도 돼요.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 필기 — 좌하단 연필 버튼(레일 검토 버튼이 있던 자리). 누르면 도구 바가 옆으로 늘어난다 */}
       {/* 실전과 같은 높이(bottom-20)로 올린다 — 기본 위치(bottom-5)는 아래 '앞으로 가는 줄' 을 덮는다.
           두 화면에서 연필이 다른 자리에 있으면 실전에 들어갈 때마다 다시 찾아야 한다. */}
-      <PenFab drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} bottomClass="bottom-20"
-        /* 표시(mark) 턴 = 필기로 짚어보라는 단계 — 다 짚기 전까지 버튼이 뛴다 */
-        attention={turn.interaction.kind === 'mark' && !markDone}
-        tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />
+      {/* 강사가 옆에 서 있을 때만 화면 기준으로 띄운다 — 세로 배치는 강사 판이 아래를 차지해서
+          화면 기준으로 두면 그 판 위에 올라앉는다. 그때는 수업 칸 안(zoom-host)에 넣는다 */}
+      {dockMode !== 'bottom' && penFab}
       <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
     </div>
   )

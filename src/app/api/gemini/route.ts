@@ -84,7 +84,10 @@ export async function POST(req: NextRequest) {
     const userParts: object[] = []
     if (imageBase64) {
       userParts.push({ inlineData: { mimeType: 'image/png', data: imageBase64 } })
-      userParts.push({ text: `(학생이 지문에 필기/표시한 내용이 첨부됩니다)\n${finalUserMessage}` })
+      /* 필기가 얹혀 있을 때도 있고, **필기 없이 화면 사진만** 올 때도 있다(자유 질문).
+         여기서 "필기/표시한 내용" 이라고 못박으면 그림에 없는 필기를 찾는다 — 무엇이 실렸는지는
+         아래 본문이 이미 말해 준다(구현 중 메모 74행). */
+      userParts.push({ text: `(학생이 지금 보고 있는 화면 그림이 첨부됩니다)\n${finalUserMessage}` })
     } else {
       userParts.push({ text: finalUserMessage })
     }
