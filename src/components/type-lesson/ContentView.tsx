@@ -447,6 +447,19 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
    ⚠️ **hideVerdict 면 점도 색을 내지 않는다** (구현 중 메모 6행). 수업의 학생 풀이 단계는
       보기 색을 감춰 놓고 정작 탭의 점이 빨갛게 떠서, 강사가 한 마디 하기도 전에 화면이
       "틀렸다" 고 말해 버렸다. 감출 곳을 한 군데 빠뜨리면 감춘 것이 아니다. ── */
+/* ── 파트1 수업(사진 한 장)의 가로 폭 ──
+   사진과 보기가 **같은 폭**을 쓴다. 그 폭을 화면 높이에서 끌어오는 것이 핵심이다 —
+   620px 처럼 박아 두면 아이패드 프로에서 **사진 위로 화면이 텔 빈다**(실측 09-01).
+     · (100vh - 434px)  = 사진이 쓸 수 있는 높이. 434 = 머리말·문항줄·보기카드·앞으로가는줄 (실측)
+     · × 1.5           = 파트1 사진의 가로:세로(3:2)
+     · 100%            = 수업 칸을 넘지 않는다 (큰 화면에서 여기 걸린다)
+   재는 것이 아니라 **상한**이라 숫자가 좀 틀어도 탈나지 않는다 — 넣을 자리가 모자라면
+   flex 가 사진을 다시 줄이고(남는 것은 여백으로 남는다), 넓으면 이 값이 잡는다. */
+/* 100dvh — 앱 뿌리가 h-dvh 라 그것과 같은 자를 써야 주소창이 있는 브라우저에서 안 어깋간다 */
+/* ⚠️ **바닥값(max)을 반드시 깔아둔다.** 핸드폰 가로처럼 높이가 390 밖에 안 되는 화면에서는
+   (100dvh-434px) 가 **음수**라 폭이 0 이 되고, 사진도 보기도 통째로 무너졌다(실측 09-01). */
+const SOLO_W = 'max-w-[min(100%,max(360px,calc((100dvh-434px)*1.5)))]'
+
 /** 이 문항이 지금 바퀴에 속하나 (범위가 없으면 전부 보인다) */
 const qInView = (st: ContentState, i: number) =>
   !st.visibleQ || (i >= st.visibleQ.from && i < st.visibleQ.to)
@@ -1023,10 +1036,16 @@ function EqLine({ label }: { label: string }) {
    Part 1 은 **사진 구석의 사물이 정답 근거**다("사진에 삽이 보이나요?"). 화면 높이에 맞춰
    줄여 둔 그림으로는 그게 안 보여서, 학생이 답할 근거를 못 찾는다. 눌러서 전체 화면으로 연다.
    수업·실전 어디서나 같게 동작한다 — 한쪽에서 되던 것이 다른 쪽에서 안 되면 그게 더 헷갈린다. */
-function PhotoZoom({ src, alt, imgClass, btnClass = '' }: {
+function PhotoZoom({ src, alt, imgClass, btnClass = '', badgeTop, ratioBox }: {
   src: string; alt: string; imgClass: string; btnClass?: string
+  /** '크게 보기' 를 사진 **위**쪽 모서리에. */
+  badgeTop?: boolean
+  /** 칸을 **사진 비율대로** 잡는다(aspect-ratio). 사진 밑에 바로 다른 것을 붙일 때 쓴다 —
+   *  칸이 사진보다 크면 그 허공만큼 아래가 밀려난다. 비율은 사진을 받아보고 알아낸다. */
+  ratioBox?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const [ratio, setRatio] = useState<number | null>(null)
   /* ── 어디까지 덮을 것인가 ──
      **강사 창은 덮지 않는다.** 사진을 크게 보는 이유가 대개 강사가 방금 물어본 것("사진에 삽이
      보이나요?") 때문인데, 그 질문과 답할 버튼이 강사 창에 있다. 통째로 덮으면 크게 본 순간
@@ -1047,11 +1066,19 @@ function PhotoZoom({ src, alt, imgClass, btnClass = '' }: {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={`${alt} 크게 보기`}
+        style={ratioBox && ratio ? { aspectRatio: String(ratio) } : undefined}
         className={`group relative block ${btnClass}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className={imgClass} />
-        {/* 누를 수 있다는 걸 알려주는 표시 — 사진 위에 얹되 작게. 사진 자체를 가리면 안 된다 */}
-        <span aria-hidden className="absolute right-2 bottom-2 flex items-center gap-1 rounded-lg bg-black/45 px-2 py-1 text-[10px] font-bold text-white opacity-80 transition-opacity group-hover:opacity-100">
+        <img src={src} alt={alt} className={imgClass}
+          onLoad={(e) => {
+            if (!ratioBox) return
+            const el = e.currentTarget
+            if (el.naturalWidth && el.naturalHeight) setRatio(el.naturalWidth / el.naturalHeight)
+          }} />
+        {/* 누를 수 있다는 걸 알려주는 표시 — 사진 위에 얹되 작게. 사진 자체를 가리면 안 된다.
+            fit 이면 사진과 **같은 그리드 칸**에 넣는다 — 칸 크기가 사진을 따라가므로 사진이 놓인
+            자리가 어디든 모서리가 맞는다(절대 위치는 버튼 기준이라 사진 밖 허공에 떴다). */}
+        <span aria-hidden className={`absolute right-2 ${badgeTop ? 'top-2' : 'bottom-2'} flex items-center gap-1 rounded-lg bg-black/45 px-2 py-1 text-[10px] font-bold text-white opacity-80 transition-opacity group-hover:opacity-100`}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3 h-3">
             <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
           </svg>
@@ -1258,10 +1285,18 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
      실전은 문항마다 사진이 달라서 사진+보기를 한 쌍씩 쌓는다. */
   if (part === 1) {
     if (content.questions.length > 1) {
+      /* ── 수업에서 **한 문항만 펴 놓았으면 높이를 나눠 쓴다** ──
+         아이템 순회 수업은 강의 하나에 사진이 여러 장이라 `questions.length > 1` 로 여기 오는데,
+         화면에 실제로 보이는 것은 그중 한 장뿐이다(qInView). 그런데도 세로로 쌓는 자리라고
+         사진을 34vh 로 묶어 두어서, 아이패드에서는 **사진 아래로 화면 절반이 비었다.**
+         한 장뿐일 때는 아래 '수업(문항 1개)' 과 똑같이 — 보기는 아래에 붙이고 사진이 남는
+         높이를 전부 먹는다. 실전(selfAudio)은 사진이 정말로 여러 장 쌓이므로 그대로 둔다. */
+      const inView = content.questions.map((_, i) => i).filter((i) => qInView(st, i))
+      const solo = !st.selfAudio && inView.length === 1
       return (
-        <div className="flex flex-col gap-6 max-w-[620px] mx-auto">
+        <div className={`flex flex-col gap-6 ${solo ? 'h-full min-h-0 max-w-none' : 'max-w-[620px] mx-auto'}`}>
           {content.questions.map((q, i) => (
-            !qInView(st, i) ? null : <div key={i} className="flex flex-col gap-3">
+            !qInView(st, i) ? null : <div key={i} className={`flex flex-col gap-3${solo ? ' h-full min-h-0' : ''}`}>
               {/* Part 1 은 시험지에 **문항마다 지시문이 없다.** 영문 Directions 가 첫 문항 위에
                   한 번만 인쇄되고, 그 뒤로는 번호와 사진뿐이다.
                   Directions 는 **실전에서만** 편다 — 수업은 강사가 무엇을 할지 말해주는 자리라
@@ -1276,7 +1311,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
                   spoken only one time.
                 </p>
               )}
-              <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 ${solo ? `w-full mx-auto ${SOLO_W}` : ''}`}>
                 <span className="shrink-0 w-7 h-7 rounded-lg bg-[#EFF6FF] text-[#2563EB] text-[12px] font-black flex items-center justify-center">Q{i + 1}</span>
                 {/* 시험지에는 번호 옆에 아무것도 없다 — 자리만 비워 둔다 */}
                 <span className="flex-1 min-w-0" />
@@ -1312,12 +1347,37 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
               {(q.photo ?? content.photo) && (
                 /* 장당 높이를 묶어 한 쌍(사진+보기)이 화면 안에 들어오게 한다.
                    실전(selfAudio)은 페이저로 한 문항씩 넘기므로 사진이 세로로 쌓이지 않는다 → 더 크게 본다.
-                   수업은 여러 문항이 이어서 보일 수 있어 그대로 둔다.
+                   한 장만 펴 놓은 수업(solo)은 vh 로 묶지 않고 **남는 높이를 전부** 준다 —
+                   폭도 풀어 준다(가로가 묶이면 세로가 남아서 보기 아래가 뜬다).
                    object-contain — 파트1은 사진 구석의 사물이 정답 근거라 잘라내면 안 된다. */
-                <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} btnClass="w-full"
-                  imgClass={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
+                solo ? (
+                  /* ⚠️ 버튼에 `max-h-full` 을 주면 안 된다 — 높이가 auto 인 부모에 대고 퍼센트를 재면
+                     브라우저가 그 규칙을 **버린다.** 그러면 사진이 제 원본 비율대로 자라 버튼 밖으로
+                     흘러나와 **아래 보기를 덮는다**(실측: 386px 자리에 533px 사진 → A·B 가 가려졌다).
+                     칸(flex-1)은 높이가 정해져 있으니 버튼에 `h-full` 을 줘서 그 높이를 물려준다. */
+                  /* 폭은 **보기 카드와 같은 620px 까지**. 세로로만 풀어 두면 화면이 큰 기기
+                     (아이패드 프로)에서 사진이 보기보다 훨씬 넓어져 둘이 따로 논다 —
+                     사진과 보기는 한 쌍이라 같은 폭 안에 있어야 한다(콘텐츠 파트 09-01). */
+                  /* ── 사진과 보기는 **한 덩어리**다 ──
+                     둘을 위아래 끝으로 갈라 붙이면(사진=위, 보기=바닥) 남는 높이가 둘 사이를
+                     벌려 놓는다. 붙여 놓고 남는 것은 **아래로** 보낸다.
+                     칸 높이를 사진 비율로 잡아(ratioBox) 사진 밑에 허공이 안 생기게 하고,
+                     max-h 로 보기 카드 자리(260px)를 마지막 안전장치로 남겨 둔다 —
+                     강사 판이 아래를 차지하는 세로 배치에선 폭으로 계산한 높이가 좀 넘친다. */
+                  <div className={`flex-1 min-h-0 w-full mx-auto flex flex-col gap-3 ${SOLO_W}`}>
+                    <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} badgeTop ratioBox
+                      btnClass="w-full shrink-0 max-h-[max(140px,calc(100%-260px))]"
+                      imgClass="w-full h-full max-h-full rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]" />
+                    <div className="shrink-0 w-full"><QuestionCard q={q} qIdx={i} lesson={lesson} st={st} /></div>
+                  </div>
+                ) : (
+                  <PhotoZoom src={(q.photo ?? content.photo)!} alt={`문제 ${i + 1} 사진`} btnClass="w-full"
+                    imgClass={`w-full ${st.selfAudio ? 'max-h-[46vh]' : 'max-h-[34vh]'} rounded-2xl border border-[#E5E7EB] object-contain bg-[#F8FAFC]`} />
+                )
               )}
-              <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
+              {/* solo 는 위 덩어리 안에 사진과 같이 들어가 있다 — 여기서는 그리지 않는다.
+                  (사진이 없는 문항이면 덩어리 자체가 안 그려지므로 그때는 여기가 맡는다) */}
+              {(!solo || !(q.photo ?? content.photo)) && <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />}
             </div>
           ))}
         </div>
@@ -1332,8 +1392,10 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
     return (
       <div className="h-full min-h-0 flex flex-col gap-4 max-w-[620px] mx-auto">
         {content.photo && (
-          <div className="flex-1 min-h-[120px] flex items-center justify-center">
-            <PhotoZoom src={content.photo} alt="문제 사진" btnClass="max-h-full max-w-full"
+          /* btnClass 는 `h-full` 이어야 한다 — `max-h-full` 은 높이가 auto 인 부모에 대고 재는
+             퍼센트라 무시되고, 사진이 원본 비율대로 자라 아래 보기를 덮는다(위 solo 주석 참고) */
+          <div className="flex-1 min-h-0 flex items-start justify-center">
+            <PhotoZoom src={content.photo} alt="문제 사진" badgeTop btnClass="h-full w-fit max-w-full flex items-start justify-center"
               imgClass="max-h-full max-w-full rounded-2xl border border-[#E5E7EB] object-contain" />
           </div>
         )}
