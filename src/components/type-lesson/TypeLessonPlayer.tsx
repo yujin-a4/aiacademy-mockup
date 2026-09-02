@@ -1618,12 +1618,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
     /* ── 엉뚱한 곳을 짚었으면 그냥 넘어가지 않는다 (구현 중 메모 23행) ──
        "필기로 뭘 체크해 보라 했을 때 다른 데에 해도 그냥 넘어간다" 는 보고.
-       ⚠️ **강사에 따라 갈린다.** 대본 밖의 말을 얹지 않는 강사(이도윤)는 그대로 넘어간다 —
-          그 대본은 다음 줄에 오답 갈래를 갖고 있어(표시 턴 3개 중 2개) 거기서 짚어 준다.
-          윤다은은 표시 턴 12개가 **전부** 갈래가 없어, 앱이 거들지 않으면 아무 말 없이 지나간다.
+
+       ── **강사가 아니라 대본을 본다** (2026-09-02, 메모 93행 재보고) ──
+       예전에는 `INST_SCRIPT_ONLY` 로 이도윤을 통째로 비켜서게 했다. "그 대본은 표시 턴 3개
+       중 2개에 오답 갈래를 갖고 있다" 가 그때의 사실이었기 때문이다. **간결본이 그 사실을
+       지웠다** — 지금 대본의 표시 턴 14개는 두 강사 모두 **한 자리도** 오답 갈래가 없다(실측).
+       그래서 이도윤에서는 넓게 그어도, 엉뚱한 데 그어도 아무 말 없이 넘어갔다.
+       문항 고르기(scriptWillAnswerWrong)와 같은 규칙으로 바꾼다 — 바로 뒤 대본이 이 오답을
+       받아 주면 앱은 비켜서고, 아니면 앱이 붙잡는다. 대본이 바뀌면 저절로 맞는다.
+
        무엇이 답인지는 말하지 않는다 — 판정이 돌려준 hint 는 "어디를 다시 볼지" 한 줄이다
        (api/mark-check 가 정답을 문장으로 알려주지 못하게 막아 둔다). */
-    if (ok === false && !INST_SCRIPT_ONLY[instructor]) {
+    if (ok === false && !scriptWillAnswerWrong()) {
       const tries = (markTriesRef.current.get(spotKey) ?? 0) + 1
       markTriesRef.current.set(spotKey, tries)
       if (tries < MARK_MAX_TRIES) {
@@ -1634,9 +1640,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         enterBase().ink = snapInk()
         setMarkDone(false)
         setMarkVerdict(null)
-        /* plain — 이 줄은 **앱이 학생이 짚은 낱말을 인용한 것**이다. 따옴표를 강조로 읽으면
-           틀린 낱말이 굵어진다("'over'은 아니에요"). 대본의 따옴표(뜻풀이)와는 다른 자리다. */
-        await say(hint ? `${hint} 다시 한번 표시해 볼까요?` : '거기가 아니에요. 다시 한번 표시해 볼까요?', false, true)
+        /* ── 다시 시킬 때는 **한 문장만** 한다 (2026-09-02) ──
+           예전에는 학생이 짚은 낱말을 인용해 되돌려 줬다("'easy replacement'는 아니에요").
+           틀린 곳을 또박또박 읽어 주는 게 도움이 되기보다 나무라는 말로 들렸고, 넓게 그은
+           경우에는 읽어 줄 구가 길어져 문장이 통째로 나갔다. 짧게 한 번 더 생각하게 한다.
+           (무엇이 답인지는 여전히 말하지 않는다 — 그건 두 번째로 못 짚었을 때 화면으로 짚어 준다) */
+        await say('다시 한번 생각해 볼까요?', false, true)
         return          // 넘어가지 않는다 — 빗장(markAdvancedRef)도 걸지 않는다
       }
       /* ── 두 번째도 못 짚었다 — 넘어가되 **정답 자리를 화면에 짚어 준다** ──
@@ -1673,12 +1682,6 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const base = enterBase()
     const allMarked = Array.from(targets).every((w) => words.has(w))
     const alreadyAtEnter = Array.from(targets).every((w) => base.marks.has(w))
-    if (allMarked && !alreadyAtEnter) {
-      setMarkDone(true)
-      reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
-      void finishMark(true)
-      return
-    }
 
     /* ── 엉뚱한 낱말만 짚었으면 짚어 준다 ──
        여기는 오래 **다 맞혔을 때만** 반응했다. 그래서 틀린 낱말을 누르면 노랗게 칠해지기만 하고
@@ -1692,16 +1695,37 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       return !!w && !targets.has(w) && !base.marks.has(w)
     })
     const touchedTarget = Array.from(words).some((w) => targets.has(w) && !base.marks.has(w))
-    if (!wrongKeys.length || touchedTarget) return
+    /* ── 짚어야 할 곳보다 **넓게** 짚었는가 (구현 중 메모 93행) ──
+       잉크(밑줄)만 막아 놨더니 **낱말을 끌어서** 문장을 통째로 칠하는 길이 그대로 남아 있었다.
+       거기에는 목표도 들어 있어 `allMarked` 가 켜지고, 그대로 정답이 됐다(재보고 09-02).
+       그래서 정답 판정 자체에 이 잣대를 넣는다 — 포함이 아니라 겹침이다. */
+    const tooWide = wrongKeys.length > targets.size
+
+    if (allMarked && !alreadyAtEnter && !tooWide) {
+      setMarkDone(true)
+      reportAction(`${turnIdx}:mark`, actionMessage('지문에서 핵심 단어를 형광펜으로 표시했습니다'))
+      void finishMark(true)
+      return
+    }
+    /* 아직 채우는 중이면 가만히 둔다 — 넓게 번지지 않은 채로 목표를 하나씩 누르는 경우다.
+       넓게 번졌으면 목표를 건드렸더라도 아래로 내려간다(끄는 중이면 타이머가 계속 밀린다). */
+    if (!wrongKeys.length || (touchedTarget && !tooWide)) return
 
     const t = setTimeout(() => {
       const read = readMarks(wrongKeys)
-      /* 잘못 칠한 것은 지워 준다 — 남겨 두면 다시 짚을 때 무엇이 새로 고른 것인지 헷갈린다.
-         ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 대본만 말하는 강사(이도윤)는 여기서 아무
-            말도 하지 않는데, 지우기는 강사를 가리지 않아서 **칠한 것이 말없이 사라졌다** — 화면에서는
-            형광펜이 아예 안 먹는 것으로 보인다(실측). 아무 말도 안 할 것이면 칠한 채로 둔다. */
-      if (!INST_SCRIPT_ONLY[instructor]) {
-        setMarks((prev) => { const n = new Set(prev); wrongKeys.forEach((k) => n.delete(k)); return n })
+      /* 칠한 것을 **이 턴에 칠한 것만큼** 되돌린다 — 다시 짚으라고 했으면 판이 비어 있어야 한다.
+         ⚠️ 넓게 짚은 경우에는 **맞게 짚은 낱말까지** 지워야 한다. 목표만 남겨 두면 다음 렌더에서
+            `allMarked` 가 그대로 켜져, 방금 "다시 한번 생각해 볼까요?" 해 놓고 **곧바로 정답으로
+            넘어간다.** 지운 자리가 곧 기준선이라 되풀이도 생기지 않는다.
+         ⚠️ **말해 줄 때만 지운다**(구현 중 메모 24행). 아무 말도 안 하는 자리에서 지우면
+            **칠한 것이 말없이 사라진다** — 화면에서는 형광펜이 아예 안 먹는 것으로 보인다(실측).
+            말할지 말지는 위 finishMark 와 같은 잣대로 본다(대본이 오답을 받아 주면 앱은 조용하다). */
+      if (!scriptWillAnswerWrong()) {
+        const addedHere = Array.from(marks).filter((k) => {
+          const w = k.split('|').pop() ?? ''
+          return !!w && !base.marks.has(w)
+        })
+        setMarks((prev) => { const n = new Set(prev); addedHere.forEach((k) => n.delete(k)); return n })
       }
       void finishMark(false, read ? `'${read}'${koJosa(read, '은는')} 아니에요.` : undefined)
     }, 800)
