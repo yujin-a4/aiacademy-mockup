@@ -478,6 +478,11 @@ function part5Recap(rows: UiDbQuestion[], anchor: UiDbQuestion, fallback: TypeLe
   return { sentences, closing: `${point} — 보기 뜻이 아니라 빈칸 앞뒤 구조로 판단한다는 감각, 오늘 문장들로 다졌어요. 다음 단문 빈칸에도 그대로 적용해 보세요.` }
 }
 
+/** 문장 해석 — DB `content.question_translation`(교재 원문의 한 줄 해석).
+ *  채점이 끝나면 문항 아래에 그대로 깔린다(구현 중 메모 91행). 예전에는 이 값을 아무 데도
+ *  안 써서, 해석은 강사가 말로 하고 지나가는 것뿐이었다("눈에 잘 들어오지 않는다"). */
+const p5Ko = (q: UiDbQuestion) => (q.content.question_translation ? { ko: q.content.question_translation } : {})
+
 function buildPart5(local: TypeLesson, rows: UiDbQuestion[], anchor: UiDbQuestion): TypeLesson {
   const raw = anchor.content.blank_sentence
   if (!raw) return local
@@ -487,7 +492,10 @@ function buildPart5(local: TypeLesson, rows: UiDbQuestion[], anchor: UiDbQuestio
     title: `단문 빈칸 — ${anchor.content.grammar_point ?? local.title}`,
     desc: anchor.content.blank_type ? `${anchor.content.blank_type} · 빈칸 앞뒤 구조로 판단하기` : local.desc,
     content: {
-      passages: [{ id: 'p1', kind: 'text', sentences: [{ id: 's1', en: sentence, blank: 1 }] }],
+      passages: [{
+        id: 'p1', kind: 'text',
+        sentences: [{ id: 's1', en: sentence, blank: 1, ...p5Ko(anchor) }],
+      }],
       /* 실제 시험지의 Part 5 에는 발문이 없다 — 문장과 (A)~(D) 가 전부다 */
       questions: [toQuestion(anchor, '')],
     },
@@ -950,7 +958,7 @@ export function buildPracticeContent(part: number, rows: UiDbQuestion[]): TypeLe
         passages: [{
           id: 'p1', kind: 'text',
           sentences: group.map((q, i) => ({
-            id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
+            id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1, ...p5Ko(q),
           })),
         }],
         questions: group.map((q) => toQuestion(q, '')),
@@ -1023,7 +1031,7 @@ export function buildReviewContent(part: number, rows: UiDbQuestion[]): TypeLess
       passages: [{
         id: 'p1', kind: 'text',
         sentences: group.map((q, i) => ({
-          id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1,
+          id: `s${i + 1}`, en: toBlank(q.content.blank_sentence ?? ''), blank: i + 1, ...p5Ko(q),
         })),
       }],
       questions: group.map((q) => toQuestion(q, '')),
