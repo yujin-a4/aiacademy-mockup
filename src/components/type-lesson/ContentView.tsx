@@ -1534,6 +1534,25 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
         </p>
       </div>
     )
+    /** 문장 해석 — **채점이 끝난 문항에만**, 보기 바로 아래에 (구현 중 메모 91행).
+     *  해석은 지금까지 강사가 말로만 하고 지나가서 눈에 남지 않았다. 문제 영역에 같이 깔아 둔다.
+     *  ⚠️ 채점 전에는 절대 열지 않는다 — 해석이 곧 답이다. 정오답을 감추는 자리(hideVerdict,
+     *     실전 답안지)에서도 열지 않는다.
+     *
+     *  🔴 **지금은 꺼 두었다**(2026-09-02). 어디에 무엇을 둘지 정하고 나서 켠다 —
+     *     Part 6·7 을 어떻게 할지가 아직 `docs/DECISIONS.md` 에 답을 기다리고 있고,
+     *     Part 5 만 먼저 켜 두면 파트마다 다르게 보인다. 데이터(question_translation → ko)는
+     *     이미 화면까지 들어와 있으니, 정해지면 이 줄 하나만 지우면 된다. */
+    const SHOW_KO = false
+    const Translation = ({ i }: { i: number }) => {
+      const ko = sentences[i]?.ko
+      if (!SHOW_KO || !ko || !st.graded.has(i) || st.hideVerdict) return null
+      return (
+        <div className="border-l-2 border-[#E5E7EB] pl-3 py-0.5 text-[calc(12.5px*var(--fs,1))] leading-relaxed text-[#6B7280]">
+          <span className="mr-1.5 text-[11px] font-bold text-[#9CA3AF]">해석</span>{ko}
+        </div>
+      )
+    }
     if (content.questions.length > 1) {
       return (
         <div className="max-w-[560px] mx-auto space-y-6">
@@ -1541,6 +1560,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
             !qInView(st, i) ? null : <div key={i} className="space-y-3">
               {sentences[i] && <SentenceCard text={sentences[i].en} />}
               <QuestionCard q={q} qIdx={i} lesson={lesson} st={st} />
+              <Translation i={i} />
             </div>
           ))}
         </div>
@@ -1550,6 +1570,7 @@ export default function ContentView({ lesson, st, readingSideBySide = false }: {
       <div className="max-w-[560px] mx-auto space-y-4">
         {sentences[0] && <SentenceCard text={sentences[0].en} />}
         {questionsBlock}
+        <Translation i={0} />
       </div>
     )
   }
