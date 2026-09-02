@@ -1582,13 +1582,29 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *
    *  ⚠️ 기준선을 **턴 진입 효과에서 잡으면 한 박자 늦는다.** 아래 두 효과가 그것보다 먼저
    *     돌기 때문이다(선언 순서대로 실행된다). 그래서 먼저 도는 쪽이 스스로 잡는다. */
-  const enterBaseRef = useRef({ at: '', marks: new Set<string>(), strokes: 0 })
+  const enterBaseRef = useRef<{
+    at: string; marks: Set<string>; strokes: number; ink: ImageData | null
+  }>({ at: '', marks: new Set<string>(), strokes: 0, ink: null })
+  /** 지금 캔버스에 있는 잉크를 통째로 떠 둔다 — **이 턴에서 새로 그은 것만** 판정하려고.
+   *
+   *  획 수(strokes)는 '언제 판정할까' 만 가른다. **무엇을 판정할까** 는 못 가른다 — 판정은
+   *  캔버스 전체를 읽으므로 앞 턴에 그어 둔 밑줄이 그대로 섞여 들어온다. 그래서 앞 턴 밑줄이
+   *  마침 이번 턴의 정답 낱말 위에 있으면, 이번 턴에 엉뚱한 데를 그어도 정답으로 넘어갔다
+   *  (구현 중 메모 92행). 기준선의 잉크를 빼고 보면 그 길이 막힌다. */
+  const snapInk = (): ImageData | null => {
+    const c = draw.canvasRef.current
+    const ctx = c?.getContext('2d', { willReadFrequently: true })
+    if (!c || !ctx || !c.width || !c.height) return null
+    try { return ctx.getImageData(0, 0, c.width, c.height) } catch { return null }
+  }
   const enterBase = () => {
     /* 자리 비교에 **단계까지** 넣는다 — 턴 번호만 보면 코칭 0번 턴이 수업 0번 턴의 기준선을
        그대로 물려받는다. 그러면 수업 내내 쌓인 획이 '새로 그은 것' 으로 보여 손도 대기 전에
        판정이 돌아간다(markAdvancedRef 머리말과 같은 사고). */
     if (enterBaseRef.current.at !== spotKey) {
-      enterBaseRef.current = { at: spotKey, marks: markedWords(marks), strokes: draw.strokeCount }
+      enterBaseRef.current = {
+        at: spotKey, marks: markedWords(marks), strokes: draw.strokeCount, ink: snapInk(),
+      }
     }
     return enterBaseRef.current
   }
@@ -1611,8 +1627,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const tries = (markTriesRef.current.get(spotKey) ?? 0) + 1
       markTriesRef.current.set(spotKey, tries)
       if (tries < MARK_MAX_TRIES) {
-        /* 기준선을 지금 획 수로 올린다 — 그래야 **다음에 새로 그은 것만** 다시 본다 */
+        /* 기준선을 지금 자리로 올린다 — 그래야 **다음에 새로 그은 것만** 다시 본다.
+           잉크도 같이 떠 둔다: 방금 잘못 그은 밑줄이 남아 있는데 획 수만 올리면, 다음 판정에
+           그 밑줄이 그대로 섞여 들어온다(92행과 같은 뿌리). */
         enterBase().strokes = draw.strokeCount
+        enterBase().ink = snapInk()
         setMarkDone(false)
         setMarkVerdict(null)
         /* plain — 이 줄은 **앱이 학생이 짚은 낱말을 인용한 것**이다. 따옴표를 강조로 읽으면
@@ -1778,19 +1797,28 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const cr = canvas.getBoundingClientRect()
     const sx = canvas.width / cr.width
     const sy = canvas.height / cr.height
+    /* 이 턴에 들어설 때 이미 있던 잉크 — 여기 있던 자리는 **새로 그은 것이 아니다**(메모 92행).
+       크기가 달라졌으면(화면 회전·리사이즈) 자리를 못 맞추므로 빼지 않는다(옛 동작 그대로). */
+    const was = enterBaseRef.current.ink
+    const base = was && was.width === canvas.width && was.height === canvas.height ? was : null
     const hit: string[] = []
     root.querySelectorAll<HTMLElement>(sel).forEach((el) => {
       const r = el.getBoundingClientRect()
-      /* ── 상자를 **줄 간격만큼** 넉넉히 본다 ──
+      /* ── 상자를 **줄 사이 빈 공간까지** 본다 ──
          낱말 상자는 글자 크기만 하다(인라인 요소의 사각형은 글자 상자다). 그런데 **밑줄은 글자
          아래로 지나간다.** 딱 맞게 보면 낱말 바로 밑에 제대로 그은 학생이 "엉뚱한 곳" 이 된다
          (실측: 'easy replacement' 밑에 그었는데 못 잡았다).
-         고정값 대신 줄 높이에서 남는 만큼(반 줄 여백)을 쓴다 — 줄 간격이 좁은 화면에서도
-         옆 줄을 침범하지 않는다. 아래로는 조금 더 준다: 사람은 글자에 닿게 긋지 않는다. */
+         ⚠️ 그렇다고 위아래로 넉넉히 주면 **밑줄 하나가 두 줄을 다 먹는다**(구현 중 메모 89행):
+            윗줄이 아래로 벌린 만큼과 아랫줄이 위로 벌린 만큼이 겹쳐, 그 겹치는 띠에 그은
+            밑줄이 위 낱말과 아래 낱말에 동시에 걸렸다. 예전 값(1.4배·0.6배 + 고정 하한)이
+            딱 그 자리에서 겹쳤다.
+         그래서 **빈 공간을 나눠 갖는다** — 위아래 몫의 합이 빈 공간과 같아 겹칠 자리가 없다.
+         밑줄은 낱말 아래로 지나가니 아래쪽에 몰아준다(8:2). */
       const lh = parseFloat(getComputedStyle(el).lineHeight)
-      const lead = Number.isFinite(lh) && lh > r.height ? (lh - r.height) / 2 : 6
-      const padUp = Math.max(2, lead * 0.6)
-      const padDown = Math.max(10, lead * 1.4)
+      /* 줄 상자 사이의 빈 공간 = 줄 높이 - 글자 상자 높이 (위아래 반씩 나뉘어 있다) */
+      const gap = Number.isFinite(lh) && lh > r.height ? lh - r.height : 12
+      const padUp = gap * 0.2
+      const padDown = gap * 0.8
       const x = Math.max(0, Math.round((r.left - cr.left) * sx))
       const y = Math.max(0, Math.round((r.top - padUp - cr.top) * sy))
       const w = Math.min(canvas.width - x, Math.round(r.width * sx))
@@ -1798,7 +1826,16 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       if (w <= 0 || h <= 0) return
       const { data } = ctx.getImageData(x, y, w, h)
       for (let i = 3; i < data.length; i += 16) {
-        if (data[i] > 8) { hit.push(el.dataset[attr] ?? ''); return }
+        if (data[i] <= 8) continue
+        if (base) {
+          /* 같은 자리가 기준선에도 칠해져 있었으면 앞 턴에 그은 것이다 — 세지 않는다 */
+          const px = (i - 3) / 4
+          const bx = x + (px % w)
+          const by = y + Math.floor(px / w)
+          if (base.data[(by * base.width + bx) * 4 + 3] > 8) continue
+        }
+        hit.push(el.dataset[attr] ?? '')
+        return
       }
     })
     return Array.from(new Set(hit.filter(Boolean)))
@@ -1865,7 +1902,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       }
       const wordOf = (k: string) => k.split('|').pop() ?? ''
       const onTarget = inkKeys.filter((k) => targets.has(wordOf(k)))
-      /* 짚어야 할 곳을 하나라도 지났으면 **그 자리를 표시로 인정한다.**
+      const offTarget = inkKeys.filter((k) => !targets.has(wordOf(k)))
+      /* ── 정답 낱말이 **섞여 있기만 하면** 통과하던 것을 막는다 (구현 중 메모 93행) ──
+         문장을 통째로 밑줄 그으면 그 안에 정답도 들어 있어 "잘했어요" 하고 넘어갔다.
+         짚어야 할 곳인지는 **포함이 아니라 겹침**으로 본다 — 곁다리가 더 많으면 넓게 그은 것이다.
+         한둘 넘치는 것까지 잡지는 않는다: 밑줄은 손으로 긋는 것이라 옆 낱말에 걸리기 쉽다. */
+      if (onTarget.length && offTarget.length > onTarget.length) {
+        const read = readMarks(inkKeys)
+        setMarkVerdict({ read: read || null, ok: false, hint: '' })
+        reportAction(`${turnIdx}:mark`,
+          actionMessage(`화면에 "${read}"를 표시했습니다 — 짚어야 할 곳보다 넓습니다`, false))
+        void finishMark(false, '짚어야 할 곳보다 넓게 표시했어요.')
+        return
+      }
+      /* 짚어야 할 곳을 지났으면 **그 자리를 표시로 인정한다.**
          그러면 낱말 탭과 같은 길로 합쳐져, 목표를 다 채우는 순간 기존 완료 판정이 알아서 돈다. */
       if (onTarget.length) {
         setMarks((prev) => { const n = new Set(prev); onTarget.forEach((k) => n.add(k)); return n })
