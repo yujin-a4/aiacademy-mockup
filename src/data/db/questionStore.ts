@@ -178,13 +178,114 @@ export async function fetchQuestionsByCodes(codes: string[]): Promise<UiDbQuesti
   return attachPassageSets(ordered as UiDbQuestion[])
 }
 
-/** 한 파트의 **강의** 문항 전체. 자율학습 '파트별 연습'이 여기서 문제를 받는다.
- *  큐레이션(Q_CODES)이나 앵커(Q_ANCHORS)로 좁히지 않고 DB에 든 것을 다 가져온다.
+/* ── 파트별 연습의 문제 풀 ──
+   강의 문항은 파트당 16~102개뿐이다(P6 은 16개). 몇 판만 풀면 한 바퀴가 돌아 같은 문제가
+   다시 나온다. 실전 모의고사 20회차(0028)에 같은 교재의 문항이 파트당 120~1080개 들어 있으니
+   그쪽에서 회차를 몇 개 뽑아 섞는다.
+
+   ⚠️ 대신 **그 회차는 이미 풀어 본 회차가 된다.** 연습에서 만난 문항이 실전 시험지에 그대로
+   나온다는 뜻이다. 회차를 통째로 비워 두고 싶으면 아래 PRACTICE_EXCLUDE_TESTS 에 넣으면 된다. */
+
+/** 한 번에 뽑는 회차 수. 늘리면 문제 풀이 넓어지고 첫 로딩이 무거워진다(회차 하나 = 파트당 6~54문항) */
+const PRACTICE_TEST_SAMPLE = 3
+/** 연습에 절대 내보내지 않을 회차 — `[[vol, testNo]]`. 실전용으로 아껴 둘 회차를 여기 적는다 */
+const PRACTICE_EXCLUDE_TESTS: [number, number][] = []
+
+const areaOf = (part: number) => (part <= 4 ? 'LC' : 'RC')
+
+/** 그 파트가 속한 영역의 회차 id 중 무작위 몇 개 */
+async function sampleMockTestIds(part: number, n: number): Promise<string[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('mock_tests')
+    .select('id, book, test_no')
+    .eq('area', areaOf(part))
+  if (error || !data) return []
+  const pool = (data as any[]).filter(
+    (t) => !PRACTICE_EXCLUDE_TESTS.some(([v, no]) => v === t.book && no === t.test_no),
+  )
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, n).map((t) => t.id as string)
+}
+
+/** 한 행이 들고 있는 `/mock/…` 경로를 전부 모은다 */
+function mockPathsOf(q: UiDbQuestion): string[] {
+  const out: string[] = []
+  const push = (v: unknown) => { if (typeof v === 'string' && v.startsWith('/mock/')) out.push(v) }
+  push(q.content.audio_url)
+  push(q.content.image_url)
+  push(q.content.qread_url)
+  push(q.content.set_intro_url)
+  q.options.forEach((o) => push(o.audioUrl))
+  ;[q.passage, ...q.passages].forEach((p) => p?.sentences.forEach((sn) => push(sn.audioUrl)))
+  return out
+}
+
+/**
+ * `/mock/…` 을 Storage 서명 URL 로 바꾼다.
  *
- *  실전 모의고사 문항(0028, mock_test_id)은 **뺀다.** 파트로만 조회하면 회차 문항이 그대로 딸려
- *  들어와 파트별 연습이 시험지 문항을 섞어 낸다 — 한 회차를 순서대로 푸는 자리가 따로 있는데
- *  여기서 미리 새어 나가면 그 회차가 이미 풀어 본 문제가 된다. 회차는 fetchMockQuestions 로. */
-export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]> {
+ * 버킷이 비공개라 브라우저(anon 키)로는 못 받는다 — 서명은 서버만 할 수 있어 라우트에 물어본다.
+ * 못 바꿔도 **행은 그대로 돌려준다**: 로컬 개발은 public/mock 에 원본이 있어 그 경로로 돈다.
+ */
+async function signMockMedia(rows: UiDbQuestion[]): Promise<UiDbQuestion[]> {
+  const paths = Array.from(new Set(rows.flatMap(mockPathsOf)))
+  if (paths.length === 0) return rows
+  let signed: Record<string, string> = {}
+  try {
+    const res = await fetch('/api/mock-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths }),
+    })
+    if (!res.ok) return rows
+    signed = (await res.json())?.signed ?? {}
+  } catch {
+    return rows
+  }
+  if (Object.keys(signed).length === 0) return rows
+
+  const swap = (v: unknown) => (typeof v === 'string' && signed[v] ? signed[v] : v)
+  const swapPassage = (p: UiDbPassage): UiDbPassage => ({
+    ...p,
+    sentences: p.sentences.map((sn) => ({ ...sn, audioUrl: (swap(sn.audioUrl) as string | null) ?? null })),
+  })
+  return rows.map((q) => ({
+    ...q,
+    content: Object.fromEntries(
+      Object.entries(q.content).map(([k, v]) => [k, swap(v) as string]),
+    ) as Record<string, string>,
+    options: q.options.map((o) => ({ ...o, audioUrl: (swap(o.audioUrl) as string | null) ?? null })),
+    passage: q.passage ? swapPassage(q.passage) : null,
+    passages: q.passages.map(swapPassage),
+  }))
+}
+
+/** 실전 모의고사 회차에서 그 파트의 문항을 가져온다(회차 몇 개를 무작위로 뽑아서) */
+async function fetchMockPoolByPart(part: number): Promise<UiDbQuestion[]> {
+  const supabase = getSupabase()
+  if (!supabase) return []
+  const ids = await sampleMockTestIds(part, PRACTICE_TEST_SAMPLE)
+  if (ids.length === 0) return []
+  const { data, error } = await supabase
+    .from('questions')
+    .select(Q_SELECT)
+    .eq('part', part)
+    .in('mock_test_id', ids)
+  if (error || !data) return []
+  const rows = await attachPassageSets((data as any[])
+    .map(mapQuestion)
+    .filter((q) => q.options.length > 0)
+    .sort((a, b) => a.code.localeCompare(b.code)))
+  return signMockMedia(rows)
+}
+
+/** 한 파트의 **강의** 문항 전체.
+ *  큐레이션(Q_CODES)이나 앵커(Q_ANCHORS)로 좁히지 않고 DB에 든 것을 다 가져온다. */
+async function fetchLectureQuestionsByPart(part: number): Promise<UiDbQuestion[]> {
   const supabase = getSupabase()
   if (!supabase) return []
   const { data, error } = await supabase
@@ -197,6 +298,16 @@ export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]
     .map(mapQuestion)
     .filter((q) => q.options.length > 0)
     .sort((a, b) => a.code.localeCompare(b.code)))
+}
+
+/** 자율학습 '파트별 연습'이 여기서 문제를 받는다 — 강의 문항 + 실전 회차 문항.
+ *  한쪽이 비어도 다른 쪽으로 돈다(실전 회차가 안 적재된 파트, Storage 가 안 붙는 환경). */
+export async function fetchQuestionsByPart(part: number): Promise<UiDbQuestion[]> {
+  const [lecture, mock] = await Promise.all([
+    fetchLectureQuestionsByPart(part),
+    fetchMockPoolByPart(part).catch(() => [] as UiDbQuestion[]),
+  ])
+  return [...lecture, ...mock]
 }
 
 /** 지문(또는 지문 세트) 하나 = 한 판. 파트별 연습에서 고를 목록을 만든다.
