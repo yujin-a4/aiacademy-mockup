@@ -3732,9 +3732,14 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
         if (!(await say(my, [{ id: `intro:${set.from}`, text: set.intro.text, src: set.intro.audio }]))) return false
       }
       // 담화·대화 전체
-      if (!(await say(my, setScript.map((s) => ({
+      const lines = setScript.map((s) => ({
         id: s.id, text: s.en, src: sentenceSrc(pLesson, s.id) ?? srcOf(pLesson, s.id),
-      }))))) return false
+      }))
+      /* 실전 회차 적재분은 **문장마다 같은 mp3**(세트 통음원)가 달려 있다 — 그대로 이어 틀면
+         한 대화가 세 번 재생된다. 앞줄과 같은 파일이면 건너뛴다(강의 문항은 줄마다 다른 파일이라
+         걸리지 않는다). */
+      const once = lines.filter((it, i) => !(it.src && i > 0 && it.src === lines[i - 1].src))
+      if (!(await say(my, once))) return false
       /* 실제 시험처럼 문항을 하나씩 읽어주고 답할 시간을 준다.
          세 문항이 한 페이지에 다 있으므로 문항 사이에서는 페이지를 넘기지 않는다 — 짚는 문항만 옮긴다. */
       for (let i = set.from; i < set.to; i += 1) {

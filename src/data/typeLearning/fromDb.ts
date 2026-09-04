@@ -901,7 +901,13 @@ export function buildPracticeContent(part: number, rows: UiDbQuestion[]): TypeLe
       const script = group
         .map((q, i) => { const s = lcScript(q)[0]; return s ? { ...s, id: `q${i + 1}` } : null })
         .filter((s): s is SentenceItem => !!s)
-      if (script.length !== group.length) return undefined
+      /* 실전 회차 적재분은 P2 에 지문 행이 없다 — 질문 발화가 따로 저장돼 있지 않고, 대신
+         문항마다 **통음원**(질문 + 보기 셋)이 붙어 있다. 화면은 통음원이 있으면 그걸 먼저 트니
+         스크립트가 없어도 판이 성립한다. 통음원조차 없을 때만 못 만드는 판으로 돌린다. */
+      if (script.length !== group.length) {
+        if (!group.every((q) => q.content.audio_url)) return undefined
+        return { optionAudio: true, questions: group.map((q) => toQuestion(q)) }
+      }
       return { audioScript: script, optionAudio: true, questions: group.map((q) => toQuestion(q)) }
     }
     case 3:
