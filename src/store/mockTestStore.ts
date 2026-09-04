@@ -31,8 +31,13 @@ export interface MockAttempt {
   timeLeft: number
   activePart: number
   groupIdx: number
-  /** 이미 들은 음원의 판 키 — 이어하기로 돌아왔을 때 안 들은 척 다시 틀면 실전이 아니다 */
+  /** 이미 들은 음원의 판 키 — 이어하기로 돌아왔을 때 안 들은 척 다시 틀면 실전이 아니다.
+   *  **끝까지 흐른 음원만** 여기 들어온다(틀다 만 것은 audioPos 로 간다) */
   played: string[]
+  /** 판 키 → 어디까지 들었나(초). 끝까지 못 들은 음원은 돌아왔을 때 그 자리에서 잇는다 */
+  audioPos?: Record<string, number>
+  /** 별표한 문항 번호 — 답과 무관한 학습자의 표시다. 다 풀고 나서 이것만 모아 본다 */
+  starred: number[]
   /** 채점 결과 (status === 'done' 일 때만) */
   correct?: number
   total?: number

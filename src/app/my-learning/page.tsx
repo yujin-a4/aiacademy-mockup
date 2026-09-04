@@ -386,11 +386,15 @@ function MyLearningInner() {
               </div>
             )}
 
-            {/* 메인 탭 */}
+            {/* ── 메인 탭 ──
+                네 갈래가 **한 화면에 다 보여야** 한다. 폰에서 옆으로 밀어야 나오는 탭은
+                거기 뭐가 있는지 모르는 채로 지나가게 되고, 실제로 '보카런' 이 잘려 있었다.
+                그래서 폰에서는 글자와 여백을 줄여 네 칸이 폭을 고르게 나눠 갖는다(flex-1).
+                넓은 화면에서는 원래 크기 그대로다 — 좁은 쪽에 맞춰 다 같이 작아질 이유는 없다. */}
             <div className="max-w-[680px] flex border-b border-[#DBEAFE] mb-5 overflow-x-auto scrollbar-none">
               {([['part', '파트별 연습'], ['mock', '실전 모의고사'], ['wrong', 'AI 오답노트'], ['voca', '보카런']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setTab(key)}
-                  className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${tab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                  className={`flex-1 md:flex-none px-1.5 sm:px-3 md:px-5 py-2.5 text-[12px] sm:text-[13px] md:text-[14px] font-medium border-b-2 -mb-px transition-all whitespace-nowrap ${tab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
                   {label}
                 </button>
               ))}
