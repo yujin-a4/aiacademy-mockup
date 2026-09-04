@@ -107,12 +107,24 @@ const SIGN_TTL = 60 * 60 * 4
  *
  * 올려두지 않았으면(로컬 개발) **원래 경로를 그대로 돌려준다** — public/mock 에 파일이 있으면
  * 그대로 돌고, 없으면 그때 깨진다. 키가 없을 때 조용히 죽지 않는 것이 이 프로젝트의 방식이다.
+ *
+ * ── 왜 실패를 같이 내보내나 ──
+ * 그 '그때 깨진다' 가 배포에서 **거짓말을 했다**. 서명이 안 되면 `/mock/…` 이 그대로 나가고
+ * 그 경로는 배포본에 없어 404 다 — 사진은 안 뜨고, 음원은 `play()` 가 거절돼 화면이
+ * `브라우저가 자동재생을 막았습니다` 라고 말한다. 원인은 서버 환경변수인데 학습자는
+ * 자기 브라우저를 탓하게 된다. 무엇이 없어서 못 냈는지 화면까지 들려보낸다.
  */
-async function signAll(paths: string[]): Promise<Map<string, string>> {
+async function signAll(paths: string[]): Promise<{ map: Map<string, string>; error: string | null }> {
   const out = new Map<string, string>()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const svc = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !svc || paths.length === 0) return out
+  if (paths.length === 0) return { map: out, error: null }
+  if (!url || !svc) {
+    return {
+      map: out,
+      error: '서버에 SUPABASE_SERVICE_ROLE_KEY 가 없어 음원·사진 주소를 만들지 못했습니다.',
+    }
+  }
 
   // '/mock/lc1-t01/x.mp3' → 'lc1-t01/x.mp3'
   const keys = paths.map((p) => p.replace(/^\/mock\//, ''))
@@ -122,15 +134,20 @@ async function signAll(paths: string[]): Promise<Map<string, string>> {
       headers: { apikey: svc, Authorization: `Bearer ${svc}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ paths: keys, expiresIn: SIGN_TTL }),
     })
-    if (!res.ok) return out
+    if (!res.ok) return { map: out, error: `Storage 서명 요청이 실패했습니다 (${res.status}).` }
     const list = (await res.json()) as { path: string; signedURL: string | null }[]
     list.forEach((r) => {
       if (r.signedURL) out.set(`/mock/${r.path}`, `${url}/storage/v1${r.signedURL}`)
     })
+    const missing = paths.length - out.size
+    return {
+      map: out,
+      error: missing > 0 ? `음원·사진 ${missing}개를 Storage 에서 찾지 못했습니다.` : null,
+    }
   } catch {
     /* Storage 가 없거나 못 붙어도 화면은 열려야 한다 — 원래 경로로 떨어진다 */
+    return { map: out, error: 'Storage 에 연결하지 못했습니다.' }
   }
-  return out
 }
 
 export async function GET(req: NextRequest) {
@@ -245,7 +262,7 @@ export async function GET(req: NextRequest) {
       ...passages.map((p) => p.audio_url ?? undefined),
     ].filter((u): u is string => !!u && u.startsWith('/mock/'))
 
-    const signed = await signAll(Array.from(new Set(media)))
+    const { map: signed, error: mediaError } = await signAll(Array.from(new Set(media)))
     if (signed.size) {
       for (const q of questions) {
         for (const k of ['audio_url', 'image_url'] as const) {
@@ -258,7 +275,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ area, test_code: mt.test_code, title: mt.title, questions, passages })
+    return NextResponse.json({
+      area, test_code: mt.test_code, title: mt.title, questions, passages,
+      /* 화면이 이걸 띄운다. null 이면 다 정상이다 */
+      mediaError,
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? '시험 데이터를 불러오지 못했습니다.' }, { status: 500 })
   }
