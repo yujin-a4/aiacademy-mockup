@@ -198,3 +198,14 @@ body {
 .animate-speech-dot {
   animation: speech-dot 1.2s ease-in-out infinite;
 }
+
+/* ── 스크롤바를 감추는 유틸 ──
+   가로로 미는 줄(탭 줄처럼)에 `overflow-x-auto` 를 걸면 브라우저가 스크롤 막대를 그린다.
+   탭 네 개 옆에 회색 막대가 붙어 있으면 그게 무엇인지 읽히지 않는다 — 미는 동작은 남기고
+   막대만 감춘다. `.scrollbar-none` 은 여러 화면이 이미 쓰고 있었는데 **정의가 없어서**
+   아무 일도 하지 않고 있었다(Tailwind 기본 유틸이 아니다). */
+.scrollbar-none {
+  -ms-overflow-style: none;   /* 옛 Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }  /* Chrome · Safari */
