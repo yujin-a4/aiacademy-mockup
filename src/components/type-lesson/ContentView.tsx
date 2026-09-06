@@ -365,7 +365,14 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
              ⚠️ 버튼만 열리고 글자는 안 열린다 — 듣기 수업인데 스크립트가 저절로 펼쳐지면
              학생이 소리 대신 글자를 읽어버린다. 열어볼지는 학생이 버튼으로 정한다. */
           const optAudio = !!lesson.content.optionAudio
-          const coached = graded || revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
+          /* ⚠️ **정답을 감추는 동안에는 버튼도 열지 않는다** (09-04).
+             `graded` 는 학생이 보기를 고르는 순간 켜진다. 그런데 정오답분기 대본은 틀리면
+             한 번 더 풀리는데, 그 사이 버튼이 열려 있으면 학생이 눌러서 정답 보기의 문장을
+             읽어 버린다 — 다시 고를 것이 없어진다(실측 보고 09-04).
+             감출지 말지는 이미 hideVerdict 하나가 들고 있으므로 거기에 맞춘다. 실전·코칭은
+             hideVerdict 가 꺼져 있어 예전 그대로 열린다. */
+          const coached = (graded && !st.hideVerdict)
+            || revealed === 'all' || (revealed instanceof Set && revealed.has(o.label))
           /* 실전은 채점하고 나면 스크립트가 열린 채로 시작한다(근거 확인 단계라 감출 이유가 없다).
              수업은 그 반대 — 버튼만 열리고 내용은 학생이 눌러야 열린다. */
           /* 레일이 **이 보기를 지금 짚고 있는가** — 대본 수업은 강사가 "A를 볼게요" 하는 순간

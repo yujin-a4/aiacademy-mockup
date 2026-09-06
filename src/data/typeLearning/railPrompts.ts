@@ -70,6 +70,7 @@ const KIND_LABEL: Record<Interaction['kind'], string> = {
   subjective: '자기 말로 설명하기',
   mark: '화면에 직접 표시하기 — 사진이면 그 부분에 동그라미, 지문이면 그 단어에 밑줄·탭',
   match: '지문에서 근거 연결하기',
+  askOption: '더 설명을 듣고 싶은 오답 보기 고르기(채점하지 않는다)',
 }
 
 /** 문구가 있어야 의미 있는 상호작용만 — 'next'는 문구가 없다 */

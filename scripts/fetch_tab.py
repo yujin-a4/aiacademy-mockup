@@ -18,6 +18,23 @@ from fetch_sheet import get_creds  # noqa: E402
 DUMP = os.path.join(HERE, "sheet_dump.json")
 
 
+def creds():
+    """OAuth 를 먼저 쓰고, **죽어 있으면 서비스 계정으로 떨어진다.**
+
+    OAuth 토큰(`token_sheets*.json`)은 동의 화면이 '테스트' 상태라 7일마다 만료된다.
+    그때마다 이 스크립트가 `invalid_grant` 로 죽어서 대본을 못 받아 왔다(실측 09-04).
+    읽기는 서비스 계정으로 충분하다 — 그 계정은 시트에 편집자로 등록돼 있고 만료가 없다.
+    (새 문서를 **만드는** 일만 OAuth 몫이다 — 서비스 계정은 제 드라이브 용량이 0이다.)
+    """
+    try:
+        return get_creds()
+    except Exception as e:  # noqa: BLE001 — 어떤 이유로 죽든 서비스 계정으로 가면 된다
+        print(f"  (OAuth 를 못 썼다: {e} — 서비스 계정으로 간다)")
+        from sheet_sa import creds as sa_creds
+
+        return sa_creds()
+
+
 def main():
     sid = sys.argv[1]
     tabs = sys.argv[2:]
@@ -25,7 +42,7 @@ def main():
         print("탭 이름을 하나 이상 넘길 것")
         return
 
-    service = build("sheets", "v4", credentials=get_creds())
+    service = build("sheets", "v4", credentials=creds())
     res = (
         service.spreadsheets()
         .values()
