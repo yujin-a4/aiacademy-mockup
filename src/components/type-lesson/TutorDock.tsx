@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import { stripAudioTags } from '@/lib/ttsText'
 
 /** 강사 창 배치
  *   sidebar — 화면 오른쪽 기둥(기본, 가로로 넘은 태블릿)
@@ -324,10 +325,14 @@ function parseEmphasis(src: string): Seg[] {
  *  @param plain 앱이 만든 줄(판정·힌트)인가. 대본이 아니라 앱이 학생 답을 인용한 자리라
  *    따옴표를 강조로 읽으면 **틀린 것이 굵어진다** — 그럴 때는 글자를 그대로 둔다. */
 export function TutorText({ text, plain }: { text: string; plain?: boolean }) {
-  if (plain) return <>{text}</>
+  /* ── 오디오 태그는 **소리로만** 나간다 ──
+     대본에 `[whispers]` 같은 v3 연기 지시가 섞여 있다(scripts/tone/lee_doyun_wit.json).
+     읽는 문자열에는 그대로 실어 보내지만 말풍선에 뜨면 학생이 대괄호를 읽게 된다. */
+  const shown = stripAudioTags(text)
+  if (plain) return <>{shown}</>
   return (
     <>
-      {parseEmphasis(text).map((s, i) => (
+      {parseEmphasis(shown).map((s, i) => (
         s.b ? <strong key={i} className="font-bold text-[#111827]">{s.t}</strong> : <span key={i}>{s.t}</span>
       ))}
     </>

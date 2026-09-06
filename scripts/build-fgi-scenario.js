@@ -51,17 +51,34 @@ const OUT = path.join(__dirname, '..', 'src', 'data', 'typeLearning', 'fgiScenar
      · FGI_이도윤  — 좌우.   왼쪽 c0~c7 = LC 1강, 오른쪽 c8~ = RC 24강 → `range` */
 /* ⚠️ 2026-09-01 — 대본이 **간결본으로 통째 교체**됐다(콘텐츠 파트). 옛 탭은 시트에 남아
    있지만 더 이상 읽지 않는다 — 'FGI_윤다은', 'FGI_이도윤'. 되돌릴 일이 생기면 이름만 바꾸면 된다. */
+/* ⚠️ 2026-09-04 — 윤다은은 '정오답분기' 탭이 정본이다. 옛 탭('FGI_윤다은_간결')은 시트에 남아
+   있고 `--daeun-old` 로 되돌려 볼 수 있다.
+   이 탭이 앞의 것들과 다른 점 셋 — 셋 다 파서·화면에 이미 들어가 있다:
+     ① '오답 경로' 열이 따로 있다. 한 줄이 아니라 채점부터 S5 까지 **길이 통째로 갈린다** →
+        tutorIfWrong(직전 답 하나만 보는 장치)이 아니라 gate(ifCorrect/ifWrong)로 담는다.
+     ② 셀 안 갈래 표기가 셋 늘었다 — (적절한 답변)/(부적절한 답변/모름) 등. RE_PAIR 참고.
+     ③ 틀리면 **답을 다시 고르게 한다**(S5 의 오답 경로가 '보기 재선택'). 화면은 처음 답을
+        따로 기억해 길을 유지한다(TypeLessonPlayer 의 firstPickRef). */
+const DAEUN_TAB = process.argv.includes('--daeun-old') ? 'FGI_윤다은_간결' : 'FGI_윤다은_정오답분기'
 const SOURCES = [
-  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: 'FGI_윤다은_간결', section: /^LC\s*1강/ },
-  { instructor: 'yun_daeun', lecture: 'RC-P5-08', tab: 'FGI_윤다은_간결', section: /^RC\s*24강/ },
+  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: DAEUN_TAB, section: /^LC\s*1강/ },
+  { instructor: 'yun_daeun', lecture: 'RC-P5-08', tab: DAEUN_TAB, section: /^RC\s*24강/ },
   /* 이도윤 — 같은 문항, 다른 대본. 표 모양도 윤다은 탭과 다르다:
        · 도입이 '화면 텍스트 | AI 강사 대사' 두 칸이다 — 화면 텍스트가 곧 '오늘 배울 내용'.
        · 본편 사이에 곁가지가 섞여 있다('유형 학습 3 → 실전 문제 버전' = 시간 없을 때 쓰는 대체본,
          '실전 문제로 넘어갈 때 멘트'). parse 가 홀로 선 제목 줄에서 블록을 닫아 걸러낸다. */
   /* ⚠️ 열 자리는 개정마다 밀린다. 08-13 최종본에서 한 칸씩 옮겨갔다(왼쪽 c0→c1, 오른쪽 c8→c9).
      "블록을 하나도 못 찾는다" 는 대개 이것 — 덤프를 열어 제목이 몇 번째 열인지 먼저 볼 것. */
-  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤 (간략버전)', range: [1, 9] },
-  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤 (간략버전)', range: [9] },
+  /* ⚠️ 2026-09-03 — 이도윤 **LC 만** '개념학습 추가 버전' 으로 옮겼다. 그 탭은 앞의 두 탭과
+     구조가 다르다(아래 세 가지). RC 24강은 같은 탭 오른쪽에 이미 새 구조로 쓰여 있지만
+     **아직 확정 전**이라 옛 탭을 그대로 본다 — 확정되면 tab 만 바꾸고 range 를 [9] 로 두면 된다.
+       ① 문항 앞에 '개념 학습' 구간이 따로 있다 (S3 여러 턴, 1번 문항 화면을 띄운 채 진행)
+       ② S6 오답 제거를 **순서대로 다 틀지 않는다** — 학생이 고른 오답 하나 + '후속 질문' 으로
+          고른 것만 튼다. 그래서 대본의 줄 순서와 재생 순서가 처음으로 달라졌다(build 참고)
+       ③ 스캐폴딩 질문의 정/오답 반응 줄이 빠졌다 — 시트 머리말이 공통 문구로 정해 두었고
+          화면이 그 문구를 말한다(TypeLessonPlayer 의 ACKS_BY_INST / RETRY_BY_INST) */
+  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤 (개념학습 추가 버전)', range: [1, 9] },
+  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤 (개념학습 추가 버전)', range: [9] },
 ]
 
 const go = process.argv.includes('--go')
@@ -94,6 +111,11 @@ function normMode(raw) {
   const m = clean(raw).replace(/\s/g, '').toUpperCase()
   if (!m || m === '-' || m === '–' || m === '—') return '듣기'
   if (m.includes('O/X') || m.includes('OX')) return 'O/X'
+  /* ── '후속 질문' 의 보기 목록 ── "1) A  2) C  3) D  4) 없어요" (09-03 신설)
+     어느 오답 선택지를 더 듣고 싶은지 묻는 자리라 **채점하지 않는다**(정답 칸이 비어 있다).
+     이 꼴을 모르면 방식을 못 읽어 '듣기' 로 떨어지고, 화면은 묻기만 하고 그냥 넘어간다.
+     선다 보기("1) be p.p. 2) be being p.p.")와 헷갈리지 않게 보기가 **낱자 하나**일 때만 본다. */
+  if (/^1\)[A-D]2\)/.test(m)) return '보기고르기'
   /* **몇 갈래인지는 시트가 정한다.** 08-19 최종본에서 '3지 선다' 가 6줄 들어왔다(이도윤).
      숫자를 박아 두면 새 갈래 수를 만났을 때 조용히 듣기로 떨어지고, 학생은 답할 자리를 잃은 채
      바로 뒤 '(정답)/(오답)' 줄만 듣는다(실측). 그래서 N 을 가리지 않고 받는다. */
@@ -114,6 +136,17 @@ function modeChoices(raw) {
   /* 강사마다 사이 기호가 다르다 — "1) 표준화하는 주체 / 2) 표준화되는 대상" 처럼 슬래시로 잇는
      사람이 있어서, 앞 선택지 꼬리에 그 기호가 남는다. 떼지 않으면 버튼에 '주체 /' 라고 찍힌다. */
   return parts.map((p) => clean(p).replace(/[\/·|,]\s*$/, '')).filter(Boolean)
+}
+
+/** '후속 질문' 방식 칸 → 고를 수 있는 보기 목록. "1) A 2) C 3) D 4) 없어요"
+ *  정답 보기는 애초에 들어 있지 않다(지울 것이 없으니까). 마지막 '없어요' 는
+ *  label 을 null 로 둔다 — 화면이 그걸 보고 오답 해설 구간을 통째로 건너뛴다. */
+function askOptions(raw) {
+  const parts = clean(raw).split(/\s*[1-9]\)\s*/).slice(1).map(clean).filter(Boolean)
+  return parts.map((text) => {
+    const m = /^([A-D])$/.exec(text)
+    return m ? { label: m[1], text: `${m[1]}번 선택지` } : { label: null, text }
+  })
 }
 
 /** 예시 답변이 **어느 선택지인가**.
@@ -220,12 +253,20 @@ function askOf(tutor) {
 
 /** 표 머리 줄에서 열 위치를 찾는다 — 강사마다, 개정마다 낱말이 다르다.
  *  ('수정 추천 대사' 는 콘텐츠팀이 한 블록만 고쳐 쓰다 남긴 머리말이다 — 뜻은 '강사 대사'와 같다) */
-const HEADER_TUTOR = ['강사 진행', 'AI 강사 대사', 'AI 강사', '강사 대사', '수정 추천 대사']
+/* ⚠️ '공통 / 정답 경로' 는 2026-09-04 '정오답분기' 개정에서 들어왔다(윤다은). 강사 대사 열의
+   새 이름이면서, 동시에 **오답일 때 걷는 길이 옆 칸에 따로 생겼다**는 신호다(아래 wrong). */
+const HEADER_TUTOR = ['강사 진행', 'AI 강사 대사', 'AI 강사', '강사 대사', '수정 추천 대사', '공통 / 정답 경로']
 function columnsOf(row) {
   const cells = (row || []).map((c) => clean(c))
   const find = (...names) => cells.findIndex((c) => names.some((n) => c.includes(n)))
   const stage = find('단계', '스캐폴딩')
   const tutor = find(...HEADER_TUTOR)
+  /* ── 오답 경로 열 (09-04 정오답분기) ──
+     예전에는 한 칸 안에 "(정답) … (오답) …" 으로 적었는데, 이제 **칸을 따로 뒀다.**
+     게다가 한 줄짜리가 아니라 채점부터 S5 까지 이어지는 **길**이다 — 그래서 tutorIfWrong
+     (직전 답 하나만 보는 장치)이 아니라 gate(ifCorrect/ifWrong)로 담는다.
+     ⚠️ '공통 / 정답 경로' 가 '오답 경로' 를 품지 않으므로 두 열이 서로 안 걸린다. */
+  const wrong = find('오답 경로')
   const mode = find('학생 방식', '학생 답변 방식', '학생 인터랙션')
   /* 예시 답변 열은 '학생' 으로 시작하는 것이 여럿이라 **방식 열 뒤**에서 찾는다.
      ⚠️ 이름이 개정마다 바뀐다 — 08-20 에 이도윤 탭이 '학생 …' → '정답' 으로 바꿨고(구현 중 메모 8행),
@@ -235,7 +276,22 @@ function columnsOf(row) {
   const sample = cells.findIndex((c, i) => i > mode
     && (c.includes('답변') || c.includes('예시') || c === '학생' || c === '정답'))
   if (stage < 0 || tutor < 0) return null
-  return { stage, tutor, mode, sample }
+  return { stage, tutor, wrong, mode, sample }
+}
+
+/** 한 칸을 **경로별로** 가른다 — 정오답분기 탭은 학생 방식과 예시 답변도 길마다 다르게 적는다.
+ *
+ *    "정답 경로: 말하기          "정답 경로: painting a picture
+ *     오답 경로: 보기 재선택(A~D)"   오답 경로: B"
+ *
+ *  표기가 없으면 한 칸이 두 길에 그대로 쓰인다(대부분의 줄이 그렇다).
+ *  ⚠️ clean() 을 거치기 **전에** 부른다 — 두 길을 가르는 것이 줄바꿈이라, 뭉개고 나면 못 가른다. */
+function pathSplit(raw) {
+  const s = String(raw ?? '')
+  if (!/오답\s*경로\s*:/.test(s)) return { ok: s, wrong: s }
+  const at = s.search(/오답\s*경로\s*:/)
+  const strip = (x) => x.replace(/^\s*(?:정답|오답)\s*경로\s*:\s*/, '').trim()
+  return { ok: strip(s.slice(0, at)), wrong: strip(s.slice(at)) }
 }
 
 /** 표 머리 줄인가 — 강사 열에 **머리말 낱말**이 있으면 머리 줄이다(발화가 아니라) */
@@ -293,6 +349,53 @@ const STRUCK = (() => {
   return JSON.parse(fs.readFileSync(p, 'utf8'))
 })()
 
+/** ── 말투 덧씌우기 층 (09-03) ──
+ *
+ *  ⚠️ **여기서만 "시트가 정본" 이 깨진다.** 이 파일이 있으면 시트를 읽은 뒤 지목한 칸을
+ *  갈아 끼운다 — 화면에 나오는 말이 시트와 달라진다.
+ *
+ *  왜 이렇게 두나: 대본은 콘텐츠 파트 것이라 함부로 덮을 수 없는데, 강사 페르소나
+ *  ('재치있는 직청직해형')가 사는지는 **말이 나오는 것을 들어봐야** 판단할 수 있다.
+ *  그래서 제안본을 레포 안에서만 돌려 보고, 받아들여지면 그때 시트로 옮긴다
+ *  (scripts/tone/apply_tone.py). 그 뒤에는 이 파일을 **지운다** — 두 정본이 남으면
+ *  나중에 왜 화면과 시트가 다른지 아무도 못 짚는다.
+ *
+ *  끄는 법: `--no-tone` 또는 파일 삭제. 어느 쪽이든 바로 시트 그대로로 돌아간다. */
+const TONE = (() => {
+  if (process.argv.includes('--no-tone')) return null
+  const p = path.join(__dirname, 'tone', 'lee_doyun_wit.json')
+  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null
+})()
+
+/** 덤프의 셀 값을 제안본으로 갈아 끼운다.
+ *
+ *  열쇠는 **시트의 칸 주소**다 — `C37` = 시트 C열 37행. 시트와 같은 주소로 적어 두므로
+ *  나중에 콘텐츠 파트에 넘길 때 그대로 옮겨진다. 강의를 좌우로 나눠 담은 탭이라
+ *  LC 는 C열(홀로 선 멘트는 B), RC 는 K열(홀로 선 멘트는 J)이다.
+ *
+ *  값은 `{ 단계, 말 }` 이다 — `단계` 는 사람이 어디인지 알아보라고 적어 둔 이름표라
+ *  읽지 않는다. 실제로 얹히는 것은 `말` 뿐이다. 몇 칸을 바꿨는지 돌려준다(눈으로 세게). */
+function applyTone(tabName, values) {
+  if (!TONE || TONE['_시트']['탭'] !== tabName) return 0
+  let n = 0
+  for (const area of ['LC', 'RC']) {
+    for (const [addr, item] of Object.entries(TONE[area] || {})) {
+      const m = /^([A-Z])(\d+)$/.exec(addr)
+      if (!m) continue
+      const ci = m[1].charCodeAt(0) - 'A'.charCodeAt(0)
+      const r = Number(m[2]) - 1
+      const text = typeof item === 'string' ? item : item?.['말']
+      if (!values[r] || typeof text !== 'string') continue   // 시트에서 행이 지워졌다
+      while (values[r].length <= ci) values[r].push('')
+      /* 시트와 같은 글자면 세지 않는다 — '몇 줄을 고쳤나' 가 한눈에 보여야 한다.
+         앞뒤 공백만 다른 칸은 **고친 것이 아니다**(추출하며 다듬은 자리라 11칸이 그렇게 셌다). */
+      if (String(values[r][ci] ?? '').trim() !== text.trim()) n += 1
+      values[r][ci] = text
+    }
+  }
+  return n
+}
+
 function parse(tabName, range, section) {
   const tab = JSON.parse(fs.readFileSync(DUMP, 'utf8')).sheets.find((s) => s.name === tabName)
   if (!tab) throw new Error(`시트에 "${tabName}" 탭이 없다 — 콘텐츠팀이 탭 이름을 바꿨는지 볼 것`)
@@ -301,6 +404,9 @@ function parse(tabName, range, section) {
   for (const r of STRUCK[tabName] || []) {
     if (tab.values[r]) tab.values[r] = []
   }
+  /* 말투 제안본을 얹는다 — 취소선을 **비운 뒤**에 한다(지운 줄은 되살리지 않는다) */
+  const toned = applyTone(tabName, tab.values)
+  if (toned) console.log(`   ✎ 말투 제안본 ${toned}칸을 얹었다 — 화면 말이 시트와 다르다 (끄려면 --no-tone)`)
 
   const blocks = []
   let cur = null
@@ -314,6 +420,11 @@ function parse(tabName, range, section) {
     const head = /^유형 학습\s*\d+$/.test(c0) ? 'lesson'
       : /^실전(\s*문제)?\s*\d+$/.test(c0) ? 'practice'
       : /^도입$/.test(c0) ? 'intro'
+      /* 문항 앞의 개념 설명 구간(09-03 신설). 표 모양은 대본 표와 같지만 **문항이 없다** —
+         화면은 1번 문항을 띄운 채 진행하므로 turns 맨 앞에 focusQ 0 으로 붙는다.
+         이 머리를 모르면 '개념 학습' 이 홀로 선 제목 줄이라 앞 블록을 닫아버리고,
+         뒤따르는 S3 줄들은 주인 없는 줄이 되어 **통째로 사라진다**(실측). */
+      : /^개념\s*학습$/.test(c0) ? 'concept'
       /* 강의 끝의 정리 퀴즈. 표 모양이 대본 표와 아주 달라(번호|퀴즈|보기|정답|피드백) 따로 받는다
          — 대본 표로 읽으려 들면 머리 줄을 못 찾아 통째로 버려진다.
          **묶음이 여럿일 수 있다**: 이도윤은 '핵심 요약 (1)' 전략 · '(2)' 빈출 표현 둘로 나눠 썼다. */
@@ -431,9 +542,16 @@ function parse(tabName, range, section) {
     }
     if (!cols) continue
 
-    const tutor = clean(row[cols.tutor])
-    if (!tutor) continue        // 빈칸 줄 — 아직 안 쓴 대본이다. 버린다
     const modeRaw = cols.mode >= 0 ? row[cols.mode] : ''
+    /* ── 강사 칸이 '–' 인 줄 ── (09-03 개념학습본에서 새로 생겼다)
+       '학생 풀이' 처럼 **강사는 아무 말도 안 하고 학생만 무언가 하는** 자리다. 예전 대본은
+       여기에도 말이 있어서("맞아요. 여자가 앉아서 붓으로…") 그냥 발화로 넘겼는데, 그대로 두면
+       강사가 붙임표를 소리 내어 읽는다. 그렇다고 빈칸처럼 버리면 **문제 푸는 자리가 사라진다.**
+       → 시키는 것이 있으면 발화만 비우고 턴은 남기고, 시킬 것도 없으면 그때 버린다. */
+    const idleMode0 = !clean(modeRaw) || /^[-–—]$/.test(clean(modeRaw))
+    let tutor = clean(row[cols.tutor])
+    if (/^[-–—]$/.test(tutor)) { if (idleMode0) continue; tutor = '' }
+    else if (!tutor) continue   // 빈칸 줄 — 아직 안 쓴 대본이다. 버린다
 
     /* ── 갈래를 **두 줄로 나눠 적은 꼴** ──
        콘텐츠팀은 보통 한 칸에 "(정답) … (오답) …" 을 같이 적는데, 줄을 나눠 적은 곳이 있다
@@ -443,22 +561,43 @@ function parse(tabName, range, section) {
     const prevTurn = cur.turns[cur.turns.length - 1]
     const loneWrong = RE_LONE_NG.test(tutor)
     const prevLoneOk = prevTurn && RE_LONE_OK.test(prevTurn.tutor) && !RE_ANY_NG.test(prevTurn.tutor)
-    const idleRow = !clean(modeRaw) || /^[-–]$/.test(clean(modeRaw))
-    if (loneWrong && prevLoneOk && idleRow && !prevTurn.wrongLine) {
+    if (loneWrong && prevLoneOk && idleMode0 && !prevTurn.wrongLine) {
       prevTurn.wrongLine = tutor.replace(RE_STRIP_NG, '')
       continue
     }
 
     const sampleRaw = cols.sample >= 0 ? row[cols.sample] : ''
-    cur.turns.push({
-      stage: clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업',
-      tutor,
-      mode: normMode(modeRaw),
+    const stage = clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업'
+    const mk = (say, modeCell, sampleCell, gate) => ({
+      stage,
+      tutor: say,
+      mode: normMode(modeCell),
       /* 선택지·짚을 낱말은 정규화 전 원문에서 뽑는다 — 방식 칸이 선택지까지 담고 있다 */
-      modeRaw: clean(modeRaw),
-      sampleRaw: clean(sampleRaw),
-      samples: samples(sampleRaw),
+      modeRaw: clean(modeCell),
+      sampleRaw: clean(sampleCell),
+      samples: samples(sampleCell),
+      ...(gate ? { gate } : {}),
     })
+
+    /* ── 오답 경로 열이 채워진 줄 → **두 턴으로 나눠 담는다** (09-04 정오답분기) ──
+       이 열은 "문항을 틀린 학생이 걷는 길" 이고, 채점부터 S5 까지 **여러 줄에 걸쳐** 이어진다.
+       그래서 tutorIfWrong 으로 담으면 안 된다 — 그쪽은 **직전 답 하나**(prevOk)만 보는 장치라,
+       채점 줄에서 한 번 쓰이고 지워져서 그다음 S3·S5 는 정답 문구로 돌아가 버린다.
+       화면에 이미 있는 gate(ifCorrect/ifWrong)로 담는다. 그건 '고른 보기가 정답인가' 라는
+       화면에 남은 사실을 보므로 사이에 몇 턴이 껴도 흔들리지 않는다(shouldPlay).
+       ⚠️ 칸 **안**의 "(적절한 답변)/(부적절한 답변/모름)" 은 이것과 다른 갈래다 —
+          그건 직전 스캐폴딩 답에 대한 반응이라 예전대로 tutorIfWrong 으로 간다(branchOf). */
+    const wrongRaw = cols.wrong >= 0 ? row[cols.wrong] : ''
+    const wrongSay = clean(wrongRaw)
+    if (wrongSay && !/^[-–—]$/.test(wrongSay)) {
+      const m = pathSplit(modeRaw)
+      const s = pathSplit(sampleRaw)
+      /* 정답 경로 칸이 '–' 인 줄이 있다(S5 피드백) — 맞힌 학생에게는 할 말이 없는 자리다 */
+      if (tutor) cur.turns.push(mk(tutor, m.ok, s.ok, 'ifCorrect'))
+      cur.turns.push(mk(wrongSay, m.wrong, s.wrong, 'ifWrong'))
+      continue
+    }
+    cur.turns.push(mk(tutor, modeRaw, sampleRaw, null))
   }
   /* 빈 껍데기는 버린다. note 는 turns·script 가 없지만 text 하나로 뜻이 있으므로 남긴다 */
   return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length || b.text)
@@ -475,9 +614,17 @@ const SPOKEN_KO = {
   'be + -ing': ['비 아이엔지', '비잉', 'be ing', 'be -ing'],
   'be p.p.': ['비 피피', '비피피'],
   'be + p.p.': ['비 피피', '비피피'],
-  'have been + p.p.': ['해브 빈 피피', '해브빈 피피', '해브 빈 피 피'],
-  'be being + p.p.': ['비 비잉 피피', '비빙 피피', '비 빙 피피'],
+  'have been + p.p.': ['해브 빈 피피', '해브빈 피피', '해브 빈 피 피', '해브 해즈 빈 피피',
+    '해브해즈 빈 피피', '헤브 빈 피피', 'have has been pp', 'have been pp'],
+  'has been + p.p.': ['해즈 빈 피피', '해즈빈 피피'],
+  'be being + p.p.': ['비 비잉 피피', '비빙 피피', '비 빙 피피', '비 비잉 피 피', 'be being pp'],
 }
+
+/** 답 표기 → 발음 목록의 열쇠.
+ *  시트는 대체형을 **괄호로** 적는다("have(has) been + p.p."). 괄호 안은 읽는 말이 아니라
+ *  '이렇게 써도 된다' 는 표시다 — 떼지 않으면 목록에 있는데도 못 찾아서, 한국어로 말한 학생이
+ *  영영 못 맞힌다(실측 09-03: 핵심요약 2번이 그 자리였다). */
+const spokenKeyOf = (x) => String(x).toLowerCase().replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
 
 /** 핵심요약 한 줄 → 정리 카드 하나.
  *    "사람 중심 사진 → 사람의 (    ) 확인" | "① 위치 ② 동작 ③ 주변 사물" | "② 동작" | "맞아요. …"
@@ -514,7 +661,7 @@ function toRecapCard(q, id) {
   const altsOf = (a) => a.split(/\s*(?:또는|\/|,)\s*/).map((x) => clean(x)).filter(Boolean)
   const blankOf = (a) => {
     const alts = altsOf(a)
-    const spoken = alts.flatMap((x) => SPOKEN_KO[x.toLowerCase()] || [])
+    const spoken = alts.flatMap((x) => SPOKEN_KO[spokenKeyOf(x)] || [])
     return { answer: alts[0], keywords: Array.from(new Set([...alts.map((x) => x.toLowerCase()), ...spoken])) }
   }
 
@@ -623,12 +770,24 @@ function labelsOf(t) {
       '⑂ 정답/오답 갈래' 개수를 시트와 대조하면 새는 것을 잡을 수 있다. */
 /* ⚠️ **정규식 리터럴로 쓴다.** 문자열을 이어 붙여 `new RegExp` 로 만들면 백슬래시가 한 겹
       깎여(`\s` → `s`) 아무것도 안 걸리는데, 에러는 안 난다 — 그냥 조용히 다 통과한다(실측 09-01). */
-const RE_PAIR = /\(\s*(?:정답|맞았을\s*경우|맞은\s*경우)\s*\)\s*([\s\S]+?)\s*\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)\s*([\s\S]+)$/
-const RE_LONE = /^\(\s*(?:정답|오답|맞았을\s*경우|틀렸을\s*경우|맞은\s*경우|틀린\s*경우)\s*\)\s*([\s\S]+)$/
-const RE_LONE_NG = /^\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)/
-const RE_LONE_OK = /^\(\s*(?:정답|맞았을\s*경우|맞은\s*경우)\s*\)/
-const RE_ANY_NG = /\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)/
-const RE_STRIP_NG = /^\(\s*(?:오답|틀렸을\s*경우|틀린\s*경우)\s*\)\s*/
+/* ⚠️ 2026-09-04 '정오답분기'(윤다은)에서 표기가 셋 더 늘었다. 세 쌍 모두 **학생이 방금 한 답**을
+   두고 가르는 말이지 문항 정오답이 아니다 — 문항 쪽은 이제 '오답 경로' 열이 맡는다.
+     · (적절한 답변) / (부적절한 답변/모름)      30쌍 — 스캐폴딩 질문 피드백
+     · (근거를 정확히 말함) / (근거를 못 찾음/틀림)  2쌍 — S5 피드백(말하기)
+     · (B 재선택) / (다시 오답)                  7쌍 — 다시 풀렸을 때
+   ⚠️ '(적절한 답변)' 이 '(부적절한 답변…)' 안에도 들어 있지만, 여는 괄호 바로 뒤(`\(\s*`)에서
+      재므로 서로 걸리지 않는다 — '부' 가 먼저 오기 때문이다. 순서를 흩뜨리지 말 것. */
+const OK_TAG = '정답|맞았을\\s*경우|맞은\\s*경우|적절한\\s*답변|근거를\\s*정확히\\s*말함|[A-D]\\s*재선택'
+const NG_TAG = '오답|틀렸을\\s*경우|틀린\\s*경우|부적절한\\s*답변(?:\\s*\\/\\s*모름)?|근거를\\s*못\\s*찾음(?:\\s*\\/\\s*틀림)?|다시\\s*오답'
+/* ⚠️ 여기만은 **문자열을 이어 붙여 만든다** — 표기가 세 벌이라 리터럴로 쓰면 같은 목록을
+   여섯 번 베껴 적게 되고, 하나를 빠뜨리면 그 갈래만 조용히 샌다. 대신 위 두 상수의
+   백슬래시는 **두 겹으로 적는다**(`\\s`). 한 겹으로 적으면 문자열에서 깎여 아무것도 안 걸린다. */
+const RE_PAIR = new RegExp(`\\(\\s*(?:${OK_TAG})\\s*\\)\\s*([\\s\\S]+?)\\s*\\(\\s*(?:${NG_TAG})\\s*\\)\\s*([\\s\\S]+)$`)
+const RE_LONE = new RegExp(`^\\(\\s*(?:${OK_TAG}|${NG_TAG})\\s*\\)\\s*([\\s\\S]+)$`)
+const RE_LONE_NG = new RegExp(`^\\(\\s*(?:${NG_TAG})\\s*\\)`)
+const RE_LONE_OK = new RegExp(`^\\(\\s*(?:${OK_TAG})\\s*\\)`)
+const RE_ANY_NG = new RegExp(`\\(\\s*(?:${NG_TAG})\\s*\\)`)
+const RE_STRIP_NG = new RegExp(`^\\(\\s*(?:${NG_TAG})\\s*\\)\\s*`)
 
 function branchOf(tutor) {
   const t = clean(tutor)
@@ -677,6 +836,10 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   const base = kind === 'lesson'
     ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx }
     : { no, stage: t.stage, tutor, focusQ: qIdx }
+  /* S6 는 **어느 보기 이야기인지**를 달고 다닌다 — 화면이 학생이 고른 오답 하나와
+     후속 질문으로 고른 하나만 골라 틀기 때문이다(build 의 orderTurns). 단계명에 적혀 있다. */
+  if (t.optionRef) base.optionRef = t.optionRef
+  if (t.gate) base.gate = t.gate
   if (cue) base.audio = { kind: 'option', qIdx, label: cue.label }
   /* 다음 줄에 따로 적혀 있던 (오답) 갈래 — parse 가 앞 턴에 붙여 온다 */
   if (t.wrongLine) {
@@ -694,6 +857,11 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   const [first, ...rest] = t.samples
 
   switch (t.mode) {
+    case '보기고르기':
+      /* 후속 질문 — 채점하는 자리가 아니라 **뭐를 더 들을지 고르는** 자리다.
+         choice 로 만들면 정답 표시가 하나도 없어 **무엇을 눌러도 오답 처리**된다(실측).
+         이미 들은 보기를 목록에서 빼는 것은 화면이 한다 — 대본은 전부를 적어 둔다. */
+      return { ...base, interaction: { kind: 'askOption', prompt: askOf(t.tutor), choices: askOptions(t.modeRaw) } }
     case 'A~D':
       /* 정답 고르기. LC 는 네 보기를 **들려주고** 고르게 한다(보기 음원은 교재에서 잘라 둔 것).
          RC Part 5 는 보기가 화면의 글자라 음원을 붙이면 안 된다 — 붙이면 없는 mp3 를 찾다가
@@ -738,6 +906,80 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
     default:   // 듣기 — 학생이 할 일이 없다
       return { ...base, interaction: { kind: 'next' } }
   }
+}
+
+/** ── 대본 줄 순서 → **재생 순서** ── (09-03 개념학습본)
+ *
+ *  이 생성기에서 처음으로 **시트에 적힌 순서를 그대로 쓰지 않는 곳**이다.
+ *  시트는 S6 오답 제거를 A·C·D 순으로 죽 적어 두지만, 새 대본은 그걸 다 틀지 않는다:
+ *
+ *    맞혔으면 → 후속 질문에서 고른 것만
+ *    틀렸으면 → 학생이 고른 오답을 먼저, 그다음 후속 질문에서 고른 것
+ *
+ *  그래서 S6 묶음을 **두 벌 내보낸다.** 한 벌은 후속 질문 앞(`ifPicked` — 학생이 고른 오답),
+ *  한 벌은 뒤(`onDemand` — 후속 질문으로 고른 것). 화면은 조건에 안 맞는 턴을 건너뛴다.
+ *
+ *  왜 화면에서 뒤로 점프하지 않고 두 벌을 내보내나 — 앞뒤로 오가는 진행은 되짚기 어렵고,
+ *  미리 만들어 두는 음원은 **글자가 같으면 같은 파일**이라(ttsCacheKey 가 내용 해시다)
+ *  두 벌이어도 mp3 는 한 벌만 생긴다. 늘어나는 것은 JSON 크기뿐이다.
+ *
+ *  ⚠️ 같은 보기의 S6 가 **여러 줄**인 경우가 있다(질문 줄 + 풀이 줄). 이어진 줄은 한 묶음이다.
+ *  ⚠️ 후속 질문이 없는 대본(윤다은·옛 이도윤)은 손대지 않는다 — 그쪽은 S6 를 다 튼다.
+ */
+/** ── 채점 뒤에 **길이 갈린다** (RC 만) ──
+ *
+ *  시트 머리말이 이렇게 적어 두었다:
+ *    정답일 때는 S5 → 후속 질문 → …
+ *    오답일 때는 S4 → 후속 질문 → …
+ *
+ *  맞힌 학생에게는 S5 로 근거만 짧게 확인하고, 틀린 학생에게는 S4 로 판단을 처음부터
+ *  다시 세운다. 둘 다 틀면 **같은 낱말에 동그라미를 두 번 치게 된다** — RC 1번이 그랬다
+ *  ('빈칸 앞에 are에 동그라미' 가 S5 에 한 줄, S4 에 또 한 줄).
+ *
+ *  LC 는 S4 가 아예 없어서 저절로 아무 일도 안 한다. 실전 블록은 채점 줄이 없어(이미 풀고 온다)
+ *  건드리지 않는다 — 거기는 시트대로 S2 → S4 → S5 를 차례로 다 지난다. */
+function splitVerdict(rows) {
+  /* ── 시트가 길을 **직접 적어 뒀으면 손대지 않는다** (09-04 정오답분기) ──
+     아래는 단계 이름만 보고 길을 짐작하는 규칙이다. 그런 규칙이 필요했던 건 시트에 갈래가
+     안 적혀 있었기 때문이고, 이제 윤다은 탭은 '오답 경로' 열로 줄마다 적는다.
+     그 탭에 이 짐작을 마저 걸면 **공통 줄까지 한쪽 길로 끌려간다** — RC 3번의
+     'S4 시제 확인'·'S4 피드백' 은 오답 경로가 비어 있는(=둘 다 듣는) 줄인데
+     'S4 니까 틀린 길' 로 묶여서 맞힌 학생이 시제 단계를 통째로 건너뛰었다(실측 09-04). */
+  if (rows.some((t) => t.gate)) return rows
+  const gradeAt = rows.findIndex((t) => /^채점/.test(t.stage))
+  if (gradeAt < 0) return rows
+  /* 갈래가 닫히는 자리 — 첫 S6(오답 제거)이나 후속 질문. 거기서부터는 다시 한 길이다 */
+  const stop = rows.findIndex((t, i) => i > gradeAt && (/^S6/.test(t.stage) || t.mode === '보기고르기'))
+  const end = stop < 0 ? rows.length : stop
+  const seg = rows.slice(gradeAt + 1, end)
+  if (!seg.some((t) => /^S5/.test(t.stage)) || !seg.some((t) => /^S4/.test(t.stage))) return rows
+  return rows.map((t, i) => {
+    if (i <= gradeAt || i >= end) return t
+    /* 시트가 '오답 경로' 열로 **직접 갈래를 적어 둔 줄**은 그대로 둔다 (09-04 정오답분기).
+       여기서 덮으면 단계 이름만 보고 고른 짐작이 시트가 적은 것을 이긴다. */
+    if (t.gate) return t
+    if (/^S5/.test(t.stage)) return { ...t, gate: 'ifCorrect' }
+    if (/^S4/.test(t.stage)) return { ...t, gate: 'ifWrong' }
+    return t
+  })
+}
+
+function orderTurns(rows0) {
+  const rows = splitVerdict(rows0)
+  const askAt = rows.findIndex((t) => t.mode === '보기고르기')
+  if (askAt < 0) return rows
+
+  const head = []
+  const groups = []
+  for (const t of rows.slice(0, askAt)) {
+    const m = /[-–(]\s*([A-D])\s*\)?\s*$/.exec(t.stage)
+    if (!m) { head.push(t); continue }
+    const last = groups[groups.length - 1]
+    if (last && last.label === m[1]) last.rows.push(t)
+    else groups.push({ label: m[1], rows: [t] })
+  }
+  const stamp = (gate) => groups.flatMap((g) => g.rows.map((t) => ({ ...t, optionRef: g.label, gate })))
+  return [...head, ...stamp('ifPicked'), rows[askAt], ...stamp('onDemand'), ...rows.slice(askAt + 1)]
 }
 
 function build(src) {
@@ -790,23 +1032,30 @@ function build(src) {
 
   for (const b of blocks) {
     if (['intro', 'recap', 'preface', 'result', 'note'].includes(b.kind)) continue
-    const lesson = b.kind === 'lesson'
+    /* 개념 학습 — 문항 앞의 설명 구간(09-03 신설). 문항이 없지만 화면은 **1번 문항을 띄운 채**
+       진행하므로 focusQ 0 을 달아 수업 턴 맨 앞에 붙인다(블록 순서상 저절로 앞이다). */
+    const concept = b.kind === 'concept'
+    const lesson = b.kind === 'lesson' || concept
     if (!lesson && src.skipPractice) continue      // 실전 대본이 미완이라 통째로 버린다
-    const qIdx = lesson ? lessonSeq++ : practiceSeq++
+    const qIdx = concept ? 0 : lesson ? lessonSeq++ : practiceSeq++
     const target = lesson ? out.turns : out.review
-    console.log(`\n[${lesson ? '유형 학습' : '실전'} ${qIdx + 1}] ${b.srcCode || '(코드 없음)'}`
-      + `${b.answer ? `  정답 ${b.answer}` : ''} — ${b.turns.length}턴`)
-    for (const [ti, t] of b.turns.entries()) {
-      const turn = toTurn(t, qIdx, ++no, qIdx + 1, b.kind, audible, b.turns[ti + 1]?.tutor)
+    /* 줄 순서 ≠ 재생 순서 — S6 를 두 벌로 갈라 내보낸다(orderTurns) */
+    const rows = orderTurns(b.turns)
+    console.log(`\n[${concept ? '개념 학습' : lesson ? '유형 학습' : '실전'}${concept ? '' : ` ${qIdx + 1}`}] ${b.srcCode || '(코드 없음)'}`
+      + `${b.answer ? `  정답 ${b.answer}` : ''} — ${b.turns.length}줄 → ${rows.length}턴`)
+    for (const [ti, t] of rows.entries()) {
+      const turn = toTurn(t, qIdx, ++no, qIdx + 1, lesson ? 'lesson' : b.kind, audible, rows[ti + 1]?.tutor)
       const k = turn.interaction.kind
       const extra = k === 'choice'
         ? ` [${turn.interaction.choices.map((c) => c.text + (c.correct ? '✓' : '')).join(' / ')}]`
         : k === 'mark' ? ` ✎ ${turn.interaction.targetWords.join(' | ')}`
         : k === 'subjective' && turn.interaction.accepts ? ` (예시 ${turn.interaction.accepts.length}개)` : ''
       const rv = turn.reveal ? `  스크립트 열림 ${turn.reveal.optionText[0].labels.join('')}` : ''
+      const GATE_LABEL = { ifPicked: '고른 오답일 때', onDemand: '후속질문으로', ifCorrect: '맞혔을 때만', ifWrong: '틀렸을 때만' }
+      const gt = turn.gate ? `  [${turn.optionRef ? `${turn.optionRef} · ` : ''}${GATE_LABEL[turn.gate]}]` : ''
       const au = turn.audio?.kind === 'option' ? `  ♪ ${turn.audio.label} 보기 음원` : ''
       const br = turn.tutorIfWrong ? '  ⑂ 정답/오답 갈래' : ''
-      console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${au}${br}${rv}`)
+      console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${au}${br}${rv}${gt}`)
       target.push(turn)
     }
   }

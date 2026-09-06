@@ -139,8 +139,24 @@ export const INST_PERSONA: Record<string, string> = {
    전용 목소리가 아직 없는 강사(서지안·오정자)는 박혜원 것으로 폴백한다. */
 export const INST_VOICE: Record<string, string> = {
   park_hyewon: 'aKMUzTQk58byFPNhpATt',
-  yun_daeun: 'xA5124tsajl7VRTHpFxg', // 한·영 발음용으로 새로 뽑은 목소리 (이전 QPFsEL6IBxlT15xfiD6C)
-  lee_doyun: 'DTEeVx29gq12EJ7qBYaP', // 억양을 살려 다시 뽑은 목소리 (앞선 후보 1HhRIC9l… 은 단조로웠다)
+  /* 09-04 Voice Design — 페르소나를 '하이텐션·에너제틱'으로 다시 잡고 뽑았다.
+     앞선 것(xA5124ts…)은 한·영 발음은 좋았지만 평탄해서 대본의 추임새가 살지 않았다.
+     ⚠️ **목소리를 바꾸면 미리 만들어 둔 mp3 가 전부 옛 목소리다.** 캐시 키(ttsCacheKey)에
+        목소리 id 가 안 들어가서 저절로 무효가 되지 않는다 — 이도윤 때 '맞아요!' 하나가
+        09-01 파일로 계속 나갔다(09-04 실측). 바꾼 뒤 반드시:
+          npm run tts:scripted -- --force --only yun_daeun */
+  yun_daeun: 'EMjgk2C9nKEyVn4jcKgb',
+  /* 09-04 Voice Design — 앞선 것(8RPnlah…)은 **단조로웠다.** 원인은 목소리가 아니라
+     생성 프롬프트였다: `lands the turn low and flat` · `endings fall away` ·
+     `half-muttering` 처럼 **평평하게 만드는 지시가 대부분**이었다(능청스러운 재치로 잡았다).
+     이번엔 반대로 적었다 — 속도와 높낮이를 기본값으로 박고(`Fast is his resting speed`,
+     `pitch jumps most of an octave inside a sentence`), 재미를 형용사가 아니라 행동으로
+     적었다(`He does voices`, `a laugh breaks out mid-sentence`).
+     ⚠️ 그렇게만 하면 **화난 사람처럼 들린다**(실측). 크기가 무슨 감정인지 안 정해주면 모델이
+        화로 채운다 — `Loud is always delight, never anger` 를 반드시 같이 둘 것.
+     앞선 후보들: 1HhRIC9l… 단조로움 / DTEeVx29… 문장을 붙여 읽음 /
+       maBx36AA… 강약이 없어 stability 0.20 까지 내렸다가 발음이 뭉갰다. */
+  lee_doyun: 'A04xgnVThMJQRxAEIz1O',
 }
 
 /* ── 강사 → ElevenLabs TTS 모델 ──
@@ -159,7 +175,24 @@ export const INST_TTS_MODEL: Record<string, string> = {
    ⚠️ v3 는 `<break time=…>` 를 받지 않는다(v2 계열만 된다). `[pause]` 같은 태그는 모델이
       **그대로 소리내어 읽어 버리는** 사고가 있어 쓰지 않는다. 줄바꿈은 그냥 글자라 그 사고가 없다.
    실제 처리는 api/tts 가 한다 — **읽을 때만** 벌리고 화면 글자는 그대로다. */
-export const INST_SENTENCE_PAUSE: Record<string, boolean> = {
+/* ⚠️ 09-03 — 이도윤은 **껐다.** 이 플래그는 두 목소리 전(DTEeVx29…)이 문장을 거의 붙여
+   읽어서 켠 것이다. 지금 목소리(8RPnlah…)는 "문장 사이에 진짜 숨" 을 넣어서 뽑았기 때문에
+   스스로 쉰다 — 거기에 `
+
+` 을 또 넣으면 모든 문장이 똑같이 느려져서, 빨리 지나가야 할
+   자리까지 늘어진다(실측: 같은 줄 14.1초 → 12.1초).
+   되돌리려면 여기를 true 로 하고 `--force` 로 다시 만들면 된다. */
+export const INST_SENTENCE_PAUSE: Record<string, boolean> = {}
+
+/* ── v3 오디오 태그를 끼워 넣을 강사 ──
+   v3 는 `[curious]` 처럼 **대괄호 태그로 연기 지시**를 받는다. 일레븐랩스 UI 의 'Enhance'
+   버튼이 이걸 자동으로 넣어 주는데 **API 는 없다** — 그래서 우리가 직접 넣는다(ttsText.applyAudioTags).
+
+   ⚠️ **문서에 있는 태그만 쓴다.** 없는 태그는 모델이 그대로 소리내어 읽는다 — 예전에
+      `[pause]` 를 넣었다가 강사가 "포즈" 라고 읽은 사고가 그것이다(`[pause]` 는 애초에
+      존재하지 않는 태그다). 쓸 수 있는 목록은 ttsText.V3_TAGS 에 적어 두었다.
+   ⚠️ v3 에서만 건다. multilingual v2 는 태그를 모르니 통째로 읽는다. */
+export const INST_AUDIO_TAGS: Record<string, boolean> = {
   lee_doyun: true,
 }
 
