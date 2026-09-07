@@ -3785,6 +3785,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       open={dockMode === 'bottom' ? 'right' : 'up'}
       /* 표시(mark) 턴 = 필기로 짚어보라는 단계 — 다 짚기 전까지 버튼이 뛴다 */
       attention={turn.interaction.kind === 'mark' && !markDone}
+      /* 긋기 시작하면 도구 판이 접힌다 — 그래야 판이 지문·보기를 안 가린다 */
+      strokeCount={draw.strokeCount}
       tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />
   )
 
@@ -4838,6 +4840,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
       {/* 필기 — 수업과 같은 좌하단 연필 버튼. 실전이야말로 지문에 밑줄 긋고 사진에 동그라미 치는 단계다.
           다만 실전에는 하단에 제출/채점 바가 깔려 있어 기본 위치(bottom-5)면 그 바를 덮는다 → 그만큼 올린다. */}
       <PenFab drawMode={draw.drawMode} toggleDraw={draw.toggleDraw} bottomClass="bottom-20"
+        strokeCount={draw.strokeCount}
         tool={draw.tool} setTool={draw.setTool} clearCanvas={draw.clearCanvas} setDrawMode={draw.setDrawMode} />
       <DrawingOverlay {...draw} bounds={contentRef} hidePalette />
     </div>

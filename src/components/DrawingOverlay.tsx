@@ -346,12 +346,19 @@ export function DrawPalette({ className, ...p }: PaletteProps & { className?: st
 }
 
 /* ── 연필 FAB — 동그란 버튼 하나가 도구 바를 품고 있다 ──
-   상단 도구줄의 '필기' 버튼을 대신한다. 누르면 옆으로 도구 바가 쭉 늘어나고, 다시 누르면 접힌다.
-   필기는 지문 위에서 하는 일이라 도구도 지문 가까이(화면 좌하단)에 둔다. */
-export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass = 'bottom-5', anchor = 'fixed', open = 'up', ...p }: PaletteProps & {
+   상단 도구줄의 '필기' 버튼을 대신한다. 필기는 지문 위에서 하는 일이라 도구도 지문 가까이
+   (화면 좌하단)에 둔다.
+
+   한 번 누르면 필기가 켜지면서 도구 판이 펴지고, **도구를 고르거나 긋기 시작하면 접힌다** —
+   판이 떠 있는 동안은 화면 왼쪽 글자를 가리기 때문이다(아래 '떠 있는 시간' 참고).
+   접힌 뒤로 그 버튼은 판을 다시 여는 문이 되고, 펴져 있을 때 누르면 필기가 꺼진다. */
+export function PenFab({ drawMode, toggleDraw, attention, strokeCount, className, bottomClass = 'bottom-5', anchor = 'fixed', open = 'up', ...p }: PaletteProps & {
   drawMode: boolean; toggleDraw: () => void
   /** 지금 단계가 "필기해 보세요"인가 — 버튼 주변을 뛰게 해 여기를 누르라고 알린다 */
   attention?: boolean; className?: string
+  /** 지금까지 그은 획 수 — **늘어나면 도구 판을 접는다**(아래 '떠 있는 시간' 참고).
+   *  안 넘기면 도구를 고를 때만 접힌다. 있으면 넘기는 편이 낫다. */
+  strokeCount?: number
   /** 무엇을 기준으로 앉는가. `pane` 은 가장 가까운 relative 칸 — 강사 판이
    *  화면 아래를 차지하는 세로 배치에서는 화면 기준(fixed)으로 두면 그 판 위에 올라앉는다 */
   anchor?: 'fixed' | 'pane'
@@ -363,6 +370,37 @@ export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass
   bottomClass?: string
 }) {
   const nudge = !!attention && !drawMode
+
+  /* ── 도구 판은 **고르는 동안만** 떠 있다 (09-07) ──
+     예전에는 필기가 켜져 있는 내내 판이 떠 있었다. 그런데 판은 화면 왼쪽 16~62px 를 세로로
+     먹는데, 수업 칸은 x=0 에서 시작하고 안쪽 여백이 24px 뿐이라 **글자와 그대로 겹친다**
+     (실측: Part 1 수업은 `max-w-none`, Part 7 좌우 지문은 `max-w-[1440px]` 이라 왼쪽 여백이 없다).
+     방향을 옆으로 눕히는 것은 되돌아가는 길이다 — 원래 옆으로 폈다가 보기 D 를 덮어서 세로로
+     세운 자리다(09-01). 그래서 **방향이 아니라 떠 있는 시간**을 줄인다.
+     판이 하는 일은 '무엇으로 그릴지 한 번 고르기' 뿐이라, 고르고 나면 볼 일이 없다. */
+  const [expanded, setExpanded] = useState(false)
+  /* 필기를 켜면 펴고, 끄면 접는다 */
+  useEffect(() => { setExpanded(drawMode) }, [drawMode])
+  /* 긋기 시작하면 접는다 — 기본 도구가 연필이라 **고르지 않고 바로 긋는** 쪽이 흔하다.
+     ⚠️ 획 수는 필기를 껐다 켜도 그대로 남는다. 그래서 '늘어났을 때' 만 접는다 —
+        위 효과가 켤 때 펴 준 것을 이 효과가 곧바로 도로 접으면 안 된다. */
+  const strokes = strokeCount ?? 0
+  const seen = useRef(strokes)
+  useEffect(() => {
+    if (strokes > seen.current) setExpanded(false)
+    seen.current = strokes
+  }, [strokes])
+
+  /* 도구를 고르거나 다 지우면 접는다 — 판을 여닫는 일과 도구를 고르는 일이 한 번의 탭으로 끝난다 */
+  const fold = <T extends (...args: never[]) => void>(fn: T) =>
+    ((...args: Parameters<T>) => { fn(...args); setExpanded(false) }) as T
+
+  /** 판이 펴져 있는가 — 연필 버튼의 뜻이 여기서 갈린다.
+   *  접혀 있으면 그 버튼은 **판을 여는 문**이고(연필 그림), 펴져 있으면 **필기를 끄는 문**이다(X).
+   *  필기를 끄러 두 번 눌러야 하는 셈인데, 수업·실전 모두 `tapThrough` 라 답을 고르려고 필기를
+   *  끌 일이 없다 — 끄기는 드물고, 지우개를 다시 꺼내는 쪽이 잦다. */
+  const showTools = drawMode && expanded
+
   return (
     /* ── 도구는 **위로 쌓는다** ──
        옆으로 늘어나던 때는 도구 바가 문제 영역을 가로질러 **보기 D 를 덮었다**(실측 09-01,
@@ -375,29 +413,36 @@ export function PenFab({ drawMode, toggleDraw, attention, className, bottomClass
                        [&>*]:shrink-0 duration-200 ${
         open === 'right'
           ? `flex-row items-center transition-[max-width,opacity,padding] ${
-            drawMode ? 'max-w-[280px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
+            showTools ? 'max-w-[280px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
               : 'max-w-0 opacity-0 py-1.5 px-0 border-0'}`
           : `flex-col items-stretch transition-[max-height,opacity,padding] ${
-            drawMode ? 'max-h-[240px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
+            showTools ? 'max-h-[240px] opacity-100 p-1.5 border border-[#E5E7EB] shadow-lg'
               : 'max-h-0 opacity-0 px-1.5 py-0 border-0'}`
       }`}>
-        <PaletteButtons {...p} minimal row={open === 'right'} />
+        <PaletteButtons {...p} setTool={fold(p.setTool)} clearCanvas={fold(p.clearCanvas)}
+          minimal row={open === 'right'} />
       </div>
       <div className="flex items-center gap-2">
       <div className="relative shrink-0">
         {/* 퍼지는 링 — 필기를 시켜놓고 도구가 어디 있는지 모르면 수업이 멈춘다 */}
         {nudge && <span className="absolute inset-0 rounded-full bg-[#F97316]/40 animate-ping pointer-events-none" />}
-        <button onClick={toggleDraw} title={drawMode ? '필기 끄기' : '필기'}
-          aria-label={drawMode ? '필기 도구 닫기' : '필기 도구'}
+        <button
+          /* 접혀 있을 때는 **판을 다시 편다** — 잘못 그어 지우개를 꺼내는 자리다.
+             껐다 켜게 하면(그것도 두 번 탭이다) 도구가 연필로 되돌아가 지우개를 또 골라야 한다. */
+          onClick={() => (drawMode && !expanded ? setExpanded(true) : toggleDraw())}
+          title={showTools ? '필기 끄기' : drawMode ? '필기 도구' : '필기'}
+          aria-label={showTools ? '필기 도구 닫기' : '필기 도구'}
           className={`relative w-12 h-12 rounded-full flex items-center justify-center border shadow-lg transition-colors ${
             drawMode ? 'bg-[#F97316] border-[#F97316] text-white'
               : nudge ? 'bg-[#FFF7ED] border-[#F97316] text-[#F97316] ring-4 ring-[#F97316]/20'
                 : 'bg-white border-[#E5E7EB] text-[#F97316] hover:bg-[#FFF7ED]'
           }`}>
           {/* 펴 놓았을 때는 **X** 다 — 바로 위 도구 판의 첫 칸도 주황 연필이라, 여기까지 연필이면
-              같은 그림이 둘로 겹쳐서 어느 쪽이 끄는 문인지 알 수 없다(실측 09-01). */}
+              같은 그림이 둘로 겹쳐서 어느 쪽이 끄는 문인지 알 수 없다(실측 09-01).
+              접어 놓았으면 겹칠 그림이 없으니 연필로 돌아온다 — 그 자리에서 누르면 판이 다시 펴진다.
+              필기 중이라는 신호는 그림이 아니라 **주황으로 찬 배경**이 준다. */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {drawMode
+            {showTools
               ? <path d="M18 6L6 18M6 6l12 12" />
               : <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></>}
           </svg>
