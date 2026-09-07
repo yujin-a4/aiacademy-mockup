@@ -21,7 +21,15 @@ export const DEFAULT_TTS_MODEL = 'eleven_multilingual_v2'
 export const TTS_PARAMS: Record<string, { speed: number; stability: number; similarity_boost: number }> = {
   park:    { speed: 1.2, stability: 0.30, similarity_boost: 0.80 },
   jang:    { speed: 1.1, stability: 0.50, similarity_boost: 0.75 },
-  kim:     { speed: 1.0, stability: 0.60, similarity_boost: 0.75 },
+  /* ⚠️ v3 의 stability 는 세 구간이다 — 0.0 Creative(표현이 살지만 **헛소리가 난다**),
+     0.5 Natural(원본 녹음에 가장 가까움), 1.0 Robust(안정적이지만 v2 처럼 밋밋하고
+     **오디오 태그에 반응하지 않는다**).
+     0.60 → 0.20 → 0.5 → 0.4 로 온 자리다. 0.60 은 밋밋했고, 0.20 은 발음이 자주 뭉갰다.
+     강약을 안정성으로 사려던 것이 잘못이었다 — 강약은 **목소리 자체가** 갖고 있어야 한다.
+     그렇게 다시 뽑은 목소리(8RPnlah…)에 0.5 와 0.3 을 들어보고 그 사이로 정했다(09-03).
+     ⚠️ 1.0 으로는 올리지 말 것 — [whispers]·[excited] 태그가 통째로 안 먹는다.
+     ⚠️ 이 값은 캐시 키에 안 들어간다 — 바꾸면 `--force` 로 다시 만들어야 소리가 바뀐다. */
+  kim:     { speed: 1.0, stability: 0.40, similarity_boost: 0.75 },
   p6tutor: { speed: 1.0, stability: 0.50, similarity_boost: 0.80 },
 }
 
@@ -69,11 +77,67 @@ const IPA: Record<string, string> = {
   tie: '/taɪ/',
 }
 
+/** 이 자리의 앞이나 뒤가 **또 다른 영어**인가 (사이의 공백은 넘어간다). */
+function besideEnglish(text: string, at: number, len: number): boolean {
+  return /[A-Za-z]\s?$/.test(text.slice(0, at)) || /^\s?[A-Za-z]/.test(text.slice(at + len))
+}
+
+/** IPA 를 끼운다 — **다만 옆이 영어면 그대로 둔다** (09-07 실측).
+ *
+ *  이 표는 한국어 문장에 홀로 낀 영어를 한글로 읽어 버리는 것을 막으려고 넣었다
+ *  ("are" → [아레], "be" → [베]). 그 자리에서는 지금도 잘 듣는다.
+ *
+ *  그런데 **뒤에 영어가 이어지는 자리**에서는 오히려 탈이 났다 — 슬래시가 낱말 사이를
+ *  갈라서 "에이의 /ɑːr/ standardizing은" 이 "are (한 박) standardizing" 으로 끊겼다.
+ *  거기서는 이미 영어 문맥이라 IPA 가 없어도 영어로 읽는다(견본 대조 확인).
+ *  슬래시만 뗀 꼴(`ɑːr standardizing`)은 더 이상했다 — 표기가 문제가 아니라 **자리**가 문제다.
+ *
+ *  한글이 바로 붙는 자리는 건드리지 않는다("be동사", "are이", "easel은") — 거기가 이 표의 본업이다. */
 export function applyPronunciation(raw: string): string {
   return Object.entries(IPA).reduce(
-    (s, [word, ipa]) => s.replace(new RegExp(`\\b${word}\\b`, 'gi'), ipa),
+    (s, [word, ipa]) => s.replace(new RegExp(`\\b${word}\\b`, 'gi'),
+      (m: string, at: number, text: string) => (besideEnglish(text, at, m.length) ? m : ipa)),
     raw,
   )
+}
+
+/* ── v3 오디오 태그 ──────────────────────────────────────────────────
+   v3 는 `[curious]` 처럼 대괄호 지시를 받아 연기를 바꾼다. 일레븐랩스 UI 의 'Enhance' 버튼이
+   이걸 자동으로 넣어 주지만 **API 로는 못 부른다**(문서에 엔드포인트가 없다) — 그래서 우리가 넣는다.
+
+   ⚠️ **여기 목록에 있는 것만 쓴다.** 문서에 없는 태그는 모델이 그대로 소리내어 읽는다.
+      예전에 `[pause]` 를 넣었다가 강사가 "포즈" 라고 읽은 사고가 정확히 이것이다 —
+      `[pause]` 는 v3 에 **존재하지 않는 태그**다(쉼은 줄바꿈으로 준다, spaceSentences 참고).
+   ⚠️ v3 전용이다. multilingual v2 는 태그를 모르고 통째로 읽는다 — 부르는 쪽에서 모델을 본다. */
+export const V3_TAGS = ['curious', 'sarcastic', 'whispers', 'excited', 'mischievously',
+  'sighs', 'exhales', 'laughs'] as const
+
+/** 읽는 문자열에서 태그를 뗀다 — **화면과 에이전트는 태그를 보면 안 된다.**
+ *  말풍선에 대괄호가 뜨고, 에이전트한테 넘기면 그걸 지시로 착각한다. 소리로만 나가야 한다. */
+export function stripAudioTags(raw: string): string {
+  return raw.replace(/\[[a-z ]+\]\s*/gi, '').replace(/\s{2,}/g, ' ').trim()
+}
+
+/** 되묻는 줄에 물음조를 **자동으로** 건다.
+ *
+ *  재치·속삭임·강조는 자동으로 못 건다 — 어디가 곁말이고 어디가 한 방인지는 글자만 봐서
+ *  알 수 없다. 그건 **대본에 직접 적는다**(scripts/tone/lee_doyun_wit.json).
+ *  예전에는 꼬리 문장을 글자로 맞춰 걸었는데, 대본을 손보는 순간 조용히 안 걸렸다(09-03 실측:
+ *  "반은 맞는 선택지예요" → "반만 맞는 선택지죠" 로 바뀌자 태그가 전부 사라졌다).
+ *  물음표는 글자가 아니라 **문장부호**라 그 사고가 없다 — 그래서 이것만 자동이다.
+ *
+ *  ⚠️ **줄머리에 붙이면 안 된다.** v3 태그는 그 자리부터 줄 끝까지 걸린다. 줄머리에 두면
+ *     설명 문장까지 통째로 물음조가 된다. 그래서 **마지막 문장 앞**에 끼운다.
+ *  ⚠️ 대본이 이미 태그를 갖고 있으면 손대지 않는다 — 사람이 적은 것이 우선이다. */
+export function applyAudioTags(raw: string): string {
+  const t = raw.trim()
+  if (!t || t.includes('[')) return raw
+  if (!/[?？]\s*$/.test(t)) return raw
+  /* ⚠️ 끝의 물음표를 먼저 떼고 그 앞 문장 경계를 찾는다. 안 떼면 정규식이 그 물음표를 잡아서
+     태그가 줄 맨 끝에 붙는다 — 다 읽고 나서 지시가 오니 아무 효과가 없다(실측). */
+  const cut = t.replace(/[?？]\s*$/, '').search(/[.!?？][^.!?？]*$/)
+  if (cut < 0) return `[curious] ${t}`
+  return `${t.slice(0, cut + 1)} [curious]${t.slice(cut + 1)}`
 }
 
 /* ── 읽는 법을 정해 둔 말 ──
@@ -86,7 +150,23 @@ const TERM_KO: Array<[RegExp, string]> = [
   [/\bing\b/gi, '아이엔쥐'],
   /* "be + p.p." 의 `+` 를 세 가지로 읽었다(안 읽음 / 플러스 / 플러) — 하나로 고정한다 */
   [/\s*\+\s*/g, ' 플러스 '],
+  /* ── `p.p.` 는 **마침표를 떼고 한글로** 읽는다 (09-04 · 09-07 실측) ──
+     ① 마침표가 문제였다. v3 는 마침표를 문장 끝으로 본다 — "has/have been p.p.는 be p.p.랑…"
+        한 줄에 마침표가 넷이라 모델이 **다섯 문장**으로 읽어 뚝뚝 끊겼다(3회 평균 6.04→4.18초).
+     ② 그래서 `PP` 로 뗐더니 이번엔 **한 글자로 읽었다** — "be p.p" 가 [비 피]·[비피] 로
+        들린다는 보고가 두 번. 뽑을 때마다 갈리는 자리라 510개 중에 섞여 들어온다.
+     한글로 적으면 한 글자로 읽힐 수가 없다. 느려질까 봐 미뤘는데 재보니 **0.38초 차이**로
+     3회 편차 안이었다(PP 6.14 / 피피 6.52). 끊김을 만드는 건 마침표지 글자 수가 아니다.
+     ⚠️ **화면 글자는 그대로 `p.p.` 다** — 이 표는 읽는 문자열에만 걸린다(sayableTerms). */
+  [/\bp\s*\.\s*p\s*\.?/gi, '피피'],
+  /* 영문 사이 슬래시("has/have", "is/are")도 한 박 쉬게 만든다. 읽을 때는 띄어 읽으면 된다 —
+     화면에는 슬래시가 그대로 남는다.
+     ⚠️ 앞뒤가 **영문일 때만** 바꾼다. 한글 사이 슬래시나 날짜·분수를 건드리면 안 된다. */
+  [/(?<=[A-Za-z])\s*\/\s*(?=[A-Za-z])/g, ' '],
 ]
+
+/** 토익 파트 번호를 읽는 말로 — 강사들이 영어 수사로 부른다 ("파트 원", "파트 파이브") */
+const PART_NO = ['', '원', '투', '쓰리', '포', '파이브', '식스', '세븐']
 
 /** 세는 말은 고유어로 — "5문제"를 [오 문제] 로 읽었다 (메모 66·69행) */
 const KO_COUNT = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱', '여덟', '아홉', '열']
@@ -94,6 +174,15 @@ const KO_COUNT = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱', 
 export function sayableTerms(raw: string): string {
   let t = raw
   for (const [re, rep] of TERM_KO) t = t.replace(re, rep)
+  /* ── `Part 1` 의 숫자를 **읽는 말로** 바꾼다 (09-04 실측) ──
+     영어 낱말 뒤에 아라비아 숫자가 붙으니 모델이 어느 언어로 읽을지 못 정하고 뭉갠다 —
+     이도윤 새 목소리가 "파트 운" 이라고 읽었다. **다시 뽑아도 같아서**(두 번) 글자를 고친다.
+     ⚠️ **화면 글자는 `Part 1` 그대로다** — 읽는 문자열에만 걸린다.
+     ⚠️ 아래 '세는 말' 규칙에 `(?<!Part\s)` 예외가 있는 건 "Part 1 문제" 가 "파트 한 문제" 가
+        되던 것을 막으려던 것인데, 여기서 숫자를 먼저 없애므로 이제 그쪽은 저절로 안 걸린다. */
+  /* ⚠️ `\b` 를 **영문 쪽에만** 건다. JS 의 `\b` 는 `[A-Za-z0-9_]` 기준이라 한글 앞에는
+     낱말 경계가 없다 — `\b파트` 로 적으면 "파트 5" 가 통째로 안 걸린다(실측). */
+  t = t.replace(/(?:\bPart|파트)\s*([1-7])\b/gi, (_m, n) => `파트 ${PART_NO[Number(n)]}`)
   /* 뜻풀이의 물결표 — "~에 기대다" 의 `~` 를 얼버무리거나 이상하게 읽는다.
      콘텐츠 파트가 적어 준 대로 [무엇무엇] 으로 읽힌다. `~로` 만 조사가 달라진다(무엇무엇으로). */
   t = t.replace(/~\s*로(?![가-힣])/g, '무엇무엇으로').replace(/~\s*(?=[가-힣])/g, '무엇무엇')

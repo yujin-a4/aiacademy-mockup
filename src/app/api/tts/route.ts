@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from '@/data/instructorData'
+import { INST_VOICE, INST_AUDIO_TAGS, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from '@/data/instructorData'
 /* 문장을 다듬는 규칙은 미리 생성기(scripts/gen-scripted-tts.mjs)와 **한 벌을 나눠 쓴다** —
    여기서만 고치면 미리 만들어 둔 소리와 실시간 소리가 갈린다. src/lib/ttsText.ts 참고. */
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
-  applyPronunciation, sanitizeForTts, sayableTerms, spaceSentences,
+  applyAudioTags, applyPronunciation, stripAudioTags, sanitizeForTts, sayableTerms, spaceSentences,
 } from '@/lib/ttsText'
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
@@ -51,6 +51,15 @@ export async function POST(req: NextRequest) {
     if (!isListening) speech = sayableTerms(speech)
     /* 발음 교정은 강사 발화에만, 그리고 IPA 를 알아듣는 모델에만 건다 */
     if (!isListening && modelId === 'eleven_v3') speech = applyPronunciation(speech)
+    /* v3 연기 지시(대괄호 태그) — 이 강사에게 켜져 있고 v3 일 때만.
+       v2 는 태그를 모르고 **그대로 소리내어 읽는다**. 듣기 음원은 시험 자료라 손대지 않는다. */
+    if (!isListening && modelId === 'eleven_v3' && instructor && INST_AUDIO_TAGS[instructor]) {
+      speech = applyAudioTags(speech)
+    } else {
+      /* v3 가 아니거나 태그를 끈 강사면 **떼고 보낸다** — v2 는 태그를 모르고 그대로 읽는다.
+         대본이 태그를 품고 있으므로(대본에 직접 적는다) 여기서 거르지 않으면 새어 나간다. */
+      speech = stripAudioTags(speech)
+    }
 
     const res = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
       method: 'POST',

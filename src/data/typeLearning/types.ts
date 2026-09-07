@@ -138,6 +138,12 @@ export type Interaction =
   | { kind: 'subjective'; prompt: string; hint?: string; accepts?: string[] }
   | { kind: 'mark'; prompt: string; targetWords?: string[] }           // 필수 수행 — 단어 탭 하이라이트(+필기)
   | { kind: 'match'; prompt: string; evidence: MatchEvidence[] }       // 근거 연결(이중·삼중) — 지문에서 직접 탭
+  /** '후속 질문' — **채점하지 않는 고르기**. "헷갈린 선택지 있나요? A / C / D / 없어요"
+   *  틀린 답이 없다(무엇을 더 듣고 싶은지 묻는 자리다). choice 로 만들면 정답 표시가 없어
+   *  무엇을 눌러도 오답 처리된다 — 그래서 종류를 따로 뒀다.
+   *  label 이 있으면 그 보기의 S6 해설(gate='onDemand')로 가고, null('없어요')이면 그 구간을 건너뛴다.
+   *  이미 들은 보기는 **화면이 목록에서 뺀다** — 대본은 오답 보기를 전부 적어 둔다. */
+  | { kind: 'askOption'; prompt: string; choices: { label: string | null; text: string }[] }
   /* 쉐도잉(따라 말하기)은 제품에서 제외됐다(2026-08-04) — 기능·버튼·데이터 전부 삭제.
      시트 레일에는 쉐도잉 단계가 남아 있어 fromSteps 가 그 턴을 버린다. */
 
@@ -168,6 +174,15 @@ export interface Turn {
   interaction: Interaction
   /** 지금 다루는 문항 인덱스 — 해당 문항 카드 강조 */
   focusQ?: number
+  /** 이 턴이 다루는 **보기 한 개** ('A'~'D'). S6 오답 제거 턴에만 붙는다 */
+  optionRef?: string
+  /** 이 턴을 **언제 트는가** (09-03 이도윤 개념학습본). 없으면 늘 튼다.
+   *    'ifPicked'  — 학생이 그 보기를 골라 틀렸을 때만   ┐ 오답 해설(S6). 같은 대본이 두 벌
+   *    'onDemand'  — 후속 질문에서 그 보기를 골랐을 때만  ┘ 들어 있다(생성기 orderTurns)
+   *    'ifCorrect' — 문항을 **맞혔을 때만**   ┐ 채점 뒤 갈래(RC). 맞히면 S5 로 근거만 짧게,
+   *    'ifWrong'   — 문항을 **틀렸을 때만**   ┘ 틀리면 S4 로 판단을 처음부터 다시 세운다
+   *  화면은 조건에 안 맞는 턴을 건너뛴다. */
+  gate?: 'ifPicked' | 'onDemand' | 'ifCorrect' | 'ifWrong'
 }
 
 /** 세션 정리(4단계 프레임의 마지막 — 실전 문제 이후) 핵심 문장 1개.
