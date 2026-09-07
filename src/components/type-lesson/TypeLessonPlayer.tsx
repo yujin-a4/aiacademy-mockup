@@ -18,7 +18,7 @@ import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
 /* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
 import { koJosa, endsConsonant } from '@/lib/ttsText'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { PulseAvatar, SpeechDots, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
@@ -189,9 +189,19 @@ function subjectiveOk(said: string, expected?: string, accepts?: string[]): bool
     const want = words(one)
     if (!want.length) return true
     const hit = want.filter((w) => got.has(w) || Array.from(got).some((g) => g.includes(w) || w.includes(g))).length
-    /* 낱말 **하나가 스친 것**으로는 부족하다 — 기대 답이 여러 낱말이면 둘 이상 겹쳐야
-       즉시 받아준다. 못 미친 답은 틀린 것이 아니라 채점기로 넘어간다. */
-    return hit >= Math.min(2, want.length)
+    /* ── 이 지름길은 **다 말한 답**만 받는다 (09-07) ──
+     *
+     *  예전에는 "둘만 겹치면 통과" 였다. 빠르라고 둔 것인데 두 가지를 놓쳤다(실측):
+     *    · 기대 "물감 튜브를 들고 있지 않아요" ← "물감 튜브"        → 통과. 서술이 없는데 정답이 됐다
+     *    · 같은 기대            ← "물감 튜브를 들고 있어요"  → 통과. **정반대인데** 정답이 됐다
+     *  낱말만 세는 검사로는 "덜 말한 것" 과 "뒤집어 말한 것" 을 가려낼 수 없다. 그건 뜻의 문제다.
+     *
+     *  그래서 기대 답의 낱말이 **다 들어와야** 즉시 받아준다. 못 미치면 틀린 것이 아니라
+     *  채점기로 넘긴다 — 거기서 O(맞음)·P(덜 말함)·X(다름)를 가른다.
+     *  ⚠️ 기대 답이 낱말 한둘인 자리("동작이요", "painting a picture")는 예전 규칙을 그대로
+     *     쓴다. 거기는 낱말 하나가 곧 답이라, 다 요구하면 맞힌 학생이 채점기를 기다린다.
+     *     27개 중 14개가 그런 자리다. */
+    return want.length <= 2 ? hit >= Math.min(2, want.length) : hit >= want.length
   })
 }
 
@@ -222,6 +232,21 @@ const CONFIRM_TAIL: Array<[RegExp, string]> = [
   [/없어요$/, '없죠?'],
   [/보여요$/, '보이죠?'],
 ]
+
+/** **덜 말한 답**을 되짚는 한 마디 — "물감" → "물감, 그게 어떻다는 거죠?" (09-07)
+ *
+ *  열쇠말은 맞는데 서술이 없을 때 쓴다(판정 P). 학생이 한 말을 그대로 되돌려 주면 무엇을 더
+ *  말해야 하는지 스스로 안다 — 강사가 "서술어를 붙이세요" 라고 설명할 일이 아니다.
+ *
+ *  ⚠️ **조사를 붙이지 않는다.** 처음에는 "물감이요?" 처럼 주격을 붙였는데, 앞말에 이미 조사가
+ *     있으면 겹치고("물감 튜브를이요?"), 떼려고 들면 낱말을 망가뜨린다("옷걸이" → "옷걸").
+ *     받침을 가늠할 필요가 없는 꼴로 두면 어떤 말이 와도 안 깨진다.
+ *  ⚠️ 지어내지 않는다 — 학생이 한 말 그대로다.
+ *  ⚠️ 긴 말을 통째로 되읽으면 되묻는 게 아니라 따라 하는 것이 된다 — 앞 두 낱말까지만 쓴다. */
+function askMore(said: string): string {
+  const head = said.trim().replace(/[.!?…]+$/, '').split(/\s+/).slice(0, 2).join(' ')
+  return `${head}, 그게 어떻다는 거죠?`
+}
 
 function asConfirm(s: string): string {
   const t = s.trim().replace(/[.!?]+$/, '')
@@ -2740,10 +2765,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       goNext()
       return
     }
-    /* ── 되묻기도 **대본을 보고** 정한다 (09-03, 위 맞장구와 같은 이유) ──
-       대본이 오답 갈래를 갖고 있으면(옛 대본) 그 줄이 곧 반응이라 앱은 비켜선다.
-       갈래가 없는 대본(이도윤 개념학습본)에서는 앱이 시트 머리말의 문구로 한 번 더 시킨다. */
-    if (tries === 1 && !scriptWillAnswerWrong()) {
+    /* ── 되묻기는 **대본과 강사 지정**을 함께 본다 ──
+       대본이 오답 갈래를 갖고 있으면(옛 대본) 그 줄이 곧 반응이라 앱은 비켜선다(09-03).
+       ⚠️ 이도윤은 **되묻지 않는다**(09-07 지정, INST_RETRY_SCAFFOLD). 그 대본은 오답 뒤에
+          곧바로 설명으로 이어지는 구성이라, 거기서 붙잡으면 강사 말과 화면이 어긋난다.
+          되묻지 않는 강사는 이 갈래를 건너뛰고 아래로 내려가 **짚어 주고 넘어간다.** */
+    if (tries === 1 && !scriptWillAnswerWrong() && INST_RETRY_SCAFFOLD[instructor] !== false) {
       /* "음, 그건 조금 달라요." 는 뺐다 — 틀렸다는 것은 화면이 이미 말하고 있고,
          말로 한 번 더 얹으면 나무라는 것처럼 들린다. 다시 해보자는 말만 남긴다. */
       await say(retryLine(triesRef.current.size, instructor))
@@ -2929,6 +2956,20 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         await askAside(text, true)      // 학생 말은 위에서 이미 대화에 남겼다
         return
       }
+      /* ── **덜 말했다** — 열쇠말은 맞는데 서술이 없다 (09-07) ──
+         기대 "물감 튜브를 들고 있지 않아요" 에 학생이 "물감" 이라고만 한 경우다. 맞다고 하면
+         학생은 자기가 다 말한 줄 알고, 틀렸다고 하면 맞는 말을 나무라는 것이 된다.
+         **자기 말을 되짚어 한 번 더 시킨다.** 한 턴에 한 번뿐이다 — 두 번째로 또 덜 말하면
+         아래 오답 갈래로 내려가 답을 짚어 주고 넘어간다(못 하는 학생을 세워 두지 않는다). */
+      if (v === 'P' && (triesRef.current.get(turnIdx) ?? 0) < 1) {
+        triesRef.current.set(turnIdx, 1)
+        logResponse(text, null)
+        setSubjSent(false); setSubjText('')
+        await waitForCue()
+        await say(askMore(text))
+        setDockTick((n) => n + 1)
+        return
+      }
       if (v === '?') { logResponse(text, null); void handleScriptedAnswer(false, text, 'unsure'); return }
       const ok = v === 'O'
       logResponse(text, ok)
@@ -2943,7 +2984,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *     이유였는데, 그 바람에 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 대본의 "좋습니다" 가 그대로
    *     나갔다(실측). 못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
    *  판정을 기다리느라 침묵이 길어지는 것도 나쁘므로 3.5초에서 끊는다(첫 호출이 느리다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'Q' | '?'> => {
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'P' | 'Q' | '?'> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
     if (!expected) return 'O'                // 기대 답이 없는 자리는 무엇을 말해도 받아준다
     const ctrl = new AbortController()
@@ -2966,6 +3007,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const v = String(data.dialogue ?? '').trim().toUpperCase()
       if (v.startsWith('Q')) return 'Q'
       if (v.startsWith('X')) return 'X'
+      if (v.startsWith('P')) return 'P'
       if (v.startsWith('O')) return 'O'
       console.warn('[judge] 판정을 못 읽었다', data)
       return '?'
