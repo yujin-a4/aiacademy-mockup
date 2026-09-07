@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 
 import { FGI_SCENARIO } from '../src/data/typeLearning/fgiScenario.ts'
-import { INST_PERSONA, INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE, INST_AUDIO_TAGS } from '../src/data/instructorData.ts'
+import { INST_PERSONA, INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE, INST_AUDIO_TAGS, INST_PITCH } from '../src/data/instructorData.ts'
 import { ACKS, ACKS_BY_INST, RETRY_BY_INST, RETRY_DEFAULT, stripAck } from '../src/data/typeLearning/scriptedSpeech.ts'
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
@@ -155,10 +155,20 @@ function requestFor(spoken, instructor) {
 const PAD_HEAD = 0.15
 const PAD_TAIL = 0.45
 let padWarned = false
-function padEdges(buf, file) {
+/** 피치를 내리는 필터 — 표본율을 바꿔 통째로 내린 뒤 속도를 되돌린다.
+ *  ⚠️ **맨 앞에 온다.** 표본율을 건드리므로 뒤따르는 무음 깎기·여백 붙이기가 44100 에서 돌아야 한다. */
+function pitchFilter(instructor) {
+  const semitones = INST_PITCH[instructor]
+  if (!semitones) return null
+  const r = 2 ** (semitones / 12)
+  return `asetrate=44100*${r.toFixed(6)},aresample=44100,atempo=${(1 / r).toFixed(6)}`
+}
+
+function padEdges(buf, file, instructor) {
   const tmp = `${file}.raw`
   /* 앞뒤 무음을 깎고(양쪽 각각 한 번) → 앞에 PAD_HEAD, 뒤에 PAD_TAIL 을 붙인다 */
   const filter = [
+    pitchFilter(instructor),
     'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0',
     'areverse',
     'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0',
@@ -168,11 +178,14 @@ function padEdges(buf, file) {
     /* areverse 를 두 번 지나면 타임스탬프가 음수로 남아 먹서가 경고를 쏟는다
        ("non monotonically increasing dts"). 파일은 멀쩡하지만 로그가 묻히니 여기서 되돌린다. */
     'asetpts=N/SR/TB',
-  ].join(',')
+  ].filter(Boolean).join(',')
   try {
     fs.writeFileSync(tmp, buf)
+    /* ⚠️ 피치를 내렸으면 **표시를 남긴다** — scripts/tts-pitch.mjs 가 이 표시를 보고 건너뛴다.
+       안 찍으면 그 도구가 새로 만든 파일을 또 내려서 두 번 내려간다(09-07 실측). */
+    const stamp = INST_PITCH[instructor] ? ['-metadata', `comment=ybm-pitch=${INST_PITCH[instructor]}`] : []
     execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', tmp,
-      '-af', filter, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', file])
+      '-af', filter, ...stamp, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', file])
     const out = fs.readFileSync(file)
     fs.unlinkSync(tmp)
     return out
@@ -245,7 +258,7 @@ async function main() {
       const { voiceId, body } = requestFor(spoken, instructor)
       if (!KEY || !voiceId) throw new Error('ELEVENLABS_API_KEY / 목소리 id 가 없다 (.env.local 확인)')
       const buf = await generate(voiceId, body)
-      fs.writeFileSync(file, padEdges(buf, file))
+      fs.writeFileSync(file, padEdges(buf, file, instructor))
       manifest[key] = rel
       made++
       console.log(`  ✓ ${where}  ${spoken.length}자  ${spoken.slice(0, 28)}…`)
