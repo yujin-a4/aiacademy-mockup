@@ -2067,11 +2067,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S2 유형·역할 판별",
-          "tutor": "빈칸과 함께 동사 표현을 만드는 be동사가 하나 있어요. 동그라미 쳐볼까요?",
+          "tutor": "빈칸과 함께 동사 표현을 만드는 be동사가 하나 있어요. 동그라미 쳐보세요.",
           "focusQ": 0,
           "interaction": {
             "kind": "mark",
-            "prompt": "빈칸과 함께 동사 표현을 만드는 be동사가 하나 있어요. 동그라미 쳐볼까요?",
+            "prompt": "빈칸과 함께 동사 표현을 만드는 be동사가 하나 있어요. 동그라미 쳐보세요.",
             "targetWords": [
               "are"
             ]
@@ -2407,11 +2407,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S2 유형·역할 판별",
-          "tutor": "빈칸 앞에서 '~할 수 없다'는 뜻의 조동사가 하나 있어요. 동그라미 쳐볼까요?",
+          "tutor": "빈칸 앞에서 '~할 수 없다'는 뜻의 조동사가 하나 있어요. 동그라미 쳐보세요.",
           "focusQ": 1,
           "interaction": {
             "kind": "mark",
-            "prompt": "빈칸 앞에서 '~할 수 없다'는 뜻의 조동사가 하나 있어요. 동그라미 쳐볼까요?",
+            "prompt": "빈칸 앞에서 '~할 수 없다'는 뜻의 조동사가 하나 있어요. 동그라미 쳐보세요.",
             "targetWords": [
               "cannot"
             ]
@@ -2733,11 +2733,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S2 유형·역할 판별",
-          "tutor": "빈칸 바로 뒤에 동사의 대상이 되는 표현이 있어요. 동그라미 쳐볼까요?",
+          "tutor": "빈칸 바로 뒤에 동사의 대상이 되는 표현이 있어요. 동그라미 쳐보세요.",
           "focusQ": 2,
           "interaction": {
             "kind": "mark",
-            "prompt": "빈칸 바로 뒤에 동사의 대상이 되는 표현이 있어요. 동그라미 쳐볼까요?",
+            "prompt": "빈칸 바로 뒤에 동사의 대상이 되는 표현이 있어요. 동그라미 쳐보세요.",
             "targetWords": [
               "team"
             ]
@@ -2866,11 +2866,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S4 시제 확인",
-          "tutor": "이제 시제 하나만 더 볼게요. 앞의 when절에서 과거를 나타내는 표현을 찾아 밑줄 쳐볼까요?",
+          "tutor": "이제 시제 하나만 더 볼게요. 앞의 when절에서 과거를 나타내는 표현을 찾아 밑줄 쳐보세요.",
           "focusQ": 2,
           "interaction": {
             "kind": "mark",
-            "prompt": "이제 시제 하나만 더 볼게요. 앞의 when절에서 과거를 나타내는 표현을 찾아 밑줄 쳐볼까요?",
+            "prompt": "이제 시제 하나만 더 볼게요. 앞의 when절에서 과거를 나타내는 표현을 찾아 밑줄 쳐보세요.",
             "targetWords": [
               "took"
             ]
@@ -3106,11 +3106,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 4,
           "occurrence": 4,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 주어부터 잡을게요. of 뒤 설명은 잠깐 빼고, 주어의 핵심 부분에 동그라미 쳐볼까요?",
+          "tutor": "먼저 주어부터 잡을게요. of 뒤 설명은 잠깐 빼고, 주어의 핵심 부분에 동그라미 쳐보세요.",
           "focusQ": 3,
           "interaction": {
             "kind": "mark",
-            "prompt": "먼저 주어부터 잡을게요. of 뒤 설명은 잠깐 빼고, 주어의 핵심 부분에 동그라미 쳐볼까요?",
+            "prompt": "먼저 주어부터 잡을게요. of 뒤 설명은 잠깐 빼고, 주어의 핵심 부분에 동그라미 쳐보세요.",
             "targetWords": [
               "layout"
             ]
@@ -3462,11 +3462,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 74,
           "stage": "S2 유형·역할 판별",
-          "tutor": "빈칸 바로 앞을 볼게요. 빈칸 바로 앞에서 미래를 나타내는 표현과 함께 이어지는 동사 표현 전체를 찾아 동그라미 쳐볼까요?",
+          "tutor": "빈칸 바로 앞을 볼게요. 빈칸 바로 앞에서 미래를 나타내는 표현과 함께 이어지는 동사 표현 전체를 찾아 동그라미 쳐보세요.",
           "focusQ": 0,
           "interaction": {
             "kind": "mark",
-            "prompt": "빈칸 바로 앞을 볼게요. 빈칸 바로 앞에서 미래를 나타내는 표현과 함께 이어지는 동사 표현 전체를 찾아 동그라미 쳐볼까요?",
+            "prompt": "빈칸 바로 앞을 볼게요. 빈칸 바로 앞에서 미래를 나타내는 표현과 함께 이어지는 동사 표현 전체를 찾아 동그라미 쳐보세요.",
             "targetWords": [
               "will be"
             ]
@@ -3581,11 +3581,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 83,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "좋아요. 그러면 수동태가 필요하겠네요. 이번에는 이 일이 언제 일어났는지 알려주는 표현을 찾아 밑줄 쳐볼까요?",
+          "tutor": "좋아요. 그러면 수동태가 필요하겠네요. 이번에는 이 일이 언제 일어났는지 알려주는 표현을 찾아 밑줄 쳐보세요.",
           "focusQ": 1,
           "interaction": {
             "kind": "mark",
-            "prompt": "좋아요. 그러면 수동태가 필요하겠네요. 이번에는 이 일이 언제 일어났는지 알려주는 표현을 찾아 밑줄 쳐볼까요?",
+            "prompt": "좋아요. 그러면 수동태가 필요하겠네요. 이번에는 이 일이 언제 일어났는지 알려주는 표현을 찾아 밑줄 쳐보세요.",
             "targetWords": [
               "yesterday"
             ]
@@ -3631,11 +3631,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 88,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 문장 뒤쪽을 볼게요. '~에 의해'라는 뜻을 만드는 부분이 있어요. 그 표현 전체를 찾아 밑줄 쳐볼까요?",
+          "tutor": "먼저 문장 뒤쪽을 볼게요. '~에 의해'라는 뜻을 만드는 부분이 있어요. 그 표현 전체를 찾아 밑줄 쳐보세요.",
           "focusQ": 2,
           "interaction": {
             "kind": "mark",
-            "prompt": "먼저 문장 뒤쪽을 볼게요. '~에 의해'라는 뜻을 만드는 부분이 있어요. 그 표현 전체를 찾아 밑줄 쳐볼까요?",
+            "prompt": "먼저 문장 뒤쪽을 볼게요. '~에 의해'라는 뜻을 만드는 부분이 있어요. 그 표현 전체를 찾아 밑줄 쳐보세요.",
             "targetWords": [
               "by expert carpenters"
             ]
@@ -3712,11 +3712,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 95,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 빈칸 뒤를 볼게요. Ms. Chin이 맡게 되는 것이 무엇인지 문장에서 찾아 동그라미 쳐볼까요?",
+          "tutor": "먼저 빈칸 뒤를 볼게요. Ms. Chin이 맡게 되는 것이 무엇인지 문장에서 찾아 동그라미 쳐보세요.",
           "focusQ": 3,
           "interaction": {
             "kind": "mark",
-            "prompt": "먼저 빈칸 뒤를 볼게요. Ms. Chin이 맡게 되는 것이 무엇인지 문장에서 찾아 동그라미 쳐볼까요?",
+            "prompt": "먼저 빈칸 뒤를 볼게요. Ms. Chin이 맡게 되는 것이 무엇인지 문장에서 찾아 동그라미 쳐보세요.",
             "targetWords": [
               "duties"
             ]
@@ -3811,11 +3811,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 103,
           "stage": "S2 유형·역할 판별",
-          "tutor": "먼저 that을 볼게요. that이 앞의 어떤 명사를 수식하고 있는지 찾아 동그라미 쳐볼까요?",
+          "tutor": "먼저 that을 볼게요. that이 앞의 어떤 명사를 수식하고 있는지 찾아 동그라미 쳐보세요.",
           "focusQ": 4,
           "interaction": {
             "kind": "mark",
-            "prompt": "먼저 that을 볼게요. that이 앞의 어떤 명사를 수식하고 있는지 찾아 동그라미 쳐볼까요?",
+            "prompt": "먼저 that을 볼게요. that이 앞의 어떤 명사를 수식하고 있는지 찾아 동그라미 쳐보세요.",
             "targetWords": [
               "building"
             ]

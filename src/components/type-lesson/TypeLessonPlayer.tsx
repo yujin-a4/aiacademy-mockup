@@ -690,12 +690,15 @@ function PhaseStepper({ active, subtitle, onEnd, extra, onJump, steps }: {
 /* ── 콘텐츠 액션 안내 — 지문/문항에서 직접 할 일(단어 마킹·정답 선택·전체 풀기·근거 연결)을
    콘텐츠(지문/문항) 바로 위에 작게 띄운다. 강사 설명 영역에서 뺀 지시가 여기로 온다.
    실제 상호작용은 지문/문항에서 일어나므로, 지시도 그 옆에 있는 게 맞다. */
-function ContentActionHint({ turn, lesson, answers, graded, pickedQ, matchTapped,
+function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn, matchTapped,
   markDone, markChecking, markVerdict, cuePlaying }: {
   turn: Turn; lesson: TypeLesson
   answers: Record<number, string>; graded: Set<number>
   /** **이 자리에서** 답한 문항 (graded 와 다르다 — pickedHere 머리말 참고) */
   pickedQ: Set<number>
+  /** **지금 턴에서** 보기를 골랐는가. 같은 문항을 두 번 고르게 하는 대본이 있어서
+   *  "그 문항이 채점됐는가"(pickedQ)로는 갈리지 않는다 — 아래 pickAnswer 갈래 참고. */
+  pickedTurn?: boolean
   matchTapped: Set<string>
   /** 강사가 틀어 준 자료 음원이 나가는 중인가 */
   cuePlaying?: boolean
@@ -721,22 +724,29 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, matchTapped
         : markDone ? '표시 완료' : ''
     done = !!markDone && markVerdict?.ok !== false
   } else if (it.kind === 'pickAnswer') {
-    done = pickedQ.has(it.qIdx)
-    icon = '🎯'; text = it.prompt ?? '보기에서 정답을 선택하세요'
+    /* ── "이 턴에서 골랐는가" 로 본다 (09-07) ──
+       예전에는 그 문항이 채점됐는지(pickedQ)만 봤다. 그런데 정오답분기 대본은 **틀리면 같은
+       문항을 한 번 더 고르게 한다** — 그 턴에 들어서는 순간 이미 채점돼 있어서 배너가 처음부터
+       초록색 "정답 선택 완료" 로 떴다(실측 보고 09-07). 아직 아무것도 안 골랐는데 다 한 것처럼
+       보이고, 게다가 '정답' 이라는 말이 붙어 있어 틀린 학생에게 거짓말이 된다. */
+    done = !!pickedTurn
+    icon = '🎯'; text = stripAudioTags(it.prompt ?? '보기에서 정답을 선택하세요')
     /* 음원이 아직 나가는 중이면 **기다리는 중이라고 말해 준다** — 답을 고른 뒤 강사가 조용하면
        학생은 앱이 멈춘 줄 안다. 실제 시험처럼 보기는 끝까지 들려주고 그 뒤에 이어간다. */
+    /* '정답 선택 완료' 라고 하지 않는다 — 고른 것이 정답인지는 아직 모른다(채점은 뒤에 온다).
+       틀리게 고른 학생에게 초록색으로 '정답' 이라고 말해 주는 셈이었다. */
     sub = cuePlaying ? '음원이 끝나면 이어갈게요'
-      : done ? '정답 선택 완료' : `Q${it.qIdx + 1} 보기를 탭하세요`
+      : done ? '선택 완료' : `Q${it.qIdx + 1} 보기를 탭하세요`
   } else if (it.kind === 'solveAll') {
     const total = lesson.content.questions.length
     const answered = lesson.content.questions.filter((_, i) => answers[i]).length
     done = answered === total
-    icon = '✍️'; text = it.prompt ?? '모든 문항의 답을 선택하세요'; sub = `${answered}/${total} 선택`
+    icon = '✍️'; text = stripAudioTags(it.prompt ?? '모든 문항의 답을 선택하세요'); sub = `${answered}/${total} 선택`
   } else if (it.kind === 'match') {
     const totalTargets = it.evidence.reduce((n, ev) => n + ev.targetIds.length, 0)
     const matched = it.evidence.reduce((n, ev) => n + ev.targetIds.filter((tid) => matchTapped.has(`${ev.passageId}:${tid}`)).length, 0)
     done = matched >= totalTargets
-    icon = '🔗'; text = it.prompt; sub = done ? '근거 모두 연결됨' : `근거 ${matched}/${totalTargets}`
+    icon = '🔗'; text = stripAudioTags(it.prompt); sub = done ? '근거 모두 연결됨' : `근거 ${matched}/${totalTargets}`
   } else {
     return null
   }
@@ -1030,6 +1040,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  다시 골라 맞힌 학생이 아무 반응도 못 듣고 다음 문항으로 넘어간다.
    *  길은 **처음 답**으로 정한다. 다시 골라 맞혔는지는 그때그때 prevOk 가 따로 들고 있다. */
   const firstPickRef = useRef<Record<number, string>>({})
+  /** 보기를 **어느 턴에서** 골랐나 — 안내 배너가 '이 턴에서 골랐는가' 를 본다(ContentActionHint) */
+  const pickedTurnRef = useRef<number>(-1)
   const wrongPickOf = (qIdx?: number): string | null => {
     if (qIdx === undefined) return null
     const label = firstPickRef.current[qIdx] ?? answers[qIdx]
@@ -1717,6 +1729,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 
   const finishMark = async (ok: boolean | null, hint?: string) => {
     if (!scripted || markAdvancedRef.current === spotKey) return
+    /* ── 판정을 **제일 먼저** 적는다 (09-07) ──
+       예전에는 이 아래 말들을 다 하고 맨 끝에 적었다. 그 사이에 `await say(...)` 가 두 번
+       들어 있어서, 그 몇 초 안에 다른 갈래가 끼면 다음 대본 줄이 맞장구를 단 채로 나간다
+       ("좋아요. 이제 먼저 한번 풀어볼게요." — 못 짚은 학생에게 '좋아요'). 값부터 못 박는다. */
+    prevOkRef.current = ok
 
     /* ── 엉뚱한 곳을 짚었으면 그냥 넘어가지 않는다 (구현 중 메모 23행) ──
        "필기로 뭘 체크해 보라 했을 때 다른 데에 해도 그냥 넘어간다" 는 보고.
@@ -1762,13 +1779,24 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           return n
         })
       }
-      if (hint) await say(hint, false, true)      // 위와 같은 이유로 plain
+      /* ── **답이 무엇이었는지 말해 준다** (09-07) ──
+         예전에는 화면에만 대신 표시하고 말은 판정이 준 hint("'easy replacement'는 아니에요")
+         한 줄이 다였다. 틀렸다는 말만 듣고 곧바로 문제 풀이로 떠밀리는 셈이라, 학생은 왜
+         거기가 아닌지도 어디가 맞는지도 못 듣는다(실측 보고 09-07).
+         짚을 낱말이 데이터에 있으면 그걸 그대로 말한다 — 지어내지 않는다. 없으면 예전처럼
+         hint 만 읽는다(사진 위 동그라미처럼 짚어 줄 낱말이 없는 필기 턴). */
+      const answer = mk.kind === 'mark' && mk.targetWords?.length
+        ? mk.targetWords.map((w) => w.trim()).filter(Boolean)
+        : []
+      /* 조사를 붙이지 않는 꼴로 말한다 — 짚을 낱말은 대개 영어라(are·cannot·took) 받침을
+         가늠할 수 없다. `에` 는 앞말에 따라 변하지 않는 유일한 자리라 여기만 안전하다. */
+      if (answer.length) await say(`여기서는 ${answer.join(', ')} 에 표시하면 돼요.`, false, true)
+      else if (hint) await say(hint, false, true)      // 위와 같은 이유로 plain
     }
 
     markAdvancedRef.current = spotKey
     /* 엉뚱한 곳을 짚었으면 맞장구를 넣지 않는다 — 다음 대본의 "잘 했어요" 도
-       prevOkRef 를 보고 떨어져 나간다(stripAck). */
-    prevOkRef.current = ok
+       prevOkRef 를 보고 떨어져 나간다(stripAck). 값은 이 함수 맨 앞에서 이미 못 박았다. */
     if (ok !== false && !scriptWillAck() && !INST_SCRIPT_ONLY[instructor]) await say(ackLine(ackNoRef.current++, instructor))
     goNext()
   }
@@ -3203,6 +3231,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          ⚠️ state 가 아니라 ref 로, 그리고 **여기서** 적는다. 다시 그리기 전에 적혀 있어야
             뒤이어 도는 shouldPlay 가 처음 답을 본다. */
       if (firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
+      /* **어느 턴에서** 골랐는지도 남긴다 — 안내 배너가 "이 턴에서 골랐는가" 를 본다.
+         문항 기준으로 보면 다시 고르는 턴이 시작부터 '완료' 로 뜬다(ContentActionHint). */
+      pickedTurnRef.current = turnIdx
       /* ── 수업의 학생 풀이 단계는 **채점을 클릭 시점에 하지 않는다** ──
          채점(graded)은 보기를 잠근다. 클릭 즉시 켜면 음원이 아직 나가는 중인데 답을 고칠 수
          없다 — 실제 시험은 네 보기를 다 듣고 바꾼다. 게다가 잠기는 건 **정답을 눌러 본 학생만**
@@ -3503,8 +3534,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       <LessonIntro
         tag={lectureTitle ?? `Part ${lesson.part} · ${lesson.typeLabel}`}
         /* 대본이 있으면 강사가 실제로 할 말을 그대로 — 없을 때만 강의 설명으로 때운다 */
-        script={scriptedIntro?.script ?? `${lesson.desc} ${teacherName} 강사와 스캐폴딩 단계에 따라 하나씩 짚어볼게요.`}
-        points={introPoints.map((text) => ({ text }))}
+        /* ⚠️ **오디오 태그를 떼고 넘긴다** (09-07). 도입 대본에도 `[curious]` 가 들어 있는데
+           이 화면은 대본 문자열을 그대로 그린다 — 학생에게 대괄호가 그대로 보였다(실측 보고).
+           소리 쪽은 따로 받으므로(speakTTS) 여기서 떼어도 연기 지시는 그대로 나간다. */
+        script={stripAudioTags(scriptedIntro?.script ?? `${lesson.desc} ${teacherName} 강사와 스캐폴딩 단계에 따라 하나씩 짚어볼게요.`)}
+        points={introPoints.map((text) => ({ text: stripAudioTags(text) }))}
         teacherName={`${teacherName} 선생님`}
         teacherImg={teacherImg}
         preparing={preparing}
@@ -3906,7 +3940,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* ── ① 행동 지시 (필기해 보세요·탭해 보세요…) — 수업 영역이 아니라 강사 창에서 뜬다 ── */
           hint={
             <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded}
-              pickedQ={phase === 'review' ? answeredQ : graded} matchTapped={matchTapped}
+              pickedQ={phase === 'review' ? answeredQ : graded}
+              pickedTurn={pickedTurnRef.current === turnIdx}
+              matchTapped={matchTapped}
               /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
                  판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
               markDone={markDone} markChecking={markChecking} markVerdict={markVerdict}
