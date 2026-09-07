@@ -468,9 +468,9 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 피드백 - C",
-          "tutor": "맞아요. gallery는 그림 그리는 것과 관련된 장소기는 하지만 행동이 적절하지 않죠.",
+          "tutor": "맞아요. gallery는 그림 그리는 것과 관련된 장소기는 하지만 미술관에 방문한 것은 아니죠.",
           "focusQ": 0,
-          "tutorIfWrong": "visiting an art gallery는 '미술관을 방문하고 있다'는 뜻이죠. 사진 관련 장소가 나왔다고 속으면 안 돼요.",
+          "tutorIfWrong": "visiting an art gallery는 '미술관을 방문하고 있다'는 뜻이죠. 그림 그리는 것과 관련된 장소가 나왔다고 속으면 안 돼요.",
           "reveal": {
             "optionText": [
               {
@@ -513,7 +513,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 피드백 - D",
-          "tutor": "정확해요. paint라는 단어만 듣고 넘어가면 안 돼요. 물감 튜브를 들고 있지 않으니 D도 제외!",
+          "tutor": "정확해요. paint라는 단어만 듣고 정답으로 생각하면 안 돼요. 물감 튜브를 들고 있지 않으니 D도 제외!",
           "focusQ": 0,
           "tutorIfWrong": "holding a tube of paint는 '물감 튜브를 들고 있다'죠. 붓을 들고 있으니 D도 오답!",
           "reveal": {
@@ -1125,7 +1125,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "stage": "S6 피드백 - B",
           "tutor": "맞아요. 사진에 일단 삽이 보이지 않죠. 'A를 B에 기대어 세우다'는 뜻의 prop A against B라는 표현 기억하세요.",
           "focusQ": 2,
-          "tutorIfWrong": "shovel은 '삽', prop A against B는 'A를 B에 기대어 세우다'예요. 사진에는 삽 자체가 보이지 않아요.",
+          "tutorIfWrong": "shovel은 '삽', prop A against B는 'A를 B에 기대어 세우다', shed는 창고예요. 삽이 창고에 기대어 세워져 있다고 했는데 사진에는 삽 자체가 보이지 않아요.",
           "reveal": {
             "optionText": [
               {
@@ -2321,7 +2321,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 피드백 - C",
-          "tutor": "동사가 겹치죠. C는 바로 빼고 갈게요.",
+          "tutor": "are과 standardizes는 바로 이어서 쓸 수 없죠. C는 바로 빼고 갈게요.",
           "focusQ": 0,
           "tutorIfWrong": "standardizes는 그 자체로 현재형 동사라 앞의 are와 바로 이어 쓸 수 없어요. C는 바로 제외!",
           "reveal": {

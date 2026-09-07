@@ -184,6 +184,32 @@ export const INST_TTS_MODEL: Record<string, string> = {
    되돌리려면 여기를 true 로 하고 `--force` 로 다시 만들면 된다. */
 export const INST_SENTENCE_PAUSE: Record<string, boolean> = {}
 
+/** ── 스캐폴딩 질문을 틀렸을 때 **한 번 더 시키는가** ──
+ *
+ *  시트 머리말이 오답 문구를 정해 두면("다시 한번 생각해보세요"), 화면은 그 말을 하고 답을
+ *  한 번 더 받아 왔다. 그런데 이도윤은 **되묻지 말고 그냥 짚고 넘어가라**는 지정이다
+ *  (2026-09-07). 대본이 오답 뒤에 곧바로 설명으로 이어지는 구성이라, 거기서 학생을 붙잡으면
+ *  강사 말과 화면이 어긋난다.
+ *
+ *  여기 없는 강사는 예전대로 한 번 되묻는다(윤다은). 문항 고르기(A~D)와는 다른 자리다 —
+ *  그쪽은 강사와 상관없이 한 번 고르면 끝이다(handleScriptedPick). */
+export const INST_RETRY_SCAFFOLD: Record<string, boolean> = {
+  lee_doyun: false,
+}
+
+/** ── 만든 뒤에 **피치를 내리는** 강사 (반음, 음수가 낮추는 쪽) ──
+ *
+ *  일레븐랩스에는 피치 파라미터가 없다(v3 는 stability·similarity_boost 뿐). 목소리를 다시
+ *  뽑는 것 말고는 방법이 없어서, 받은 mp3 를 ffmpeg 로 내린다(gen-scripted-tts 의 padEdges).
+ *
+ *  ⚠️ **표본율을 바꾼 뒤 속도를 되돌리는 방식**을 쓴다(asetrate + atempo). 음성 전용
+ *     알고리즘(rubberband)도 대 봤는데 **그쪽이 오히려 음질이 깨져 들렸다**(09-07 실측).
+ *  ⚠️ 과하게 내리면 목소리가 두꺼워져 하이텐션이 죽고 자음이 뭉개진다. 뽑을 때 만든 캐릭터를
+ *     후처리로 깎는 것이라, 필요한 만큼만 내린다. 지금은 반음 하나. */
+export const INST_PITCH: Record<string, number> = {
+  yun_daeun: -1,
+}
+
 /* ── v3 오디오 태그를 끼워 넣을 강사 ──
    v3 는 `[curious]` 처럼 **대괄호 태그로 연기 지시**를 받는다. 일레븐랩스 UI 의 'Enhance'
    버튼이 이걸 자동으로 넣어 주는데 **API 는 없다** — 그래서 우리가 직접 넣는다(ttsText.applyAudioTags).
