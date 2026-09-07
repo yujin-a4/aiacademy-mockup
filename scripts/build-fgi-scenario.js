@@ -361,10 +361,16 @@ const STRUCK = (() => {
  *  나중에 왜 화면과 시트가 다른지 아무도 못 짚는다.
  *
  *  끄는 법: `--no-tone` 또는 파일 삭제. 어느 쪽이든 바로 시트 그대로로 돌아간다. */
-const TONE = (() => {
-  if (process.argv.includes('--no-tone')) return null
-  const p = path.join(__dirname, 'tone', 'lee_doyun_wit.json')
-  return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null
+/* ⚠️ 파일 하나가 아니라 **폴더 전체**를 읽는다 (09-07). 예전에는 이도윤 것 하나만 박아 뒀는데,
+   윤다은 대본에도 손질할 자리가 생겼다(모델이 "쳐볼까요" 를 [쳐봐볼까요] 로 읽는 자리 10칸).
+   제안본마다 `_시트.탭` 으로 자기가 어느 탭에 얹힐지 적어 두므로 섞이지 않는다. */
+const TONES = (() => {
+  if (process.argv.includes('--no-tone')) return []
+  const dir = path.join(__dirname, 'tone')
+  if (!fs.existsSync(dir)) return []
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.json'))
+    .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) } catch { return null } })
+    .filter((t) => t && t['_시트'] && t['_시트']['탭'])
 })()
 
 /** 덤프의 셀 값을 제안본으로 갈아 끼운다.
@@ -376,7 +382,15 @@ const TONE = (() => {
  *  값은 `{ 단계, 말 }` 이다 — `단계` 는 사람이 어디인지 알아보라고 적어 둔 이름표라
  *  읽지 않는다. 실제로 얹히는 것은 `말` 뿐이다. 몇 칸을 바꿨는지 돌려준다(눈으로 세게). */
 function applyTone(tabName, values) {
-  if (!TONE || TONE['_시트']['탭'] !== tabName) return 0
+  let n = 0
+  for (const TONE of TONES) {
+    if (TONE['_시트']['탭'] !== tabName) continue
+    n += applyOneTone(TONE, values)
+  }
+  return n
+}
+
+function applyOneTone(TONE, values) {
   let n = 0
   for (const area of ['LC', 'RC']) {
     for (const [addr, item] of Object.entries(TONE[area] || {})) {
