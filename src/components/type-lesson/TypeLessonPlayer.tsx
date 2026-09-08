@@ -5313,7 +5313,10 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim
      · 강사가 아직 안 짚었으면 — 내 말이 파랗게만 남는다. 맞았는지는 아직 안 말한다.
      · 짚으면서 — 맞았으면 초록, 틀렸으면 빨강. **틀린 칸에만** 정답을 옆에 함께 보여준다
        (메모 53행 "계속 오답 시에 답 알려주고"). 맞은 칸에는 덧붙일 것이 없다. */
-  const parts = text.split('___')
+  /* ── 빈칸은 **글 전체에서 몇 번째**인가로 센다 ──
+     줄로 나눠 그리게 되면서(아래 참고) 줄마다 다시 세면 안 된다 — 채운 답(filled)·채점(corrects)이
+     전역 번호로 들어오므로, 줄을 건너다니며 하나씩 올린다. */
+  let blankNo = -1
 
   /* ── 읽어가는 자리 비추기 ──
      **아직 안 채운 문장은 처음부터 흐리다.** 소리 내어 읽어 가면 지나온 낱말이 차례로 진해지고,
@@ -5323,54 +5326,98 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim
   const reading = !!dim
   /** 대본을 낱말로 쪼갠 순서 목록 (빈칸은 낱말 하나로 친다) */
   const words: string[] = []
-  parts.forEach((part, i) => {
+  text.split('___').forEach((part, i, all) => {
     part.split(/(\s+)/).forEach((w) => words.push(w))
-    if (i < parts.length - 1) words.push('___')
+    if (i < all.length - 1) words.push('___')
   })
   const spoken = reading && live ? spokenWordCount(words, live) : 0
   let wi = -1
-  const tone = (dim: string) => {
+  const tone = (dimColor: string) => {
     wi += 1
     if (!reading) return ''
-    return wi < spoken ? 'text-[#1C1B33]' : dim
+    return wi < spoken ? 'text-[#1C1B33]' : dimColor
+  }
+
+  /** 글자 한 토막 — 낱말마다 span 을 내어 읽어가는 표시를 준다 */
+  const chunkOf = (seg: string) => (
+    <>{seg.split(/(\s+)/).map((w, k) => (
+      <span key={k} className={tone('text-[#CBD5E1]')}>{w}</span>
+    ))}</>
+  )
+
+  /** 빈칸 한 칸 — 채운 답·채점 색·정답 되짚기까지 */
+  const blankOf = (i: number) => {
+    const mine = filled?.[i]
+    const ok = graded ? corrects?.[i] : undefined
+    wi += 1   // 빈칸도 낱말 한 자리를 차지한다
+    return (
+      <>
+        <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 border-b-2 font-black align-baseline transition-colors ${
+          mine === undefined
+            /* ⚠️ 빈칸끼리 색을 달리하지 않는다. 예전에는 '다음에 채울 칸' 을 파랗게 띄웠는데,
+               문장을 **통째로 한 번에** 읽는 지금 방식에서는 가리킬 순서가 없다 —
+               두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
+            ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
+            : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+              : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
+        }`}>{mine ?? '____'}</span>
+        {graded && ok === false && answers[i] && (
+          <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
+        )}
+      </>
+    )
+  }
+
+  /** 한 토막(빈칸으로 쪼갠 조각들)을 순서대로 그린다 — 빈칸 번호는 전역으로 올라간다 */
+  const runOf = (piece: string) => {
+    const segs = piece.split('___')
+    return segs.map((seg, si) => (
+      <span key={si}>
+        {chunkOf(seg)}
+        {si < segs.length - 1 && blankOf((blankNo += 1))}
+      </span>
+    ))
+  }
+
+  /* ── 영어 표현과 뜻을 **표처럼 열을 맞춘다** (메모 124행) ──
+     예외 표현 항목은 아래에 예시가 줄줄이 달린다:
+       be being ( ): 진열되고 있다 / be being cast: 그림자가 드리워지고 있다 / …
+     그냥 문장으로 흘리면 영어 길이에 따라 **뜻이 시작하는 자리가 줄마다 달라져서**, 위아래로
+     훑을 때 눈이 매번 뜻을 다시 찾는다. 콜론 앞뒤를 두 열로 갈라 시작점을 맞춘다.
+     ⚠️ **낱말 순서는 그대로 둔다.** 왼쪽 칸을 다 그리고 오른쪽 칸으로 가므로 글 순서와 같고,
+        읽어가는 표시(tone)와 빈칸 번호가 어긋나지 않는다 — 여기가 이 그림의 유일한 위험이다.
+     ⚠️ 이어진 짝 줄만 한 판으로 묶는다. 한 줄씩 따로 grid 를 만들면 **열이 안 맞는다.** */
+  const lines = text.split('\n')
+  const isPair = (l: string) => /^[^:]*[A-Za-z_][^:]*:\s*\S/.test(l)
+  const blocks: { pair: boolean; lines: string[] }[] = []
+  for (const l of lines) {
+    const pair = isPair(l)
+    const tail = blocks[blocks.length - 1]
+    if (tail && tail.pair === pair) tail.lines.push(l)
+    else blocks.push({ pair, lines: [l] })
   }
 
   return (
-    /* whitespace-pre-line — 시트가 나눠 적은 **문장별 줄바꿈을 그대로 그린다**(메모 124행).
-       낱말 쪼개기는 줄바꿈도 공백으로 세므로, 읽어가는 표시(spokenWordCount)는 그대로 돈다. */
-    <p className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors whitespace-pre-line ${
+    <div className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors ${
       reading ? 'text-[#CBD5E1]' : 'text-[#1C1B33]'}`}>
-      {parts.map((part, i) => {
-        const chunk = (
-          <>{part.split(/(\s+)/).map((w, k) => (
-            <span key={k} className={tone('text-[#CBD5E1]')}>{w}</span>
-          ))}</>
-        )
-        if (i === parts.length - 1) return <span key={i}>{chunk}</span>
-        const mine = filled?.[i]
-        const ok = graded ? corrects?.[i] : undefined
-        const shown = mine
-        wi += 1   // 빈칸도 낱말 한 자리를 차지한다
-        return (
-          <span key={i}>
-            {chunk}
-            <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 border-b-2 font-black align-baseline transition-colors ${
-              shown === undefined
-                /* ⚠️ 빈칸끼리 색을 달리하지 않는다. 예전에는 '다음에 채울 칸' 을 파랗게 띄웠는데,
-                   문장을 **통째로 한 번에** 읽는 지금 방식에서는 가리킬 순서가 없다 —
-                   두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
-                ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
-                : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-                  : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
-                    : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-            }`}>{shown ?? '____'}</span>
-            {graded && ok === false && answers[i] && (
-              <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
-            )}
-          </span>
-        )
-      })}
-    </p>
+      {blocks.map((b, bi) => b.pair ? (
+        <div key={bi} className="grid gap-x-3 gap-y-0.5 items-baseline my-0.5"
+          style={{ gridTemplateColumns: 'max-content 1fr' }}>
+          {b.lines.map((l, li) => {
+            const at = l.indexOf(':')
+            return (
+              <Fragment key={li}>
+                <span>{runOf(l.slice(0, at))}</span>
+                <span>{runOf(l.slice(at + 1).replace(/^\s+/, ''))}</span>
+              </Fragment>
+            )
+          })}
+        </div>
+      ) : (
+        <p key={bi} className="whitespace-pre-line">{runOf(b.lines.join('\n'))}</p>
+      ))}
+    </div>
   )
 }
 
