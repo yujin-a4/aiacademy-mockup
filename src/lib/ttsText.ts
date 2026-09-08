@@ -216,7 +216,8 @@ export function sayableTerms(raw: string): string {
   t = t.replace(/무엇무엇(는|를|가|와)/g, (_m, jo) =>
     '무엇무엇' + ({ 는: '은', 를: '을', 가: '이', 와: '과' } as Record<string, string>)[jo])
   /* ⚠️ **파트 번호를 세는 말로 바꾸면 안 된다** — "Part 1 문제" 가 "Part 한 문제" 가 된다(실측). */
-  t = t.replace(/(?<!Part\s)(?<!파트\s)(\d+)\s*(문제|자리)/g, (m, n, unit) => {
+  /* '가지' 추가 (메모 126행) — "3가지 포인트" 를 [삼 가지] 로 읽었다 */
+  t = t.replace(/(?<!Part\s)(?<!파트\s)(\d+)\s*(문제|자리|가지)/g, (m, n, unit) => {
     const i = Number(n)
     return i >= 1 && i <= 10 ? `${KO_COUNT[i]} ${unit}` : m
   })
