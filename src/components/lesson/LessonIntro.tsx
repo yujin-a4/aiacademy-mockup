@@ -4,6 +4,7 @@
    3단계 반응형: 폰(base) / 태블릿 세로(md:) / 태블릿 가로·PC(lg:)
    TTS는 부모가 담당. 이 컴포넌트는 시각(진행바 애니메이션)만 처리. */
 
+import PhaseStepper from '@/components/lesson/PhaseStepper'
 import { useEffect, useState } from 'react'
 
 export interface LessonIntroPoint {
@@ -75,24 +76,12 @@ export default function LessonIntro({
   }, [])
 
   /* 상단 phase 스텝퍼 */
-  const PhaseStepper = () => (
-    <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4 bg-white border-b border-gray-100 shrink-0">
-      <button onClick={onEnd} className="p-1" aria-label="뒤로">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 md:w-7 md:h-7"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-      </button>
-      <div className="flex items-center gap-1.5 md:gap-2.5">
-        {phaseLabels.map((label, i) => (
-          <div key={label} className="flex items-center gap-1.5 md:gap-2.5">
-            <div className={`px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[11px] md:text-[15px] font-bold ${i === 0 ? 'bg-[#2277F0] text-white' : 'bg-gray-100 text-gray-400'}`}>
-              {label}
-            </div>
-            {i < phaseLabels.length - 1 && <svg viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="w-2.5 h-2.5 md:w-4 md:h-4"><path d="M9 18l6-6-6-6" /></svg>}
-          </div>
-        ))}
-      </div>
-      <button onClick={onEnd} className="text-[11px] md:text-sm text-gray-400 border border-gray-100 px-2.5 py-1 md:px-4 md:py-2 rounded-lg">종료</button>
-    </div>
-  )
+  /* ── 단계 표시줄은 **수업 화면과 한 벌을 쓴다** (09-08 지적) ──
+     예전에는 여기서 따로 그렸다 — 알약 + 화살표. 수업은 글자 + 밑줄이라 [시작] 을 누르는
+     순간 위쪽이 통째로 다른 화면처럼 바뀌었다. 공용 컴포넌트로 옮겼다(components/lesson/PhaseStepper).
+     ⚠️ 오른쪽 '종료' 버튼은 뺐다 — 왼쪽 뒤로 화살표와 **같은 곳으로 간다**(onEnd). 같은 문이
+        둘일 이유가 없고, 수업 화면에는 없는 것이라 두면 또 어긋난다. */
+  const Stepper = () => <PhaseStepper active={0} steps={phaseLabels} onEnd={onEnd} />
 
   /* 강사 사진 패널 */
   const TeacherPhoto = ({ variant }: { variant: 'mobile' | 'tablet' }) => (
@@ -147,7 +136,7 @@ export default function LessonIntro({
 
   return (
     <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
-      <PhaseStepper />
+      <Stepper />
 
       {/* ════ 폰 / 태블릿 세로 (<lg): 강사 풀스크린 + 반투명 하단 카드 ════ */}
       <div className="flex-1 relative overflow-hidden lg:hidden">
