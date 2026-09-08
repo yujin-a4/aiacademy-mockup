@@ -213,10 +213,22 @@ export default function MicButton({ lang, onResult, onInterim, onStart, classNam
     setPhase('sending')
     try {
       const form = new FormData()
-      form.append('audio', blob, 'audio.webm')
+      /* ── 파일 이름의 확장자를 **녹음된 실제 형식에서 가져온다** (메모 46행) ──
+         `audio.webm` 으로 박아 두었더니 **사파리에서만 안 됐다.** 사파리의 MediaRecorder 는
+         webm 을 못 만들고 `audio/mp4`(AAC)를 낸다 — mp4 바이트를 .webm 이라고 이름 붙여
+         보내니 전사기가 못 읽는다. 아이패드 크롬은 되고 사파리만 안 되던 이유가 이것이다.
+         ⚠️ 브라우저가 주는 mimeType 은 `audio/webm;codecs=opus` 처럼 뒤가 붙는다 — 앞부분만 쓴다. */
+      const ext = (blob.type.split(';')[0].split('/')[1] || 'webm').replace('mpeg', 'mp3')
+      form.append('audio', blob, `audio.${ext}`)
       form.append('language_code', lang.slice(0, 2))
       const res = await fetch('/api/stt', { method: 'POST', body: form })
       if (!res.ok) {
+        /* ── 실패한 **까닭을 남긴다** ──
+           예전에는 화면 문구 하나로 끝나서, 브라우저마다 다른 실패를 구분할 길이 없었다.
+           네이버 웨일에서 안 된다는 보고가 왔는데 무엇이 막힌 건지 알 수가 없었다(메모 46행).
+           학생에게는 그대로 한 마디만, 콘솔에는 형식·크기·서버 응답을 적는다. */
+        console.warn('[STT] 서버가 거절했다', res.status, await res.text().catch(() => ''),
+          { mime: blob.type, bytes: blob.size, ext })
         setProblem('옮기지 못했어요. 잠시 뒤 다시 해 주세요')
         return
       }
@@ -224,7 +236,8 @@ export default function MicButton({ lang, onResult, onInterim, onStart, classNam
       const said = stripNonSpeech(text ?? '')
       if (!said) { setProblem('다시 말씀해 주세요'); return }
       onResult(said)
-    } catch {
+    } catch (e) {
+      console.warn('[STT] 보내지 못했다', e, { mime: blob.type, bytes: blob.size })
       setProblem('보내지 못했어요. 연결을 확인해 주세요')
     } finally {
       setPhase('idle')

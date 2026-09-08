@@ -475,8 +475,12 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                 )}
               </div>
 
-              {showResult && o.why && (isCorrect || chosen) && (
-                <p className={`text-[11px] leading-relaxed mt-1 ml-9 ${isCorrect ? 'text-[#16A34A]' : 'text-[#EF4444]'}`}>{o.why}</p>
+              {/* ── 해석은 **정답 보기에만** 붙인다 (메모 120행 뒤 지정, 09-08) ──
+                  예전에는 학생이 고른 오답 아래에도 해석을 깔았다. 그런데 그 자리는 강사가
+                  곧바로 말로 짚는 자리라 같은 내용이 글과 말로 두 번 나가고, 오답 넷을 다
+                  들춰 보는 화면이 되어 정답이 묻힌다. 두 강사 모두 뺀다. */}
+              {showResult && o.why && isCorrect && (
+                <p className="text-[11px] leading-relaxed mt-1 ml-9 text-[#16A34A]">{o.why}</p>
               )}
             </div>
           )
