@@ -691,8 +691,14 @@ function toRecapCard(q, id) {
     return h && !h.includes('(') ? h : null
   }
   const head = headOf()
-  const body = head ? rawLines.slice(2).join('\n') : q.text
-  const text = clean(body).replace(/\([\s　]*\)/g, '___')
+  /* ── 문장 사이 줄바꿈도 **살린다** (메모 124행) ──
+     시트는 한 항목 안에서도 문장을 줄로 나눠 적는다 — 예외 표현 항목은 설명 아래에 예시
+     목록까지 줄로 달려 있다("be being ( ): 진열되고 있다 ⏎ be being cast: …").
+     clean() 을 통째로 걸면 그 줄바꿈이 다 공백이 되어 한 문단으로 뭉치고, 예시가 본문에
+     섞여 읽힌다. **줄마다 clean() 하고 다시 줄로 잇는다.**
+     ⚠️ 빈 줄은 버린다. 남겨 두면 항목 사이보다 항목 안이 더 벌어져 되레 흐트러진다. */
+  const body = head ? rawLines.slice(2) : String(q.textRaw ?? q.text).split(/\r?\n/)
+  const text = body.map((l) => clean(l)).filter(Boolean).join('\n').replace(/\([\s　]*\)/g, '___')
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }

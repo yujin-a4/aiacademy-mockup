@@ -5336,7 +5336,9 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim
   }
 
   return (
-    <p className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors ${
+    /* whitespace-pre-line — 시트가 나눠 적은 **문장별 줄바꿈을 그대로 그린다**(메모 124행).
+       낱말 쪼개기는 줄바꿈도 공백으로 세므로, 읽어가는 표시(spokenWordCount)는 그대로 돈다. */
+    <p className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors whitespace-pre-line ${
       reading ? 'text-[#CBD5E1]' : 'text-[#1C1B33]'}`}>
       {parts.map((part, i) => {
         const chunk = (
