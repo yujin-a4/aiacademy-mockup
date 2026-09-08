@@ -360,12 +360,18 @@ const STRUCK = (() => {
  *  (scripts/tone/apply_tone.py). 그 뒤에는 이 파일을 **지운다** — 두 정본이 남으면
  *  나중에 왜 화면과 시트가 다른지 아무도 못 짚는다.
  *
- *  끄는 법: `--no-tone` 또는 파일 삭제. 어느 쪽이든 바로 시트 그대로로 돌아간다. */
+ *  ⚠️ **2026-09-08 부터 기본으로 꺼져 있다.** 켜려면 `--tone`.
+ *     대본이 '개념학습 추가 버전' 으로 개편되면서 제안본의 칸 주소(행 번호)가 통째로 어긋났다.
+ *     그런데 어긋난 것이 **조용하다** — 덮어쓴 칸이 빈 값이 되고, 대사 칸이 비면 그 줄은 턴이
+ *     못 되고, 턴 0개인 블록은 아래에서 소리 없이 버려진다. 그래서 이도윤 LC 가 57턴에서
+ *     23턴으로 반토막 났는데 경고 한 줄 없었다(09-08 실측: 유형 학습 2·3 과 실전 4개 전멸).
+ *     제안본을 새 탭에 맞춰 다시 만든 뒤에 `--tone` 으로 확인하고, 기본값을 되돌릴 것.
+ *  끄는 법: 기본값. 켜는 법: `--tone`. 파일을 지워도 같다. */
 /* ⚠️ 파일 하나가 아니라 **폴더 전체**를 읽는다 (09-07). 예전에는 이도윤 것 하나만 박아 뒀는데,
    윤다은 대본에도 손질할 자리가 생겼다(모델이 "쳐볼까요" 를 [쳐봐볼까요] 로 읽는 자리 10칸).
    제안본마다 `_시트.탭` 으로 자기가 어느 탭에 얹힐지 적어 두므로 섞이지 않는다. */
 const TONES = (() => {
-  if (process.argv.includes('--no-tone')) return []
+  if (!process.argv.includes('--tone')) return []
   const dir = path.join(__dirname, 'tone')
   if (!fs.existsSync(dir)) return []
   return fs.readdirSync(dir).filter((f) => f.endsWith('.json'))
@@ -450,6 +456,7 @@ function parse(tabName, range, section) {
       : /^실전\s*문제로\s*넘어갈\s*때\s*멘트$/.test(c0) ? 'preface'
       : /^실전\s*문제\s*풀이\s*후\s*멘트$/.test(c0) ? 'result' : null
     if (head) {
+      if (process.env.DBG) console.log('   [머리]', head, JSON.stringify(c0))
       cur = { kind: head, turns: [], script: [], points: [], quiz: [] }
       blocks.push(cur)
       cols = null
@@ -479,7 +486,7 @@ function parse(tabName, range, section) {
     /* '[공통사항] … 실전 문제 풀이 전에 강사가 "…" 라고 안내하도록 함' — 윤다은은 실전 안내
        문구를 따로 블록으로 두지 않고 이 메모 안에 따옴표로 적어 뒀다. 그래서 메모도 들고 간다. */
     if (lone && /^\[/.test(c0)) blocks.push({ kind: 'note', text: c0, turns: [], script: [], points: [], quiz: [] })
-    if (lone && !meta) { cur = null; cols = null; continue }
+    if (lone && !meta) { if (process.env.DBG) console.log('   [닫힘]', JSON.stringify(c0.slice(0,40))); cur = null; cols = null; continue }
 
     if (!cur) continue
     if (/^ID:/.test(c0)) { cur.srcCode = c0.replace(/^ID:\s*/, ''); continue }
@@ -524,14 +531,24 @@ function parse(tabName, range, section) {
          묶음마다 다르다. 어휘 정리는 '보기'(또는 '선택지') 칸이 있고, 전략 정리는 08-19 개정에서
          보기 칸이 통째로 빠졌다 — 문장 빈칸은 주관식으로 가기로 했기 때문이다.
          자리를 고정으로 박아 두면 칸 하나가 빠진 순간 정답 자리에서 피드백을 읽는다(실측: 10문항 전멸). */
-      if (!/^\d+$/.test(c0)) {
+      /* ── 문항 줄인지 가리는 법이 **묶음마다 다르다** ──
+         윤다은:  번호 칸이 따로 있다      → `문항 | 퀴즈 | 보기 | 정답 | 피드백`, 첫 칸이 "1"
+         이도윤:  번호 칸이 없다          → `화면에 보여줄 내용 | | 정답 | 학생 응답 후 AI 강사`
+                  첫 칸에 번호와 본문이 같이 있다 — "1. 인물의 동작 ⏎ 인물이 '지금 …' ( ) 형태"
+         예전에는 첫 칸이 **숫자만**인 줄(`^\d+$`)만 받았다. 그래서 이도윤의 '핵심 요약 (1)'
+         3문항이 표 머리로 오인돼 통째로 사라졌다(09-08 실측). 번호로 시작하기만 하면 받는다. */
+      const numOnly = /^\d+$/.test(c0)
+      const numbered = /^\d+\s*[.)]/.test(c0)
+      if (!numOnly && !numbered) {
         const at = (re) => row.findIndex((x) => re.test(clean(x)))
         if (at(/^정답$/) >= 0) cur.cols = { options: at(/^(보기|선택지)$/), answer: at(/^정답$/), feedback: at(/AI\s*강사|피드백/) }
         continue        // 표 머리와 빈 줄은 여기서 끝
       }
       const rc = cur.cols || { options: 2, answer: 3, feedback: 4 }
       cur.quiz.push({
-        text: clean(row[1]),
+        /* 번호가 본문과 한 칸에 있으면 **그 칸이 곧 문항**이다 — 옆칸(row[1])은 비어 있다.
+           머리의 번호는 뗀다("1. 인물의 동작" → "인물의 동작"): 화면이 순번을 따로 매긴다. */
+        text: numOnly ? clean(row[1]) : clean(c0.replace(/^\d+\s*[.)]\s*/, '')),
         options: rc.options >= 0 ? clean(row[rc.options]) : '',
         answer: clean(row[rc.answer]),
         /* 빈칸이 둘 이상인 문항은 **줄바꿈이 곧 칸 구분**이다 — clean() 이 그걸 공백으로
@@ -555,6 +572,17 @@ function parse(tabName, range, section) {
       continue
     }
     if (!cols) continue
+
+    /* ── '토익 TIP' 줄은 **발화가 아니라 화면 카드**다 ──
+       단계 칸이 비어 있고 대사 칸에만 있다. 그대로 두면 강사가 "토익 팁 사진에 없는 사물이나…"
+       를 통째로 읽는다. 바로 앞 턴(S7 표현 정리)에 달아 두면 화면이 그 단계 끝에 띄운다. */
+    const tip = parseTip(cols.tutor >= 0 ? row[cols.tutor] : '')
+    if (tip) {
+      const last = cur.turns[cur.turns.length - 1]
+      if (last) last.tip = tip
+      else console.warn(`WARN  "${tabName}" 토익 TIP 이 **앞 턴 없이** 나왔다 — 달 곳이 없어 버린다.`)
+      continue
+    }
 
     const modeRaw = cols.mode >= 0 ? row[cols.mode] : ''
     /* ── 강사 칸이 '–' 인 줄 ── (09-03 개념학습본에서 새로 생겼다)
@@ -614,6 +642,7 @@ function parse(tabName, range, section) {
     cur.turns.push(mk(tutor, modeRaw, sampleRaw, null))
   }
   /* 빈 껍데기는 버린다. note 는 turns·script 가 없지만 text 하나로 뜻이 있으므로 남긴다 */
+  if (process.env.DBG) blocks.forEach((b, i) => console.log(`   [블록${i}] ${b.kind} 턴${b.turns.length} 대사${b.script.length} 퀴즈${b.quiz.length} 코드=${b.srcCode || '-'}`))
   return blocks.filter((b) => b.turns.length || b.script.length || b.quiz.length || b.text)
 }
 
@@ -838,6 +867,37 @@ function playCue(tutor) {
 }
 
 /** @param audible 보기를 **소리로** 듣는 강의인가 (LC). RC Part 5 는 보기가 글자라 음원이 없다 */
+/** ── '토익 TIP' 칸을 카드로 읽는다 ──
+ *
+ *  시트 모양(실측 15칸): 첫 줄이 '토익 TIP', 그 아래가 본문, '어휘' 줄부터 끝까지가 어휘다.
+ *  본문은 자유롭게 쓴다 — 소제목(`*…`) · 번호(`1. …`) · 보조 설명(`→ …`) 이 섞이고,
+ *  어휘 절이 **아예 없는 것도 있다**(RC assemble). 그래서 틀을 씌우지 않고 줄을 그대로 든다.
+ *
+ *  어휘 줄은 "rinse 헹구다" 처럼 **영어 뒤에 뜻**이 붙는 꼴이다. 첫 한글에서 자르되,
+ *  ⚠️ 그 앞의 물결표까지 뜻 쪽으로 넘긴다 — "rest one's arm on ~에 팔을 기대다" 에서
+ *     한글만 보고 자르면 `~` 가 영어 쪽에 남아 "rest one's arm on ~" 이 된다. */
+function parseTip(raw) {
+  const lines = String(raw ?? '').split(/\r?\n/).map((l) => l.trim())
+  if (!/^토익\s*TIP/i.test(lines[0] || '')) return null
+  const body = []
+  const vocab = []
+  let inVocab = false
+  for (const line of lines.slice(1)) {
+    if (!line) continue
+    if (/^어휘$/.test(line)) { inVocab = true; continue }
+    if (!inVocab) { body.push(line); continue }
+    const at = line.search(/[가-힣]/)
+    if (at <= 0) { body.push(line); continue }   // 어휘 절인데 영어가 없다 — 설명 줄로 본다
+    let cut = at
+    while (cut > 0 && /[~\s]/.test(line[cut - 1])) cut--
+    const en = line.slice(0, cut).trim()
+    const ko = line.slice(cut).trim()
+    if (en && ko) vocab.push({ en, ko })
+    else body.push(line)
+  }
+  return body.length || vocab.length ? { body, vocab } : null
+}
+
 function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   /* 실전(리뷰)은 itemSeq 를 달지 않는다 — 아이템 표는 수업 문항 것이라
      실전 문항 번호로 되짚으면 엉뚱한 범위가 잡힌다. 화면은 focusQ 하나로 문항을 고른다. */
@@ -848,8 +908,8 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   const cue = playCue(said0)
   const tutor = cue ? cue.said : said0
   const base = kind === 'lesson'
-    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx }
-    : { no, stage: t.stage, tutor, focusQ: qIdx }
+    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}) }
+    : { no, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}) }
   /* S6 는 **어느 보기 이야기인지**를 달고 다닌다 — 화면이 학생이 고른 오답 하나와
      후속 질문으로 고른 하나만 골라 틀기 때문이다(build 의 orderTurns). 단계명에 적혀 있다. */
   if (t.optionRef) base.optionRef = t.optionRef

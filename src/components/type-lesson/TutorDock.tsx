@@ -405,6 +405,12 @@ export interface TutorDockProps {
   setInputText: (s: string) => void
   onSend: () => void
   onStartAgent: () => void
+  /** 창 **맨 위**에 얹는 줄 — 토익 TIP·핵심 어휘 버튼이 여기 앉는다.
+   *  아바타보다 위다: 수업 내내 자리가 변하지 않아야 학생이 눈으로 찾는다. */
+  topBar?: React.ReactNode
+  /** 창 **전체를 덮는** 판 — 모아 보기. 수업 칸은 덮지 않는다(그러라고 모아 두는 것이다).
+   *  `absolute inset-0` 로 그리므로 이 창의 뿌리가 `relative` 여야 한다. */
+  overlay?: React.ReactNode
   /** 스크롤 컨테이너 ref — 턴 전환 시 자동 스크롤용 */
   bodyRef?: React.Ref<HTMLDivElement>
 }
@@ -412,7 +418,7 @@ export interface TutorDockProps {
 export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
-  lastLine, lastLinePlain, messages, actions, hint, actionKey,
+  lastLine, lastLinePlain, messages, actions, hint, actionKey, topBar, overlay,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
 }: TutorDockProps) {
   const voiceMode = chatMode === 'voice'
@@ -460,7 +466,7 @@ export default function TutorDock({
         getTutorFreq={getTutorFreq} lastLine={lastLine} lastLinePlain={lastLinePlain}
         chatMode={chatMode} setChatMode={setChatMode} micActive={micActive}
         inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
-        actions={actions} hint={hint} footer={footer}
+        actions={actions} hint={hint} footer={footer} topBar={topBar} overlay={overlay}
         onExpand={canSidebar ? () => setMode('sidebar') : undefined} />
     )
   }
@@ -482,6 +488,7 @@ export default function TutorDock({
   /* ── 우측 패널(기본) — 화면 오른쪽 기둥 ── */
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
+      {topBar}
       {/* ── '접기' 버튼은 **숨겨 둔다** (사용자 지시 09-01) ──
           작은 창(mini) 으로 가는 길을 학생에게 열어 두지 않는다 — 좁은 화면은 이제
           하단 간소판(bottom)이 맡고, 넓은 화면에서 접을 이유는 없다.
@@ -549,6 +556,8 @@ export default function TutorDock({
           {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
         </>
       )}
+      {/* 모아 보기는 **창 전체를 덮는다** — 뿌리의 마지막 자식이라야 위에 얹힌다 */}
+      {overlay}
     </div>
   )
 }
@@ -680,7 +689,7 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
 function BottomDock({
   faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq,
   lastLine, lastLinePlain, chatMode, setChatMode, micActive, footer,
-  inputText, setInputText, onSend, onStartAgent, actions, hint, onExpand,
+  inputText, setInputText, onSend, onStartAgent, actions, hint, onExpand, topBar, overlay,
 }: {
   faceSrc: string; clipSrc?: string | null; allClips?: string[]
   name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
@@ -691,6 +700,7 @@ function BottomDock({
   footer?: ReactNode
   inputText: string; setInputText: (s: string) => void; onSend: () => void; onStartAgent: () => void
   actions?: ReactNode; hint?: ReactNode
+  topBar?: ReactNode; overlay?: ReactNode
   /** 옆 기둥으로 펼 수 있는 폭이면 그 문을 하나 둔다. 좁으면 없음 */
   onExpand?: () => void
 }) {
@@ -702,8 +712,9 @@ function BottomDock({
   }, [lastLine])
 
   return (
-    <div className="shrink-0 w-full border-t border-[#E5E7EB] bg-white"
+    <div className="shrink-0 w-full border-t border-[#E5E7EB] bg-white relative"
       style={{ boxShadow: '0 -6px 20px rgba(15,23,42,0.06)' }}>
+      {topBar}
       {/* ① 누가 말하는가 + 방금 한 말 */}
       <div className="flex items-start gap-2.5 px-3 pt-2.5">
         <span className="relative shrink-0">
@@ -761,6 +772,8 @@ function BottomDock({
         </div>
       )}
       {footer && <div className="px-3 pb-2">{footer}</div>}
+      {/* 모아 보기는 **창 전체를 덮는다** — 뿌리의 마지막 자식이라야 위에 얹힌다 */}
+      {overlay}
     </div>
   )
 }

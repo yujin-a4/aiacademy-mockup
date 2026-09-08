@@ -36,7 +36,7 @@ import dotenv from 'dotenv'
 
 import { FGI_SCENARIO } from '../src/data/typeLearning/fgiScenario.ts'
 import { INST_PERSONA, INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE, INST_AUDIO_TAGS, INST_PITCH } from '../src/data/instructorData.ts'
-import { ACKS, ACKS_BY_INST, RETRY_BY_INST, RETRY_DEFAULT, stripAck } from '../src/data/typeLearning/scriptedSpeech.ts'
+import { ACKS, ACKS_BY_INST, RETRY_BY_INST, RETRY_DEFAULT, MOVE_ON_BY_INST, OFF_TOPIC_BY_INST, OFF_TOPIC_DEFAULT, stripAck } from '../src/data/typeLearning/scriptedSpeech.ts'
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
   applyAudioTags, applyPronunciation, stripAudioTags, koLetters, sanitizeForTts, sayableTerms, spaceSentences, ttsCacheKey,
@@ -103,6 +103,10 @@ function collect(instructor) {
   for (const a of ACKS_BY_INST[instructor] ?? []) add(a, '맞장구(강사)')
   /* 지정이 없는 강사는 기본 문구를 말한다 — retryLine 과 같은 규칙으로 고른다 */
   for (const r of RETRY_BY_INST[instructor] ?? RETRY_DEFAULT) add(r, '되묻기')
+  /* 되묻지 않는 강사가 오답에서 한 마디만 얹고 넘어가는 말 — 안 모으면 매번 실시간이다 */
+  if (MOVE_ON_BY_INST[instructor]) add(MOVE_ON_BY_INST[instructor], '넘어가기')
+  /* 딴소리(판정 N)에 하는 말 — 안 모으면 매번 실시간이다 */
+  for (const o of OFF_TOPIC_BY_INST[instructor] ?? OFF_TOPIC_DEFAULT) add(o, '딴소리')
   return out
 }
 

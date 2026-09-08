@@ -55,6 +55,34 @@ export const RETRY_BY_INST: Record<string, readonly string[]> = {
    강사 지정이 없는 강사(윤다은)는 이 줄을 말하는데, 목록에 없어서 매번 실시간으로 떨어졌다. */
 export const RETRY_DEFAULT = ['다시 한번 생각해 볼까요?'] as const
 
+/** ── 되묻지 않는 강사가 오답에서 **한 마디만 얹고 넘어갈 때** 쓰는 말 ──
+ *
+ *  되묻기를 끈 강사(INST_RETRY_SCAFFOLD=false)는 답을 다시 받지 않는다. 그렇다고 아무 말도
+ *  없이 넘어가면 학생은 자기 답이 어떻게 됐는지 못 듣는다 — 틀렸다는 것은 화면만 말한다.
+ *  그래서 **답은 안 받되 말은 한다.**
+ *  ⚠️ RETRY_BY_INST 의 "다시 한번 생각해보세요" 계열을 여기에 쓰면 안 된다 —
+ *     다시 생각하라고 해놓고 답을 안 받으면 앞뒤가 안 맞는다. 넘어가는 말이어야 한다.
+ *  ⚠️ 미리 음원을 만드는 생성기(gen-scripted-tts.mjs)가 이것도 모아야 한다. */
+export const MOVE_ON_BY_INST: Record<string, string> = {
+  lee_doyun: '아니에요. 다시 같이 봐볼게요.',
+}
+
+/** ── 학생이 **딴소리를 했을 때** 하는 말 (판정 N) ──
+ *
+ *  틀린 답이 아니라 답할 생각이 없는 말이다("배고파요"). 예전에는 이런 말이 판정기의
+ *  "그 밖에 반반이면 O" 에 걸려 **정답 처리**됐다 — 강사가 "맞아요" 하고 다음 설명으로
+ *  넘어갔다(09-08 실측). 못 알아들었다고 말하고 수업으로 돌아온다.
+ *  ⚠️ 미리 음원을 만드는 생성기(gen-scripted-tts.mjs)가 이것도 모아야 한다. */
+export const OFF_TOPIC_BY_INST: Record<string, readonly string[]> = {
+  lee_doyun: ['음, 무슨 말인지 잘 모르겠어요. 수업 이어갈게요.', '지금은 수업에 집중해 볼까요?'],
+}
+export const OFF_TOPIC_DEFAULT = ['음, 무슨 말인지 잘 모르겠어요. 수업 이어갈게요.'] as const
+
+export const offTopicLine = (n: number, instructor?: string): string => {
+  const pool = (instructor && OFF_TOPIC_BY_INST[instructor]) || OFF_TOPIC_DEFAULT
+  return pool[n % pool.length]
+}
+
 export const ackLine = (n: number, instructor?: string): string => {
   const pool = (instructor && ACKS_BY_INST[instructor]) || ACKS
   return pool[n % pool.length]
