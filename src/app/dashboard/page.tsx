@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { IncomingCallScreen, ActiveCallScreen, CallLogSheet } from '@/components/CallScreen'
 import type { CallEntry } from '@/components/CallScreen'
-import { INST_NAME, INST_THUMBS, INST_MESSAGES, INST_PERSONA } from '@/data/instructorData'
+import { INST_NAME, INST_THUMBS, INST_CUTOUTS, INST_MESSAGES, INST_PERSONA } from '@/data/instructorData'
 import CallSurvey from '@/components/survey/CallSurvey'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { DEMO_DDAY } from '@/data/curriculumSchedule'
@@ -138,6 +138,8 @@ function RegularDashboard() {
   }
   const instName = INST_NAME[selectedInstructor ?? 'park_hyewon'] ?? '박혜원'
   const instThumb = INST_THUMBS[selectedInstructor ?? 'park_hyewon'] ?? ''
+  /* 히어로 패널용 — 배경 지운 PNG 가 있으면 그것, 없으면 사각 사진으로 폴백 */
+  const instHero = INST_CUTOUTS[selectedInstructor ?? 'park_hyewon'] ?? instThumb
 
   const [callState, setCallState] = useState<CallState>('idle')
   const [callLog, setCallLog] = useState<CallEntry[]>([])
@@ -275,20 +277,12 @@ function RegularDashboard() {
 
                   {/* 강사 사진 (데스크탑 전용 · 모바일은 코칭 라벨 옆 아바타로 대체) */}
                   <div className="relative overflow-hidden h-full hidden md:block">
-                    {(selectedInstructor ?? 'park_hyewon') === 'park_hyewon' ? (
-                      <img
-                        src="/image_reference/park-report.png"
-                        alt={instName}
-                        className="absolute bottom-0 left-0 max-h-[320px] w-auto object-contain drop-shadow-lg"
-                      />
-                    ) : (
-                      <img
-                        src={INST_THUMBS[selectedInstructor ?? 'park_hyewon']}
-                        alt={instName}
-                        className="absolute bottom-0 left-0 max-h-[320px] w-auto object-contain drop-shadow-lg"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    )}
+                    <img
+                      src={instHero}
+                      alt={instName}
+                      className="absolute bottom-0 left-0 max-h-[320px] w-auto object-contain drop-shadow-lg"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
                   </div>
 
                   {/* 말풍선 + CTA */}
