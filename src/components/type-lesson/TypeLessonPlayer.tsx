@@ -5462,6 +5462,16 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
             : anyWrong ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
         }`}>{index + 1}</span>
         <div className="flex-1 min-w-0">
+          {/* ── 소제목은 **문장 위 한 줄로 따로** 세운다 (메모 124행) ──
+              시트가 "1. 인물의 동작 ⏎⏎ 인물이 …" 처럼 나눠 적어 둔 것을 화면이 한 줄로 붙여
+              읽고 있었다("인물의 동작 인물이 지금 …"). 소제목이 문장의 첫머리처럼 읽혀서
+              세 항목을 훑을 때 무엇이 제목이고 무엇이 내용인지 구분이 안 됐다.
+              번호는 왼쪽 동그라미가 이미 매기므로 여기서 또 붙이지 않는다.
+              ⚠️ 소제목이 없는 항목(윤다은·이도윤 RC 정리)은 그냥 문장만 나온다 — 자리를
+                 비워 두지 않는다. 빈 줄을 남기면 항목 높이가 들쭉날쭉해진다. */}
+          {sentence.head && (
+            <p className="text-[12.5px] font-black text-[#2563EB] mb-1 leading-snug">{sentence.head}</p>
+          )}
           <RecapBlankSentence text={sentence.en} filled={filled} corrects={corrects} answers={answers}
             graded={graded} live={live} dim={!done} />
         </div>

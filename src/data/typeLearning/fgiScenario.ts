@@ -3910,7 +3910,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "items": [
             {
               "id": "s1_1",
-              "en": "인물의 동작 인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
+              "head": "인물의 동작",
+              "en": "인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
               "ko": "그렇죠. is painting, is holding처럼 인물이 지금 하고 있는 동작은 be + -ing 형태로 자주 나와요.",
               "answer": "be + -ing",
               "choices": [],
@@ -3924,7 +3925,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_2",
-              "en": "사물의 상태 사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고, 사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
+              "head": "사물의 상태",
+              "en": "사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고, 사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
               "ko": "맞아요. have been lined up처럼 'have/has been + p.p.'는 사물이 이미 어떤 상태로 놓여 있을 때 자주 나오고, are being installed처럼 'be being + p.p.'는 누군가에 의해 사물이 놓이는 중일 때 써요.",
               "answer": "have(has) been + p.p.",
               "choices": [],
@@ -3969,7 +3971,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_3",
-              "en": "예외 표현 사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있다. be being ___: 진열되고 있다 be being cast: 그림자가 드리워지고 있다 be being exhibited : 전시되고 있다 be being stored : 보관되고 있다",
+              "head": "예외 표현",
+              "en": "사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있다. be being ___: 진열되고 있다 be being cast: 그림자가 드리워지고 있다 be being exhibited : 전시되고 있다 be being stored : 보관되고 있다",
               "ko": "그렇죠. 대표적으로 be being p.p.처럼 사람이 나오지 않고 사물이 진열되어 있는 상태여도 be being displayed를 쓸 수 있어요.",
               "answer": "displayed",
               "choices": [],
