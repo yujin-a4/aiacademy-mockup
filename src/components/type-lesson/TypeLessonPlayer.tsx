@@ -2863,8 +2863,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        강사가 아무 말 없이 다음 단계로 가면 학생은 자기 답이 어떻게 됐는지 못 듣는다.
        **답을 다시 받지는 않는다** — 말만 얹고 아래로 내려가 짚어 준다(그게 되묻기와 다른 점이다).
        대본이 오답 갈래를 갖고 있으면 비켜서는 것은 되묻기와 같은 이유다 — 같은 자리가 두 번 된다. */
+    let movedOn = false
     if (INST_RETRY_SCAFFOLD[instructor] === false && !scriptWillAnswerWrong() && MOVE_ON_BY_INST[instructor]) {
       await say(MOVE_ON_BY_INST[instructor])
+      movedOn = true
     }
     /* 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
        "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
@@ -2885,7 +2887,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 대본이 오답 갈래를 갖고 있으면(scriptWillAnswerWrong) 앱은 비켜선다 — 이도윤 선택지
        31곳이 전부 그렇다(실측 09-01). 거기서 앱이 "아니라고 봤는데, 이건 맞아요" 를 얹으면
        바로 뒤에 대본이 "(오답) 아쉽지만 아니에요…" 를 말해 같은 자리가 두 번이 된다. */
-    if (!scriptWillTell() && !scriptWillAnswerWrong()) await say(closingLine(picked))
+    /* ── O/X 는 넘어가는 말 **하나로 끝낸다** (메모 120행) ──
+       "아니에요. 다시 같이 봐볼게요." 를 하고 곧바로 "아니라고 봤는데, … 그래서 이건 맞아요" 가
+       또 나갔다. 두 마디가 같은 자리를 두 번 말하는 데다, 뒤엣말은 학생이 방금 고른 것을
+       되짚느라 **틀렸다는 얘기를 두 번** 한다.
+       ⚠️ O/X 에서만 뺀다. A~D 와 말하기는 closingLine 이 **답 자체를 알려주는** 자리라
+          빼면 못 맞힌 학생이 답을 못 듣고 넘어간다(09-01 에 그렇게 새서 고친 자리다).
+          O/X 는 답이 둘 중 나머지 하나라 짚을 것이 없고, 대본이 곧바로 이어서 설명한다. */
+    const isOX = turn.interaction.kind === 'choice'
+      && turn.interaction.choices.length === 2
+      && turn.interaction.choices.every((c) => c.text === 'O' || c.text === 'X')
+    if (!movedOn || !isOX) {
+      if (!scriptWillTell() && !scriptWillAnswerWrong()) await say(closingLine(picked))
+    }
     goNext()
   }
 
