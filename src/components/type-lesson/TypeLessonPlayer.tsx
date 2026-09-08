@@ -20,7 +20,7 @@ import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
 /* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
 import { koJosa, endsConsonant } from '@/lib/ttsText'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_CUTOUTS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { PulseAvatar, SpeechDots, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
@@ -3662,6 +3662,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         points={introPoints.map((text) => ({ text: stripAudioTags(text) }))}
         teacherName={`${teacherName} 선생님`}
         teacherImg={teacherImg}
+        teacherCutout={INST_CUTOUTS[instructor]}
         preparing={preparing}
         onStart={() => setStarted(true)}
         onEnd={() => { stopVoice(); router.push('/lessons') }}

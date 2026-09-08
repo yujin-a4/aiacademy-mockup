@@ -26,6 +26,9 @@ interface LessonIntroProps {
   teacherImg?: string
   teacherName?: string
   phaseLabels?: string[]
+  /** 배경을 지운 상반신(INST_CUTOUTS). 있으면 **사진 대신 이것을 부드러운 바탕 위에** 세운다 —
+   *  강사에 따라 원본 사진 배경이 검정이라 도입 화면이 통째로 어두워진다(이도윤). 없으면 원본 그대로. */
+  teacherCutout?: string
 }
 
 function VoiceWave({ speaking }: { speaking: boolean }) {
@@ -61,6 +64,7 @@ export default function LessonIntro({
   teacherImg = '/image_reference/park-3.jpg',
   teacherName = '박혜원 선생님',
   phaseLabels = ['도입', '유형 학습', '실전 문제', '핵심 요약'],
+  teacherCutout,
 }: LessonIntroProps) {
   const [introTime, setIntroTime] = useState(0)
   const [speaking, setSpeaking] = useState(true)
@@ -86,9 +90,31 @@ export default function LessonIntro({
   /* 강사 사진 패널 */
   const TeacherPhoto = ({ variant }: { variant: 'mobile' | 'tablet' }) => (
     <>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={teacherImg} alt={`AI 강사 ${teacherName}`} className="absolute inset-0 w-full h-full object-cover object-top" />
-      <div className={`absolute inset-0 ${variant === 'mobile' ? 'bg-gradient-to-t from-black/80 via-black/20 to-black/10' : 'bg-gradient-to-l from-transparent to-black/20'}`} />
+      {/* ── 배경 지운 컷아웃이 있으면 **부드러운 바탕 위에 세운다** ──
+          원본 사진은 강사에 따라 배경이 검정이라(이도윤) 도입 화면이 통째로 어두워졌다.
+          컷아웃은 투명이라 배경을 우리가 고를 수 있다 — 아래 강사 창(#F5F8FF)과 같은 계열의
+          옅은 파랑으로 둬서 화면 전체가 한 톤으로 이어진다.
+          ⚠️ `object-cover` 로 채우면 투명 여백까지 늘려 인물이 잘린다. **contain + 아래 정렬**이라야
+             인물이 바닥에 서 있는 것처럼 앉는다. */}
+      {teacherCutout ? (
+        <div className="absolute inset-0 bg-gradient-to-b from-[#E8F0FF] via-[#F2F7FF] to-[#FBFCFF]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={teacherCutout} alt={`AI 강사 ${teacherName}`}
+            className="absolute inset-0 w-full h-full object-contain object-bottom" />
+        </div>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={teacherImg} alt={`AI 강사 ${teacherName}`} className="absolute inset-0 w-full h-full object-cover object-top" />
+        </>
+      )}
+      {/* ⚠️ 어둡게 덮는 막은 **원본 사진일 때만**이다. 밝은 바탕에 걸면 인물이 흐려지기만 한다.
+             모바일은 아래쪽에 흰 글자가 앉으므로 컷아웃일 때도 옅은 막을 남긴다. */}
+      <div className={`absolute inset-0 pointer-events-none ${
+        teacherCutout
+          ? (variant === 'mobile' ? 'bg-gradient-to-t from-black/45 via-transparent to-transparent' : '')
+          : (variant === 'mobile' ? 'bg-gradient-to-t from-black/80 via-black/20 to-black/10' : 'bg-gradient-to-l from-transparent to-black/20')
+      }`} />
       <div className="absolute top-3 left-3 md:top-5 md:left-5 flex items-center gap-1.5 md:gap-2 bg-red-500 px-2 py-1 md:px-3 md:py-1.5 rounded-full">
         <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-white animate-pulse" />
         <span className="text-white text-[10px] md:text-sm font-bold">AI 강사</span>
