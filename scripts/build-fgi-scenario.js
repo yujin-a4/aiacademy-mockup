@@ -549,6 +549,11 @@ function parse(tabName, range, section) {
         /* 번호가 본문과 한 칸에 있으면 **그 칸이 곧 문항**이다 — 옆칸(row[1])은 비어 있다.
            머리의 번호는 뗀다("1. 인물의 동작" → "인물의 동작"): 화면이 순번을 따로 매긴다. */
         text: numOnly ? clean(row[1]) : clean(c0.replace(/^\d+\s*[.)]\s*/, '')),
+        /* ── 원본도 든다 — **줄바꿈이 뜻을 갖는다** (메모 124행) ──
+           시트는 소제목과 문장을 빈 줄로 나눠 적는다("1. 인물의 동작 ⏎⏎ 인물이 …").
+           clean() 이 그 줄바꿈을 공백으로 눌러 버려서 화면에 "인물의 동작 인물이 …" 로
+           한 줄에 붙어 나왔다. 소제목을 가르려면 눌리기 전 글자가 있어야 한다. */
+        textRaw: String((numOnly ? row[1] : row[0]) ?? ''),   // ⚠️ c0 는 이미 clean() 을 거쳐 줄바꿈이 없다
         options: rc.options >= 0 ? clean(row[rc.options]) : '',
         answer: clean(row[rc.answer]),
         /* 빈칸이 둘 이상인 문항은 **줄바꿈이 곧 칸 구분**이다 — clean() 이 그걸 공백으로
@@ -675,7 +680,25 @@ const spokenKeyOf = (x) => String(x).toLowerCase().replace(/\([^)]*\)/g, '').rep
  *  시트의 '정답 후 강사 피드백' 과 정확히 같은 자리라 거기에 넣는다. */
 function toRecapCard(q, id) {
   const num = (s) => clean(s).replace(/^[①②③④⑤]\s*/, '')
-  const text = clean(q.text).replace(/\([\s　]*\)/g, '___')
+  /* ── 소제목을 가른다 (메모 124행) ──
+     "1. 인물의 동작 ⏎⏎ 인물이 …" 처럼 **첫 줄 뒤에 빈 줄**이 오면 그 첫 줄이 소제목이다.
+     RC 쪽은 소제목 없이 한 문장이라("1. 능동·수동을 판단할 때 첫째, …") 그때는 안 가른다.
+     화면이 번호를 따로 매기므로 소제목의 머리 번호는 뗀다. */
+  const rawLines = String(q.textRaw ?? '').split(/\r?\n/)
+  const headOf = () => {
+    if (rawLines.length < 3 || rawLines[1].trim()) return null
+    const h = rawLines[0].trim().replace(/^\d+\s*[.)]\s*/, '')
+    return h && !h.includes('(') ? h : null
+  }
+  const head = headOf()
+  /* ── 문장 사이 줄바꿈도 **살린다** (메모 124행) ──
+     시트는 한 항목 안에서도 문장을 줄로 나눠 적는다 — 예외 표현 항목은 설명 아래에 예시
+     목록까지 줄로 달려 있다("be being ( ): 진열되고 있다 ⏎ be being cast: …").
+     clean() 을 통째로 걸면 그 줄바꿈이 다 공백이 되어 한 문단으로 뭉치고, 예시가 본문에
+     섞여 읽힌다. **줄마다 clean() 하고 다시 줄로 잇는다.**
+     ⚠️ 빈 줄은 버린다. 남겨 두면 항목 사이보다 항목 안이 더 벌어져 되레 흐트러진다. */
+  const body = head ? rawLines.slice(2) : String(q.textRaw ?? q.text).split(/\r?\n/)
+  const text = body.map((l) => clean(l)).filter(Boolean).join('\n').replace(/\([\s　]*\)/g, '___')
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
@@ -696,7 +719,7 @@ function toRecapCard(q, id) {
          "② 무엇을 하고 있는지"      ← ②='인물의 성별'   뜻이 반대다(시트 오기)
        번호를 따르면 뒤엣것은 **틀린 답을 정답이라고 말하게 된다.** 지어내지 말고 시트를 고칠 것. */
     if (!choices.includes(answer)) return drop(`정답 "${answer}" 이 보기에 없음`)
-    return { id: `s${id}`, en: text, ko: clean(q.feedback), answer, choices, keywords: [answer.toLowerCase()] }
+    return { id: `s${id}`, en: text, ko: clean(q.feedback), answer, choices, keywords: [answer.toLowerCase()], ...(head ? { head } : {}) }
   }
 
   /* 주관식은 **받아 줄 말을 넉넉히** 들고 간다. 시트가 "be p.p. 또는 be + p.p." 처럼
@@ -719,6 +742,7 @@ function toRecapCard(q, id) {
     const ordered = reorderBlankAnswers(text, parts)
     return {
       id: `s${id}`,
+      ...(head ? { head } : {}),
       en: text,
       ko: clean(q.feedback),
       answer: ordered[0].split(/\s*(?:또는|\/|,)\s*/)[0],   // 첫 칸 — 마이크 언어 판별 등이 본다
@@ -731,6 +755,7 @@ function toRecapCard(q, id) {
   const one = blankOf(answer)
   return {
     id: `s${id}`,
+    ...(head ? { head } : {}),
     en: text,
     ko: clean(q.feedback),
     answer: one.answer,

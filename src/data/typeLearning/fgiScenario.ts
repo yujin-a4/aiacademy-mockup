@@ -3910,7 +3910,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "items": [
             {
               "id": "s1_1",
-              "en": "인물의 동작 인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
+              "head": "인물의 동작",
+              "en": "인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
               "ko": "그렇죠. is painting, is holding처럼 인물이 지금 하고 있는 동작은 be + -ing 형태로 자주 나와요.",
               "answer": "be + -ing",
               "choices": [],
@@ -3924,7 +3925,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_2",
-              "en": "사물의 상태 사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고, 사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
+              "head": "사물의 상태",
+              "en": "사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고,\n사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
               "ko": "맞아요. have been lined up처럼 'have/has been + p.p.'는 사물이 이미 어떤 상태로 놓여 있을 때 자주 나오고, are being installed처럼 'be being + p.p.'는 누군가에 의해 사물이 놓이는 중일 때 써요.",
               "answer": "have(has) been + p.p.",
               "choices": [],
@@ -3969,7 +3971,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_3",
-              "en": "예외 표현 사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있다. be being ___: 진열되고 있다 be being cast: 그림자가 드리워지고 있다 be being exhibited : 전시되고 있다 be being stored : 보관되고 있다",
+              "head": "예외 표현",
+              "en": "사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있다.\nbe being ___: 진열되고 있다\nbe being cast: 그림자가 드리워지고 있다\nbe being exhibited : 전시되고 있다\nbe being stored : 보관되고 있다",
               "ko": "그렇죠. 대표적으로 be being p.p.처럼 사람이 나오지 않고 사물이 진열되어 있는 상태여도 be being displayed를 쓸 수 있어요.",
               "answer": "displayed",
               "choices": [],
@@ -6390,7 +6393,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "items": [
             {
               "id": "s1_1",
-              "en": "능동·수동을 판단할 때 첫째, 빈칸이 ___ 자리인지 확인한다.",
+              "en": "1. 능동·수동을 판단할 때 첫째, 빈칸이 ___ 자리인지 확인한다.",
               "ko": "맞아요. 빈칸 앞뒤를 확인해서 빈칸이 동사 자리인지 봐야한다고 했어요.",
               "answer": "동사",
               "choices": [],
@@ -6400,7 +6403,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_2",
-              "en": "빈칸 자리를 확인했으면 둘째, 빈칸 뒤에 동사의 ___가 있는지 확인한다.",
+              "en": "2. 빈칸 자리를 확인했으면 둘째, 빈칸 뒤에 동사의 ___가 있는지 확인한다.",
               "ko": "맞아요. 동사 뒤 목적어 유무를 먼저 확인한다고 했죠? 목적어가 없으면 수동태가 올 가능성이 높아요.",
               "answer": "목적어",
               "choices": [],
@@ -6410,7 +6413,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_3",
-              "en": "목적어 유무로 판단하기 애매할 때는 셋째, ___을 확인한다.",
+              "en": "3. 목적어 유무로 판단하기 애매할 때는 셋째, ___을 확인한다.",
               "ko": "맞아요. 주어가 행동하는 쪽인지, 받는 쪽인지 의미 확인한다고 했죠?",
               "answer": "주어와 동사의 의미 관계",
               "choices": [],
@@ -6420,7 +6423,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_4",
-              "en": "주어가 동작을 직접 하는 주체이면 ___ , 주어가 동작을 받는 대상이면 ___를 쓴다.",
+              "en": "4. 주어가 동작을 직접 하는 주체이면 ___ , 주어가 동작을 받는 대상이면 ___를 쓴다.",
               "ko": "맞아요. 주어가 행동하는 주체이면 능동태, 행동을 받는 대상이면 수동태를 써요.",
               "answer": "능동태",
               "choices": [],
@@ -6444,7 +6447,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_5",
-              "en": "능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
+              "en": "5. 능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
               "ko": "그렇죠. yesterday 같은 시제 단서나 주어의 수까지 마지막으로 확인하세요.",
               "answer": "수와 시제",
               "choices": [],

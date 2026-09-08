@@ -18,7 +18,7 @@
  *    동안에는 `locked` 로 잠근다 — 없애지는 않는다. 잠긴 이유를 말해 주는 편이 낫다.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { LessonTip } from '@/data/typeLearning/types'
 
 /** 쌓인 팁 하나 — 몇 번 문제에서 나왔는지 함께 든다(모아 보기에서 되짚는 실마리) */
@@ -82,14 +82,24 @@ function TipLine({ text }: { text: string }) {
   return <p className="text-[13.5px] leading-[1.75] text-[#1C1B33]">{marked(text)}</p>
 }
 
-function VocabRow({ en, ko }: { en: string; ko: string }) {
+/* ── 어휘는 **표로 읽는다** ──
+   예전에는 점선 리더로 잇고 뜻을 오른쪽 끝에 붙였다. 그러면 영어 길이에 따라 **뜻이 시작하는
+   자리가 줄마다 달라져서**, 목록을 위아래로 훑을 때 눈이 매번 뜻을 다시 찾아야 한다.
+   두 열의 시작점을 맞춘다 — 영어 열을 내용 너비로 잡고(`max-content`) 나머지를 뜻이 갖는다.
+   ⚠️ 줄마다 grid 를 따로 만들면 열이 안 맞는다(각 줄이 제 너비로 잡힌다). **목록 전체가 하나의
+      grid** 여야 하므로, 열 정의는 VocabList 가 갖고 행은 조각으로만 낸다. */
+function VocabList({ items }: { items: { en: string; ko: string }[] }) {
   return (
-    <div className="flex items-baseline gap-2 py-1">
-      {/* 어휘에는 **펜을 긋지 않는다** — 줄마다 영어가 오므로 목록 전체가 빨개진다.
-          펜은 본문에서 '여기가 핵심' 을 가리키는 표시라, 다 그으면 아무것도 안 가리킨다. */}
-      <span className="text-[13px] font-black text-[#1C1B33]">{en}</span>
-      <span className="flex-1 border-b border-dashed border-[#E2E8F0] translate-y-[-3px]" />
-      <span className="text-[12.5px] text-[#475569] shrink-0">{ko}</span>
+    <div className="grid gap-x-3 gap-y-1 items-baseline"
+      style={{ gridTemplateColumns: 'max-content 1fr' }}>
+      {items.map((v, i) => (
+        <Fragment key={i}>
+          {/* 어휘에는 **펜을 긋지 않는다** — 줄마다 영어가 오므로 목록 전체가 빨개진다.
+              펜은 본문에서 '여기가 핵심' 을 가리키는 표시라, 다 그으면 아무것도 안 가리킨다. */}
+          <span className="text-[13px] font-black text-[#1C1B33]">{v.en}</span>
+          <span className="text-[12.5px] text-[#475569]">{v.ko}</span>
+        </Fragment>
+      ))}
     </div>
   )
 }
@@ -154,7 +164,7 @@ export function TipCard({ tip, flying }: {
           <div className="px-4 pb-4 pt-1">
             <div className="rounded-xl bg-[#FFFBF5] border border-[#F5E7D0] px-3 py-2">
               <p className="text-[11px] font-black text-[#B98B3E] mb-1">핵심 어휘</p>
-              {tip.vocab.map((v, i) => <VocabRow key={i} en={v.en} ko={v.ko} />)}
+              <VocabList items={tip.vocab} />
             </div>
           </div>
         )}
@@ -285,12 +295,8 @@ export function TipSheet({ kind, tips, onClose }: {
             </div>
           ))
           : (
-            <div className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-1.5">
-              {vocab.map((v, i) => (
-                <div key={i} className="border-b border-[#F4F7FB] last:border-0">
-                  <VocabRow en={v.en} ko={v.ko} />
-                </div>
-              ))}
+            <div className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-2.5">
+              <VocabList items={vocab} />
             </div>
           )}
       </div>
