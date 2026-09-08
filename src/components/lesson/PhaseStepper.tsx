@@ -32,7 +32,9 @@ export default function PhaseStepper({ active, subtitle, onEnd, extra, onJump, s
           지금 단계 칸만 늘어나면서 밑줄이 길어지고, 그 옆에 "지금 하는 일"이 붙는다.
           폭은 다 쓰지 않는다 — 최대 폭을 두고 가운데 두면 양옆이 숨을 쉰다. */}
       <div className="flex-1 min-w-0 flex justify-center">
-        <div className="w-full max-w-[680px] flex items-end gap-4 md:gap-6">
+        {/* ⚠️ 늘어나는 칸이 없으면(소제목 없는 화면) 칸들이 680px 박스 **왼쪽으로 몰린다**.
+           그때는 가운데로 모은다 — 소제목이 있을 때는 flex-1 이 폭을 다 쓰므로 영향이 없다. */}
+        <div className={`w-full max-w-[680px] flex items-end gap-4 md:gap-6 ${subtitle ? '' : 'justify-center'}`}>
           {labels.map((label, i) => (
             <div key={label} onClick={onJump ? () => onJump(i) : undefined}
               title={onJump ? `${label} 단계로 이동 (개발용)` : undefined}
