@@ -3876,11 +3876,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 {/* 오늘 강사가 짚어 준 표현이 여기 쌓인다 (구현 중 메모 73행).
                     지금은 꺼 둔 상태 — 위 LESSON_EXPRESSION_TRAY 주석 참고 */}
                 {LESSON_EXPRESSION_TRAY && <ExpressionTray list={exprList} met={metExpr} />}
-                <button onClick={nav.go} disabled={!nav.can}
-                  title={nav.can ? undefined : nav.hint}
+                {/* ── 회색이어도 **누르면 넘어간다** (09-08, 개발 편의) ──
+                    단계를 다 밟지 않아도 다음 문제로 건너뛸 수 있어야 대본을 확인할 수 있다.
+                    누르면 turnIdx 가 다음 문제 첫 턴으로 가고, 강사는 그 턴의 대본을 읽는다
+                    (턴이 바뀌면 낭독하는 effect 가 그대로 돈다 — 따로 시킬 것이 없다).
+                    ⚠️ 회색은 그대로 둔다. 열린 것처럼 보이면 학생이 단계를 건너뛴다 —
+                       색은 "아직 할 일이 남았다" 는 표시고, 클릭이 열려 있는 것은 개발용 뒷문이다.
+                    ⚠️ FGI 전에 막을 자리다. `disabled={!nav.can}` 로 되돌리면 끝난다. */}
+                <button onClick={nav.go}
+                  title={nav.can ? undefined : `${nav.hint} (개발용: 눌러서 건너뛸 수 있어요)`}
                   className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
                     nav.can ? 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-[0.99]'
-                      : 'bg-[#F1F3F7] text-[#C4C9D4] cursor-not-allowed'
+                      : 'bg-[#F1F3F7] text-[#C4C9D4] hover:bg-[#E8EBF2]'
                   }`}>
                   {nav.label}
                 </button>
