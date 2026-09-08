@@ -2863,8 +2863,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        강사가 아무 말 없이 다음 단계로 가면 학생은 자기 답이 어떻게 됐는지 못 듣는다.
        **답을 다시 받지는 않는다** — 말만 얹고 아래로 내려가 짚어 준다(그게 되묻기와 다른 점이다).
        대본이 오답 갈래를 갖고 있으면 비켜서는 것은 되묻기와 같은 이유다 — 같은 자리가 두 번 된다. */
+    let movedOn = false
     if (INST_RETRY_SCAFFOLD[instructor] === false && !scriptWillAnswerWrong() && MOVE_ON_BY_INST[instructor]) {
       await say(MOVE_ON_BY_INST[instructor])
+      movedOn = true
     }
     /* 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
        "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
@@ -2885,7 +2887,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     /* 대본이 오답 갈래를 갖고 있으면(scriptWillAnswerWrong) 앱은 비켜선다 — 이도윤 선택지
        31곳이 전부 그렇다(실측 09-01). 거기서 앱이 "아니라고 봤는데, 이건 맞아요" 를 얹으면
        바로 뒤에 대본이 "(오답) 아쉽지만 아니에요…" 를 말해 같은 자리가 두 번이 된다. */
-    if (!scriptWillTell() && !scriptWillAnswerWrong()) await say(closingLine(picked))
+    /* ── O/X 는 넘어가는 말 **하나로 끝낸다** (메모 120행) ──
+       "아니에요. 다시 같이 봐볼게요." 를 하고 곧바로 "아니라고 봤는데, … 그래서 이건 맞아요" 가
+       또 나갔다. 두 마디가 같은 자리를 두 번 말하는 데다, 뒤엣말은 학생이 방금 고른 것을
+       되짚느라 **틀렸다는 얘기를 두 번** 한다.
+       ⚠️ O/X 에서만 뺀다. A~D 와 말하기는 closingLine 이 **답 자체를 알려주는** 자리라
+          빼면 못 맞힌 학생이 답을 못 듣고 넘어간다(09-01 에 그렇게 새서 고친 자리다).
+          O/X 는 답이 둘 중 나머지 하나라 짚을 것이 없고, 대본이 곧바로 이어서 설명한다. */
+    const isOX = turn.interaction.kind === 'choice'
+      && turn.interaction.choices.length === 2
+      && turn.interaction.choices.every((c) => c.text === 'O' || c.text === 'X')
+    if (!movedOn || !isOX) {
+      if (!scriptWillTell() && !scriptWillAnswerWrong()) await say(closingLine(picked))
+    }
     goNext()
   }
 
@@ -5299,7 +5313,10 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim
      · 강사가 아직 안 짚었으면 — 내 말이 파랗게만 남는다. 맞았는지는 아직 안 말한다.
      · 짚으면서 — 맞았으면 초록, 틀렸으면 빨강. **틀린 칸에만** 정답을 옆에 함께 보여준다
        (메모 53행 "계속 오답 시에 답 알려주고"). 맞은 칸에는 덧붙일 것이 없다. */
-  const parts = text.split('___')
+  /* ── 빈칸은 **글 전체에서 몇 번째**인가로 센다 ──
+     줄로 나눠 그리게 되면서(아래 참고) 줄마다 다시 세면 안 된다 — 채운 답(filled)·채점(corrects)이
+     전역 번호로 들어오므로, 줄을 건너다니며 하나씩 올린다. */
+  let blankNo = -1
 
   /* ── 읽어가는 자리 비추기 ──
      **아직 안 채운 문장은 처음부터 흐리다.** 소리 내어 읽어 가면 지나온 낱말이 차례로 진해지고,
@@ -5309,52 +5326,98 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, dim
   const reading = !!dim
   /** 대본을 낱말로 쪼갠 순서 목록 (빈칸은 낱말 하나로 친다) */
   const words: string[] = []
-  parts.forEach((part, i) => {
+  text.split('___').forEach((part, i, all) => {
     part.split(/(\s+)/).forEach((w) => words.push(w))
-    if (i < parts.length - 1) words.push('___')
+    if (i < all.length - 1) words.push('___')
   })
   const spoken = reading && live ? spokenWordCount(words, live) : 0
   let wi = -1
-  const tone = (dim: string) => {
+  const tone = (dimColor: string) => {
     wi += 1
     if (!reading) return ''
-    return wi < spoken ? 'text-[#1C1B33]' : dim
+    return wi < spoken ? 'text-[#1C1B33]' : dimColor
+  }
+
+  /** 글자 한 토막 — 낱말마다 span 을 내어 읽어가는 표시를 준다 */
+  const chunkOf = (seg: string) => (
+    <>{seg.split(/(\s+)/).map((w, k) => (
+      <span key={k} className={tone('text-[#CBD5E1]')}>{w}</span>
+    ))}</>
+  )
+
+  /** 빈칸 한 칸 — 채운 답·채점 색·정답 되짚기까지 */
+  const blankOf = (i: number) => {
+    const mine = filled?.[i]
+    const ok = graded ? corrects?.[i] : undefined
+    wi += 1   // 빈칸도 낱말 한 자리를 차지한다
+    return (
+      <>
+        <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 border-b-2 font-black align-baseline transition-colors ${
+          mine === undefined
+            /* ⚠️ 빈칸끼리 색을 달리하지 않는다. 예전에는 '다음에 채울 칸' 을 파랗게 띄웠는데,
+               문장을 **통째로 한 번에** 읽는 지금 방식에서는 가리킬 순서가 없다 —
+               두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
+            ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
+            : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+              : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
+                : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
+        }`}>{mine ?? '____'}</span>
+        {graded && ok === false && answers[i] && (
+          <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
+        )}
+      </>
+    )
+  }
+
+  /** 한 토막(빈칸으로 쪼갠 조각들)을 순서대로 그린다 — 빈칸 번호는 전역으로 올라간다 */
+  const runOf = (piece: string) => {
+    const segs = piece.split('___')
+    return segs.map((seg, si) => (
+      <span key={si}>
+        {chunkOf(seg)}
+        {si < segs.length - 1 && blankOf((blankNo += 1))}
+      </span>
+    ))
+  }
+
+  /* ── 영어 표현과 뜻을 **표처럼 열을 맞춘다** (메모 124행) ──
+     예외 표현 항목은 아래에 예시가 줄줄이 달린다:
+       be being ( ): 진열되고 있다 / be being cast: 그림자가 드리워지고 있다 / …
+     그냥 문장으로 흘리면 영어 길이에 따라 **뜻이 시작하는 자리가 줄마다 달라져서**, 위아래로
+     훑을 때 눈이 매번 뜻을 다시 찾는다. 콜론 앞뒤를 두 열로 갈라 시작점을 맞춘다.
+     ⚠️ **낱말 순서는 그대로 둔다.** 왼쪽 칸을 다 그리고 오른쪽 칸으로 가므로 글 순서와 같고,
+        읽어가는 표시(tone)와 빈칸 번호가 어긋나지 않는다 — 여기가 이 그림의 유일한 위험이다.
+     ⚠️ 이어진 짝 줄만 한 판으로 묶는다. 한 줄씩 따로 grid 를 만들면 **열이 안 맞는다.** */
+  const lines = text.split('\n')
+  const isPair = (l: string) => /^[^:]*[A-Za-z_][^:]*:\s*\S/.test(l)
+  const blocks: { pair: boolean; lines: string[] }[] = []
+  for (const l of lines) {
+    const pair = isPair(l)
+    const tail = blocks[blocks.length - 1]
+    if (tail && tail.pair === pair) tail.lines.push(l)
+    else blocks.push({ pair, lines: [l] })
   }
 
   return (
-    <p className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors ${
+    <div className={`text-[14px] md:text-[15px] font-semibold leading-relaxed transition-colors ${
       reading ? 'text-[#CBD5E1]' : 'text-[#1C1B33]'}`}>
-      {parts.map((part, i) => {
-        const chunk = (
-          <>{part.split(/(\s+)/).map((w, k) => (
-            <span key={k} className={tone('text-[#CBD5E1]')}>{w}</span>
-          ))}</>
-        )
-        if (i === parts.length - 1) return <span key={i}>{chunk}</span>
-        const mine = filled?.[i]
-        const ok = graded ? corrects?.[i] : undefined
-        const shown = mine
-        wi += 1   // 빈칸도 낱말 한 자리를 차지한다
-        return (
-          <span key={i}>
-            {chunk}
-            <span className={`inline-block min-w-[76px] text-center mx-1 px-2 py-0.5 border-b-2 font-black align-baseline transition-colors ${
-              shown === undefined
-                /* ⚠️ 빈칸끼리 색을 달리하지 않는다. 예전에는 '다음에 채울 칸' 을 파랗게 띄웠는데,
-                   문장을 **통째로 한 번에** 읽는 지금 방식에서는 가리킬 순서가 없다 —
-                   두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
-                ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
-                : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-                  : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
-                    : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-            }`}>{shown ?? '____'}</span>
-            {graded && ok === false && answers[i] && (
-              <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
-            )}
-          </span>
-        )
-      })}
-    </p>
+      {blocks.map((b, bi) => b.pair ? (
+        <div key={bi} className="grid gap-x-3 gap-y-0.5 items-baseline my-0.5"
+          style={{ gridTemplateColumns: 'max-content 1fr' }}>
+          {b.lines.map((l, li) => {
+            const at = l.indexOf(':')
+            return (
+              <Fragment key={li}>
+                <span>{runOf(l.slice(0, at))}</span>
+                <span>{runOf(l.slice(at + 1).replace(/^\s+/, ''))}</span>
+              </Fragment>
+            )
+          })}
+        </div>
+      ) : (
+        <p key={bi} className="whitespace-pre-line">{runOf(b.lines.join('\n'))}</p>
+      ))}
+    </div>
   )
 }
 
@@ -5448,6 +5511,16 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
             : anyWrong ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
         }`}>{index + 1}</span>
         <div className="flex-1 min-w-0">
+          {/* ── 소제목은 **문장 위 한 줄로 따로** 세운다 (메모 124행) ──
+              시트가 "1. 인물의 동작 ⏎⏎ 인물이 …" 처럼 나눠 적어 둔 것을 화면이 한 줄로 붙여
+              읽고 있었다("인물의 동작 인물이 지금 …"). 소제목이 문장의 첫머리처럼 읽혀서
+              세 항목을 훑을 때 무엇이 제목이고 무엇이 내용인지 구분이 안 됐다.
+              번호는 왼쪽 동그라미가 이미 매기므로 여기서 또 붙이지 않는다.
+              ⚠️ 소제목이 없는 항목(윤다은·이도윤 RC 정리)은 그냥 문장만 나온다 — 자리를
+                 비워 두지 않는다. 빈 줄을 남기면 항목 높이가 들쭉날쭉해진다. */}
+          {sentence.head && (
+            <p className="text-[12.5px] font-black text-[#2563EB] mb-1 leading-snug">{sentence.head}</p>
+          )}
           <RecapBlankSentence text={sentence.en} filled={filled} corrects={corrects} answers={answers}
             graded={graded} live={live} dim={!done} />
         </div>

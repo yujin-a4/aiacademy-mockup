@@ -210,6 +210,9 @@ export interface Turn {
  *  클릭 입력은 choices(정답 포함 3~4개)에서 고른다. */
 export interface RecapSentence {
   id: string
+  /** 시트가 문장 위에 따로 적어 둔 소제목("인물의 동작"). 빈 줄로 나뉘어 있을 때만 있다.
+   *  RC 정리처럼 한 문장으로 쓴 항목에는 없다 — 그때는 화면이 번호만 매긴다. */
+  head?: string
   en: string
   ko: string           // 한국어 뜻(빈칸 채운 뒤 나란히 보여줌)
   answer: string        // 빈칸 정답(표시용)

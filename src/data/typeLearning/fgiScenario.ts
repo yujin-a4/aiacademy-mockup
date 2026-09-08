@@ -1255,6 +1255,15 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         },
         {
           "no": 52,
+          "stage": "S3 개념 코칭",
+          "tutor": "여기서 빈출 포인트 하나 챙기고 갈게요. 옷이나 앞치마는 wear와 put on을 구분해야 해요. is wearing an apron은 '이미 입고 있는 상태', is tying이나 is putting on은 '지금 입는 동작 중'이에요. 사진처럼 이미 착용한 상태면 wearing이 정답이고 tying은 오답이에요.",
+          "focusQ": 0,
+          "interaction": {
+            "kind": "next"
+          }
+        },
+        {
+          "no": 53,
           "stage": "S6 오답 제거 - B",
           "tutor": "B의 pour A into B는 'A를 B 안에 붓다'라는 뜻이에요. pour beans into a coffee machine은 커피 머신 안에 원두를 붓는다는 의미죠. 사진 속 행동과 일치하나요?",
           "focusQ": 0,
@@ -1281,15 +1290,6 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
                 "correct": true
               }
             ]
-          }
-        },
-        {
-          "no": 53,
-          "stage": "S3 개념 코칭",
-          "tutor": "여기서 빈출 포인트 하나 챙기고 갈게요. 옷이나 앞치마는 wear와 put on을 구분해야 해요. is wearing an apron은 '이미 입고 있는 상태', is tying이나 is putting on은 '지금 입는 동작 중'이에요. 사진처럼 이미 착용한 상태면 wearing이 정답이고 tying은 오답이에요.",
-          "focusQ": 0,
-          "interaction": {
-            "kind": "next"
           }
         },
         {
@@ -3910,7 +3910,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "items": [
             {
               "id": "s1_1",
-              "en": "인물의 동작 인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
+              "head": "인물의 동작",
+              "en": "인물이 '지금 ~하고 있다'는 동작은 주로 ___ 형태로 표현한다.",
               "ko": "그렇죠. is painting, is holding처럼 인물이 지금 하고 있는 동작은 be + -ing 형태로 자주 나와요.",
               "answer": "be + -ing",
               "choices": [],
@@ -3924,7 +3925,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_2",
-              "en": "사물의 상태 사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고, 사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
+              "head": "사물의 상태",
+              "en": "사물이 이미 어떤 상태로 놓여 있을 때 be + p.p.나 ___ 형태가 자주 나오고,\n사물에 어떤 동작이 진행되는 중일 때는 ___ 형태가 나온다.",
               "ko": "맞아요. have been lined up처럼 'have/has been + p.p.'는 사물이 이미 어떤 상태로 놓여 있을 때 자주 나오고, are being installed처럼 'be being + p.p.'는 누군가에 의해 사물이 놓이는 중일 때 써요.",
               "answer": "have(has) been + p.p.",
               "choices": [],
@@ -3969,7 +3971,8 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_3",
-              "en": "예외 표현 사람이 등장하지 않는 사물/풍경에서도 be being p.p.가 정답이 될 수 있다. be being ___: 진열되고 있다 be being cast: 그림자가 드리워지고 있다 be being exhibited : 전시되고 있다 be being stored : 보관되고 있다 be being watered : 물이 주어지고 있다",
+              "head": "예외 표현",
+              "en": "사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있다.\nbe being ___: 진열되고 있다\nbe being cast: 그림자가 드리워지고 있다\nbe being exhibited : 전시되고 있다\nbe being stored : 보관되고 있다",
               "ko": "그렇죠. 대표적으로 be being p.p.처럼 사람이 나오지 않고 사물이 진열되어 있는 상태여도 be being displayed를 쓸 수 있어요.",
               "answer": "displayed",
               "choices": [],
@@ -4133,7 +4136,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S3 개념 코칭 (1)",
-          "tutor": "Part 1에서 나오는 사진 유형은 두 가지예요. 인물이 등장하는 사진, 반대로 사물과 풍경만 나오는 사진이 있어요. 그래서 인물이 어떤 행동을 하는 중인지, 사물이 어떤 위치로 놓여있는지를 묘사하는 선택지를 잘 듣고 빠르게 사진과 비교할 수 있어야 해요. 문제 푸는데 꼭 알아두어야 할 진행 표현과 수동 표현을 빠르게 같이 보고 문제 풀어보도록 할게요.",
+          "tutor": "Part 1에서 나오는 사진 유형은 두 가지예요. 인물이 등장하는 사진, 반대로 사물과 풍경만 나오는 사진이 있어요. 그래서 인물이 어떤 행동을 하는 중인지, 사물이 어떤 위치로 놓여있는지 선택지를 잘 듣고 빠르게 사진과 비교할 수 있어야 해요. 그럼 표현만 빠르게 같이 보고 문제 풀어보도록 할게요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -4188,7 +4191,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S3 개념 코칭 (4)",
-          "tutor": "조금 헷갈릴 수 있는데 has/have been p.p.는 be p.p.와 마찬가지로 사물이 이미 놓여 있는 상태일 때 써요. 반면, 진행 수동태 be being p.p.는 어떤 동작이 지금 진행되고 있을 때를 나타내요. 그래서 be being p.p.가 선택지에 나오면 사물이 누군가에 의해 놓이거나 옮겨지는 중인 게 사진에서 보여야 해요. 만약에 사물/풍경만 나오는 사진에서 be being p.p.가 나온다면 그 선택지는 오답일 확률이 높아요.",
+          "tutor": "조금 헷갈릴 수 있는데 has/have been p.p.는 be p.p.와 마찬가지로 사물이 이미 놓여 있는 상태일 때 써요. 반면, 진행 수동태 be being p.p.는 어떤 동작이 지금 진행되고 있을 때를 나타내요. 그래서 be being p.p.가 선택지에 나오면 사물이 누군가에 의해 놓이거나 옮겨지는 중인 게 사진에서 보여야 해요. 만약에 사람 없이 사물/풍경만 나오는 사진에서 be being p.p.가 나온다면 그 선택지는 오답일 확률이 높아요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -4742,7 +4745,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
-          "tutor": "선택지 D에서는 are being stored라고 했어요. be being p.p.가 나오면 누군가에 의해 어떤 동작이 지금 진행되고 있는 중이어야 해요. 모자가 벽에 걸려있을 뿐, 동작이 진행되고 있지 않죠? 그리고 on some shelves '선반 위에'라는 위치도 사진과 맞지 않으니까 오답이에요.",
+          "tutor": "선택지 D의 are being stored는 '보관되고 있다'는 뜻이에요. be being p.p.는 동작이 진행 중일 때 쓴다고 한다고 했죠? 그런데 예외적으로 이 표현은 동작이 진행되지 않더라도, 보관된 상태여도 쓸 수 있어요. 다만 선택지에서 on some shelves '선반 위에' 라고 했어요. 모자가 선반 위가 아니라 벽에 걸려있죠? 위치가 사진과 맞지 않으니까 오답이에요.",
           "focusQ": 1,
           "optionRef": "D",
           "gate": "ifPicked",
@@ -4841,7 +4844,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 오답 제거 (D)",
-          "tutor": "선택지 D에서는 are being stored라고 했어요. be being p.p.가 나오면 누군가에 의해 어떤 동작이 지금 진행되고 있는 중이어야 해요. 모자가 벽에 걸려있을 뿐, 동작이 진행되고 있지 않죠? 그리고 on some shelves '선반 위에'라는 위치도 사진과 맞지 않으니까 오답이에요.",
+          "tutor": "선택지 D의 are being stored는 '보관되고 있다'는 뜻이에요. be being p.p.는 동작이 진행 중일 때 쓴다고 한다고 했죠? 그런데 예외적으로 이 표현은 동작이 진행되지 않더라도, 보관된 상태여도 쓸 수 있어요. 다만 선택지에서 on some shelves '선반 위에' 라고 했어요. 모자가 선반 위가 아니라 벽에 걸려있죠? 위치가 사진과 맞지 않으니까 오답이에요.",
           "focusQ": 1,
           "optionRef": "D",
           "gate": "onDemand",
@@ -4864,11 +4867,16 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S7 표현 정리",
-          "tutor": "이제 핵심 정리해볼게요. 사물이 이미 놓여 있는 상태이면 be p.p.또는 has/have been p.p.를 쓰고, 지금 놓이는 동작이 진행 중이면 be being p.p.를 쓴다고 했어요. 따라서 be being p.p.가 들리면 사진에서 사람이 나오는지 확인하세요. 빈출 표현은 be lined up '줄지어 놓여 있다', stack '쌓다' 였어요.",
+          "tutor": "이제 핵심 정리해볼게요. 사물이 이미 놓여 있는 상태이면 be p.p.또는 has/have been p.p.를 쓰고, 지금 놓이는 동작이 진행 중이면 be being p.p.를 쓴다고 했어요. 그런데 be being stored처럼 예외적으로 사람에 의해 동작이 진행 중이지 않더라도 be being p.p.를 쓸 수 있는 표현들이 있어요. be being displayed 진열되고 있다, be being cast 그림자가 드리워지고 있다, be being exhibited 전시되고 있다, be being stored 보관되고 있다. 이 표현들 꼭 외워주세요!",
           "focusQ": 1,
           "tip": {
             "body": [
-              "be being p.p.가 나오면 사람이 나오는지 확인"
+              "be being p.p.가 나오면 사람이 나오는지 확인",
+              "*사람에 의해 동작이 진행 중이지 않더라도 be being p.p.가 정답이 될 수 있는 표현",
+              "be being displayed: 진열되고 있다",
+              "be being cast: 그림자가 드리워지고 있다",
+              "be being exhibited: 전시되고 있다",
+              "be being stored: 보관되고 있다"
             ],
             "vocab": [
               {
@@ -5257,17 +5265,11 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S7 표현 정리",
-          "tutor": "핵심 정리할게요. have been p.p.와 be being p.p.가 선택지로 들릴 때 발음을 구별하기 어려울 때가 있어요. been인지 being인지 잘 들어야해요. 그리고 예외적으로 사람이 등장하지 않고 사물/풍경만 나오는 사진인데 be being p.p.를 쓸 수 있는 표현들은 꼭 외워주세요.",
+          "tutor": "핵심 정리할게요. have been p.p.와 be being p.p.가 선택지로 들릴 때 발음을 구별하기 어려울 때가 있어요. been인지 being인지 잘 들어야해요.",
           "focusQ": 2,
           "tip": {
             "body": [
-              "have been p.p.와 be being p.p.는 음원에서 발음이 헷갈리는 경우가 많으므로 주의해서 듣기",
-              "사람이 등장하지 않는 사물/풍경에서도 정답이 될 수 있는 표현",
-              "be being displayed: 진열되고 있다",
-              "be being cast: 그림자가 드리워지고 있다",
-              "be being exhibited : 전시되고 있다",
-              "be being stored : 보관되고 있다",
-              "be being watered : 물이 주어지고 있다"
+              "have been p.p.와 be being p.p.는 음원에서 발음이 헷갈리는 경우가 많으므로 주의해서 듣기"
             ],
             "vocab": [
               {
@@ -6391,7 +6393,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "items": [
             {
               "id": "s1_1",
-              "en": "능동·수동을 판단할 때 첫째, 빈칸이 ___ 자리인지 확인한다.",
+              "en": "1. 능동·수동을 판단할 때 첫째, 빈칸이 ___ 자리인지 확인한다.",
               "ko": "맞아요. 빈칸 앞뒤를 확인해서 빈칸이 동사 자리인지 봐야한다고 했어요.",
               "answer": "동사",
               "choices": [],
@@ -6401,7 +6403,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_2",
-              "en": "빈칸 자리를 확인했으면 둘째, 빈칸 뒤에 동사의 ___가 있는지 확인한다.",
+              "en": "2. 빈칸 자리를 확인했으면 둘째, 빈칸 뒤에 동사의 ___가 있는지 확인한다.",
               "ko": "맞아요. 동사 뒤 목적어 유무를 먼저 확인한다고 했죠? 목적어가 없으면 수동태가 올 가능성이 높아요.",
               "answer": "목적어",
               "choices": [],
@@ -6411,7 +6413,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_3",
-              "en": "목적어 유무로 판단하기 애매할 때는 셋째, ___을 확인한다.",
+              "en": "3. 목적어 유무로 판단하기 애매할 때는 셋째, ___을 확인한다.",
               "ko": "맞아요. 주어가 행동하는 쪽인지, 받는 쪽인지 의미 확인한다고 했죠?",
               "answer": "주어와 동사의 의미 관계",
               "choices": [],
@@ -6421,7 +6423,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_4",
-              "en": "주어가 동작을 직접 하는 주체이면 ___ , 주어가 동작을 받는 대상이면 ___를 쓴다.",
+              "en": "4. 주어가 동작을 직접 하는 주체이면 ___ , 주어가 동작을 받는 대상이면 ___를 쓴다.",
               "ko": "맞아요. 주어가 행동하는 주체이면 능동태, 행동을 받는 대상이면 수동태를 써요.",
               "answer": "능동태",
               "choices": [],
@@ -6445,7 +6447,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
             },
             {
               "id": "s1_5",
-              "en": "능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
+              "en": "5. 능수동을 판단한 뒤 선택지가 여러 개 남으면 마지막으로 ___까지 확인한다.",
               "ko": "그렇죠. yesterday 같은 시제 단서나 주어의 수까지 마지막으로 확인하세요.",
               "answer": "수와 시제",
               "choices": [],
@@ -6609,7 +6611,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S3 개념 코칭 (1)",
-          "tutor": "수동태란 주어가 동작을 당하는 것을 나타내고, 형태는 be + p.p. 를 써요. 능동태와 수동태를 구별할 때는 3가지 포인트를 알면 돼요. 같이 포인트 짧게 짚어보고 문제 풀어볼게요.",
+          "tutor": "능동태와 수동태를 구별할 때는 3 가지 포인트를 알면 돼요. 같이 포인트 짧게 짚어보고 문제 풀어볼게요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -6689,7 +6691,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S3 개념 코칭 (6)",
-          "tutor": "그래서 셋째, 주어와 동사의 의미 관계를 확인해야 해요. 주어가 동작을 \"직접 하는 주체\"면 능동태, 주어가 동작을 \"당하는 대상\"이면 수동태예요.",
+          "tutor": "그래서 셋째, 주어와 동사의 의미 관계를 확인해야 해요. 주어가 동작을 \"직접 하는 주체\"면 능동태, 주어가 동작을 \"당하는 대상\"이면 수동태 be + p.p.예요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
@@ -7841,16 +7843,27 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
         {
           "no": 66,
           "stage": "S4 구조·흐름 파악",
-          "tutor": "for Cordell residents는 전치사구라서 동사의 목적어가 될 수 없어요. 목적어가 없으니까 수동태일 가능성이 높아요. 그럼 주어 동사의 의미 관계도 확인할게요. 주어 entry fee, 입장료는 면제되는 대상이니깐 수동태가 필요한 게 확실해졌죠.",
+          "tutor": "for Cordell residents는 전치사구라서 동사의 목적어가 될 수 없어요. 목적어가 없으니까 수동태일 가능성이 높아요. 그럼 주어 동사의 의미 관계도 확인할게요. 주어 entry fee, 입장료, 동사 waive는 면제하다 라는 뜻이에요. 입장료는 면제하는 주체인가요, 면제되는 대상인가요?",
           "focusQ": 0,
           "interaction": {
-            "kind": "next"
+            "kind": "choice",
+            "prompt": "for Cordell residents는 전치사구라서 동사의 목적어가 될 수 없어요. 목적어가 없으니까 수동태일 가능성이 높아요. 그럼 주어 동사의 의미 관계도 확인할게요. 주어 entry fee, 입장료, 동사 waive는 면제하다 라는 뜻이에요. 입장료는 면제하는 주체인가요, 면제되는 대상인가요?",
+            "fixedPrompt": true,
+            "choices": [
+              {
+                "text": "면제하는 주체"
+              },
+              {
+                "text": "면제되는 대상",
+                "correct": true
+              }
+            ]
           }
         },
         {
           "no": 67,
           "stage": "S5 정답 근거 연결",
-          "tutor": "그래서 정답은 C. waived예요. will be waived, '입장료가 면제될 것이다'라는 미래를 나타내는 수동태가 적절해요.",
+          "tutor": "입장료는 면제되는 대상이죠. 따라서 수동태가 필요한 게 확실해졌어요.그래서 정답은 C. waived예요. will be waived, '입장료가 면제될 것이다'라는 미래를 나타내는 수동태가 적절해요.",
           "focusQ": 0,
           "interaction": {
             "kind": "next"
