@@ -33,6 +33,23 @@ export const INST_THUMBS: Record<string, string> = {
   oh_jungja: '/image_reference/ojungja.jpg',
 }
 
+/* ── 배경 없는 상반신 (대시보드 히어로 전용) ──
+   히어로 패널은 파란 그라데이션 위에 강사를 세워 놓는 자리다. INST_THUMBS 는 배경이 있는
+   사각 사진이라 여기에 그대로 깔면 사진을 오려 붙인 것처럼 보인다. 배경을 지운 PNG 가
+   있는 강사만 여기 적고, 없으면 호출부가 INST_THUMBS 로 폴백한다.
+
+   ※ 동그란 아바타에는 쓰지 말 것 — 배경이 비쳐서 오히려 어색해진다.
+   ※ -cut 파일은 원본을 **좌우반전**해 구웠다. 원본은 둘 다 화면 바깥(왼쪽)을 보는데,
+      히어로는 왼쪽에 사람·오른쪽에 말풍선이라 시선이 말풍선을 등진다. 그리고 인물의
+      실제 윤곽으로 재단해서, left-0 이 곧 인물의 왼쪽 끝이 되게 했다 — 안 그러면
+      투명 여백이 왼쪽 끝을 잡아 인물이 안쪽으로 밀려 보인다.
+      (박혜원은 정면·팔짱이라 반전할 이유가 없어 원본 그대로다.) */
+export const INST_CUTOUTS: Record<string, string> = {
+  park_hyewon: '/image_reference/park-report.png',
+  yun_daeun: '/image_reference/yun_daeun-cut.png',
+  lee_doyun: '/image_reference/lee_doyun-cut.png',
+}
+
 /* ── 강사 포즈 컷아웃 (배경 투명 상반신) — 수업 화면에서 스캐폴딩 단계에 따라 교체 ──
    포즈 5종을 스펙으로 열어두되, 실제로 들어온 이미지만 매핑한다. 없는 포즈는 아래 폴백
    체인(instPose)으로 채우고, 강사 자체가 포즈 에셋이 없으면 썸네일로 폴백한다.
@@ -156,7 +173,12 @@ export const INST_VOICE: Record<string, string> = {
         화로 채운다 — `Loud is always delight, never anger` 를 반드시 같이 둘 것.
      앞선 후보들: 1HhRIC9l… 단조로움 / DTEeVx29… 문장을 붙여 읽음 /
        maBx36AA… 강약이 없어 stability 0.20 까지 내렸다가 발음이 뭉갰다. */
-  lee_doyun: 'A04xgnVThMJQRxAEIz1O',
+  /* 09-08 되돌림 — 위 09-04 목소리(A04xgnVT…)가 '아저씨 같고 능글맞다'는 판단.
+     Voice Design 프롬프트를 여러 판 고쳐도 안 잡혀 09-07 이전 목소리로 돌아왔다.
+     ⚠️ public/tts/lee_doyun 의 mp3 188개는 아직 A04xgnVT… 로 구운 것이다 —
+        `npm run tts:scripted -- --force --only lee_doyun` 을 돌리기 전까지
+        미리 만든 줄과 실시간 줄의 목소리가 갈린다. */
+  lee_doyun: 'DTEeVx29gq12EJ7qBYaP',
 }
 
 /* ── 강사 → ElevenLabs TTS 모델 ──

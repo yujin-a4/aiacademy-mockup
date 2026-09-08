@@ -8,8 +8,9 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup } from '@/data/typeLearning'
+import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup, LessonTip } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
+import { TipCard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
 import MicButton from '@/components/type-lesson/MicButton'
@@ -26,7 +27,7 @@ import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
 /* 맞장구·대본 첫머리 떼기 — 미리 음원을 만드는 생성기와 나눠 쓴다(scriptedSpeech.ts 머리말) */
-import { ACK_OPENER, ackLine, retryLine, stripAck } from '@/data/typeLearning/scriptedSpeech'
+import { ACK_OPENER, ackLine, retryLine, stripAck, offTopicLine, MOVE_ON_BY_INST } from '@/data/typeLearning/scriptedSpeech'
 /* 오디오 태그(`[whispers]` 등)는 소리로만 나간다 — 화면·에이전트에서는 뗀다 */
 import { stripAudioTags } from '@/lib/ttsText'
 import { useOnboardingStore } from '@/store/onboardingStore'
@@ -283,6 +284,19 @@ const normKo = (t: string) => t.toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' '
  *  이런 건 채점기에 물어볼 것이 아니라 **못 알아들었다고 말하고 다시 받아야** 한다. */
 function isGibberish(text: string): boolean {
   return !text.replace(/[^가-힣a-zA-Z0-9]/g, '')
+}
+
+/** 답도 질문도 아닌 **맞장구**인가 — "네", "응", "알겠어요", "ㅇㅋ".
+ *  강사 말에 고개를 끄덕인 것이지 무언가를 물은 것이 아니다. 이걸 질문으로 넘기면
+ *  강사가 **없는 수업을 지어내 답한다**(09-08 실측: "ㅇㅇ" 에 이젤 설명이 나갔다). */
+function isFiller(text: string): boolean {
+  const t = text.replace(/[\s.,!?~·"'’”…ㅋㅎ]/g, '')
+  /* ⚠️ 자모로 친 맞장구("ㅇㅇ", "ㅇㅋ", "ㄴㄴ")는 **자판 자국이 아니다.** isGibberish 는
+     자모라는 이유로 이것들을 못 알아들은 말로 몰았고, 끄덕인 학생에게 강사가
+     "무슨 말인지 모르겠어요" 라고 했다(09-08). 그래서 여기서 먼저 걸러 낸다 —
+     부르는 쪽도 **isFiller 를 isGibberish 보다 먼저** 봐야 한다. */
+  return !t || /^(ㅇ+|ㅇㅋ+|ㄱㅅ+|ㄴㄴ+|ㅇㅎ+)$/.test(t)
+    || /^(네+|넵|예+|응+|어+|음+|오+|아+|그렇구나|그렇군요|알겠어요|알겠습니다|알았어요|오케이|오케|ok|okay|굿|좋아요|감사합니다|고마워요)$/i.test(t)
 }
 
 /** 답에서 **찾아볼 낱말**만 뽑는다 (조사·정중어미·군말을 뗀 뒤 두 글자 이상). */
@@ -868,6 +882,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  앞 문제의 보기·스크립트는 이미 다 열려 있다(reveal 은 0번 턴부터 쌓인다). */
   const [freeItem, setFreeItem] = useState<number | null>(null)
   const [practiceScore, setPracticeScore] = useState<PracticeResult | null>(null)
+  /** 열려 있는 모아 보기(토익 TIP / 핵심 어휘). null 이면 닫힘 */
+  const [tipSheet, setTipSheet] = useState<TipSheetKind | null>(null)
   const [recapScore, setRecapScore] = useState<{ correct: number; total: number } | null>(null)
 
   /* ── 단계별 체류 (GA) ──
@@ -1534,6 +1550,63 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const multiItem = stripNav && itemSpan.size > 1
   /* 마지막 문제의 끝도 경계다 — 거기서도 자동으로 실전으로 넘어가면 안 된다 */
   const atItemEnd = (phase === 'lesson' || phase === 'review') && !!curSpan && turnIdx >= curSpan.last
+
+  /* ── 토익 TIP · 핵심 어휘 — **지나온 만큼만 쌓인다** ──
+     상태로 들지 않고 `turnIdx` 로 매번 다시 센다. 되감기·다시 풀기로 자리가 뒤로 가면
+     같이 줄어야 맞고, 무엇보다 **쌓아 둔 배열과 화면이 어긋날 일이 없다**(그 어긋남은
+     조용해서 제일 늦게 발견된다). 15개짜리 목록이라 다시 세는 값은 무시할 만하다.
+     문항 번호는 `focusQ + 1` — 화면이 학생에게 보여주는 번호와 같다. */
+  /** 날아가는 중인 카드 — 세는 시점과 그리는 시점이 **같은 값을 봐야** 해서 위에 둔다 */
+  const [tipExit, setTipExit] = useState<LessonTip | null>(null)
+  const lastTipRef = useRef<LessonTip | null>(null)
+
+  const passedTips: SeenTip[] = turns.slice(0, turnIdx + 1)
+    .filter((t) => t.tip)
+    .map((t) => ({ qNo: (t.focusQ ?? 0) + 1, tip: t.tip! }))
+  /* ── 세는 시점은 **카드가 버튼에 들어간 뒤**다 ──
+     지나가자마자 세면 카드가 화면 한복판에 떠 있는데 버튼 숫자가 먼저 올라간다 — 그러면
+     날아가는 그림이 아무것도 설명하지 못한다(이미 다 끝난 뒤에 날아가는 꼴이다).
+     그래서 **지금 떠 있는 것 하나**(카드가 보이는 중이거나 날아가는 중)를 빼고 센다.
+     날기가 끝나 `tipExit` 이 비면 그 순간 하나가 늘고, 버튼이 살아나며 배지가 튄다. */
+  const inFlight = (turn.tip || tipExit) ? 1 : 0
+  const seenTips: SeenTip[] = inFlight ? passedTips.slice(0, -inFlight) : passedTips
+  const seenVocabCount = new Set(
+    seenTips.flatMap((s) => s.tip.vocab.map((v) => v.en.toLowerCase().replace(/\s+/g, ' ').trim())),
+  ).size
+
+  /* ── 언제 잠그고 언제 감추는가 ──
+     · 마무리 퀴즈(wrap) — **잠근다.** 거기 나오는 '핵심 빈출 표현 정리' 10문항이 여기 쌓인
+       어휘와 사실상 같은 목록이라, 열어 두면 답을 보고 푸는 것이 된다. 없애지 않고 잠그는 건
+       "왜 지금은 못 여는지" 를 말해 주기 위해서다(버튼 title).
+     · 실전(practice) — **감춘다.** 시험을 보는 자리라 힌트가 화면에 있으면 안 된다.
+       오답 코칭(review)에서 다시 나온다 — 거기서는 다시 보는 것이 곧 학습이다. */
+  const tipsLocked = phase === 'wrap'
+  /* ── 윤다은 수업에서는 **아예 안 그린다** (09-08 지정) ──
+     윤다은 대본에는 '토익 TIP' 줄이 없어서(실측 0개) 끝까지 살아나지 않는 회색 버튼 둘이
+     강사 창 머리를 차지한다.
+     ⚠️ "TIP 이 하나도 없으면 숨긴다" 가 아니라 **강사 이름으로** 가른다 — 지정이 그렇다.
+        박혜원처럼 아직 대본이 없는 강사는 회색으로라도 자리를 보여 둔다(들어올 자리다).
+        그래서 **윤다은 대본에 TIP 이 생겨도 여기서 이름을 빼기 전까지는 안 나온다.** */
+  const tipsHidden = phase === 'practice' || instructor === 'yun_daeun'
+
+  /* 실전으로 넘어가며 열어 둔 판이 남아 있으면 닫는다(감추기만 하면 판은 그대로 떠 있다) */
+  useEffect(() => { if (tipsHidden) setTipSheet(null) }, [tipsHidden])
+
+  /* ── 카드가 **버튼으로 빨려 들어간다** ──
+     턴이 넘어가면 `turn.tip` 이 사라지면서 카드가 그냥 없어진다. 그러면 학생은 방금 본 팁이
+     어디로 갔는지 모른다 — 위 버튼에 쌓였다는 것을 알려주는 게 이 애니메이션의 전부다.
+     그래서 사라진 팁을 0.6초만 더 들고 있다가 날려 보낸다.
+     ⚠️ 붙잡아 두는 동안에도 **수업은 이미 다음 턴**이다. 카드는 클릭을 안 받게 해 두었다
+        (flying 이면 pointer-events-none) — 안 그러면 다음 단계 버튼이 잠깐 안 눌린다. */
+  useEffect(() => {
+    if (turn.tip) { lastTipRef.current = turn.tip; setTipExit(null); return }
+    const gone = lastTipRef.current
+    if (!gone) return
+    lastTipRef.current = null
+    setTipExit(gone)
+    const timer = setTimeout(() => setTipExit(null), 650)
+    return () => clearTimeout(timer)
+  }, [turn.tip])
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
   /** 이 문항에 **지금 이 자리에서** 답했는가.
    *  ⚠️ graded 와 뜻이 다르다. 코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라
@@ -2485,6 +2558,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const prevOkRef = useRef<boolean | null>(null)
   /** 맞장구를 몇 번 했나 — 같은 말을 반복하지 않으려고 돌려 쓴다(ackLine) */
   const ackNoRef = useRef(0)
+  /* 딴소리에 할 말을 번갈아 고르는 자리 — 같은 말을 두 번 들으면 녹음처럼 들린다 */
+  const offTopicNoRef = useRef(0)
   /* 질문에 답하는 동안 대본을 세워 두는 스위치. 학생이 켜는 것이 아니라(버튼은 없앴다)
      대본 밖 질문이 들어오면 앱이 켠다 — 진행 게이트가 이 값을 본다 */
   const [asking, setAsking] = useState(false)
@@ -2773,15 +2848,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (tries === 1 && !scriptWillAnswerWrong() && INST_RETRY_SCAFFOLD[instructor] !== false) {
       /* "음, 그건 조금 달라요." 는 뺐다 — 틀렸다는 것은 화면이 이미 말하고 있고,
          말로 한 번 더 얹으면 나무라는 것처럼 들린다. 다시 해보자는 말만 남긴다. */
+      /* ⚠️ 카드 자리 비우기(setDockTick)가 **말한 뒤**에 있었다 — `say` 는 말풍선을 먼저
+         넣으므로 그 순서로는 강사 창이 다음 말을 기다리다 선택지가 사라진다. 말하기 전에 올린다. */
+      setDockTick((n) => n + 1)
       await say(retryLine(triesRef.current.size, instructor))
       /* ⚠️ subjSent 를 반드시 되돌린다. 이게 켜져 있으면 answerSubjective 가 들어오는 답을
          그대로 버리고(1575행), voiceOn 도 false 라 마이크가 다시 안 열린다 →
          "다시 한번 생각해 볼까요?" 라고 해놓고 **두 번째 답을 받을 방법이 없다**(실측). */
       setSubjText(''); setSubjSent(false); setChoicePicked(null)
-      /* 선택지를 다시 열었으니 카드도 **방금 한 말 아래로** 다시 내려가야 한다.
-         안 내리면 "다시 한번 생각해 볼까요?" 말풍선이 버튼 밑에 붙어 순서가 뒤집힌다. */
-      setDockTick((n) => n + 1)
       return
+    }
+    /* ── 되묻지 않는 강사는 **한 마디만 얹고 넘어간다** (09-08 지정) ──
+       되묻기를 끄자(09-07) 오답에 강사 반응이 통째로 사라졌다. 틀렸다는 것은 화면이 말하지만,
+       강사가 아무 말 없이 다음 단계로 가면 학생은 자기 답이 어떻게 됐는지 못 듣는다.
+       **답을 다시 받지는 않는다** — 말만 얹고 아래로 내려가 짚어 준다(그게 되묻기와 다른 점이다).
+       대본이 오답 갈래를 갖고 있으면 비켜서는 것은 되묻기와 같은 이유다 — 같은 자리가 두 번 된다. */
+    if (INST_RETRY_SCAFFOLD[instructor] === false && !scriptWillAnswerWrong() && MOVE_ON_BY_INST[instructor]) {
+      await say(MOVE_ON_BY_INST[instructor])
     }
     /* 못 맞혔다 — **다음 대본이 답을 말해 주면 앱은 아무 말도 얹지 않는다.**
        "제가 짚어 줄게요. 이렇게 답하면 돼요. 그림을 그리고 있어요" 바로 뒤에 대본이
@@ -2956,6 +3039,23 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         await askAside(text, true)      // 학생 말은 위에서 이미 대화에 남겼다
         return
       }
+      /* ── **딴소리다** — 답할 생각이 없는 말 (09-08) ──
+         "배고파요" 같은 말이다. 예전에는 판정기에 이 칸이 없어서 "그 밖에 반반이면 O" 에
+         걸려 **정답 처리**됐다 — 강사가 "맞아요" 하고 다음 설명으로 넘어갔다(실측).
+         못 알아들었다고 말하고 **그 자리에 머문다** — 학생은 아직 답을 안 했으므로 다시
+         말할 수 있어야 한다(질문 갈래와 같은 처리다).
+         ⚠️ **이 턴에 한 번뿐이다.** 자판 갈래(isGibberish)가 횟수를 안 세는 바람에
+            "잘 못 알아들었어요" 만 끝없이 나갔던 사고가 있다. 두 번째 딴소리는 아래로
+            내려보내 짚고 넘어간다 — 딴소리를 계속하는 학생을 세워 두지 않는다. */
+      if (v === 'N' && (triesRef.current.get(turnIdx) ?? 0) < 1) {
+        triesRef.current.set(turnIdx, 1)
+        logResponse(text, null)
+        setSubjSent(false); setSubjText('')
+        await waitForCue()
+        await say(offTopicLine(offTopicNoRef.current++, instructor))
+        setDockTick((n) => n + 1)
+        return
+      }
       /* ── **덜 말했다** — 열쇠말은 맞는데 서술이 없다 (09-07) ──
          기대 "물감 튜브를 들고 있지 않아요" 에 학생이 "물감" 이라고만 한 경우다. 맞다고 하면
          학생은 자기가 다 말한 줄 알고, 틀렸다고 하면 맞는 말을 나무라는 것이 된다.
@@ -2978,13 +3078,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return true
   }
 
-  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 강사에게 묻는 말 · `?` **판정 못 함.**
+  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 강사에게 묻는 말 · `N` **딴소리** · `?` **판정 못 함.**
    *
    *  ⚠️ 예전에는 실패·타임아웃을 **O 로 떨어뜨렸다.** 맞은 답을 틀렸다고 하는 것이 더 나쁘다는
    *     이유였는데, 그 바람에 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 대본의 "좋습니다" 가 그대로
    *     나갔다(실측). 못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
    *  판정을 기다리느라 침묵이 길어지는 것도 나쁘므로 3.5초에서 끊는다(첫 호출이 느리다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'P' | 'Q' | '?'> => {
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'P' | 'Q' | 'N' | '?'> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
     if (!expected) return 'O'                // 기대 답이 없는 자리는 무엇을 말해도 받아준다
     const ctrl = new AbortController()
@@ -3006,6 +3106,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const data = await res.json()
       const v = String(data.dialogue ?? '').trim().toUpperCase()
       if (v.startsWith('Q')) return 'Q'
+      if (v.startsWith('N')) return 'N'
       if (v.startsWith('X')) return 'X'
       if (v.startsWith('P')) return 'P'
       if (v.startsWith('O')) return 'O'
@@ -3093,6 +3194,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
 `
             + '두 문장 안으로 짧게 답하라. 정답·지문·사진 속 사실은 위 자료(와 함께 보낸 그림)에 '
             + '있는 것만 말하고 없는 것을 지어내지 마라. '
+            /* ── **묻지 않은 수업을 덧붙이지 마라** (09-08 실측) ──
+               "두 문장 안으로" 만으로는 안 막혔다. 짧게 답한 **뒤에** 문단을 새로 열어
+               수업을 시작하면 그 지시를 어긴 것이 아니기 때문이다:
+                 "너 ai야?" → 한 문장 답 + "자, 사진 속 인물이 … 첫째로 … 둘째로 …"
+               수업 설명은 **대본이 이미 갖고 있다.** 여기서 또 하면 학생은 같은 것을 두 번
+               듣거나, 대본에 없는 말을 듣는다. 그래서 덧붙이는 것 자체를 막는다. */
+            + '**물어본 것에만 답하고 거기서 멈춰라.** 답한 뒤에 수업 설명을 덧붙이지 마라 — '
+            + '표현 설명·풀이 요령·"첫째/둘째" 같은 정리는 대본이 할 일이고 네 몫이 아니다. '
+            + '"자," 나 "이럴 때는" 처럼 새 설명을 여는 말로 이어가지 마라. '
+            /* 학생이 답을 한 것이 아니라 **물은** 것이다 — 맞장구로 시작하면 답한 것처럼 들린다 */
+            + '"맞아요"·"좋아요" 같은 맞장구로 시작하지 마라. 학생은 답한 것이 아니라 물었다. '
+            + '수업과 상관없는 물음(네가 AI 인지, 나이, 날씨 같은 것)에는 한 문장으로 짧게 '
+            + '답하고 끝내라. 거기에 수업 이야기를 붙이지 마라. '
             /* 자료 밖이라고 영어를 안 가르치면 강사가 아니다 — 위 buildLessonFacts 주석 참고 */
             + '다만 저것을 영어로 뭐라고 하는지, 이 단어가 무슨 뜻인지 같은 물음은 자료에 없어도 '
             + '네가 아는 대로 바로 알려줘라. "자료에 없다" 로 넘기지 마라. '
@@ -3854,6 +3968,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               : lesson.part === 1 ? 'overflow-y-auto flex flex-col' : 'overflow-y-auto'
           }`}>
             <ContentView lesson={lesson} st={st} readingSideBySide={dockMode === 'mini'} />
+            {/* ── 토익 TIP 카드 — **강사 창이 아니라 수업 칸**에 뜬다 ──
+                이 턴(S7 표현 정리)은 사진을 다시 볼 자리가 아니라 강사가 정리를 말하는 자리라
+                덮어도 잃을 것이 없다. 강사가 그 줄을 읽는 동안 떠 있다가 다음 단계로 넘어가며
+                사라지고, 내용은 위 버튼에 쌓인다.
+                ⚠️ 실전에서는 띄우지 않는다 — 시험 자리에 힌트가 뜨면 안 된다. */}
+            {(turn.tip ?? tipExit) && !tipsHidden && (
+              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip} />
+            )}
           </div>
 
           {/* 옆 기둥 배치에서는 문제 영역 바로 아래에 둔다 */}
@@ -3949,6 +4071,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                     void handleScriptedAnswer(false, undefined, 'giveUp')
                     return
                   }
+                  /* ── 맞장구는 **그냥 흘린다** (09-08) ──
+                     "ㅇㅇ" 은 끄덕인 것이지 답이 아니다. 여기서 자판 자국으로 몰면 끄덕인
+                     학생에게 "잘 못 알아들었어요" 가 나갔다(실측). 답은 아직 안 했으므로
+                     넘어가지도 않는다 — 보기를 그대로 두고 기다린다.
+                     ⚠️ 카드는 **다시 내려 준다.** 학생 말이 대화에 쌓이면서 보기가 위로 밀려
+                        올라가 화면에서 사라진 것처럼 보인다. */
+                  if (isFiller(t)) {
+                    setInputText('')
+                    setChatLog((prev) => [...prev, { role: 'user', text: t, aside: true }])
+                    /* ⚠️ **카드를 다시 꽂지 않는다.** dockTick 을 올리면 강사 창이 자리를 비우고
+                       **다음 강사 말풍선**을 기다리는데, 맞장구에는 강사가 아무 말도 하지 않는다 —
+                       그 말이 영영 안 와서 보기가 사라진 채로 남는다(09-08 실측). 카드는 이미
+                       앉아 있으므로 그대로 두면 된다. */
+                    return
+                  }
                   /* 말이 아닌 입력도 질문이 아니다 — 주관식과 같게 한 번만 되묻고 넘어간다 */
                   if (isGibberish(t)) {
                     setInputText('')
@@ -3960,7 +4097,17 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                     }
                     triesRef.current.set(turnIdx, 1)
                     logResponse(t, null)
-                    void (async () => { await waitForCue(); await say('음, 잘 못 알아들었어요. 보기 중에서 골라 볼래요?') })()
+                    /* ⚠️ 말이 끝난 **뒤에** 카드를 내린다 — 안 내리면 "골라 볼래요?" 말풍선이
+                       보기 버튼 밑에 붙어 순서가 뒤집히고, 학생 눈에는 보기가 안 나온 것처럼
+                       보인다(되묻기 갈래와 같은 이유, 그쪽 주석 참고). */
+                    /* ⚠️ 카드 자리 비우기는 **말하기 전**이다. `say` 는 말풍선을 먼저 넣고
+                       소리를 기다리므로(say 안쪽 참고), 말한 **뒤에** 올리면 강사 창이 그
+                       말풍선을 이미 세어 버려 다음 말을 기다리다 보기가 사라진다(실측). */
+                    void (async () => {
+                      await waitForCue()
+                      setDockTick((n) => n + 1)
+                      await say('음, 잘 못 알아들었어요. 보기 중에서 골라 볼래요?')
+                    })()
                     return
                   }
                 }
@@ -3970,6 +4117,39 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                  자리라서(듣기 턴, 이미 답한 주관식, 선택지에 없는 말) **되물을 것도 없이 질문이다.**
                  '질문 있어요' 를 먼저 누르게 하는 것은 학생에게 앱의 사정을 시키는 일이다. */
               setInputText('')
+              /* ── **질문이 아닌 것은 LLM 에 보내지 않는다** (09-08) ──
+                 위 주석의 "답이 아니면 질문이다" 가 너무 넓었다. 자판 자국("ㅇㅇ")과 맞장구
+                 ("네")까지 자유 질문으로 넘어갔고, 강사가 묻지도 않은 것을 지어내 설명했다
+                 (실측: "ㅇㅇ" 에 easel 설명 세 문장). 판정기(N)는 **답을 받는 자리**에서만
+                 도니 여기까지 오지 못한다 — 그래서 이 자리에도 문지기를 둔다.
+                   · 말이 아닌 입력  → 못 알아들었다고 말한다
+                   · 맞장구         → **아무 말도 하지 않는다.** "네" 에 대꾸하면 그게 더 어색하고,
+                                      수업은 어차피 저 혼자 이어진다. */
+              if (isFiller(t) || isGibberish(t)) {
+                setChatLog((prev) => [...prev, { role: 'user', text: t, aside: true }])
+                /* ── 말하고 **멈추면 안 된다** (09-08) ──
+                   이 턴은 자동 전진으로 굴러가던 자리다. 학생이 무언가를 치는 순간 그 전진이
+                   멈춰 있으므로, 여기서 이어 주지 않으면 수업이 그대로 선다(실측).
+                   askAside 가 답을 마치고 하는 일과 같다 — 그쪽 주석 참고.
+                   ⚠️ 문제 경계는 **지금 값으로** 본다. 말하는 사이 화면이 움직였을 수 있다. */
+                const resume = () => {
+                  const at = turnIdxRef.current
+                  const here = turnsRef.current[at]
+                  const next = turnsRef.current[at + 1]
+                  if (!here || needsAnswer(here)) return          // 답을 기다리는 자리면 그대로 둔다
+                  const itemEnds = !next || (here.itemSeq !== undefined && next.itemSeq !== here.itemSeq)
+                  if (!itemEnds) advanceByApp(at + 1)
+                }
+                /* 맞장구는 **아무 말도 하지 않는다** — "네" 에 대꾸하면 그게 더 어색하다.
+                   자판 자국일 때만 못 알아들었다고 말하고, 말이 끝난 뒤에 이어 준다. */
+                if (isFiller(t)) resume()
+                else void (async () => {
+                  await waitForCue()
+                  await say(offTopicLine(offTopicNoRef.current++, instructor))
+                  resume()
+                })()
+                return
+              }
               void askAside(t)
               return
             }
@@ -3994,6 +4174,24 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           }
           /* ── ② 선택지 / 다음 단계 버튼 ── */
           /* 단계가 바뀌면 텍스트 모드 채팅에서 카드가 새 말풍선처럼 다시 꽂힌다 */
+          /* ── 토익 TIP · 핵심 어휘 ── 창 맨 위의 버튼 둘과, 창을 덮는 모아 보기.
+             수업 칸은 덮지 않는다 — 사진·보기를 보면서 팁을 확인할 수 있어야 한다. */
+          topBar={tipsHidden ? undefined : (
+            <TipButtons tips={seenTips} vocabCount={seenVocabCount} locked={tipsLocked}
+              onOpen={(k) => {
+                setTipSheet(k)
+                /* FGI 관찰 지표 — **누르는가·언제 누르는가** 가 H3(스캐폴딩 수요)의 근거다.
+                   인터뷰로 묻지 않고 세려면 이 한 줄이 있어야 한다. */
+                try {
+                  (window as unknown as { gtag?: (...a: unknown[]) => void }).gtag?.('event',
+                    k === 'tip' ? 'tip_open' : 'vocab_open',
+                    { lecture: lectureCode ?? '', instructor, phase, turn_no: turnIdx + 1, count: k === 'tip' ? seenTips.length : seenVocabCount })
+                } catch { /* 추적이 수업을 막지는 않는다 */ }
+              }} />
+          )}
+          overlay={tipSheet && !tipsHidden
+            ? <TipSheet kind={tipSheet} tips={seenTips} onClose={() => setTipSheet(null)} />
+            : undefined}
           actionKey={`${turnIdx}:${dockTick}`}
           actions={
             <>
