@@ -1661,6 +1661,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 날아가는 중인 카드 — 세는 시점과 그리는 시점이 **같은 값을 봐야** 해서 위에 둔다 */
   const [tipExit, setTipExit] = useState<LessonTip | null>(null)
   const lastTipRef = useRef<LessonTip | null>(null)
+  /** 문제 끝에 뜬 카드를 앱이 **혼자 날려 보낸 자리** (아래 effect 설명).
+   *  `at` 은 그 턴 번호다 — 턴이 넘어가면 저절로 무효가 되므로 따로 지울 것이 없다.
+   *  `gone` 이면 날기가 끝나 카드가 화면에서 빠지고 버튼 숫자가 오른 상태다. */
+  const [tucked, setTucked] = useState<{ at: number; gone: boolean } | null>(null)
+  const tuckedHere = tucked?.at === turnIdx
+  const tipHidden = tuckedHere && tucked!.gone
 
   const passedTips: SeenTip[] = turns.slice(0, turnIdx + 1)
     .filter((t) => t.tip)
@@ -1670,7 +1676,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      날아가는 그림이 아무것도 설명하지 못한다(이미 다 끝난 뒤에 날아가는 꼴이다).
      그래서 **지금 떠 있는 것 하나**(카드가 보이는 중이거나 날아가는 중)를 빼고 센다.
      날기가 끝나 `tipExit` 이 비면 그 순간 하나가 늘고, 버튼이 살아나며 배지가 튄다. */
-  const inFlight = (turn.tip || tipExit) ? 1 : 0
+  const inFlight = ((turn.tip && !tipHidden) || tipExit) ? 1 : 0
   const seenTips: SeenTip[] = inFlight ? passedTips.slice(0, -inFlight) : passedTips
   const seenVocabCount = new Set(
     seenTips.flatMap((s) => s.tip.vocab.map((v) => v.en.toLowerCase().replace(/\s+/g, ' ').trim())),
@@ -1709,6 +1715,28 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const timer = setTimeout(() => setTipExit(null), 650)
     return () => clearTimeout(timer)
   }, [turn.tip])
+
+  /* ── 문제 끝에 뜬 카드는 **스스로 들어간다** (09-09 실측 보고) ──
+     카드는 턴이 넘어갈 때 버튼으로 날아간다. 그런데 실전 오답 코칭에서는 TIP 이 그 문항의
+     **마지막 턴**이다(대본 47턴 전수: S7 표현 정리가 문항마다 끝) — 넘어갈 곳이 없으니 카드가
+     그대로 남는다. 게다가 카드는 수업 칸 전체를 덮으므로(#zoom-host 기준 absolute) 그 아래
+     [다음 문제] 줄까지 가린다. 학생 눈에는 **팝업이 뜬 채 화면이 멈춘 것**이 된다.
+     그래서 강사가 그 줄을 다 읽으면(spokenTurn) 잠깐 읽을 틈만 두고 앱이 날려 보낸다.
+     ⚠️ 문제 끝(atItemEnd)에서만이다. 수업 중의 TIP 은 다음 단계가 알아서 걷어간다. */
+  useEffect(() => {
+    if (!turn.tip || !atItemEnd || tuckedHere || spokenTurn !== turnIdx) return
+    const start = setTimeout(() => {
+      /* 이미 들어간 카드를 턴이 넘어갈 때 **또** 날리지 않게 지운다(위 effect 의 lastTipRef) */
+      lastTipRef.current = null
+      setTucked({ at: turnIdx, gone: false })
+    }, 1200)
+    return () => clearTimeout(start)
+  }, [turn.tip, atItemEnd, tuckedHere, spokenTurn, turnIdx])
+  useEffect(() => {
+    if (!tucked || tucked.gone) return
+    const done = setTimeout(() => setTucked((v) => (v ? { ...v, gone: true } : v)), 650)
+    return () => clearTimeout(done)
+  }, [tucked])
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
   /** 이 문항에 **지금 이 자리에서** 답했는가.
    *  ⚠️ graded 와 뜻이 다르다. 코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라
@@ -4097,8 +4125,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 덮어도 잃을 것이 없다. 강사가 그 줄을 읽는 동안 떠 있다가 다음 단계로 넘어가며
                 사라지고, 내용은 위 버튼에 쌓인다.
                 ⚠️ 실전에서는 띄우지 않는다 — 시험 자리에 힌트가 뜨면 안 된다. */}
-            {(turn.tip ?? tipExit) && !tipsHidden && (
-              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip} />
+            {(turn.tip ?? tipExit) && !tipsHidden && !tipHidden && (
+              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip || tuckedHere} />
             )}
           </div>
 
