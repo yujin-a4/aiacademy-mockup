@@ -90,6 +90,21 @@ const tallyOther = (col) => `=COUNTA(${R(col)})-` +
 /** 순서·강사와 상관없는 문항 — 그냥 전부 늘어놓는다 */
 const all = (col) => `=TEXTJOIN("   //   ", TRUE, ${R(col)})`
 
+/* ── 사람별 표 ──
+   폼의 '응답 요약' 화면은 답을 적힌 글자 그대로 보여줘서, 문항을 바꾼 뒤에는 C 문항이
+   "① 첫 번째 강의 2명 / 윤다은 2명" 처럼 쪼개져 보인다. 그건 구글이 원본을 보관하는 방식이라
+   되돌릴 수 없다. 그래서 **①/② 가 한 글자도 안 나오는 표**를 여기서 따로 만든다 —
+   보고서에는 이 표를 그대로 옮기면 된다. */
+const nth = (col, k) => `INDEX(${R(col)},${k})`
+/** k 번째 응답의 답 하나를 강사 이름으로 바꾼다. 이미 이름이면 그대로 둔다 */
+const named = (col, k) => `=IFERROR(IF(${nth(COL.ts, k)}="","",` +
+  `LET(v,${nth(col, k)},f,${nth(COL.first, k)},s,${nth(COL.second, k)},` +
+  `IF(LEFT(v,1)="①",f,IF(LEFT(v,1)="②",s,v)))),"")`
+/** 그 사람이 누구를 먼저 들었는지 — 순서 효과를 눈으로 확인하는 칸 */
+const whoLabel = (k) => `=IFERROR(IF(${nth(COL.ts, k)}="","",` +
+  `TEXT(${nth(COL.ts, k)},"HH:MM")&"  "&${nth(COL.first, k)}&" → "&${nth(COL.second, k)}),"")`
+const PEOPLE = 12   // 이보다 많이 받으면 이 숫자를 늘린다
+
 const pair = (label, aCol, bCol) => [label, join(aCol, bCol, A, true), join(aCol, bCol, B, false)]
 const pairAvg = (label, aCol, bCol) => [label, avg(aCol, bCol, A, true), avg(aCol, bCol, B, false)]
 
@@ -115,6 +130,11 @@ const rows = [
   ['질문을 더 많이 던진 쪽  (C-1)', tally(COL.c1, A), tally(COL.c1, B), tallyOther(COL.c1)],
   ['더 답답했던 쪽  (C-2)', tally(COL.c2, A), tally(COL.c2, B), tallyOther(COL.c2)],
   ['스타일이 더 맞은 쪽  (C-3)', tally(COL.c3, A), tally(COL.c3, B), tallyOther(COL.c3)],
+  [],
+  ['【 응답자별 】  ①/② 를 전부 강사 이름으로 바꿔 적은 표 — 보고서에 이대로 옮기면 된다',
+    '질문을 더 많이 던진 쪽', '더 답답했던 쪽', '스타일이 더 맞은 쪽'],
+  ...Array.from({ length: PEOPLE }, (_, i) => i + 1).map((k) =>
+    [whoLabel(k), named(COL.c1, k), named(COL.c2, k), named(COL.c3, k)]),
   [],
   ['【 강사별로 나뉜 표 문항 】', '=$B$9', '=$C$9'],
   pair('목소리가 거슬렸나 1~5  (C-5)', COL.c5a, COL.c5b),
