@@ -22,57 +22,70 @@ const INTERNAL = [/^\/dev(\/|$)/, /^\/rail-editor(\/|$)/, /^\/status(\/|$)/]
 export const isInternalPath = (path: string) => INTERNAL.some((re) => re.test(path))
 
 /* ── 참가자 표식 ──
-   FGI 참가자는 **사람마다 다른 링크와 다른 계정**을 받는다. 둘 다 표식으로 쓰되 역할을 나눈다.
+   FGI 참가자는 **사람마다 다른 링크와 다른 계정**을 받는다(`?p=YBM11` + `ybm11@ybm.co.kr`).
+   둘은 같은 값을 내도록 맞춰 뒀다 — 어느 쪽으로 들어와도 `YBM11` 이다.
 
-     누구인가(participant) ← **계정**이 정본. 사람마다 하나씩 나눠주는 것이라 기기를 바꿔도,
-                             링크 없이 다시 들어와도 같은 사람으로 이어진다.
-                             로그인 전 화면(로그인 자체)에서는 링크의 `?p=` 가 임시로 그 자리를 채운다.
-     어느 집단인가(cohort)  ← **링크**(`?p=`)로 정한다. 우리는 파라미터 없이 들어오니 `internal`,
+     누구인가(participant) ← **링크**(`?p=`)가 정본. 기기에 붙어서 새로고침·로그인·화면 이동을
+                             지나도 같은 사람으로 남는다. 링크 없이 들어온 사람은 계정으로 잇는다.
+     어느 집단인가(cohort)  ← 같은 **링크**(`?p=`)로 정한다. 우리는 파라미터 없이 들어오니 `internal`,
                              참가자는 `fgi`. GA 에서 `cohort = fgi` 하나로 내부 사용이 통째로 빠진다.
                              **기간으로 자르는 것보다 정확하다** — FGI 기간에도 우리는 이 앱을 쓴다.
 
-   계정을 participant 로 삼되 cohort 까지 fgi 로 올리지는 않는다 — 그러면 우리가 우리 계정으로
-   로그인한 것까지 전부 참가자로 잡혀서 가르는 의미가 없어진다. 다만 참가자 계정은 `ybm00`~`ybm50`
-   으로 미리 파둔 번호라, 그 꼴이면 링크를 잃어버려도 참가자로 본다(아래 FGI_ID). */
+   ⚠️ **링크가 계정보다 세다.** 참가자가 제 계정(`ybm11`) 대신 공용 `guest00` 으로 로그인해 버리면,
+   계정을 정본으로 삼는 순간 그 사람이 **우리가 데모하며 쌓은 GUEST00 더미에 통째로 섞인다**
+   (지난 28일 GUEST00 에만 5,489건 — 한 번 섞이면 되돌릴 수 없다). 그래서 `?p=` 로 한번 정해진
+   참가자는 로그인해도 덮지 않는다(아래 fromLink). */
 const PARTICIPANT_KEY = 'ybm_fgi_participant'
 const COHORT_KEY = 'ybm_fgi_cohort'
+/** 링크로 정해졌는가 — 이 표식이 있으면 로그인 계정이 참가자를 덮지 못한다 */
+const FROM_LINK_KEY = 'ybm_fgi_from_link'
 export const PARTICIPANT_PARAM = 'p'
-/** 참가자용으로 파둔 계정 번호(`ybm00`~`ybm50`). 이 꼴이면 링크가 없어도 참가자로 본다 —
- *  계정 이름 규칙이 곧 안전망이다. **숫자 두 자리로 좁힌다** — `ybm`으로 시작하기만 하면
- *  다 참가자로 보면 우리가 쓰는 계정까지 딸려 들어간다. */
+/** 링크를 잃었을 때의 안전망 — 참가자용으로 파둔 개인 계정(`ybm00`~`ybm50`,
+ *  `scripts/create-fgi-accounts.js`). 이 꼴로 로그인하면 링크 없이도 참가자로 본다.
+ *  **`ybm` 로 시작하기만 하면 다 받으면 안 된다** — 우리 계정까지 딸려 들어간다. 숫자 두 자리로 좁힌다.
+ *  공용 `guest##` 는 우리도 쓰므로 일부러 뺀다. 이 정규식은 저 스크립트와 짝이다 — 한쪽만 바꾸면 어긋난다. */
 const FGI_ID = /^YBM\d{2}$/
 
 let participant: string | null = null
 let isFgi = false
+let fromLink = false
 
-const remember = (code: string, fgi: boolean) => {
+const remember = (code: string, fgi: boolean, viaLink = false) => {
   participant = code
   if (fgi) isFgi = true
+  if (viaLink) fromLink = true
   try {
     window.localStorage.setItem(PARTICIPANT_KEY, code)
     if (fgi) window.localStorage.setItem(COHORT_KEY, 'fgi')
+    if (viaLink) window.localStorage.setItem(FROM_LINK_KEY, '1')
   } catch { /* 시크릿 모드 등 저장이 막힌 경우 — 이번 세션에만 남는다 */ }
 }
 
 /** 링크의 `?p=` 를 읽어 저장한다. 한 번 붙으면 그 기기에서는 계속 참가자로 남는다 */
 export function initParticipant(search: URLSearchParams): string | null {
   if (typeof window === 'undefined') return null
-  const fromLink = (search.get(PARTICIPANT_PARAM) ?? '').trim().toUpperCase()
-  if (fromLink && /^[A-Z0-9_-]{1,16}$/.test(fromLink)) {
-    remember(fromLink, true)
+  const fromParam = (search.get(PARTICIPANT_PARAM) ?? '').trim().toUpperCase()
+  if (fromParam && /^[A-Z0-9_-]{1,16}$/.test(fromParam)) {
+    remember(fromParam, true, true)
     return participant
   }
   try {
     participant = window.localStorage.getItem(PARTICIPANT_KEY)
     isFgi = window.localStorage.getItem(COHORT_KEY) === 'fgi'
+    fromLink = window.localStorage.getItem(FROM_LINK_KEY) === '1'
   } catch { /* 저장이 막힌 환경 */ }
   return participant
 }
 
-/** 로그인 계정으로 참가자를 확정한다(`ybm07@ybm.co.kr` → `YBM07`).
- *  링크는 기기에 붙는 표식이라 어긋날 수 있다 — 계정은 사람에게 붙으므로 이쪽이 정본이다. */
+/** 로그인 계정으로 참가자를 보완한다(`ybm07@ybm.co.kr` → `YBM07`).
+ *
+ *  **링크로 정해진 참가자는 건드리지 않는다.** 제 계정으로 제대로 로그인하면 어차피 같은 값이라
+ *  덮든 말든 결과가 같고, 어긋나는 경우는 참가자가 **엉뚱한 계정으로 로그인했을 때**뿐이다.
+ *  그때 계정을 따라가면 그 사람이 공용 계정 더미에 섞여 사라진다 — 링크를 믿는 편이 언제나 낫다.
+ *  계정은 **링크 없이 들어온 사람**을 이을 때만 쓴다. */
 export function setParticipantFromAccount(email: string | null | undefined): string | null {
   if (typeof window === 'undefined' || !email) return participant
+  if (fromLink) return participant            // 링크가 정본 — 공용 계정이 덮어쓰지 못하게 막는다
   const code = email.split('@')[0].trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16)
   if (!code || code === participant) return participant
   remember(code, FGI_ID.test(code))

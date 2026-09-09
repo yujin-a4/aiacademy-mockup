@@ -12,29 +12,22 @@
  *   node scripts/ga-custom-definitions.js          # 무엇을 만들지 보여주기만 (기본값·안전)
  *   node scripts/ga-custom-definitions.js --apply  # 실제로 만든다
  *
- *   처음 한 번은 브라우저가 열려 구글 로그인을 묻는다. **GA 속성에 수정 권한이 있는 계정**으로
- *   승인해야 한다. 승인하면 scripts/token_ga.json 에 저장되고 다음부터는 안 묻는다.
+ *   인증은 공용 토큰(`C:/Users/YBM/.google-scripts/token.json`)을 그대로 쓴다 — 묻지 않는다.
  *
  * 미리 필요한 것
- *   · 이 OAuth 클라이언트가 속한 GCP 프로젝트에서 **Google Analytics Admin API 사용 설정**
- *   · 승인 계정이 해당 GA4 속성의 편집자 이상
+ *   · 공용 OAuth 클라이언트의 GCP 프로젝트에서 **Google Analytics Admin API 사용 설정**
+ *   · ybm.ailab 계정이 해당 GA4 속성의 편집자 이상
  *
  * 여러 번 돌려도 안전하다 — 이미 있는 것은 건너뛴다.
  */
-const fs = require('fs')
-const path = require('path')
-const { authenticate } = require('@google-cloud/local-auth')
-const { google } = require('googleapis')
+/** 인증은 프로젝트마다 열쇠를 복사하지 않고 **공용 한 벌**을 쓴다 —
+ *  `C:\Users\YBM\.google-scripts` (googleapis 까지 같이 내주므로 여기 설치돼 있지 않아도 된다).
+ *  그 토큰에는 이미 `analytics.edit` 이 붙어 있다. 죽으면 `node C:/Users/YBM/.google-scripts/login.mjs` 한 번. */
+const { google, getAuthClient } = require('C:/Users/YBM/.google-scripts/auth.cjs')
 
 /** 측정 ID — 이걸로 어느 속성인지 스스로 찾는다(속성 번호를 손으로 넣지 않는다) */
 const MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-M1KH3TJZJB'
 
-const SCOPES = ['https://www.googleapis.com/auth/analytics.edit']
-const TOKEN_PATH = path.join(__dirname, 'token_ga.json')
-const CREDENTIALS_PATH = path.join(
-  __dirname, '..',
-  'client_secret_643194950870-d31lfg4i5fvr33l7iaeb2tc1ts0apl7i.apps.googleusercontent.com.json',
-)
 
 /* ── 등록할 것 ──
    parameterName 은 **src/lib/analytics.ts 와 화면들이 실제로 보내는 이름**이다. 여기를 고치면
@@ -74,29 +67,8 @@ const METRICS = [
   { parameterName: 'pace_ratio', displayName: '속도배수', scope: 'EVENT', measurementUnit: 'STANDARD', description: 'RC 적정 시간 대비 배수(1.5 = 1.5배 걸림)' },
 ]
 
-async function getAuth() {
-  try {
-    return google.auth.fromJSON(JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8')))
-  } catch { /* 아직 승인 전 */ }
-
-  if (!fs.existsSync(CREDENTIALS_PATH)) {
-    throw new Error(`OAuth 클라이언트 파일이 없다: ${CREDENTIALS_PATH}`)
-  }
-  console.log('브라우저가 열린다 — GA 속성에 수정 권한이 있는 계정으로 승인할 것\n')
-  const client = await authenticate({ scopes: SCOPES, keyfilePath: CREDENTIALS_PATH })
-  const key = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'))
-  const k = key.installed || key.web
-  if (client.credentials?.refresh_token) {
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify({
-      type: 'authorized_user',
-      client_id: k.client_id,
-      client_secret: k.client_secret,
-      refresh_token: client.credentials.refresh_token,
-    }))
-    console.log(`승인 저장: ${TOKEN_PATH}\n`)
-  }
-  return client
-}
+/** 공용 토큰 그대로 쓴다 — 브라우저가 열리지 않는다 */
+const getAuth = () => getAuthClient()
 
 /** 측정 ID 로 속성을 찾는다 — 속성이 여럿일 때 엉뚱한 곳에 만드는 사고를 막는다 */
 async function findProperty(admin) {
