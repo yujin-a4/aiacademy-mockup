@@ -39,16 +39,18 @@ async function realtime(data) {
   /* ⚠️ 실시간 API 는 **`participant` 와 `eventName` 을 한 번에 못 묻는다**
      ("Selected dimensions and metrics cannot be queried together"). 그래서 세 번 나눠 묻고 여기서 합친다.
      사람별 이벤트 이름까지 쪼개 보려면 `--today`(표준 리포트)를 쓸 것. */
-  const ask = (dimensions, metrics) => data.properties.runRealtimeReport({
+  const ask = (dimensions, metrics, filter = fgiOnly) => data.properties.runRealtimeReport({
     property: PROPERTY,
-    requestBody: { dimensions: dimensions.map((name) => ({ name })), metrics: metrics.map((name) => ({ name })), dimensionFilter: fgiOnly, limit: 200 },
+    requestBody: { dimensions: dimensions.map((name) => ({ name })), metrics: metrics.map((name) => ({ name })), dimensionFilter: filter ?? undefined, limit: 200 },
   }).then((r) => r.data.rows ?? [])
 
   const [users, counts, recency, events] = await Promise.all([
     ask(['customUser:participant'], ['activeUsers']),
     ask(['customUser:participant'], ['eventCount']),
     ask(['customUser:participant', 'minutesAgo'], ['activeUsers']),
-    ask(['eventName'], ['eventCount']),
+    /* ⚠️ `eventName` 은 **user 범위 맞춤측정기준으로 거를 수 없다**(cohort 를 물리면 같은 거부가 난다).
+       그래서 이 줄만 필터 없이 묻고, 아래에서 '전체 합계'라고 못박아 보여준다 — 우리 것도 섞인 수다. */
+    ask(['eventName'], ['eventCount'], null),   // null 이어야 기본값(fgiOnly)이 안 먹는다
   ])
 
   if (!users.length) {
@@ -75,7 +77,7 @@ async function realtime(data) {
 
   const sig = events.filter((r) => SIGNAL.includes(r.dimensionValues[0].value))
   if (sig.length) {
-    console.log('\n  지금 일어나는 일 (전체 합계)')
+    console.log('\n  지금 일어나는 일 (사람 구분 없는 전체 합계 — 우리 것도 섞여 있다)')
     for (const r of sig.sort((a, b) => Number(b.metricValues[0].value) - Number(a.metricValues[0].value))) {
       console.log('    ' + pad(r.dimensionValues[0].value, 24) + r.metricValues[0].value)
     }
