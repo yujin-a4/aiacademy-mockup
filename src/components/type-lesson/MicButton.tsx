@@ -29,7 +29,7 @@ const SILENCE_PEAK = 2
  *  아무 말 없이 녹음을 끝내면 "[마이크 테스트]", 신호음을 넣으면 "[통화 연결음]" 이 온다(실측).
  *  그건 학생이 한 말이 아니다 — 그대로 받으면 빈칸에 "[마이크 테스트]" 가 박히고, 채점기는
  *  그걸 오답으로 세어 버린다. 딱지를 떼고 **남는 말이 없으면 못 알아들은 것으로 친다.** */
-const stripNonSpeech = (t: string) =>
+export const stripNonSpeech = (t: string) =>
   t.replace(/[[(][^\])]*[\])]/g, ' ').replace(/\s+/g, ' ').trim()
 
 type Phase = 'idle' | 'recording' | 'sending'

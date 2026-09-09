@@ -14,7 +14,7 @@ import PhaseStepper from '@/components/lesson/PhaseStepper'
 import { TipCard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
-import MicButton from '@/components/type-lesson/MicButton'
+import MicButton, { stripNonSpeech } from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool, type Stroke } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
@@ -80,11 +80,47 @@ const needsAnswer = (turn: Turn) => turn.interaction.kind !== 'next'
    아래쪽 파형이 뜨고, 그냥 말하면 된다. 학생 눈에는 두 모드가 같아 보여야 한다.
      · 전사: Web Speech (SpeechRecognition)
      · 파형: getUserMedia + AnalyserNode — 에이전트의 getInputByteFrequencyData 자리를 대신한다 */
+/** ── 아이폰·아이패드에서는 **브라우저 내장 인식을 쓰지 않는다** (09-09 아이패드 실측 보고) ──
+ *  홈 화면에 깐 웹앱(standalone)에서는 `webkitSpeechRecognition` 이 서지 않는다. 마이크 권한은
+ *  파형 쪽 getUserMedia 가 물어보니 **팝업은 뜨고 학생은 허용까지 하는데**, 인식만 아무 일도
+ *  하지 않는다. 화면은 그동안 '듣고 있어요' 를 계속 띄우니 *말해도 아무 일이 없는 화면*이 된다.
+ *  그래서 iOS 에서는 정리 화면(MicButton)이 이미 쓰는 길로 간다 — **녹음해서 서버(/api/stt)로
+ *  보낸다.** 브라우저와 무관하게 같은 결과가 나오고, 아이패드 사파리에서 이미 도는 길이다. */
+const preferServerStt = () => {
+  if (typeof window === 'undefined') return false
+  const ua = navigator.userAgent
+  /* 아이패드 사파리는 자기를 맥이라고 말한다(데스크톱용 사이트가 기본) — 터치 개수로 가른다 */
+  const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+  return ios || !(window.SpeechRecognition ?? window.webkitSpeechRecognition)
+}
+
+/** 말소리로 치는 진폭(128을 가운데로 본다). 무음은 0~1, 말은 쉽게 5를 넘는다 */
+const SPEECH_PEAK = 6
+/** 말이 멎고 이만큼 조용하면 **한 마디가 끝난 것**으로 보고 보낸다 */
+const SILENCE_MS = 1100
+/** 한 마디가 이보다 길어지면 거기서 끊어 보낸다 — 계속 쥐고 있으면 답이 영영 안 넘어간다 */
+const UTTER_MAX_MS = 15000
+/** 아무 말도 없이 이만큼 지나면 녹음을 갈아 끼운다 — 무음 파일만 커진다 */
+const IDLE_RESET_MS = 20000
+
 function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: string) => void) {
   const dataRef = useRef<Uint8Array<ArrayBuffer> | undefined>(undefined)
+  /** 파형은 주파수로 그리지만, **말이 멎었는지**는 시간축 진폭으로 본다 */
+  const waveRef = useRef<Uint8Array<ArrayBuffer> | undefined>(undefined)
   const anaRef = useRef<AnalyserNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const finalRef = useRef(onFinal)
   finalRef.current = onFinal
+  /* 어느 길로 갈지는 navigator 를 봐야 아는데 서버 렌더에는 그것이 없다 —
+     첫 렌더는 예전대로 두고 **마운트 뒤에** 정한다(hydration 이 어긋나지 않게). */
+  const [serverStt, setServerStt] = useState(false)
+  useEffect(() => { setServerStt(preferServerStt()) }, [])
+  /** 마이크가 열렸는가 — 서버 전사는 아래에서 연 **그 줄기를 그대로** 녹음한다 */
+  const [micReady, setMicReady] = useState(false)
+  /** 말한 것을 옮기는 중(서버 전사에서만). 이 몇 초에 아무 표시가 없으면 멈춘 줄로 읽힌다 */
+  const [sending, setSending] = useState(false)
+  /** '다 말했어요' 가 부르는 것 — 지금 녹음을 끊어 바로 보낸다 */
+  const endRef = useRef<(() => void) | null>(null)
 
   /* ── 마이크·파형은 한 번만 잡는다 ──
      학생 차례가 될 때마다 새로 잡으면 AudioContext 가 계속 쌓인다. 브라우저는 동시에 열 수 있는
@@ -98,28 +134,37 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     void navigator.mediaDevices?.getUserMedia({ audio: true }).then((st) => {
       if (!alive) { st.getTracks().forEach((t) => t.stop()); return }
       stream = st
+      streamRef.current = st
       ctx = new AudioContext()
+      /* iOS 는 소리 장치를 **잠가 둔 채** 준다 — 깨우지 않으면 계측값이 계속 0이라
+         파형이 죽고, 아래 서버 전사가 "말이 멎었다"를 영영 못 본다 */
+      void ctx.resume().catch(() => {})
       const ana = ctx.createAnalyser()
       ana.fftSize = 256
       ctx.createMediaStreamSource(st).connect(ana)
       anaRef.current = ana
       dataRef.current = new Uint8Array(new ArrayBuffer(ana.frequencyBinCount))
+      waveRef.current = new Uint8Array(new ArrayBuffer(ana.fftSize))
+      setMicReady(true)
     }).catch(() => { /* 마이크가 없거나 권한 거부 — 텍스트 모드로 답할 수 있다 */ })
     return () => {
       alive = false
+      setMicReady(false)
       stream?.getTracks().forEach((t) => t.stop())
       void ctx?.close().catch(() => {})
+      streamRef.current = null
       anaRef.current = null
       dataRef.current = undefined
+      waveRef.current = undefined
     }
   }, [enabled])
 
-  /* ── 인식기 ──
+  /* ── ① 브라우저 내장 인식 (크롬·엣지 등) ──
      한 마디마다 끝나므로(continuous=false) 끝나면 다시 켠다. 다만 **그냥 다시 켜면 안 된다** —
      권한 거부·기기 없음처럼 시작하자마자 실패하는 상황에서는 start→error→end→start 가
      초당 수천 번 돌아 탭이 죽는다. 그래서 최소 간격을 두고, 연달아 실패하면 포기한다. */
   useEffect(() => {
-    if (!enabled || !listening) return
+    if (!enabled || !listening || serverStt) return
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!Ctor) return
     let alive = true
@@ -157,15 +202,121 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       rec.onresult = null
       try { rec.stop() } catch { /* noop */ }
     }
-  }, [enabled, listening])
+  }, [enabled, listening, serverStt])
 
-  return useCallback(() => {
+  /* ── ② 서버 전사 (iOS · 내장 인식이 없는 브라우저) ──
+     학생이 손대는 것은 없다. 위에서 이미 연 마이크 줄기를 녹음하다가 **말이 멎고 조용해지면**
+     거기서 끊어 `/api/stt` 로 보낸다. 돌아온 글자를 답으로 넘기고 다시 듣는다.
+     ⚠️ 조용해지기를 기다리는 판단은 계측기에 달려 있다. 계측이 죽은 기기를 대비해
+        화면에 '다 말했어요' 를 하나 둔다(endRef) — 눌러도 같은 길로 간다. */
+  useEffect(() => {
+    if (!enabled || !listening || !serverStt || !micReady) return
+    const stream = streamRef.current
+    if (!stream) return
+    let alive = true
+    let rec: MediaRecorder | null = null
+    let chunks: Blob[] = []
+    /** 이번 녹음에 **말이 들어 있었나** — 없으면 보내지 않는다(무음을 보내 봐야 헛돈다) */
+    let spoke = false
+    let quietAt = 0
+    let startedAt = 0
+    let raf: number | null = null
+
+    const begin = () => {
+      if (!alive) return
+      chunks = []; spoke = false; quietAt = 0; startedAt = Date.now()
+      try { rec = new MediaRecorder(stream) } catch { rec = null; return }
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
+      rec.onstop = () => { void finish() }
+      try { rec.start() } catch { rec = null }
+    }
+
+    const finish = async () => {
+      const done = rec
+      const had = spoke
+      rec = null
+      const blob = new Blob(chunks, { type: done?.mimeType || 'audio/mp4' })
+      if (!alive) return
+      /* 말이 없었으면 조용히 다시 듣는다 — 학생 눈에는 아무 일도 없는 것이 맞다 */
+      if (!had || blob.size < 1000) { begin(); return }
+      setSending(true)
+      try {
+        const form = new FormData()
+        /* 확장자는 **녹음된 실제 형식**에서 가져온다 — 사파리는 webm 이 아니라 mp4(AAC)를 낸다.
+           mp4 바이트를 .webm 이라 이름 붙여 보내면 전사기가 못 읽는다(MicButton 머리말). */
+        const ext = (blob.type.split(';')[0].split('/')[1] || 'mp4').replace('mpeg', 'mp3')
+        form.append('audio', blob, 'answer.' + ext)
+        form.append('language_code', 'ko')
+        const res = await fetch('/api/stt', { method: 'POST', body: form })
+        if (!res.ok) {
+          console.warn('[대본 STT] 서버가 거절했다', res.status, { mime: blob.type, bytes: blob.size })
+        } else {
+          const { text } = (await res.json()) as { text?: string }
+          const said = stripNonSpeech(text ?? '')
+          if (alive && said) finalRef.current(said)
+        }
+      } catch (e) {
+        console.warn('[대본 STT] 보내지 못했다', e, { mime: blob.type, bytes: blob.size })
+      } finally {
+        if (alive) { setSending(false); begin() }
+      }
+    }
+
+    /** 지금 녹음을 끊어 **바로 보낸다** — 계측이 죽어 조용해진 것을 못 볼 때의 손잡이 */
+    endRef.current = () => {
+      if (!rec || rec.state !== 'recording') return
+      spoke = true
+      try { rec.stop() } catch { /* noop */ }
+    }
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const ana = anaRef.current
+      const buf = waveRef.current
+      if (!ana || !buf || !rec || rec.state !== 'recording') return
+      ana.getByteTimeDomainData(buf)
+      let peak = 0
+      for (let i = 0; i < buf.length; i++) { const d = Math.abs(buf[i] - 128); if (d > peak) peak = d }
+      const now = Date.now()
+      if (peak > SPEECH_PEAK) {
+        spoke = true
+        quietAt = 0
+        if (now - startedAt > UTTER_MAX_MS) { try { rec.stop() } catch { /* noop */ } }
+        return
+      }
+      if (!spoke) {
+        if (now - startedAt > IDLE_RESET_MS) { try { rec.stop() } catch { /* noop */ } }
+        return
+      }
+      if (!quietAt) quietAt = now
+      else if (now - quietAt > SILENCE_MS) { try { rec.stop() } catch { /* noop */ } }
+    }
+
+    begin()
+    tick()
+
+    return () => {
+      alive = false
+      endRef.current = null
+      if (raf !== null) cancelAnimationFrame(raf)
+      setSending(false)
+      try { if (rec && rec.state === 'recording') rec.stop() } catch { /* noop */ }
+      rec = null
+    }
+  }, [enabled, listening, serverStt, micReady])
+
+  const getFreq = useCallback(() => {
     const ana = anaRef.current
     const d = dataRef.current
     if (!ana || !d) return undefined
     ana.getByteFrequencyData(d)
     return d
   }, [])
+
+  const endUtterance = useCallback(() => { endRef.current?.() }, [])
+
+  /** `endUtterance` 는 **서버 전사일 때만** 준다 — 내장 인식 쪽에는 끊을 것이 없다(버튼도 안 뜬다) */
+  return { getFreq, sending, endUtterance: serverStt ? endUtterance : undefined }
 }
 
 const KO_STOP = new Set(['그리고', '있어요', '있다', '해요', '한다', '이에요', '예요', '입니다', '같아요', '거예요', '너무', '정말'])
@@ -1510,6 +1661,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 날아가는 중인 카드 — 세는 시점과 그리는 시점이 **같은 값을 봐야** 해서 위에 둔다 */
   const [tipExit, setTipExit] = useState<LessonTip | null>(null)
   const lastTipRef = useRef<LessonTip | null>(null)
+  /** 문제 끝에 뜬 카드를 앱이 **혼자 날려 보낸 자리** (아래 effect 설명).
+   *  `at` 은 그 턴 번호다 — 턴이 넘어가면 저절로 무효가 되므로 따로 지울 것이 없다.
+   *  `gone` 이면 날기가 끝나 카드가 화면에서 빠지고 버튼 숫자가 오른 상태다. */
+  const [tucked, setTucked] = useState<{ at: number; gone: boolean } | null>(null)
+  const tuckedHere = tucked?.at === turnIdx
+  const tipHidden = tuckedHere && tucked!.gone
 
   const passedTips: SeenTip[] = turns.slice(0, turnIdx + 1)
     .filter((t) => t.tip)
@@ -1519,7 +1676,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      날아가는 그림이 아무것도 설명하지 못한다(이미 다 끝난 뒤에 날아가는 꼴이다).
      그래서 **지금 떠 있는 것 하나**(카드가 보이는 중이거나 날아가는 중)를 빼고 센다.
      날기가 끝나 `tipExit` 이 비면 그 순간 하나가 늘고, 버튼이 살아나며 배지가 튄다. */
-  const inFlight = (turn.tip || tipExit) ? 1 : 0
+  const inFlight = ((turn.tip && !tipHidden) || tipExit) ? 1 : 0
   const seenTips: SeenTip[] = inFlight ? passedTips.slice(0, -inFlight) : passedTips
   const seenVocabCount = new Set(
     seenTips.flatMap((s) => s.tip.vocab.map((v) => v.en.toLowerCase().replace(/\s+/g, ' ').trim())),
@@ -1558,6 +1715,28 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const timer = setTimeout(() => setTipExit(null), 650)
     return () => clearTimeout(timer)
   }, [turn.tip])
+
+  /* ── 문제 끝에 뜬 카드는 **스스로 들어간다** (09-09 실측 보고) ──
+     카드는 턴이 넘어갈 때 버튼으로 날아간다. 그런데 실전 오답 코칭에서는 TIP 이 그 문항의
+     **마지막 턴**이다(대본 47턴 전수: S7 표현 정리가 문항마다 끝) — 넘어갈 곳이 없으니 카드가
+     그대로 남는다. 게다가 카드는 수업 칸 전체를 덮으므로(#zoom-host 기준 absolute) 그 아래
+     [다음 문제] 줄까지 가린다. 학생 눈에는 **팝업이 뜬 채 화면이 멈춘 것**이 된다.
+     그래서 강사가 그 줄을 다 읽으면(spokenTurn) 잠깐 읽을 틈만 두고 앱이 날려 보낸다.
+     ⚠️ 문제 끝(atItemEnd)에서만이다. 수업 중의 TIP 은 다음 단계가 알아서 걷어간다. */
+  useEffect(() => {
+    if (!turn.tip || !atItemEnd || tuckedHere || spokenTurn !== turnIdx) return
+    const start = setTimeout(() => {
+      /* 이미 들어간 카드를 턴이 넘어갈 때 **또** 날리지 않게 지운다(위 effect 의 lastTipRef) */
+      lastTipRef.current = null
+      setTucked({ at: turnIdx, gone: false })
+    }, 1200)
+    return () => clearTimeout(start)
+  }, [turn.tip, atItemEnd, tuckedHere, spokenTurn, turnIdx])
+  useEffect(() => {
+    if (!tucked || tucked.gone) return
+    const done = setTimeout(() => setTucked((v) => (v ? { ...v, gone: true } : v)), 650)
+    return () => clearTimeout(done)
+  }, [tucked])
   const itemLastTurn = curSpan ? turns[curSpan.last] : undefined
   /** 이 문항에 **지금 이 자리에서** 답했는가.
    *  ⚠️ graded 와 뜻이 다르다. 코칭(실전 오답 리뷰)은 이미 채점된 문항을 짚는 자리라
@@ -3542,7 +3721,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const freeAsk = !!scripted && (freePlay || lessonEnd)
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || freeAsk || (turn.interaction.kind === 'subjective' && !subjSent))
-  const getScriptedMicFreq = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
+  const scriptedVoice = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
     /* ⚠️ **askTutor 로 바로 가지 않는다** — 그 함수에는 대본으로 돌아오는 길이 없다.
        이어서 물으면(asking 이 아직 켜진 채) 강사가 답만 하고 수업이 멈춰 있었다(실측 09-01).
        돌아오는 길은 askAside 끝에만 있으므로 두 번째 질문도 그리로 보낸다. */
@@ -3946,8 +4125,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 덮어도 잃을 것이 없다. 강사가 그 줄을 읽는 동안 떠 있다가 다음 단계로 넘어가며
                 사라지고, 내용은 위 버튼에 쌓인다.
                 ⚠️ 실전에서는 띄우지 않는다 — 시험 자리에 힌트가 뜨면 안 된다. */}
-            {(turn.tip ?? tipExit) && !tipsHidden && (
-              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip} />
+            {(turn.tip ?? tipExit) && !tipsHidden && !tipHidden && (
+              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip || tuckedHere} />
             )}
           </div>
 
@@ -3990,7 +4169,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           chatMode={chatMode} setChatMode={setChat}
           getTutorFreq={() => { try { return conversation.getOutputByteFrequencyData?.() } catch { return undefined } }}
           /* 대본 모드는 브라우저 마이크에서 파형을 받는다 — 에이전트가 없어도 아래쪽이 똑같이 보인다 */
-          getMicFreq={scripted ? getScriptedMicFreq
+          getMicFreq={scripted ? scriptedVoice.getFreq
             : () => { try { return conversation.getInputByteFrequencyData?.() } catch { return undefined } }}
           /* 대본 모드에는 연결할 세션이 없다. connected=false 로 두면 강사 창이
              '연결이 끊겼어요 — 눌러서 다시 연결' 버튼을 띄워 **학생이 입력을 못 한다**(실측). */
@@ -3998,6 +4177,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 대본 모드는 **학생 차례에만** 마이크가 열린다 — 아래 입력칸도 그때만 살아 있어야
              "지금 말해도 되는가"가 화면에서 읽힌다(강사가 말하는 동안 파형이 뛰면 거짓말이다) */
           micActive={scripted ? voiceOn : undefined}
+          /* 대본 수업에서 **서버로 옮겨 듣는 기기**(아이패드)일 때만 손잡이가 온다 */
+          onEndUtterance={scripted ? scriptedVoice.endUtterance : undefined}
+          sttSending={scripted && scriptedVoice.sending}
           isSpeaking={tutorVoicing}
           /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
           preparing={voiceLoading}
