@@ -111,12 +111,16 @@ function MicWave({ active, speaking, getFreq }: {
 }
 
 /** 음성 모드 하단 — 마이크 버튼 없이 파형만. "지금 듣고 있다"는 상태 한 줄. */
-function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive }: {
+function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive, onEndUtterance, sttSending }: {
   connected: boolean; connecting: boolean; isSpeaking: boolean
   /** 학생 차례인가 — undefined 면 예전처럼 '연결됐으면 듣는 중' */
   micActive?: boolean
   getFreq?: () => Uint8Array | undefined
   onStartAgent: () => void
+  /** 말을 여기서 끊고 보낸다 — **서버 전사(iOS)** 일 때만 온다. 없으면 버튼도 안 뜬다 */
+  onEndUtterance?: () => void
+  /** 말한 것을 서버로 옮기는 중 */
+  sttSending?: boolean
 }) {
   return (
     <div className="shrink-0 px-3 md:px-4 pt-2 pb-3 border-t border-gray-100">
@@ -137,8 +141,18 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
         {!connected ? ''
           : isSpeaking ? '강사가 말하는 중…'
             : micActive === false ? '잠시 기다려 주세요'
-              : '듣고 있어요 — 그냥 말하면 돼요'}
+              : sttSending ? '말한 내용을 옮기는 중…'
+                : '듣고 있어요 — 그냥 말하면 돼요'}
       </p>
+      {/* ── '다 말했어요' ── 아이패드처럼 **서버로 보내 옮기는** 기기에서만 뜬다.
+          평소에는 말이 멎으면 알아서 보내지만, 소리 계측이 죽은 기기에서는 그 판단이 서지 않는다.
+          그때 학생이 말해도 아무 일이 없는 화면이 되는 것을 이 버튼 하나가 막는다. */}
+      {connected && micActive !== false && !isSpeaking && onEndUtterance && (
+        <button onClick={onEndUtterance} disabled={sttSending}
+          className="mt-1.5 w-full rounded-xl border border-[#DBEAFE] bg-white py-2 text-[12px] font-bold text-[#2563EB] disabled:opacity-50">
+          {sttSending ? '옮기는 중…' : '다 말했어요'}
+        </button>
+      )}
     </div>
   )
 }
@@ -390,6 +404,10 @@ export interface TutorDockProps {
   /** 지금 학생이 말해도 되는가 — 대본 수업에서 마이크가 열린 동안만 true.
    *  주지 않으면(에이전트 모드) 예전처럼 연결돼 있으면 늘 듣는 것으로 본다. */
   micActive?: boolean
+  /** 한 마디를 여기서 끊고 보낸다 — 서버 전사(iOS)일 때만 온다. 없으면 버튼이 안 뜬다 */
+  onEndUtterance?: () => void
+  /** 말한 것을 서버로 옮기는 중 */
+  sttSending?: boolean
   /** 입력칸 **아래**에 붙는 자리 — 질문 버튼처럼 수업 진행과 층이 다른 것 */
   footer?: ReactNode
   /** 텍스트 모드 채팅 흐름 */
@@ -417,6 +435,7 @@ export interface TutorDockProps {
 
 export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
+  onEndUtterance, sttSending,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
   lastLine, lastLinePlain, messages, actions, hint, actionKey, topBar, overlay,
   inputText, setInputText, onSend, onStartAgent, bodyRef,
@@ -533,7 +552,8 @@ export default function TutorDock({
             {actions}
           </div>
           <VoiceListener connected={connected} connecting={connecting} isSpeaking={isSpeaking}
-            getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive} />
+            getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive}
+            onEndUtterance={onEndUtterance} sttSending={sttSending} />
           {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
         </>
       ) : (
