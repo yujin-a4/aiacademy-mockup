@@ -111,6 +111,8 @@ const IDLE_RESET_MS = 20000
 /** '다 말했어요' 는 **막혔을 때만** 꺼낸다 (09-15) — 정상 기기에서는 끝까지 안 보인다.
  *  · 계측이 죽었다: 듣기 시작하고 이만큼 지나도 파형이 **한 번도 흔들리지 않았다** */
 const METER_DEAD_MS = 3000
+/** 서버 전사가 실패했을 때 — 못 알아들은 것과 가른다. 학생에게는 적어서 답하는 길을 알려준다 */
+const STT_DOWN_NOTICE = '지금 음성이 잘 전달되지 않아요. 입력창에 적어 주셔도 돼요.'
 /** · 말이 안 잡힌다: 이만큼 지나도 말소리로 친 적이 없다(마이크가 작게 들어오는 기기 등) */
 const NO_SPEECH_HELP_MS = 10000
 
@@ -128,6 +130,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
   useEffect(() => { setServerStt(preferServerStt()) }, [])
   /** 마이크가 열렸는가 — 서버 전사는 아래에서 연 **그 줄기를 그대로** 녹음한다 */
   const [micReady, setMicReady] = useState(false)
+  /** 보냈는데 받은 말이 없을 때 잠깐 띄우는 한 줄 (09-15) — '옮기는 중…' 뒤에 아무 일이 없으면
+   *  학생은 눌렀는데 먹통인 줄 안다. 못 알아들었는지, 서버가 안 되는지를 갈라서 말한다. */
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showNotice = useCallback((msg: string) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
+    setNotice(msg)
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3000)
+  }, [])
+  useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
   /** 말한 것을 옮기는 중(서버 전사에서만). 이 몇 초에 아무 표시가 없으면 멈춘 줄로 읽힌다 */
   const [sending, setSending] = useState(false)
   /** '다 말했어요' 가 부르는 것 — 지금 녹음을 끊어 바로 보낸다 */
@@ -231,6 +243,8 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     let chunks: Blob[] = []
     /** 이번 녹음에 **말이 들어 있었나** — 없으면 보내지 않는다(무음을 보내 봐야 헛돈다) */
     let spoke = false
+    /** 이번 녹음을 '다 말했어요' 로 끊었나 — 그랬으면 말이 없어도 **말없이 넘기지 않는다** */
+    let manual = false
     let quietAt = 0
     let startedAt = 0
     let raf: number | null = null
@@ -243,7 +257,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
 
     const begin = () => {
       if (!alive) return
-      chunks = []; spoke = false; quietAt = 0; startedAt = Date.now()
+      chunks = []; spoke = false; manual = false; quietAt = 0; startedAt = Date.now()
       try { rec = new MediaRecorder(stream) } catch { rec = null; return }
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
       rec.onstop = () => { void finish() }
@@ -253,11 +267,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     const finish = async () => {
       const done = rec
       const had = spoke
+      const pressed = manual
       rec = null
       const blob = new Blob(chunks, { type: done?.mimeType || 'audio/mp4' })
       if (!alive) return
-      /* 말이 없었으면 조용히 다시 듣는다 — 학생 눈에는 아무 일도 없는 것이 맞다 */
-      if (!had || blob.size < 1000) { begin(); return }
+      /* 말이 없었으면 조용히 다시 듣는다 — 학생 눈에는 아무 일도 없는 것이 맞다.
+         다만 **학생이 버튼으로 끊었으면** 반응은 있어야 한다 */
+      if (!had || blob.size < 1000) {
+        if (pressed) showNotice('잘 안 들렸어요. 다시 말씀해 주세요.')
+        begin(); return
+      }
       setSending(true)
       try {
         const form = new FormData()
@@ -269,13 +288,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
         const res = await fetch('/api/stt', { method: 'POST', body: form })
         if (!res.ok) {
           console.warn('[대본 STT] 서버가 거절했다', res.status, { mime: blob.type, bytes: blob.size })
+          if (alive) showNotice(STT_DOWN_NOTICE)
         } else {
           const { text } = (await res.json()) as { text?: string }
           const said = stripNonSpeech(text ?? '')
           if (alive && said) finalRef.current(said)
+          else if (alive) showNotice('잘 안 들렸어요. 다시 말씀해 주세요.')
         }
       } catch (e) {
         console.warn('[대본 STT] 보내지 못했다', e, { mime: blob.type, bytes: blob.size })
+        if (alive) showNotice(STT_DOWN_NOTICE)
       } finally {
         if (alive) { setSending(false); begin() }
       }
@@ -285,6 +307,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     endRef.current = () => {
       if (!rec || rec.state !== 'recording') return
       spoke = true
+      manual = true
       try { rec.stop() } catch { /* noop */ }
     }
 
@@ -327,7 +350,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       try { if (rec && rec.state === 'recording') rec.stop() } catch { /* noop */ }
       rec = null
     }
-  }, [enabled, listening, serverStt, micReady])
+  }, [enabled, listening, serverStt, micReady, showNotice])
 
   const getFreq = useCallback(() => {
     const ana = anaRef.current
@@ -341,7 +364,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
 
   /** `endUtterance` 는 **서버 전사이고 막혀 보일 때만** 준다 — 없으면 버튼도 안 뜬다.
    *  내장 인식 쪽에는 끊을 것이 없고, 정상으로 도는 기기에서는 학생이 누를 일이 없다. */
-  return { getFreq, sending, endUtterance: serverStt && stuck ? endUtterance : undefined }
+  return { getFreq, sending, notice, endUtterance: serverStt && stuck ? endUtterance : undefined }
 }
 
 const KO_STOP = new Set(['그리고', '있어요', '있다', '해요', '한다', '이에요', '예요', '입니다', '같아요', '거예요', '너무', '정말'])
@@ -4222,6 +4245,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 대본 수업에서 **서버로 옮겨 듣는 기기**(아이패드)일 때만 손잡이가 온다 */
           onEndUtterance={scripted ? scriptedVoice.endUtterance : undefined}
           sttSending={scripted && scriptedVoice.sending}
+          sttNotice={scripted ? scriptedVoice.notice : null}
           isSpeaking={tutorVoicing}
           /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
           preparing={voiceLoading}
