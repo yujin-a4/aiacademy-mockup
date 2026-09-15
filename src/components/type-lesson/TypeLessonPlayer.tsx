@@ -14,7 +14,7 @@ import PhaseStepper from '@/components/lesson/PhaseStepper'
 import { TipCard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
-import MicButton, { stripNonSpeech } from '@/components/type-lesson/MicButton'
+import MicButton, { stripNonSpeech, MIC_CONSTRAINTS } from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool, type Stroke } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
@@ -144,7 +144,8 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     let alive = true
     let stream: MediaStream | null = null
     let ctx: AudioContext | null = null
-    void navigator.mediaDevices?.getUserMedia({ audio: true }).then((st) => {
+    /* 통화 모드로 열리지 않게 — 볼륨 바가 전화기로 바뀌고 0 까지 안 내려갔다(MIC_CONSTRAINTS) */
+    void navigator.mediaDevices?.getUserMedia(MIC_CONSTRAINTS).then((st) => {
       if (!alive) { st.getTracks().forEach((t) => t.stop()); return }
       stream = st
       streamRef.current = st
