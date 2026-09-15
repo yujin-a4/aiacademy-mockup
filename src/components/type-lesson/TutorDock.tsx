@@ -144,9 +144,10 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
               : sttSending ? '말한 내용을 옮기는 중…'
                 : '듣고 있어요 — 그냥 말하면 돼요'}
       </p>
-      {/* ── '다 말했어요' ── 아이패드처럼 **서버로 보내 옮기는** 기기에서만 뜬다.
+      {/* ── '다 말했어요' ── 서버로 보내 옮기는 기기(아이패드·안드로이드)에서, **막혀 보일 때만** 뜬다.
           평소에는 말이 멎으면 알아서 보내지만, 소리 계측이 죽은 기기에서는 그 판단이 서지 않는다.
-          그때 학생이 말해도 아무 일이 없는 화면이 되는 것을 이 버튼 하나가 막는다. */}
+          그때 학생이 말해도 아무 일이 없는 화면이 되는 것을 이 버튼 하나가 막는다.
+          언제 꺼낼지는 useScriptedVoice 가 정해 onEndUtterance 를 줄지 말지로 알린다. */}
       {connected && micActive !== false && !isSpeaking && onEndUtterance && (
         <button onClick={onEndUtterance} disabled={sttSending}
           className="mt-1.5 w-full rounded-xl border border-[#DBEAFE] bg-white py-2 text-[12px] font-bold text-[#2563EB] disabled:opacity-50">
