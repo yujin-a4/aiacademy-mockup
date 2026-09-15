@@ -32,17 +32,6 @@ const SILENCE_PEAK = 2
 export const stripNonSpeech = (t: string) =>
   t.replace(/[[(][^\])]*[\])]/g, ' ').replace(/\s+/g, ' ').trim()
 
-/** ── 마이크를 **통화가 아니라 녹음으로** 연다 (09-15 갤럭시 탭·아이폰 보고) ──
- *  기본값(`audio: true`)은 되울림 제거가 켜져 있어, 휴대기기가 페이지를 **통화 중**으로 돌린다.
- *  그러면 강사 목소리가 통화 음량으로 나가서 볼륨 바에 전화기가 뜨고 0 까지 안 내려간다.
- *  되울림 제거·소음 억제를 끄면 미디어 음량 그대로다. 녹음은 학생 차례에만 하므로(강사가 말할 땐
- *  안 듣는다) 되울림 제거가 없어도 강사 목소리가 답에 섞일 자리가 거의 없다.
- *  ⚠️ 자동 음량(autoGainControl)은 **켜 둔다** — 끄면 말소리가 작게 잡혀 "말이 멎었다" 판단
- *     (SPEECH_PEAK)이 안 서고 자동 전송이 멈춘다. */
-export const MIC_CONSTRAINTS: MediaStreamConstraints = {
-  audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
-}
-
 type Phase = 'idle' | 'recording' | 'sending'
 
 export default function MicButton({ lang, onResult, onInterim, onStart, className, label }: {
@@ -134,7 +123,7 @@ export default function MicButton({ lang, onResult, onInterim, onStart, classNam
     peakRef.current = 0
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS)
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch (e) {
       const name = (e as Error).name
       setProblem(name === 'NotAllowedError' ? '마이크가 막혀 있어요 (주소창 자물쇠에서 허용)'
