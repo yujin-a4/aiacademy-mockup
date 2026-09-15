@@ -3752,7 +3752,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const freeAsk = !!scripted && (freePlay || lessonEnd)
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || freeAsk || (turn.interaction.kind === 'subjective' && !subjSent))
-  const scriptedVoice = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
+  /* ── 소리가 나는 동안에는 마이크를 여닫지 않는다 (09-15 갤럭시 탭 보고) ──
+     음성↔텍스트를 바꾸면 마이크가 열리고 닫힌다. 휴대기기는 그때 소리 경로를 통화용↔미디어용으로
+     갈아 끼우는데, **LC 음원이 나가는 도중**이면 그 순간 음원이 끊겨 들렸다.
+     그래서 모드 버튼은 바로 바뀌되, 마이크를 여닫는 것은 **소리가 멎은 뒤로** 미룬다.
+     미뤄지는 동안은 voiceOn 이 chatMode 를 따로 보므로 텍스트 모드에서 말을 받아 적을 일은 없다.
+     단계를 벗어나는 것(voicePhase)은 미루지 않는다 — 그건 음원이 도는 자리가 아니다. */
+  const soundOut = playingId !== null || tutorSpeaking
+  const [micVoiceMode, setMicVoiceMode] = useState(chatMode === 'voice')
+  useEffect(() => {
+    if (!soundOut) setMicVoiceMode(chatMode === 'voice')
+  }, [chatMode, soundOut])
+  const scriptedVoice = useScriptedVoice(!!scripted && voicePhase && micVoiceMode, voiceOn, (text) => {
     /* ⚠️ **askTutor 로 바로 가지 않는다** — 그 함수에는 대본으로 돌아오는 길이 없다.
        이어서 물으면(asking 이 아직 켜진 채) 강사가 답만 하고 수업이 멈춰 있었다(실측 09-01).
        돌아오는 길은 askAside 끝에만 있으므로 두 번째 질문도 그리로 보낸다. */
