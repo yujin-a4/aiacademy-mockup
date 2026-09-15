@@ -108,6 +108,11 @@ const SILENCE_MS = 1100
 const UTTER_MAX_MS = 15000
 /** 아무 말도 없이 이만큼 지나면 녹음을 갈아 끼운다 — 무음 파일만 커진다 */
 const IDLE_RESET_MS = 20000
+/** '다 말했어요' 는 **막혔을 때만** 꺼낸다 (09-15) — 정상 기기에서는 끝까지 안 보인다.
+ *  · 계측이 죽었다: 듣기 시작하고 이만큼 지나도 파형이 **한 번도 흔들리지 않았다** */
+const METER_DEAD_MS = 3000
+/** · 말이 안 잡힌다: 이만큼 지나도 말소리로 친 적이 없다(마이크가 작게 들어오는 기기 등) */
+const NO_SPEECH_HELP_MS = 10000
 
 function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: string) => void) {
   const dataRef = useRef<Uint8Array<ArrayBuffer> | undefined>(undefined)
@@ -127,6 +132,8 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
   const [sending, setSending] = useState(false)
   /** '다 말했어요' 가 부르는 것 — 지금 녹음을 끊어 바로 보낸다 */
   const endRef = useRef<(() => void) | null>(null)
+  /** 자동으로 못 보내는 상태로 보인다 — 이때만 '다 말했어요' 를 꺼낸다 */
+  const [stuck, setStuck] = useState(false)
 
   /* ── 마이크·파형은 한 번만 잡는다 ──
      학생 차례가 될 때마다 새로 잡으면 AudioContext 가 계속 쌓인다. 브라우저는 동시에 열 수 있는
@@ -214,7 +221,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
      학생이 손대는 것은 없다. 위에서 이미 연 마이크 줄기를 녹음하다가 **말이 멎고 조용해지면**
      거기서 끊어 `/api/stt` 로 보낸다. 돌아온 글자를 답으로 넘기고 다시 듣는다.
      ⚠️ 조용해지기를 기다리는 판단은 계측기에 달려 있다. 계측이 죽은 기기를 대비해
-        화면에 '다 말했어요' 를 하나 둔다(endRef) — 눌러도 같은 길로 간다. */
+        '다 말했어요' 를 둔다(endRef) — 눌러도 같은 길로 간다. 다만 **막혀 보일 때만** 꺼낸다(stuck). */
   useEffect(() => {
     if (!enabled || !listening || !serverStt || !micReady) return
     const stream = streamRef.current
@@ -227,6 +234,12 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     let quietAt = 0
     let startedAt = 0
     let raf: number | null = null
+    /* 막힘 판단은 녹음을 갈아 끼워도(begin) 이어진다 — 학생 차례 하나 동안 본다 */
+    const listenAt = Date.now()
+    let lastSpeechAt = listenAt
+    let meterMoved = false
+    let stuckNow = false
+    const markStuck = (v: boolean) => { if (stuckNow !== v) { stuckNow = v; setStuck(v) } }
 
     const begin = () => {
       if (!alive) return
@@ -284,12 +297,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       let peak = 0
       for (let i = 0; i < buf.length; i++) { const d = Math.abs(buf[i] - 128); if (d > peak) peak = d }
       const now = Date.now()
+      if (peak > 0) meterMoved = true
       if (peak > SPEECH_PEAK) {
         spoke = true
         quietAt = 0
+        lastSpeechAt = now
+        markStuck(false)
         if (now - startedAt > UTTER_MAX_MS) { try { rec.stop() } catch { /* noop */ } }
         return
       }
+      if ((!meterMoved && now - listenAt > METER_DEAD_MS) || now - lastSpeechAt > NO_SPEECH_HELP_MS) markStuck(true)
       if (!spoke) {
         if (now - startedAt > IDLE_RESET_MS) { try { rec.stop() } catch { /* noop */ } }
         return
@@ -306,6 +323,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       endRef.current = null
       if (raf !== null) cancelAnimationFrame(raf)
       setSending(false)
+      setStuck(false)
       try { if (rec && rec.state === 'recording') rec.stop() } catch { /* noop */ }
       rec = null
     }
@@ -321,8 +339,9 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
 
   const endUtterance = useCallback(() => { endRef.current?.() }, [])
 
-  /** `endUtterance` 는 **서버 전사일 때만** 준다 — 내장 인식 쪽에는 끊을 것이 없다(버튼도 안 뜬다) */
-  return { getFreq, sending, endUtterance: serverStt ? endUtterance : undefined }
+  /** `endUtterance` 는 **서버 전사이고 막혀 보일 때만** 준다 — 없으면 버튼도 안 뜬다.
+   *  내장 인식 쪽에는 끊을 것이 없고, 정상으로 도는 기기에서는 학생이 누를 일이 없다. */
+  return { getFreq, sending, endUtterance: serverStt && stuck ? endUtterance : undefined }
 }
 
 const KO_STOP = new Set(['그리고', '있어요', '있다', '해요', '한다', '이에요', '예요', '입니다', '같아요', '거예요', '너무', '정말'])
