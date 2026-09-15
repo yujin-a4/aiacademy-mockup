@@ -14,7 +14,7 @@ import PhaseStepper from '@/components/lesson/PhaseStepper'
 import { TipCard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
-import MicButton, { stripNonSpeech } from '@/components/type-lesson/MicButton'
+import MicButton, { stripNonSpeech, MIC_CONSTRAINTS } from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool, type Stroke } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress } from '@/lib/tts'
@@ -144,7 +144,8 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     let alive = true
     let stream: MediaStream | null = null
     let ctx: AudioContext | null = null
-    void navigator.mediaDevices?.getUserMedia({ audio: true }).then((st) => {
+    /* 통화 모드로 열리지 않게 — 볼륨 바가 전화기로 바뀌고 0 까지 안 내려갔다(MIC_CONSTRAINTS) */
+    void navigator.mediaDevices?.getUserMedia(MIC_CONSTRAINTS).then((st) => {
       if (!alive) { st.getTracks().forEach((t) => t.stop()); return }
       stream = st
       streamRef.current = st
@@ -3089,6 +3090,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        앞선 클릭들은 토큰이 밀려 여기서 되돌아간다. 그래서 채점·기록·대화를 이 자리에서 한다 —
        클릭마다 하면 보기가 잠기고, 말풍선이 쌓이고, 학습 기록에 중간에 눌러 본 답이 다 남는다. */
     if (pickTokenRef.current !== token) return
+    /* '처음 답' 은 **채점이 선 답**이다 — 음원 도중 눌러 본 보기가 아니라(onSelect 머리말).
+       아래 scriptWillAck·goNext 가 길을 고르기 전에 적어야 한다. */
+    if (label && firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
     /* 대화에 남기는 것은 두 경로 공통 — 다만 여기서 해야 고쳐 고른 흔적이 쌓이지 않는다 */
     const optText = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)?.text ?? ''
     setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${optText}`.trim() }])
@@ -3553,9 +3557,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       setAnswers((p) => ({ ...p, [qIdx]: label }))
       setAnsweredQ((p) => new Set(p).add(qIdx))
       /* 처음 고른 것만 남긴다 — 다시 고를 수 있는 대본에서 길을 정하는 기준이다(wrongPickOf).
-         ⚠️ state 가 아니라 ref 로, 그리고 **여기서** 적는다. 다시 그리기 전에 적혀 있어야
-            뒤이어 도는 shouldPlay 가 처음 답을 본다. */
-      if (firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
+         ⚠️ state 가 아니라 ref 로 적는다. 다시 그리기 전에 적혀 있어야 뒤이어 도는 shouldPlay 가 처음 답을 본다.
+         ⚠️ **대본 수업은 여기서 적지 않는다** (09-15 윤다은 보고) — 음원이 도는 동안은 보기를 고쳐
+            고를 수 있어서, 클릭 순간에 적으면 **지나가며 눌러 본 오답**이 '처음 답' 으로 박힌다.
+            그러면 결국 B 로 맞혀도 길은 오답 경로로 잡혀 "좋아요, 맞았어요." 뒤에 "정답이 아니에요."
+            가 나갔다. 대본 수업은 **채점이 서는 자리**(handleScriptedPick)에서 적는다. */
+      if (!(scripted && phase !== 'review') && firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
       /* **어느 턴에서** 골랐는지도 남긴다 — 안내 배너가 "이 턴에서 골랐는가" 를 본다.
          문항 기준으로 보면 다시 고르는 턴이 시작부터 '완료' 로 뜬다(ContentActionHint). */
       pickedTurnRef.current = turnIdx
