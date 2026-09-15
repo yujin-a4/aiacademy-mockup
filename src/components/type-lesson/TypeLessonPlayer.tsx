@@ -85,13 +85,19 @@ const needsAnswer = (turn: Turn) => turn.interaction.kind !== 'next'
  *  파형 쪽 getUserMedia 가 물어보니 **팝업은 뜨고 학생은 허용까지 하는데**, 인식만 아무 일도
  *  하지 않는다. 화면은 그동안 '듣고 있어요' 를 계속 띄우니 *말해도 아무 일이 없는 화면*이 된다.
  *  그래서 iOS 에서는 정리 화면(MicButton)이 이미 쓰는 길로 간다 — **녹음해서 서버(/api/stt)로
- *  보낸다.** 브라우저와 무관하게 같은 결과가 나오고, 아이패드 사파리에서 이미 도는 길이다. */
+ *  보낸다.** 브라우저와 무관하게 같은 결과가 나오고, 아이패드 사파리에서 이미 도는 길이다.
+ *
+ *  ── 안드로이드도 같은 길로 보낸다 (09-15 갤럭시 탭 크롬 웹앱 보고) ──
+ *  파형은 뜨는데 말해도 넘어가지 않았다. 안드로이드 크롬의 내장 인식은 기기 인식기를 빌려 쓰는데,
+ *  파형 쪽 getUserMedia 가 **마이크를 먼저 쥐고 있으면** 인식기가 소리를 못 받는다. 오류는 조용히
+ *  재시도로 삼켜지니 화면엔 '듣고 있어요' 만 남는다. */
 const preferServerStt = () => {
   if (typeof window === 'undefined') return false
   const ua = navigator.userAgent
   /* 아이패드 사파리는 자기를 맥이라고 말한다(데스크톱용 사이트가 기본) — 터치 개수로 가른다 */
   const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
-  return ios || !(window.SpeechRecognition ?? window.webkitSpeechRecognition)
+  const android = /Android/i.test(ua)
+  return ios || android || !(window.SpeechRecognition ?? window.webkitSpeechRecognition)
 }
 
 /** 말소리로 치는 진폭(128을 가운데로 본다). 무음은 0~1, 말은 쉽게 5를 넘는다 */
