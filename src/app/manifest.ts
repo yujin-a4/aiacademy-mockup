@@ -9,7 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     // "standalone" = 앱처럼(상단 상태바 유지), "fullscreen" = 상태바까지 숨김
     display: "standalone",
-    orientation: "portrait",
+    // 태블릿 가로가 기준 화면 — 고정하지 않고 기기 방향을 따른다
+    orientation: "any",
     background_color: "#ffffff",
     theme_color: "#ffffff",
     icons: [
