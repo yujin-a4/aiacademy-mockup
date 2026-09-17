@@ -85,13 +85,19 @@ const needsAnswer = (turn: Turn) => turn.interaction.kind !== 'next'
  *  파형 쪽 getUserMedia 가 물어보니 **팝업은 뜨고 학생은 허용까지 하는데**, 인식만 아무 일도
  *  하지 않는다. 화면은 그동안 '듣고 있어요' 를 계속 띄우니 *말해도 아무 일이 없는 화면*이 된다.
  *  그래서 iOS 에서는 정리 화면(MicButton)이 이미 쓰는 길로 간다 — **녹음해서 서버(/api/stt)로
- *  보낸다.** 브라우저와 무관하게 같은 결과가 나오고, 아이패드 사파리에서 이미 도는 길이다. */
+ *  보낸다.** 브라우저와 무관하게 같은 결과가 나오고, 아이패드 사파리에서 이미 도는 길이다.
+ *
+ *  ── 안드로이드도 같은 길로 보낸다 (09-15 갤럭시 탭 크롬 웹앱 보고) ──
+ *  파형은 뜨는데 말해도 넘어가지 않았다. 안드로이드 크롬의 내장 인식은 기기 인식기를 빌려 쓰는데,
+ *  파형 쪽 getUserMedia 가 **마이크를 먼저 쥐고 있으면** 인식기가 소리를 못 받는다. 오류는 조용히
+ *  재시도로 삼켜지니 화면엔 '듣고 있어요' 만 남는다. */
 const preferServerStt = () => {
   if (typeof window === 'undefined') return false
   const ua = navigator.userAgent
   /* 아이패드 사파리는 자기를 맥이라고 말한다(데스크톱용 사이트가 기본) — 터치 개수로 가른다 */
   const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
-  return ios || !(window.SpeechRecognition ?? window.webkitSpeechRecognition)
+  const android = /Android/i.test(ua)
+  return ios || android || !(window.SpeechRecognition ?? window.webkitSpeechRecognition)
 }
 
 /** 말소리로 치는 진폭(128을 가운데로 본다). 무음은 0~1, 말은 쉽게 5를 넘는다 */
@@ -102,6 +108,13 @@ const SILENCE_MS = 1100
 const UTTER_MAX_MS = 15000
 /** 아무 말도 없이 이만큼 지나면 녹음을 갈아 끼운다 — 무음 파일만 커진다 */
 const IDLE_RESET_MS = 20000
+/** '다 말했어요' 는 **막혔을 때만** 꺼낸다 (09-15) — 정상 기기에서는 끝까지 안 보인다.
+ *  · 계측이 죽었다: 듣기 시작하고 이만큼 지나도 파형이 **한 번도 흔들리지 않았다** */
+const METER_DEAD_MS = 3000
+/** 서버 전사가 실패했을 때 — 못 알아들은 것과 가른다. 학생에게는 적어서 답하는 길을 알려준다 */
+const STT_DOWN_NOTICE = '지금 음성이 잘 전달되지 않아요. 입력창에 적어 주셔도 돼요.'
+/** · 말이 안 잡힌다: 이만큼 지나도 말소리로 친 적이 없다(마이크가 작게 들어오는 기기 등) */
+const NO_SPEECH_HELP_MS = 10000
 
 function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: string) => void) {
   const dataRef = useRef<Uint8Array<ArrayBuffer> | undefined>(undefined)
@@ -117,10 +130,22 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
   useEffect(() => { setServerStt(preferServerStt()) }, [])
   /** 마이크가 열렸는가 — 서버 전사는 아래에서 연 **그 줄기를 그대로** 녹음한다 */
   const [micReady, setMicReady] = useState(false)
+  /** 보냈는데 받은 말이 없을 때 잠깐 띄우는 한 줄 (09-15) — '옮기는 중…' 뒤에 아무 일이 없으면
+   *  학생은 눌렀는데 먹통인 줄 안다. 못 알아들었는지, 서버가 안 되는지를 갈라서 말한다. */
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showNotice = useCallback((msg: string) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
+    setNotice(msg)
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3000)
+  }, [])
+  useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
   /** 말한 것을 옮기는 중(서버 전사에서만). 이 몇 초에 아무 표시가 없으면 멈춘 줄로 읽힌다 */
   const [sending, setSending] = useState(false)
   /** '다 말했어요' 가 부르는 것 — 지금 녹음을 끊어 바로 보낸다 */
   const endRef = useRef<(() => void) | null>(null)
+  /** 자동으로 못 보내는 상태로 보인다 — 이때만 '다 말했어요' 를 꺼낸다 */
+  const [stuck, setStuck] = useState(false)
 
   /* ── 마이크·파형은 한 번만 잡는다 ──
      학생 차례가 될 때마다 새로 잡으면 AudioContext 가 계속 쌓인다. 브라우저는 동시에 열 수 있는
@@ -208,7 +233,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
      학생이 손대는 것은 없다. 위에서 이미 연 마이크 줄기를 녹음하다가 **말이 멎고 조용해지면**
      거기서 끊어 `/api/stt` 로 보낸다. 돌아온 글자를 답으로 넘기고 다시 듣는다.
      ⚠️ 조용해지기를 기다리는 판단은 계측기에 달려 있다. 계측이 죽은 기기를 대비해
-        화면에 '다 말했어요' 를 하나 둔다(endRef) — 눌러도 같은 길로 간다. */
+        '다 말했어요' 를 둔다(endRef) — 눌러도 같은 길로 간다. 다만 **막혀 보일 때만** 꺼낸다(stuck). */
   useEffect(() => {
     if (!enabled || !listening || !serverStt || !micReady) return
     const stream = streamRef.current
@@ -218,13 +243,21 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     let chunks: Blob[] = []
     /** 이번 녹음에 **말이 들어 있었나** — 없으면 보내지 않는다(무음을 보내 봐야 헛돈다) */
     let spoke = false
+    /** 이번 녹음을 '다 말했어요' 로 끊었나 — 그랬으면 말이 없어도 **말없이 넘기지 않는다** */
+    let manual = false
     let quietAt = 0
     let startedAt = 0
     let raf: number | null = null
+    /* 막힘 판단은 녹음을 갈아 끼워도(begin) 이어진다 — 학생 차례 하나 동안 본다 */
+    const listenAt = Date.now()
+    let lastSpeechAt = listenAt
+    let meterMoved = false
+    let stuckNow = false
+    const markStuck = (v: boolean) => { if (stuckNow !== v) { stuckNow = v; setStuck(v) } }
 
     const begin = () => {
       if (!alive) return
-      chunks = []; spoke = false; quietAt = 0; startedAt = Date.now()
+      chunks = []; spoke = false; manual = false; quietAt = 0; startedAt = Date.now()
       try { rec = new MediaRecorder(stream) } catch { rec = null; return }
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
       rec.onstop = () => { void finish() }
@@ -234,11 +267,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     const finish = async () => {
       const done = rec
       const had = spoke
+      const pressed = manual
       rec = null
       const blob = new Blob(chunks, { type: done?.mimeType || 'audio/mp4' })
       if (!alive) return
-      /* 말이 없었으면 조용히 다시 듣는다 — 학생 눈에는 아무 일도 없는 것이 맞다 */
-      if (!had || blob.size < 1000) { begin(); return }
+      /* 말이 없었으면 조용히 다시 듣는다 — 학생 눈에는 아무 일도 없는 것이 맞다.
+         다만 **학생이 버튼으로 끊었으면** 반응은 있어야 한다 */
+      if (!had || blob.size < 1000) {
+        if (pressed) showNotice('잘 안 들렸어요. 다시 말씀해 주세요.')
+        begin(); return
+      }
       setSending(true)
       try {
         const form = new FormData()
@@ -250,13 +288,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
         const res = await fetch('/api/stt', { method: 'POST', body: form })
         if (!res.ok) {
           console.warn('[대본 STT] 서버가 거절했다', res.status, { mime: blob.type, bytes: blob.size })
+          if (alive) showNotice(STT_DOWN_NOTICE)
         } else {
           const { text } = (await res.json()) as { text?: string }
           const said = stripNonSpeech(text ?? '')
           if (alive && said) finalRef.current(said)
+          else if (alive) showNotice('잘 안 들렸어요. 다시 말씀해 주세요.')
         }
       } catch (e) {
         console.warn('[대본 STT] 보내지 못했다', e, { mime: blob.type, bytes: blob.size })
+        if (alive) showNotice(STT_DOWN_NOTICE)
       } finally {
         if (alive) { setSending(false); begin() }
       }
@@ -266,6 +307,7 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
     endRef.current = () => {
       if (!rec || rec.state !== 'recording') return
       spoke = true
+      manual = true
       try { rec.stop() } catch { /* noop */ }
     }
 
@@ -278,12 +320,16 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       let peak = 0
       for (let i = 0; i < buf.length; i++) { const d = Math.abs(buf[i] - 128); if (d > peak) peak = d }
       const now = Date.now()
+      if (peak > 0) meterMoved = true
       if (peak > SPEECH_PEAK) {
         spoke = true
         quietAt = 0
+        lastSpeechAt = now
+        markStuck(false)
         if (now - startedAt > UTTER_MAX_MS) { try { rec.stop() } catch { /* noop */ } }
         return
       }
+      if ((!meterMoved && now - listenAt > METER_DEAD_MS) || now - lastSpeechAt > NO_SPEECH_HELP_MS) markStuck(true)
       if (!spoke) {
         if (now - startedAt > IDLE_RESET_MS) { try { rec.stop() } catch { /* noop */ } }
         return
@@ -300,10 +346,11 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
       endRef.current = null
       if (raf !== null) cancelAnimationFrame(raf)
       setSending(false)
+      setStuck(false)
       try { if (rec && rec.state === 'recording') rec.stop() } catch { /* noop */ }
       rec = null
     }
-  }, [enabled, listening, serverStt, micReady])
+  }, [enabled, listening, serverStt, micReady, showNotice])
 
   const getFreq = useCallback(() => {
     const ana = anaRef.current
@@ -315,8 +362,9 @@ function useScriptedVoice(enabled: boolean, listening: boolean, onFinal: (text: 
 
   const endUtterance = useCallback(() => { endRef.current?.() }, [])
 
-  /** `endUtterance` 는 **서버 전사일 때만** 준다 — 내장 인식 쪽에는 끊을 것이 없다(버튼도 안 뜬다) */
-  return { getFreq, sending, endUtterance: serverStt ? endUtterance : undefined }
+  /** `endUtterance` 는 **서버 전사이고 막혀 보일 때만** 준다 — 없으면 버튼도 안 뜬다.
+   *  내장 인식 쪽에는 끊을 것이 없고, 정상으로 도는 기기에서는 학생이 누를 일이 없다. */
+  return { getFreq, sending, notice, endUtterance: serverStt && stuck ? endUtterance : undefined }
 }
 
 const KO_STOP = new Set(['그리고', '있어요', '있다', '해요', '한다', '이에요', '예요', '입니다', '같아요', '거예요', '너무', '정말'])
@@ -3158,6 +3206,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
        앞선 클릭들은 토큰이 밀려 여기서 되돌아간다. 그래서 채점·기록·대화를 이 자리에서 한다 —
        클릭마다 하면 보기가 잠기고, 말풍선이 쌓이고, 학습 기록에 중간에 눌러 본 답이 다 남는다. */
     if (pickTokenRef.current !== token) return
+    /* '처음 답' 은 **채점이 선 답**이다 — 음원 도중 눌러 본 보기가 아니라(onSelect 머리말).
+       아래 scriptWillAck·goNext 가 길을 고르기 전에 적어야 한다. */
+    if (label && firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
     /* 대화에 남기는 것은 두 경로 공통 — 다만 여기서 해야 고쳐 고른 흔적이 쌓이지 않는다 */
     const optText = lesson.content.questions[qIdx]?.options.find((o) => o.label === label)?.text ?? ''
     setChatLog((prev) => [...prev, { role: 'user', text: `${label}. ${optText}`.trim() }])
@@ -3653,15 +3704,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       const ok = !!opt?.correct
       setAnswers((p) => ({ ...p, [qIdx]: label }))
       setAnsweredQ((p) => new Set(p).add(qIdx))
-      /* ── **채점된 답만** 길을 정한다 (09-18) ──
-         여기(클릭)에서 적었더니, 음원이 나가는 동안 **눌러 본 보기**가 그대로 '첫 답' 이 됐다.
-         채점은 마지막 클릭으로 하는데(handleScriptedPick 의 토큰) 해설 경로만 눌러 본 보기를
-         따라가서, 학생이 고르지도 않은 보기를 강사가 설명했다(사용자 지적: "선택 안 한 것도 설명").
-         그래서 **채점하는 자리에서** 적는다 — 코칭(review)은 클릭이 곧 채점이라 여기가 그 자리다.
-         (다시 풀리는 대본이 '처음 답' 을 봐야 하는 이유는 그대로다 — wrongPickOf 머리말) */
-      if (!(scripted && phase !== 'review') && firstPickRef.current[qIdx] === undefined) {
-        firstPickRef.current[qIdx] = label
-      }
+      /* 처음 고른 것만 남긴다 — 다시 고를 수 있는 대본에서 길을 정하는 기준이다(wrongPickOf).
+         ⚠️ state 가 아니라 ref 로 적는다. 다시 그리기 전에 적혀 있어야 뒤이어 도는 shouldPlay 가 처음 답을 본다.
+         ⚠️ **대본 수업은 여기서 적지 않는다** (09-15 윤다은 보고) — 음원이 도는 동안은 보기를 고쳐
+            고를 수 있어서, 클릭 순간에 적으면 **지나가며 눌러 본 오답**이 '처음 답' 으로 박힌다.
+            그러면 결국 B 로 맞혀도 길은 오답 경로로 잡혀 "좋아요, 맞았어요." 뒤에 "정답이 아니에요."
+            가 나갔다. 대본 수업은 **채점이 서는 자리**(handleScriptedPick)에서 적는다. */
+      if (!(scripted && phase !== 'review') && firstPickRef.current[qIdx] === undefined) firstPickRef.current[qIdx] = label
       /* **어느 턴에서** 골랐는지도 남긴다 — 안내 배너가 "이 턴에서 골랐는가" 를 본다.
          문항 기준으로 보면 다시 고르는 턴이 시작부터 '완료' 로 뜬다(ContentActionHint). */
       pickedTurnRef.current = turnIdx
@@ -3973,7 +4022,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   })()
   const voiceOn = !!scripted && voicePhase && chatMode === 'voice' && !tutorSpeaking && !cuePlaying
     && (asking || freeAsk || voiceAnswerable)
-  const scriptedVoice = useScriptedVoice(!!scripted && voicePhase && chatMode === 'voice', voiceOn, (text) => {
+  /* ── 소리가 나는 동안에는 마이크를 여닫지 않는다 (09-15 갤럭시 탭 보고) ──
+     음성↔텍스트를 바꾸면 마이크가 열리고 닫힌다. 휴대기기는 그때 소리 경로를 통화용↔미디어용으로
+     갈아 끼우는데, **LC 음원이 나가는 도중**이면 그 순간 음원이 끊겨 들렸다.
+     그래서 모드 버튼은 바로 바뀌되, 마이크를 여닫는 것은 **소리가 멎은 뒤로** 미룬다.
+     미뤄지는 동안은 voiceOn 이 chatMode 를 따로 보므로 텍스트 모드에서 말을 받아 적을 일은 없다.
+     단계를 벗어나는 것(voicePhase)은 미루지 않는다 — 그건 음원이 도는 자리가 아니다. */
+  const soundOut = playingId !== null || tutorSpeaking
+  const [micVoiceMode, setMicVoiceMode] = useState(chatMode === 'voice')
+  useEffect(() => {
+    if (!soundOut) setMicVoiceMode(chatMode === 'voice')
+  }, [chatMode, soundOut])
+  const scriptedVoice = useScriptedVoice(!!scripted && voicePhase && micVoiceMode, voiceOn, (text) => {
     /* ⚠️ **askTutor 로 바로 가지 않는다** — 그 함수에는 대본으로 돌아오는 길이 없다.
        이어서 물으면(asking 이 아직 켜진 채) 강사가 답만 하고 수업이 멈춰 있었다(실측 09-01).
        돌아오는 길은 askAside 끝에만 있으므로 두 번째 질문도 그리로 보낸다. */
@@ -4449,6 +4509,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 대본 수업에서 **서버로 옮겨 듣는 기기**(아이패드)일 때만 손잡이가 온다 */
           onEndUtterance={scripted ? scriptedVoice.endUtterance : undefined}
           sttSending={scripted && scriptedVoice.sending}
+          sttNotice={scripted ? scriptedVoice.notice : null}
           isSpeaking={tutorVoicing}
           /* 소리는 아직인데 곧 말한다 — 최소화 창이 이 몇 초 동안 사라지지 않게 하는 신호 */
           preparing={voiceLoading}

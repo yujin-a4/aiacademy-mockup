@@ -210,7 +210,7 @@ export function ChatFlow({ messages }: { messages: ChatMsg[] }) {
  *  · 학생 차례  → 파랗게 살아 있고, 둘레가 목소리에 맞춰 뛴다
  *  · 강사 말하는 중 → 회색으로 잠긴다(눌러도 되는 것처럼 보이지 않는다)
  *  · 서버 전사 기기(iOS) → **그 원을 누르면 '다 말했어요'** 다. 버튼을 따로 두지 않는다. */
-function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive, onEndUtterance, sttSending, toggle }: {
+function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive, onEndUtterance, sttSending, sttNotice, toggle }: {
   connected: boolean; connecting: boolean; isSpeaking: boolean
   /** 학생 차례인가 — undefined 면 예전처럼 '연결됐으면 듣는 중' */
   micActive?: boolean
@@ -220,6 +220,8 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
   onEndUtterance?: () => void
   /** 말한 것을 서버로 옮기는 중 */
   sttSending?: boolean
+  /** 보냈는데 받은 말이 없을 때 잠깐 뜨는 한 줄 — 있으면 '듣고 있어요' 자리를 대신한다 */
+  sttNotice?: string | null
   /** 답하는 방식 전환 — **마이크 아래**에 산다(말해보카와 같은 자리) */
   toggle?: ReactNode
 }) {
@@ -238,11 +240,12 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
           {/* ⚠️ **누르라고 하지 않는다**(09-18). 말이 멎으면 알아서 넘어가는데도 "다 말하면
               마이크를 누르세요" 라고 해서, 누르지 않아도 넘어가는 것을 고장으로 읽게 만들었다.
               마이크 누르기는 **안 넘어갈 때의 뒷길**이다 — 그 말만 작게 덧붙인다. */}
-          <p className={`text-center text-[12px] font-bold ${live ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
+          <p className={`text-center text-[12px] font-bold ${
+            !live ? 'text-[#9CA3AF]' : sttNotice && !sttSending ? 'text-[#DC2626]' : 'text-[#2563EB]'}`}>
             {isSpeaking ? '강사가 말하는 중…'
               : micActive === false ? '잠시 기다려 주세요'
                 : sttSending ? '말한 내용을 옮기는 중…'
-                  : '듣고 있어요 — 그냥 말하면 돼요'}
+                  : sttNotice || '듣고 있어요 — 그냥 말하면 돼요'}
           </p>
           {live && onEndUtterance && (
             <p className="text-center text-[10.5px] font-semibold text-[#B6BECB] -mt-1">안 넘어가면 마이크를 눌러요</p>
@@ -609,6 +612,8 @@ export interface TutorDockProps {
   onEndUtterance?: () => void
   /** 말한 것을 서버로 옮기는 중 */
   sttSending?: boolean
+  /** 보냈는데 받은 말이 없을 때 잠깐 뜨는 한 줄 */
+  sttNotice?: string | null
   /** 입력칸 **아래**에 붙는 자리 — 질문 버튼처럼 수업 진행과 층이 다른 것 */
   footer?: ReactNode
   /** 텍스트 모드 채팅 흐름 */
@@ -639,7 +644,7 @@ export interface TutorDockProps {
 
 export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
-  onEndUtterance, sttSending,
+  onEndUtterance, sttSending, sttNotice,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
   lastLine, lastLinePlain, messages, actions, hint, topBar, overlay,
   inputText, setInputText, onSend, onStartAgent, bodyRef, pushTalk, setPushTalk, focusInput,
@@ -732,7 +737,7 @@ export default function TutorDock({
       {voiceMode ? (
         <VoiceListener connected={connected} connecting={connecting} isSpeaking={isSpeaking}
           getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive}
-          onEndUtterance={onEndUtterance} sttSending={sttSending}
+          onEndUtterance={onEndUtterance} sttSending={sttSending} sttNotice={sttNotice}
           toggle={<ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} />} />
       ) : (
         <TextComposer connected={connected} connecting={connecting}
