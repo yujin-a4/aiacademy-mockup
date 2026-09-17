@@ -50,8 +50,36 @@ N — 답하려는 말이 **아예 아니다.** 지금 질문과 아무 상관�
 **N 을 Q·X 보다 먼저 본다.** 지금 수업과 주제가 무관하면 묻는 꼴이든 아니든 N 이다 —
 Q 로 새면 강사가 그 딴소리에 **없는 수업 내용을 지어내 답한다**(09-08 실측).
 
+── **학생 답은 한국어 음성인식 전사다** ──
+말로 답한 것을 받아 적은 글이라, 영어가 소리대로 깨져 들어온다. 소리가 그 말이면 **그 말로 보고**
+판정한다. 받아쓰기를 채점하는 것이 아니라 **무엇을 말했는지**를 본다.
+  "피피피" · "PPPP" · "삐삐" → p.p.        "비피피" · "비 피피" → be p.p.
+  "비잉" · "빙" · "Bing" → being · "해브 빈" → have been · "아이엔지" → -ing
+  기대 "be p.p." ← "비피피" O · "피피피" O   기대 "현재진행" ← "현재 진행형이요" O
+  기대 "be being p.p." ← "Bing 피피" O · "비잉 피피" O
+⚠️ 앞머리 be 가 전사에서 통째로 삼켜지는 일이 잦다("be being" → "Bing"). 뒷말이 맞으면
+   **덜 말한 것(P)이 아니라 O 다** — 학생은 말했고 받아 적히지 않았을 뿐이다.
+⚠️ **소리로 끼워 맞춰 오답을 정답으로 만들지는 마라.** 뜻이 다른 답은 그대로 X 다.
+   기대 "be p.p." ← "비잉" X(being 은 다른 말이다) · ← "현재완료" X
+⚠️ 전사가 깨져 **무슨 말인지 짐작조차 안 되면** 억지로 정답으로 만들지 말고 X 로 둔다.
+
 수업과 무관하면 N, 수업에 대해 묻는 말이면 Q, 뜻이 분명히 다르면 X,
 대상만 대고 서술이 빠졌으면 P, 그 밖에 반반이면 O 다.`
+
+/* ── 보기 고르기 판정기 ──
+   학생이 **말로** 답했을 때 그것이 어느 보기인지 고른다. 화면 쪽 규칙(번호·라벨·글자 겹침)으로
+   못 고른 말만 여기로 온다 — 음성인식이 깨져 오거나, 보기 문장을 자기 말로 바꿔 말한 경우다.
+   사전에 적어 둔 낱말만 맞추면 적어 두지 않은 말은 영영 못 알아듣는다(사용자 지적 09-18). */
+const PICK_PROMPT = `너는 객관식 보기 판정기다. 설명 없이 **숫자 하나** 또는 Q · N 만 출력한다.
+
+1..N — 학생 말이 그 번호 보기를 가리킨다. 보기 문장 그대로가 아니어도 된다(뜻이 같으면 된다).
+Q — 답이 아니라 **강사에게 묻는 말**이다. ("이거 무슨 뜻이에요?")
+N — 어느 보기인지 알 수 없다. 억지로 고르지 마라.
+
+⚠️ 학생 말은 **한국어 음성인식 전사**라 영어가 소리대로 깨져 온다.
+   "피피피"·"PPPP" → p.p. · "Bing"·"빙"·"비잉" → being · "비피피" → be p.p.
+   소리가 그 보기를 가리키면 그 번호다. 뜻이 다르면 억지로 맞추지 말고 N 이다.
+⚠️ 둘 이상으로 읽히면 N 이다 — 반반인 것을 찍으면 학생이 고르지 않은 답이 채점된다.`
 
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
@@ -66,6 +94,7 @@ export async function POST(req: NextRequest) {
       persona = 'jang',
       instructor,         // 강사코드(yun_daeun …) — 있으면 **이쪽이 말투를 정한다**
       judge,              // true 면 말투를 벗고 **O/X 판정기**로 쓴다 (아래 JUDGE_PROMPT)
+      pick,               // true 면 **보기 고르기 판정기**로 쓴다 (PICK_PROMPT) — 숫자 하나만 답한다
       history = [],
       imageBase64,        // 필기 캔버스 이미지 (base64 PNG, 선택)
     } = await req.json()
@@ -80,7 +109,8 @@ export async function POST(req: NextRequest) {
        그 키로 시스템 프롬프트까지 골라서 강사와 다른 사람이 답하고 있었다:
        윤다은 → 'jang' → "애교 넘치는 장연지" (실측). 강사코드가 오면 그쪽을 먼저 본다.
        강사별 프롬프트가 아직 없는 강사는 예전대로 persona 로 떨어진다. */
-    const systemPrompt = judge ? JUDGE_PROMPT
+    const systemPrompt = pick ? PICK_PROMPT
+      : judge ? JUDGE_PROMPT
       : (instructor && PERSONA_PROMPTS[instructor])
       ?? PERSONA_PROMPTS[persona] ?? PERSONA_PROMPTS.jang
 
@@ -126,8 +156,8 @@ export async function POST(req: NextRequest) {
         /* 판정은 한 글자면 되지만 **한도를 넉넉히 준다** — 4 로 조였더니 응답이 통째로 잘려
            빈 내용에 finishReason=MAX_TOKENS 만 왔다(실측). 빈 답은 '정답' 으로 떨어지므로
            판정이 사실상 꺼진 채로 전부 통과했다. 온도는 0 — 같은 답은 매번 같게 나와야 한다. */
-        maxOutputTokens: judge ? 16 : 300,
-        temperature: judge ? 0 : persona === 'p6tutor' ? 0.7 : 0.8,
+        maxOutputTokens: judge || pick ? 16 : 300,
+        temperature: judge || pick ? 0 : persona === 'p6tutor' ? 0.7 : 0.8,
         thinkingConfig: { thinkingBudget: 0 },
       },
     }
@@ -148,6 +178,15 @@ export async function POST(req: NextRequest) {
     const parts: { text?: string; thought?: boolean }[] = data.candidates?.[0]?.content?.parts ?? []
     const textPart = parts.find((p) => !p.thought && p.text)
     const dialogue: string = textPart?.text ?? '죄송해요, 잠시 후 다시 시도해 주세요.'
+
+    /* ── 판정기가 **무엇을 받고 무엇이라 답했는지** 그대로 남긴다 (09-18) ──
+       "말은 맞게 했는데 틀렸다고 한다" 를 쫓으려면 판정기에 들어간 글자를 봐야 한다. 화면
+       콘솔은 태블릿에서 열기 어려우니 **dev 서버 터미널**에 찍는다 — 태블릿으로 수업을 돌려도
+       이 PC 에서 그대로 읽힌다. 수업 대화(judge·pick 아님)는 안 찍는다(발화가 통째로 흘러
+       읽을 수가 없다). */
+    if (judge || pick) {
+      console.log(`\n[${pick ? 'pick' : 'judge'}] ← 받은 것\n${finalUserMessage}\n[${pick ? 'pick' : 'judge'}] → 답: ${dialogue.trim()}\n`)
+    }
 
     return NextResponse.json({ dialogue })
   } catch (error) {
