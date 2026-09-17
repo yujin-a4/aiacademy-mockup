@@ -100,8 +100,15 @@ const config: Config = {
         /* 화면 한가운데 잠깐 떴다 사라지는 안내 — 뜨는 것·머무는 것·사라지는 것이 한 애니메이션이라
            띄운 쪽은 시간(5s)만 맞춰 지우면 된다 */
         'toast':       'toast 5s cubic-bezier(0.22, 1, 0.36, 1) both',
+        /* 음성 모드의 동그라미 — **숨 쉰다.** 소리 크기는 인라인 transform 이 따로 얹으므로
+           여기서는 크기를 건드리지 않는다(둘이 겹치면 서로 덮어쓴다). 밝기만 오간다. */
+        'breathe':     'breathe 3.4s ease-in-out infinite',
       },
       keyframes: {
+        breathe: {
+          '0%, 100%': { filter: 'brightness(1)' },
+          '50%':      { filter: 'brightness(1.12)' },
+        },
         eq: {
           '0%, 100%': { transform: 'scaleY(0.35)' },
           '50%':      { transform: 'scaleY(1)' },

@@ -8,9 +8,17 @@
  *   · 우측 패널 = 세로 스택 (아바타 → 모드 토글 → 강사 말/채팅 → 선택지·지시 → 입력)
  *   · 최소화   = 얼굴 + 말풍선(내용 전부) + 선택지/지시. 얼굴을 끌어 원하는 자리에 둔다.
  *
- * 두 대화 모드(음성·텍스트)는 **아바타까지 완전히 같고**, 아바타 아래만 갈린다:
- *   · 음성 = 지금 하는 말 한 박스 + 선택지/지시 영역 + 파형(마이크 버튼 없음 — 자동 인식)
- *   · 텍스트 = 채팅창(강사 회색 / 나 파랑 말풍선) + 선택지·지시도 채팅 흐름 안 + 입력창
+ * ── 09-17 개편: **스위치 하나가 하나만 바꾼다** (docs/redesign/tutor-mode/DECISION.md) ──
+ * 예전에는 음성/텍스트 토글 하나가 ①입력 ②강사 말 표시 ③선택지 위치를 한꺼번에 바꿨다.
+ * 이름은 입력만 말하는데 눈에 크게 바뀌는 건 강사 말이라 학생이 무엇을 고르는지 몰랐고,
+ * 앞 대화를 **읽으려고** 텍스트 모드로 넘어가는 사람이 나왔다(FGI 14번). 축을 셋으로 쪼갰다:
+ *   ① 답하는 방식 — 말로 / 키보드. **하단 입력 줄에 있다**(바꾸는 것 옆에 둔다).
+ *                    잠그지 않고 권하기만 한다 — 어느 쪽이든 말해도 되고 눌러도 된다
+ *   ② 자막(CC)    — 얼굴 아래 작은 스위치 하나. 켜면 주고받은 말이 쭉 흐르고(ChatFlow),
+ *                    끄면 같은 자리에 파형(TutorWave). 대화 내역을 따로 여는 버튼은 없다
+ *                    — **자막이 곧 대화 내역이다**(09-18)
+ * 그래서 **아바타·강사 말·선택지/지시는 두 모드가 완전히 같다.** 갈리는 것은 맨 아래 한 줄뿐이다.
+ * (좁은 화면의 BottomDock 이 원래 이 꼴이었다 — 우측 패널을 거기에 맞춘 것이다)
  */
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
@@ -31,105 +39,214 @@ export interface ChatMsg {
   plain?: boolean
 }
 
-/* ── 대화 모드 토글 — 강사 아바타 바로 아래에 산다 ──
-   버튼 하나지만 **두 칸이 다 보이고 지금 칸만 채워진다**(세그먼트 스위치).
-   "텍스트로" 처럼 갈 곳만 적으면, 그게 지금 상태인지 누르면 될 상태인지 매번 헷갈린다 —
-   지금 모드가 파랗게 켜져 있고 반대쪽은 꺼져 있으면 읽을 필요 없이 보인다. 어디를 눌러도 뒤집힌다. */
+/* ── 답하는 방식 전환 — **갈 곳 하나만 말한다**(09-18) ──
+   예전에는 [말로|입력] 두 칸이 다 보이는 세그먼트 스위치였다. 두 칸이 보이면 "지금 어느
+   칸인가" 를 먼저 읽어야 하고, 그 읽기가 한 번도 쉬웠던 적이 없다(FGI 에서 모드를 착각한
+   장면이 반복됐다). **지금 상태는 하단 UI 가 통째로 말한다** — 큰 마이크가 떠 있으면 음성,
+   입력칸이 떠 있으면 키보드다. 그러니 버튼은 **갈 곳**만 말하면 된다(말해보카와 같은 꼴).
+   ⚠️ aria-label 은 '지금 음성 …' / '지금 텍스트 …' 를 유지한다 — 캡처 도구가 이걸로 상태를
+      읽는다(scripts/shots.mjs). 화면 글자와 다른 건 의도다. */
 export function ChatModeToggle({ chatMode, setChatMode, compact }: {
   chatMode: 'text' | 'voice'; setChatMode: (m: 'text' | 'voice') => void; compact?: boolean
 }) {
   const voice = chatMode === 'voice'
-  const cell = (on: boolean) => `flex items-center gap-1 rounded-full font-bold transition-all ${
-    compact ? 'px-2 py-[3px] text-[10px]' : 'px-2.5 py-1 text-[11px]'
-  } ${on ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#94A3B8]'}`
   return (
     <button
       onClick={() => setChatMode(voice ? 'text' : 'voice')}
       role="switch" aria-checked={!voice}
       aria-label={voice ? '지금 음성 모드 · 눌러서 텍스트 모드로' : '지금 텍스트 모드 · 눌러서 음성 모드로'}
-      title={voice ? '지금 음성 모드 — 누르면 텍스트 모드' : '지금 텍스트 모드 — 누르면 음성 모드'}
-      className="inline-flex items-center gap-0.5 rounded-full bg-[#EEF2F7] p-[3px] active:scale-[0.98] transition-transform">
-      <span className={cell(voice)}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
-        </svg>
-        음성
-      </span>
-      <span className={cell(!voice)}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 shrink-0">
+      /* 흰 알약에 회색 글씨라 배경에 묻혔다 — 옅은 파랑으로 채워 **눌러서 바꾸는 것**임을 보인다 */
+      className={`inline-flex items-center gap-1.5 rounded-full border border-[#CFE0FB] bg-[#EEF4FF] font-bold
+                  text-[#2563EB] hover:bg-[#E2EDFF] hover:border-[#A9CBF7] active:scale-[0.98] transition-all ${
+        compact ? 'px-2.5 py-1 text-[10px]' : 'px-4 py-2 text-[12.5px]'}`}>
+      {voice ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
           <rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
         </svg>
-        텍스트
-      </span>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
+        </svg>
+      )}
+      {voice ? '키보드 모드' : '음성 모드'}
     </button>
   )
 }
 
-/* ── 마이크 파형 — 음성 모드에서 "내가 지금 말하고 있다"를 보여주는 자리 ──
-   마이크 버튼은 없다. 연결되면 계속 듣고 있고, 학생이 말하면 파형만 움직인다.
-   에이전트 연결 시 실제 입력 스펙트럼(getInputByteFrequencyData)을 그리고,
-   연결 전에는 잠잠한 바만 둔다. 초당 ~20회만 갱신한다(프레임마다 setState 하면 과하다). */
-function MicWave({ active, speaking, getFreq }: {
-  active: boolean; speaking: boolean; getFreq?: () => Uint8Array | undefined
-}) {
-  const N = 26
-  const [bars, setBars] = useState<number[]>(() => Array(N).fill(0.08))
+/* ── 강사 얼굴 아래 — **CC 하나뿐** ──
+   여기 있을 것은 "지금 하는 말을 글로 볼까" 하나다. 대화 내역까지 끌어오면 성격이 다른 둘이
+   한 줄에 앉아, 대화 내역을 여는 순간 CC 가 켜진 것도 꺼진 것도 아닌 상태가 된다(09-18 실측).
+   대화 내역은 **창 맨 위 줄**(토익 TIP·핵심 어휘 옆)로 갔다 — 거기가 모아 보는 것들의 자리다. */
+function CCToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    /* 얼굴 칸에 **살짝 올라타게** 둔다(-mt) — 얼굴과 말 칸 사이에 낀 작은 손잡이로 보여야지,
+       한 줄을 따로 차지하면 그만큼 아래 말 칸이 좁아진다. */
+    <div className="shrink-0 flex justify-center px-3 md:px-4 -mt-4 pb-0.5">
+      <button onClick={onToggle} role="switch" aria-checked={on}
+        aria-label={on ? '자막 끄기' : '자막 켜기'} title={on ? '자막 끄기' : '자막 켜기'}
+        className={`inline-flex items-center justify-center h-[22px] w-9 rounded-md border text-[10px] font-black
+                    leading-none tracking-tight transition-colors active:scale-[0.97] ${
+          on ? 'border-[#2563EB] bg-[#2563EB] text-white'
+            : 'border-[#DDE3EC] bg-white text-[#A3AEBE] hover:border-[#93C5FD] hover:text-[#2563EB]'}`}>
+        CC
+      </button>
+    </div>
+  )
+}
 
+/* ── 자막을 끄면 **파형이 대신 선다** ──
+   끄는 순간 칸이 통째로 사라지면 화면이 덜컥 움직이고, 강사가 말하는 중인지도 알 수 없다.
+   같은 자리·같은 높이에 파형을 둔다 — 글자는 없지만 **말이 흐르고 있다는 것**은 남는다.
+   ⚠️ 프레임마다 그리지 않는다(~20fps). 태블릿에서 이 창은 영상·오디오와 자리를 다툰다. */
+function TutorWave({ speaking, getFreq }: { speaking: boolean; getFreq?: () => Uint8Array | undefined }) {
+  const N = 28
+  const [bars, setBars] = useState<number[]>(() => Array(N).fill(0.06))
   useEffect(() => {
-    if (!active) { setBars(Array(N).fill(0.08)); return }
+    if (!speaking) { setBars(Array(N).fill(0.06)); return }
     let raf = 0
     let last = 0
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick)
-      if (t - last < 50) return           // ~20fps
+      if (t - last < 50) return
       last = t
       try {
         const d = getFreq?.()
         if (d && d.length) {
           const step = Math.max(1, Math.floor(d.length / N))
-          setBars(Array.from({ length: N }, (_, i) => Math.min(1, (d[i * step] ?? 0) / 180)))
+          setBars(Array.from({ length: N }, (_, i) => Math.min(1, (d[i * step] ?? 0) / 170)))
           return
         }
-      } catch { /* 연결 전이면 스펙트럼을 못 읽는다 — 아래 잠잠한 바로 폴백 */ }
-      setBars(Array(N).fill(0.08))
+      } catch { /* 음량을 못 읽는 기기 — 아래 기본 맥동으로 */ }
+      /* ── 여기 오면 **소리를 못 읽은 것이다** ──
+         (브라우저 TTS 폴백처럼 분석기를 못 문 자리). 죽은 화면으로 두지는 않되, 진짜 파형과
+         헷갈리지 않게 **잔잔하게만** 흔든다 — 소리와 무관한 움직임이 크면 그게 더 거짓말이다. */
+      const phase = Date.now() / 220
+      setBars(Array.from({ length: N }, (_, i) => 0.10 + 0.14 * Math.abs(Math.sin(phase + i * 0.55))))
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [active, getFreq])
+  }, [speaking, getFreq])
 
   return (
-    <div className="flex-1 flex items-center justify-center gap-[3px] h-9">
-      {bars.map((v, i) => (
-        <span key={i}
-          className={`w-[3px] rounded-full transition-[height] duration-75 ${
-            speaking ? 'bg-[#C7D2FE]' : active ? 'bg-[#2563EB]' : 'bg-gray-300'
-          }`}
-          style={{ height: `${Math.max(4, v * 26)}px` }} />
-      ))}
+    /* 테두리 없이 — 자막 칸과 같은 규칙이다(읽거나 보는 자리는 카드처럼 보이지 않게).
+       위에 여백을 둬서 **얼굴에서 한 뼘 떨어뜨린다** — 붙어 있으면 얼굴의 일부처럼 보인다. */
+    <div className="mt-3">
+      <div className="h-[52px] flex items-center justify-center gap-[3px] px-4">
+        {bars.map((v, i) => (
+          <span key={i} className={`w-[3px] rounded-full transition-[height] duration-75 ${speaking ? 'bg-[#93B4F7]' : 'bg-[#DCE3EC]'}`}
+            style={{ height: `${Math.max(3, v * 28)}px` }} />
+        ))}
+      </div>
+      {/* 자막을 끄면 글자가 하나도 없어서, 파형이 잔잔할 때 **멈춘 화면과 구분이 안 된다.**
+          말하는 동안만 한 줄 적는다 — 안 할 때도 띄우면 그 줄이 거짓말이 된다.
+          자리는 늘 잡아 둔다(h-4): 떴다 사라질 때마다 아래 선택지가 들썩이지 않게. */}
+      <p className="h-4 text-center text-[10.5px] font-bold text-[#A3AEBE] leading-4">
+        {speaking ? '선생님이 지금 말하고 있어요' : ''}
+      </p>
     </div>
   )
 }
 
-/** 음성 모드 하단 — 마이크 버튼 없이 파형만. "지금 듣고 있다"는 상태 한 줄. */
-function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive, onEndUtterance, sttSending }: {
+/* ── "눌러도 돼요" — 보기가 뜰 때 **잠깐** 뜨는 손가락 ──
+   음성 모드에서 큰 마이크가 아래에 떠 있으니, 보기가 나와도 **말로만 답해야 하는 줄 안다**
+   (사용자 지적 09-18). 둘 다 되는데 한쪽만 보이는 것이다. 그렇다고 "눌러도 되고 말해도 돼요"
+   를 상시로 걸면 글자가 하나 더 늘어 보기를 가린다 — **보기가 처음 뜰 때 2.4초만** 보여주고
+   사라진다. 손가락이 한 번 톡 누르는 시늉을 하므로 글을 안 읽어도 뜻이 전해진다.
+   ⚠️ 사라질 때 **자리째 사라진다**(unmount) — 투명해지기만 하면 그 자리가 계속 비어 있다. */
+export function TapHint() {
+  const [state, setState] = useState<'in' | 'out' | 'gone'>('in')
+  useEffect(() => {
+    const a = setTimeout(() => setState('out'), 2800)
+    const b = setTimeout(() => setState('gone'), 3200)
+    return () => { clearTimeout(a); clearTimeout(b) }
+  }, [])
+  if (state === 'gone') return null
+  return (
+    <div className="flex justify-center pointer-events-none transition-opacity duration-300"
+      style={{ opacity: state === 'out' ? 0 : 1 }}>
+      {/* ⚠️ 색은 **불투명하게** 쓴다. `bg-[#1F2A44]/92` 처럼 기본 눈금에 없는 투명도(92)를 붙이면
+          테일윈드가 그 클래스를 아예 안 만든다 — 바탕이 사라지고 흰 글씨만 남아 **빈 흰 상자**로
+          보였다(09-18 실측). 굳이 반투명이 필요하면 `/90` 처럼 눈금 위의 값이거나 `/[0.92]` 다. */}
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1F2A44] px-3 py-1.5
+                       text-[11.5px] font-bold text-white shadow-md animate-fade-in">
+        <span className="relative inline-flex items-center justify-center w-4 h-4">
+          {/* 톡 — 손가락 끝에서 물결이 퍼진다 */}
+          <span className="absolute inset-0 rounded-full bg-white/30 animate-ping" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative w-4 h-4">
+            <path d="M9 11V6a2 2 0 0 1 4 0v5" />
+            <path d="M13 9a2 2 0 0 1 4 0v3" />
+            <path d="M17 11a2 2 0 0 1 4 0v3a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7v-1a2 2 0 0 1 4 0" />
+          </svg>
+        </span>
+        눌러도 되고, 말해도 돼요
+      </span>
+    </div>
+  )
+}
+
+/* ── 자막 = **주고받은 말이 쭉 흐르는 칸**(09-18) ──
+   자막 한 줄과 대화 내역을 따로 두지 않는다. 학생이 보고 싶은 것은 결국 "무슨 말이 오갔나"
+   하나이고, 지금 하는 말은 그 흐름의 **맨 아래 한 줄**이다(소리에 맞춰 글자가 늘어나는 것도
+   거기서 그대로 보인다 — 부르는 쪽의 revealLast).
+   · 아래 선택지·알림은 **덮지 않는다** — 읽는 동안에도 문제를 풀 수 있어야 한다.
+   · 새 말이 오면 바닥으로 붙는다. CC 를 끄면 이 칸이 파형으로 바뀐다. */
+export function ChatFlow({ messages }: { messages: ChatMsg[] }) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  /* 마지막 말은 소리에 맞춰 길어진다 — 길이가 바뀔 때마다 바닥에 붙인다(구현 중 메모 57행) */
+  const lastLen = messages[messages.length - 1]?.text.length ?? 0
+  useEffect(() => { const el = boxRef.current; if (el) el.scrollTop = el.scrollHeight }, [messages.length, lastLen])
+  return (
+    <div ref={boxRef} className="h-full w-full overflow-y-auto pr-0.5 space-y-2">
+      {messages.length === 0
+        ? <p className="text-[12px] font-semibold text-[#94A3B8] text-center py-3">아직 오간 말이 없어요.</p>
+        : messages.map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
+    </div>
+  )
+}
+
+/** ── 음성 모드 하단 — **큰 동그라미 마이크가 주인공이다**(09-18 개편) ──
+ *  예전에는 파형 상자 하나와 글자 두 줄이었다. 태블릿을 세워 두고 보면 "지금 내가 말할 차례인가"
+ *  가 글자로만 있어서, 말해도 되는 자리인지 매번 읽어야 했다. 큰 원 하나면 **색과 크기로** 말한다.
+ *  · 학생 차례  → 파랗게 살아 있고, 둘레가 목소리에 맞춰 뛴다
+ *  · 강사 말하는 중 → 회색으로 잠긴다(눌러도 되는 것처럼 보이지 않는다)
+ *  · 서버 전사 기기(iOS) → **그 원을 누르면 '다 말했어요'** 다. 버튼을 따로 두지 않는다. */
+function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgent, micActive, onEndUtterance, sttSending, toggle }: {
   connected: boolean; connecting: boolean; isSpeaking: boolean
   /** 학생 차례인가 — undefined 면 예전처럼 '연결됐으면 듣는 중' */
   micActive?: boolean
   getFreq?: () => Uint8Array | undefined
   onStartAgent: () => void
-  /** 말을 여기서 끊고 보낸다 — **서버 전사(iOS)** 일 때만 온다. 없으면 버튼도 안 뜬다 */
+  /** 말을 여기서 끊고 보낸다 — **서버 전사(iOS)** 일 때만 온다. 없으면 원은 표시만 한다 */
   onEndUtterance?: () => void
   /** 말한 것을 서버로 옮기는 중 */
   sttSending?: boolean
+  /** 답하는 방식 전환 — **마이크 아래**에 산다(말해보카와 같은 자리) */
+  toggle?: ReactNode
 }) {
+  const live = connected && micActive !== false && !isSpeaking
   return (
     <div className="shrink-0 px-3 md:px-4 pt-2 pb-3 border-t border-gray-100">
+      {/* ── 전환 버튼은 **답하는 자리 맨 위**다 (09-18) ──
+          맨 아래에 뒀더니 잘 안 보였다(사용자 지적). 창 바닥은 브라우저 주소창·홈 인디케이터와
+          겹치는 자리고, 키보드 모드에서는 자판이 올라오면 그대로 가려진다.
+          입력 줄 **위**로 올리면 두 경우 다 살아남는다(말해보카도 자판 위에 둔다). */}
+      {toggle && <div className="flex items-center justify-center pb-2">{toggle}</div>}
       {connected ? (
-        /* 학생 차례가 아니면 입력칸을 흐리게 둔다 — 파형이 뛰면 "지금 말해도 된다" 는 거짓말이 된다 */
-        <div className={`flex items-center gap-2.5 rounded-2xl border px-3 py-2 transition-colors ${
-          micActive === false ? 'bg-[#FAFAFA] border-[#EEF0F4] opacity-60' : 'bg-[#F8FAFF] border-[#DBEAFE]'
-        }`}>
-          <MicWave active={micActive ?? connected} speaking={isSpeaking} getFreq={getFreq} />
+        <div className="flex flex-col items-center gap-1.5">
+          <MicOrb live={live} sending={!!sttSending} getFreq={getFreq}
+            onClick={live && onEndUtterance ? onEndUtterance : undefined} />
+          {/* ⚠️ **누르라고 하지 않는다**(09-18). 말이 멎으면 알아서 넘어가는데도 "다 말하면
+              마이크를 누르세요" 라고 해서, 누르지 않아도 넘어가는 것을 고장으로 읽게 만들었다.
+              마이크 누르기는 **안 넘어갈 때의 뒷길**이다 — 그 말만 작게 덧붙인다. */}
+          <p className={`text-center text-[12px] font-bold ${live ? 'text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
+            {isSpeaking ? '강사가 말하는 중…'
+              : micActive === false ? '잠시 기다려 주세요'
+                : sttSending ? '말한 내용을 옮기는 중…'
+                  : '듣고 있어요 — 그냥 말하면 돼요'}
+          </p>
+          {live && onEndUtterance && (
+            <p className="text-center text-[10.5px] font-semibold text-[#B6BECB] -mt-1">안 넘어가면 마이크를 눌러요</p>
+          )}
         </div>
       ) : (
         <button onClick={connecting ? undefined : onStartAgent} disabled={connecting}
@@ -137,36 +254,120 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
           {connecting ? '강사와 연결 중…' : '연결이 끊겼어요 — 눌러서 다시 연결'}
         </button>
       )}
-      <p className={`mt-1.5 text-center text-[11px] font-bold ${micActive === false ? 'text-[#9CA3AF]' : 'text-[#2563EB]'}`}>
-        {!connected ? ''
-          : isSpeaking ? '강사가 말하는 중…'
-            : micActive === false ? '잠시 기다려 주세요'
-              : sttSending ? '말한 내용을 옮기는 중…'
-                : '듣고 있어요 — 그냥 말하면 돼요'}
-      </p>
-      {/* ── '다 말했어요' ── 아이패드처럼 **서버로 보내 옮기는** 기기에서만 뜬다.
-          평소에는 말이 멎으면 알아서 보내지만, 소리 계측이 죽은 기기에서는 그 판단이 서지 않는다.
-          그때 학생이 말해도 아무 일이 없는 화면이 되는 것을 이 버튼 하나가 막는다. */}
-      {connected && micActive !== false && !isSpeaking && onEndUtterance && (
-        <button onClick={onEndUtterance} disabled={sttSending}
-          className="mt-1.5 w-full rounded-xl border border-[#DBEAFE] bg-white py-2 text-[12px] font-bold text-[#2563EB] disabled:opacity-50">
-          {sttSending ? '옮기는 중…' : '다 말했어요'}
-        </button>
-      )}
     </div>
   )
 }
 
-/** 텍스트 모드 입력창 */
-function TextComposer({ connected, connecting, inputText, setInputText, onSend, onStartAgent }: {
+/** 큰 동그라미 마이크 — 둘레가 목소리에 맞춰 뛴다.
+ *  파동은 강사 아바타(PulseAvatar)와 같은 방식이다: 프레임마다 그리지 않고 ~20fps 로만 갱신한다. */
+function MicOrb({ live, sending, getFreq, onClick }: {
+  live: boolean; sending: boolean
+  getFreq?: () => Uint8Array | undefined
+  /** 누르면 지금 말을 끊어 보낸다 — 서버 전사 기기에서만 온다 */
+  onClick?: () => void
+}) {
+  const [level, setLevel] = useState(0)
+  useEffect(() => {
+    if (!live) { setLevel(0); return }
+    let raf = 0
+    let last = 0
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick)
+      if (t - last < 50) return          // ~20fps
+      last = t
+      let v = 0
+      try {
+        const d = getFreq?.()
+        if (d && d.length) {
+          let sum = 0
+          for (let i = 0; i < d.length; i++) sum += d[i]
+          v = Math.min(1, (sum / d.length) / 70)
+        }
+      } catch { /* 계측을 못 읽는 기기 — 잠잠한 원으로 둔다 */ }
+      setLevel(v)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [live, getFreq])
+
+  /* ── **버튼이 아니라 살아 있는 동그라미** (09-18) ──
+     예전 꼴(파란 원 + 마이크 아이콘 + 그림자)은 누르라고 만든 것처럼 보였다. 실제로는
+     누를 필요가 없는데도 학생이 누르고 싶어진다(사용자 지적). 눌러야 하는 것처럼 보이면
+     안 눌렀을 때 "내가 뭘 안 한 건가" 가 된다.
+     그래서 **말하면 반응하는 덩어리**로 바꾼다: 아이콘도 테두리도 그림자도 없이, 숨 쉬듯
+     천천히 커졌다 작아지고, 학생이 말하면 그 소리 크기만큼 부풀고 옅은 무리가 퍼진다.
+     ⚠️ 서버 전사 기기(iOS)에서는 여기를 눌러 말을 끊어 보낼 수 있어야 한다 — 그때만 button
+        으로 그리고, 생김새는 **그대로 둔다**(뒷길이지 시키는 일이 아니다). */
+  const size = 84
+  /** 소리 크기 → 크기. 숨 쉬는 폭(±4%)에 말소리를 얹는다 */
+  const scale = live ? 1 + level * 0.26 : 1
+  const Shape = onClick ? 'button' : 'div'
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size * 1.35, height: size * 1.35 }}>
+      {/* 옅은 무리 — 동그라미에 **바짝 붙여** 얇게 두른다. 넓게 퍼뜨렸더니 파란 안개가
+          창의 반을 덮어 동그라미보다 무리가 먼저 보였다(사용자 지적 09-18).
+          말할 때만 조금 번지고, 조용하면 거의 사라진다. */}
+      {live && (
+        <span className="absolute rounded-full bg-[#60A5FA]"
+          style={{
+            width: size, height: size, filter: 'blur(8px)',
+            transform: `scale(${scale + 0.04 + level * 0.1})`,
+            opacity: Math.max(0, 0.16 * (0.25 + level)),
+            transition: 'transform 110ms ease-out, opacity 140ms ease-out',
+          }} />
+      )}
+      <Shape
+        {...(onClick ? { onClick, type: 'button' as const } : {})}
+        aria-label={onClick ? '지금 말을 보내기' : live ? '듣고 있어요' : '지금은 말할 차례가 아니에요'}
+        title={onClick ? '말이 안 넘어갈 때 눌러서 바로 보냅니다' : undefined}
+        className={`relative rounded-full ${live ? 'animate-breathe' : ''}`}
+        style={{
+          width: size, height: size,
+          transform: `scale(${scale})`,
+          transition: 'transform 100ms ease-out, background 200ms linear',
+          background: sending
+            ? 'radial-gradient(circle at 35% 30%, #DBEAFE 0%, #93C5FD 60%, #93C5FD 100%)'
+            : live
+              ? 'radial-gradient(circle at 35% 30%, #93C5FD 0%, #3B82F6 55%, #2563EB 100%)'
+              : 'radial-gradient(circle at 35% 30%, #F1F5F9 0%, #E2E8F0 60%, #DDE3EC 100%)',
+        }} />
+    </div>
+  )
+}
+
+/** ── 입력 모드의 답하는 자리 ──
+ *  09-17 개편: 토글이 이 줄에 같이 살고, **마이크가 하나 붙는다.**
+ *  예전에는 입력 모드면 마이크를 아예 꺼 버려서(`micMuted`), 말로 답한 학생에게는
+ *  "말해도 아무 일이 없는 화면" 이 됐다 — 한 참가자가 4강 내내 그걸 반복했다.
+ *  이제 모드는 **권하는 것이지 잠그는 것이 아니다.** 다만 여기서는 **누를 때만** 듣는다 —
+ *  계속 열어 두면 혼잣말·주변 소리가 답으로 들어간다(핵심요약에서 실제로 났던 사고). */
+function TextComposer({ connected, connecting, inputText, setInputText, onSend, onStartAgent, toggle, focusInput }: {
   connected: boolean; connecting: boolean
   inputText: string; setInputText: (s: string) => void
   onSend: () => void; onStartAgent: () => void
+  toggle?: ReactNode
+  /** 지금이 **글로 답하는 자리**인가 — 켜지면 입력칸에 커서를 준다(키보드가 올라온다).
+   *  ⚠️ 기기가 허락할 때만 올라온다: iOS 사파리는 사용자가 건드리지 않은 focus 로는 키보드를
+   *     열지 않는다. 그래서 이건 **거드는 것**이지 보장이 아니다 — 못 열려도 입력칸은 이미
+   *     커서를 물고 있으니 학생이 한 번 탭하면 바로 쓴다. */
+  focusInput?: boolean
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!focusInput || !connected) return
+    /* 화면이 바뀐 **뒤에** 줘야 한다 — 같은 프레임에 주면 턴 전환 렌더에 씻겨 나간다 */
+    const t = setTimeout(() => inputRef.current?.focus(), 60)
+    return () => clearTimeout(t)
+  }, [focusInput, connected])
   return (
     <div className="shrink-0 px-3 md:px-4 pt-2 pb-3 border-t border-gray-100">
+      {/* 전환 버튼은 입력칸 **위** — 자판이 올라오면 아래는 가려진다(음성 모드와 같은 이유) */}
+      {toggle && <div className="flex items-center justify-center pb-2">{toggle}</div>}
+      {/* 입력칸 왼쪽 마이크는 뺐다(09-18) — 키보드 모드는 **글로 답하는 자리**다.
+          말로 하고 싶으면 아래 [음성 모드] 한 번이면 되고, 버튼이 둘이면 어느 쪽이 지금
+          쓰는 것인지 매번 판단해야 한다. */}
       <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-2xl px-3.5 py-2">
-        <input className="flex-1 min-w-0 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
+        <input ref={inputRef} className="flex-1 min-w-0 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
           placeholder={connected ? '메시지를 입력하세요' : connecting ? '연결 중…' : '대화를 시작하면 입력할 수 있어요'}
           value={inputText} disabled={!connected} maxLength={300}
           onChange={(e) => setInputText(e.target.value)}
@@ -347,7 +548,7 @@ export function TutorText({ text, plain }: { text: string; plain?: boolean }) {
   return (
     <>
       {parseEmphasis(shown).map((s, i) => (
-        s.b ? <strong key={i} className="font-bold text-[#111827]">{s.t}</strong> : <span key={i}>{s.t}</span>
+        s.b ? <strong key={i} className="font-bold">{s.t}</strong> : <span key={i}>{s.t}</span>
       ))}
     </>
   )
@@ -412,12 +613,15 @@ export interface TutorDockProps {
   footer?: ReactNode
   /** 텍스트 모드 채팅 흐름 */
   messages: ChatMsg[]
-  /** 선택지·다음 버튼 등 — 발화 박스 아래(음성) / 채팅 흐름 안(텍스트) */
+  /** 선택지·다음 버튼 등 — **두 모드 모두** 강사 말 아래 고정 영역에 뜬다 */
   actions?: ReactNode
-  /** 지금 선택지·지시가 어느 단계 것인가(턴 번호). 이 값이 바뀌면 채팅에서 **새 말풍선처럼** 다시 꽂힌다 */
-  actionKey?: number | string
+  /** 입력 모드에서 **눌러서 말하는 중인가** — 이게 켜지면 부르는 쪽이 마이크를 연다 */
+  pushTalk?: boolean
+  setPushTalk?: (b: boolean) => void
   /** 행동 지시 알림(필기해 보세요·탭해 보세요…) — 수업 영역이 아니라 여기 뜬다 */
   hint?: ReactNode
+  /** 지금이 **글로 답하는 자리**인가(주관식 턴) — 키보드 모드면 입력칸에 커서를 준다 */
+  focusInput?: boolean
   /** 텍스트 모드 입력 */
   inputText: string
   setInputText: (s: string) => void
@@ -437,44 +641,22 @@ export default function TutorDock({
   mode, setMode, canSidebar = true, name, imgSrc, poseSrc, clipSrc, allClips, micActive, footer,
   onEndUtterance, sttSending,
   chatMode, setChatMode, getTutorFreq, getMicFreq, connected, connecting, isSpeaking, preparing = false,
-  lastLine, lastLinePlain, messages, actions, hint, actionKey, topBar, overlay,
-  inputText, setInputText, onSend, onStartAgent, bodyRef,
+  lastLine, lastLinePlain, messages, actions, hint, topBar, overlay,
+  inputText, setInputText, onSend, onStartAgent, bodyRef, pushTalk, setPushTalk, focusInput,
 }: TutorDockProps) {
   const voiceMode = chatMode === 'voice'
   const faceSrc = poseSrc || imgSrc
 
-  /* ── 텍스트 모드에서 선택지·지시 카드가 앉을 자리 ──
-     카드는 채팅 한 칸이다. 이번 단계의 지시가 나온 그 시점에 꽂히고, 뒤에 대화가 오면 위로 밀려 올라간다.
-     (예전엔 늘 맨 끝에 렌더돼서 새 말이 와도 바닥에 눌러앉아 있었다)
-     꽂는 시점 = 단계가 바뀐 뒤 **강사가 그 단계를 말한 직후**. 그전까지는 맨 아래를 따라간다.
-
-     ⚠️ "마지막 말풍선이 강사 것인가" 만 보면 안 된다 — 단계가 넘어오는 순간 마지막 말풍선은
-     **직전 단계의 맞장구**("좋아요, 맞았어요.")라 이미 강사 것이다. 그래서 카드가 거기에 걸려
-     이번 단계 발화보다 **위에** 앉는다(실측). 단계가 바뀐 시점의 말풍선 수를 기억해 두고,
-     그보다 늘어난 강사 말풍선이 나왔을 때만 꽂는다. */
-  const [anchor, setAnchor] = useState<number | null>(null)
-  const baseRef = useRef(0)
-  useEffect(() => {
-    baseRef.current = messages.length
-    setAnchor(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionKey])
-  useEffect(() => {
-    if (anchor !== null) return
-    if (messages.length <= baseRef.current) return              // 이번 단계 말이 아직 안 나왔다
-    if (messages[messages.length - 1]?.role !== 'ai') return
-    setAnchor(messages.length)
-  }, [messages, anchor])
-  const cardAt = anchor ?? messages.length
-
-  /* ── 음성모드 '지금 하는 말' 상자를 따라 내려가게 (구현 중 메모 57행) ──
-     글자가 소리에 맞춰 하나씩 늘어나므로 lastLine 이 바뀔 때마다 바닥으로 붙인다.
-     smooth 를 안 쓰는 이유는 아래 대화창과 같다 — 매 글자 부드러운 스크롤을 걸면 서로 밀려 덜컹인다. */
-  const liveRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = liveRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [lastLine])
+  /* ── 자막(CC)을 켜 둘 것인가 — **모드와 무관하다** (09-18) ──
+     예전에는 기본값이 모드마다 달랐다(말로 답하면 끄고, 키보드면 켜고). 그랬더니 키보드 모드로
+     바꾸는 순간 CC 가 **저 혼자 켜졌다** — 스위치가 제멋대로 움직이는 것으로 보인다(사용자 지적).
+     이제 기본은 **꺼짐** 하나이고, 켜는 것은 학생이다. 자막이 늘 떠 있으면 문제보다 자막을
+     본다는 관찰(FGI 15번)의 기본값이기도 하다.
+     예외는 하나: **글로 보내면 켜진다**(아래 onSend) — 보낸 글이 안 보이면 안 되니까. */
+  const [linePref, setLinePref] = useState<boolean | null>(null)
+  const lineOpen = linePref ?? false
+  /** 강사 말 칸에 무엇을 둘 것인가 — CC 가 고른다. 켜면 주고받은 말이 쭉, 끄면 파형. */
+  const view: 'caption' | 'wave' = lineOpen ? 'caption' : 'wave'
 
   /* ── 하단 간소판 — 세로 화면·핸드폰 ── */
   if (mode === 'bottom') {
@@ -506,76 +688,65 @@ export default function TutorDock({
 
   /* ── 우측 패널(기본) — 화면 오른쪽 기둥 ── */
   return (
-    <div className="flex-1 flex flex-col min-h-0 relative">
+    /* data-shot 은 **캡처 도구가 잡는 손잡이**다(scripts/shots.mjs). 화면에는 아무 영향이 없고,
+       비포/애프터를 같은 자리로 잘라 내려면 이 창을 이름으로 부를 수 있어야 한다. */
+    <div data-shot="dock" className="flex-1 flex flex-col min-h-0 relative">
       {topBar}
-      {/* ── '접기' 버튼은 **숨겨 둔다** (사용자 지시 09-01) ──
-          작은 창(mini) 으로 가는 길을 학생에게 열어 두지 않는다 — 좁은 화면은 이제
-          하단 간소판(bottom)이 맡고, 넓은 화면에서 접을 이유는 없다.
-          **기능은 남겨 둔다** — mini 모드 자체는 그대로라, 다시 보이게 하려면
-          이 버튼만 되살리면 된다. (배치 판정은 TypeLessonPlayer 의 matchMedia)
-      <button onClick={() => setMode('mini')} aria-label="강사 창 접기" title="강사 창을 작게 접어 옆으로 치웁니다"
-        className="absolute top-2 right-2 z-10 flex items-center gap-1 h-7 pl-2 pr-2.5 rounded-full
-                   bg-white/90 border border-[#E2E8F0] shadow-sm text-[11px] font-bold text-[#64748B]
-                   hover:bg-[#EFF6FF] hover:border-[#BFDBFE] hover:text-[#2563EB] transition-colors">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-        접기
-      </button> */}
 
-      {/* 아바타 + 모드 토글 — 두 모드 공통. 단계 표시가 빠진 만큼 위로 붙는다 */}
-      <div className="shrink-0 flex flex-col items-center pt-1.5 pb-2 bg-gradient-to-b from-[#F5F8FF] to-white">
-        <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={118} />
-        <div className="-mt-2 flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`}
-            title={connected ? '연결됨' : '연결 안 됨'} />
-          <ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} />
+      {/* ── ① 누가 말하는가 — 모드와 무관하게 늘 같다 ──
+          크기는 **자막을 켜든 끄든 그대로다**(사용자 지시 09-18). 자막이 빠진 자리는 아래
+          파형 칸이 받는다 — 얼굴이 커졌다 작아졌다 하면 그 움직임 자체가 화면을 흔든다. */}
+      <div className="shrink-0 flex flex-col items-center pt-1.5 pb-1.5 bg-gradient-to-b from-[#F5F8FF] to-white">
+        <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq}
+          size={118} />
+      </div>
+
+      {/* ── ② CC + 강사 말 칸 ──
+          얼굴 바로 아래 CC 하나, 그 아래 한 칸. **CC 켜짐 = 주고받은 말이 쭉 / 꺼짐 = 파형.**
+          대화 내역을 따로 여는 버튼은 없다 — 자막이 곧 대화 내역이다. */}
+      <CCToggle on={lineOpen} onToggle={() => setLinePref(!lineOpen)} />
+      {/* ⚠️ 말 칸은 **남는 자리만큼만** 차지한다(flex-1 + min-h-0). vh 로 높이를 주면
+             말이 쌓일수록 아래 마이크·입력칸을 창 밖으로 밀어내 잘려 보였다(실측 09-18). */}
+      <div className={`px-3 md:px-4 pb-0.5 ${view === 'caption' ? 'flex-1 min-h-0 flex' : 'shrink-0'}`}>
+        {view === 'caption' ? <ChatFlow messages={messages} />
+          : <TutorWave speaking={isSpeaking || preparing} getFreq={getTutorFreq} />}
+      </div>
+
+      {/* ── ③ 이번에 할 일 — **모드와 무관하게 늘 같은 자리다** ──
+          예전에는 입력 모드일 때 선택지가 채팅 흐름 안의 카드였다. 뒤에 말이 오면 위로 밀려
+          올라가서, 눌러야 할 것을 찾으려면 스크롤을 거슬러 올라가야 했다
+          (docs/redesign/tutor-mode/v1-before/lc-choices-text-dock.png 이 그 장면이다). */}
+      {/* 자막(대화 흐름)을 켜도 **선택지·알림은 그대로 뜬다** — 읽는 동안 문제를 못 풀면 안 된다.
+          그때는 이 칸이 자기 높이만 가져가고(최대 45%), 남는 자리는 말 칸이 쓴다. */}
+      <div ref={bodyRef} className={`min-h-0 overflow-y-auto flex flex-col px-3 md:px-4 pt-2.5 pb-3 ${
+        view === 'caption' ? 'shrink-0 max-h-[45%]' : 'flex-1'}`}>
+        {/* 남는 세로는 위아래로 나눠 가진다(`my-auto`): 내용이 짧으면 가운데, 길면 margin 이
+            0이 되어 위부터 차곡차곡 쌓이고 그 안에서 스크롤한다. */}
+        <div className="w-full space-y-2.5 my-auto">
+          {hint}
+          {actions}
         </div>
       </div>
 
+      {/* ── ④ 답하는 자리 — **여기만 모드에 따라 갈린다** ── */}
       {voiceMode ? (
-        <>
-          {/* 강사가 지금 하는 말 — 실시간으로 이 박스에 뜬다.
-              ⚠️ **이 상자는 스스로 따라 내려가야 한다**(구현 중 메모 57행). 아래 bodyRef 의 자동
-                 스크롤은 선택지 자리의 것이라 여기까지 오지 않는다. 말이 길어지면 26vh 를 넘겨
-                 지금 읽는 대목이 상자 밖으로 밀려났다. */}
-          <div className="shrink-0 px-3 md:px-4 pt-1">
-            <div ref={liveRef} className="rounded-2xl bg-[#F8FAFC] border border-[#E9EEF6] px-3.5 py-2.5 max-h-[26vh] overflow-y-auto">
-              <p className="text-[13.5px] leading-relaxed text-[#334155] font-medium whitespace-pre-wrap">
-                {lastLine ? <TutorText text={lastLine} plain={lastLinePlain} /> : <SpeechDots />}
-              </p>
-            </div>
-          </div>
-          {/* 선택지 · 행동 지시가 뜨는 자리 (수업 영역이 아니라 여기) */}
-          <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 pt-2.5 pb-3 space-y-2.5">
-            {hint}
-            {actions}
-          </div>
-          <VoiceListener connected={connected} connecting={connecting} isSpeaking={isSpeaking}
-            getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive}
-            onEndUtterance={onEndUtterance} sttSending={sttSending} />
-          {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
-        </>
+        <VoiceListener connected={connected} connecting={connecting} isSpeaking={isSpeaking}
+          getFreq={getMicFreq} onStartAgent={onStartAgent} micActive={micActive}
+          onEndUtterance={onEndUtterance} sttSending={sttSending}
+          toggle={<ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} />} />
       ) : (
-        <>
-          {/* 채팅창 — 강사 회색 / 나 파랑. 선택지·지시도 이 흐름 안에서 뜬다 */}
-          <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto px-3 md:px-4 pt-2 pb-3 space-y-2">
-            {messages.slice(0, cardAt).map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
-            {/* 선택지·행동 지시도 채팅 한 칸 — 강사 말풍선 쪽(왼쪽)에 붙는 카드.
-                이번 턴에 할 일이 없으면(둘 다 null) 빈 카드가 남지 않게 empty:hidden 으로 접는다. */}
-            <div className="flex justify-start empty:hidden">
-              <div className="max-w-[92%] w-full space-y-2 rounded-2xl rounded-bl-sm bg-[#F8FAFF] border border-[#DBEAFE] px-3 py-2.5 empty:hidden">
-                {hint}
-                {actions}
-              </div>
-            </div>
-            {messages.slice(cardAt).map((m, i) => <Bubble key={cardAt + i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
-          </div>
-          <TextComposer connected={connected} connecting={connecting}
-            inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent} />
-          {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
-        </>
+        <TextComposer connected={connected} connecting={connecting}
+          inputText={inputText} setInputText={setInputText} onStartAgent={onStartAgent}
+          /* ── 보낸 글은 **반드시 보이게** 한다 (09-18) ──
+             CC 를 끈 채(파형만) 키보드로 보내면 내 글도 강사 답도 화면에 한 글자도 안 남아서
+             *전송이 안 되는 것처럼* 보였다(실제로는 보내지고 강사도 답한다). 글로 주고받기
+             시작하는 순간 자막을 켠다 — 끄고 싶으면 CC 로 다시 끄면 된다. */
+          onSend={() => { if (!lineOpen) setLinePref(true); onSend() }}
+          toggle={<ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} />}
+          focusInput={focusInput} />
       )}
+      {footer && <div className="shrink-0 px-3 md:px-4 pb-3">{footer}</div>}
+
       {/* 모아 보기는 **창 전체를 덮는다** — 뿌리의 마지막 자식이라야 위에 얹힌다 */}
       {overlay}
     </div>
