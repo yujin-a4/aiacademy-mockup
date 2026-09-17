@@ -10,6 +10,7 @@ import { useLessonStore } from '@/store/lessonStore'
 import { SCREEN3_PROBLEMS } from '@/data/lessonScenario'
 import { speakAndWait, stopCurrentAudio } from '@/lib/tts'
 import { useCountdownTimer } from '@/hooks/useCountdownTimer'
+import AnswerFeedback from './AnswerFeedback'
 import type { DrawingState } from '@/components/classroom/toolbar/DrawingToolbar'
 
 const TIMER_SECONDS = 20
@@ -262,17 +263,11 @@ export default function Screen2({ onComplete, onEnd, onPrev }: Screen2Props) {
 
         {/* 해설 */}
         {selected && (
-          <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2
-            ${results[problemIdx] ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
-          `}>
-            <span className="shrink-0 text-base">{results[problemIdx] ? '✅' : '❌'}</span>
-            <div>
-              <p className={`font-bold text-xs mb-0.5 ${results[problemIdx] ? 'text-green-700' : 'text-red-600'}`}>
-                {results[problemIdx] ? '정답!' : `오답 — 정답: ${problem.correctAnswer}`}
-              </p>
-              <p className="text-ybm-text-sub leading-relaxed">{problem.explanation}</p>
-            </div>
-          </div>
+          <AnswerFeedback
+            correct={results[problemIdx] === true}
+            correctAnswer={problem.correctAnswer}
+            explanation={problem.explanation}
+          />
         )}
 
         {/* 이전 / 다음 문제 버튼 */}

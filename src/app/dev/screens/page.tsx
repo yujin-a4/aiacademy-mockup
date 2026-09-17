@@ -28,6 +28,9 @@ import StepOpening from '@/components/session/steps/StepOpening'
 import StepAccuracy from '@/components/session/steps/StepAccuracy'
 import StepBadge from '@/components/session/steps/StepBadge'
 import StepAction from '@/components/session/steps/StepAction'
+import AnswerFeedback from '@/components/lesson/AnswerFeedback'
+import WaongMotion, { WAONG_MOTIONS } from '@/components/mascot/WaongMotion'
+import { SCREEN3_PROBLEMS } from '@/data/lessonScenario'
 import { computeBadges } from '@/lib/sessionBadges'
 import { PracticeStage } from '@/components/type-lesson/TypeLessonPlayer'
 import ContentView, { type ContentState } from '@/components/type-lesson/ContentView'
@@ -78,7 +81,7 @@ function feedback(
 
 interface Screen {
   id: string
-  group: '완료 화면' | '실전 화면' | '수업 화면'
+  group: '완료 화면' | '수업 중 피드백' | '마스코트 모션' | '실전 화면' | '수업 화면'
   label: string
   note: string
   render: () => React.ReactNode
@@ -88,6 +91,20 @@ function practice(lessonId: string) {
   const lesson = getTypeLesson(lessonId)
   if (!lesson) return <div className="p-8 text-sm">샘플 강의 {lessonId} 없음</div>
   return <PracticeStage lesson={lesson} onExit={noop} onDone={noop} />
+}
+
+/* 해설 박스는 문제를 고른 뒤에만 뜨고, 다음 문제로 넘어가면 사라진다 — 실제로 돌려서
+   붙잡기 어려운 상태라 여기서 두 결과를 나란히 세운다. 문제 데이터는 Screen2 와 같은 걸 쓴다. */
+function answerBox(correct: boolean) {
+  const p = SCREEN3_PROBLEMS[0]
+  return (
+    <div className="flex h-full items-center justify-center bg-white p-10">
+      <div className="w-[560px]">
+        <p className="mb-3 text-xs font-bold text-[#9AA0AE]">{p.number} · {p.words.join(' ').replace('______', '____')}</p>
+        <AnswerFeedback correct={correct} correctAnswer={p.correctAnswer} explanation={p.explanation} />
+      </div>
+    </div>
+  )
 }
 
 const SCREENS: Screen[] = [
@@ -169,6 +186,32 @@ const SCREENS: Screen[] = [
         title="오늘 분량을 다 했어요!" subtitle="내일 이어서 만나요. 오늘은 여기까지!" />
     ),
   },
+
+  /* ── 수업 중 피드백 ── */
+  {
+    id: 'answer-correct', group: '수업 중 피드백', label: '정답 — 와옹이가 전구를 켠다',
+    note: 'Screen2 에서 정답을 고른 직후. 실제로 보려면 /part5 → 시작 → 다음 → Q1 에서 C 를 고른다.',
+    render: () => answerBox(true),
+  },
+  {
+    id: 'answer-wrong', group: '수업 중 피드백', label: '오답 — 이모지 그대로',
+    note: '틀린 걸 축하할 일은 아니라 마스코트를 쓰지 않는다. 정답과 나란히 놓고 비교용.',
+    render: () => answerBox(false),
+  },
+
+  /* ── 마스코트 모션 (Lottie 검토) ── */
+  ...WAONG_MOTIONS.map(({ name, pose, use }) => ({
+    id: `waong-${name}`,
+    group: '마스코트 모션' as const,
+    label: `${pose} — ${use}`,
+    note: `public/lottie/waong-${name}.json · 3초 루프 · 투명 배경. 실제 쓰는 크기가 아니라 검토용으로 크게 띄운다.`,
+    render: () => (
+      <div className="flex h-full flex-col items-center justify-center gap-6 bg-[#3B2B52]">
+        <WaongMotion name={name} size={320} />
+        <p className="font-mono text-xs text-white/50">waong-{name}.json</p>
+      </div>
+    ),
+  })),
 
   /* ── 실전 화면 (파트별 골격) ── */
   {
@@ -329,7 +372,7 @@ function Gallery() {
     )
   }
 
-  const groups = ['완료 화면', '실전 화면'] as const
+  const groups = ['완료 화면', '수업 중 피드백', '마스코트 모션', '실전 화면'] as const
   return (
     <div className="min-h-dvh bg-[#F5F8FE] px-5 py-8">
       <div className="max-w-[760px] mx-auto">
