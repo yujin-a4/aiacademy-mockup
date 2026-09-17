@@ -71,6 +71,14 @@ bad data/types. **Run it after any non-trivial data or type change** before cons
 
 ## 5. Coding rules
 
+- **⭐ 목표 기기 = 태블릿 웹앱, 그리고 거기서 끝이 아니다.** FGI 는 **갤럭시탭 + 크롬**(홈화면에
+  깐 웹앱)으로 돌린다. 그러나 기준은 **iOS·안드로이드의 모든 브라우저 웹앱 + PC** 가 다 도는 것.
+  한 바퀴가 아니라 범위다 — 하나만 돌게 만드는 분기를 짜지 말 것. 구체적으로:
+  손가락 크기의 탭 목표(≥ 44px) · hover 에만 있는 기능 금지(터치엔 hover 가 없다) · 오디오/마이크는
+  사용자 제스처 다음에만 열린다(iOS·크롬 모두 자동재생 차단) · STT 는 기기마다 길이 다르다 —
+  크롬은 `webkitSpeechRecognition`, **iOS 웹앱에는 그게 없어서** 서버 전사로 돌아간다(`preferServerStt`);
+  둘 중 하나만 손보면 나머지 기기가 조용히 죽는다 · 레이아웃은 가로(태블릿) 기준, PC·폰은 그에
+  맞추는 쪽 · 검증도 데스크톱 브라우저만 보지 말 것(`docs/screens/` 기기 기준 = iPad Air 가로).
 - Browser-facing screens are `'use client'`; audio/STT/canvas APIs are used directly.
 - Always route audio through `src/lib/tts.ts`; call `stopCurrentAudio()` on screen exit.
 - Keep persona ids (`driller`/`mentor`/`realist`, `park`/`jang`/`kim`/`p6tutor`) consistent across
