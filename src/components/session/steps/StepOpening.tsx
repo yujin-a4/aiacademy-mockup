@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import WaongMotion from '@/components/mascot/WaongMotion'
 
 interface Props {
   partName: string
@@ -22,18 +23,8 @@ export default function StepOpening({ partName, elapsedSeconds, onNext }: Props)
       className="flex-1 flex flex-col items-center justify-center gap-6 px-8 cursor-pointer select-none"
       onClick={onNext}
     >
-      {/* 체크 아이콘 */}
-      <div className="w-24 h-24 rounded-full bg-indigo-500 flex items-center justify-center animate-pop-badge shadow-lg shadow-indigo-200">
-        <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
-          <path
-            d="M10 25l11 11 18-22"
-            stroke="white"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+      {/* 완료 축하 — 와옹이가 콘페티와 함께 등장 (기존 체크 아이콘 자리) */}
+      <WaongMotion name="celebrate" size={240} className="animate-pop-badge" />
 
       <div className="text-center animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
         <p className="text-slate-400 text-sm mb-2">{partName}</p>
