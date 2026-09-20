@@ -59,6 +59,7 @@ const OUT = path.join(__dirname, '..', 'src', 'data', 'typeLearning', 'fgiScenar
      ② 셀 안 갈래 표기가 셋 늘었다 — (적절한 답변)/(부적절한 답변/모름) 등. RE_PAIR 참고.
      ③ 틀리면 **답을 다시 고르게 한다**(S5 의 오답 경로가 '보기 재선택'). 화면은 처음 답을
         따로 기억해 길을 유지한다(TypeLessonPlayer 의 firstPickRef). */
+const DOYUN_TAB = 'FGI_이도윤 (개념학습 추가 버전)_1차 수정완료'
 const DAEUN_TAB = process.argv.includes('--daeun-old') ? 'FGI_윤다은_간결' : 'FGI_윤다은_정오답분기'
 const SOURCES = [
   { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: DAEUN_TAB, section: /^LC\s*1강/ },
@@ -77,8 +78,8 @@ const SOURCES = [
           고른 것만 튼다. 그래서 대본의 줄 순서와 재생 순서가 처음으로 달라졌다(build 참고)
        ③ 스캐폴딩 질문의 정/오답 반응 줄이 빠졌다 — 시트 머리말이 공통 문구로 정해 두었고
           화면이 그 문구를 말한다(TypeLessonPlayer 의 ACKS_BY_INST / RETRY_BY_INST) */
-  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: 'FGI_이도윤 (개념학습 추가 버전)', range: [1, 9] },
-  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: 'FGI_이도윤 (개념학습 추가 버전)', range: [9] },
+  { instructor: 'lee_doyun', lecture: 'LC-P1-01', tab: DOYUN_TAB, range: [1, 9] },
+  { instructor: 'lee_doyun', lecture: 'RC-P5-08', tab: DOYUN_TAB, range: [9] },
 ]
 
 const go = process.argv.includes('--go')
@@ -267,6 +268,10 @@ function columnsOf(row) {
      (직전 답 하나만 보는 장치)이 아니라 gate(ifCorrect/ifWrong)로 담는다.
      ⚠️ '공통 / 정답 경로' 가 '오답 경로' 를 품지 않으므로 두 열이 서로 안 걸린다. */
   const wrong = find('오답 경로')
+  /* ── 'TIP 반영' 열 (09-18 '1차 수정완료') ──
+     개념 학습은 토익 TIP 을 **빈칸인 채로 먼저 띄우고**, S3 턴이 지날 때마다 한 칸씩 연다.
+     그 지시가 이 열에 적혀 있다 — "① be p.p. 공개" · "①② 유지" · "TIP 전체 빈칸 상태". */
+  const tipfx = find('TIP 반영')
   const mode = find('학생 방식', '학생 답변 방식', '학생 인터랙션')
   /* 예시 답변 열은 '학생' 으로 시작하는 것이 여럿이라 **방식 열 뒤**에서 찾는다.
      ⚠️ 이름이 개정마다 바뀐다 — 08-20 에 이도윤 탭이 '학생 …' → '정답' 으로 바꿨고(구현 중 메모 8행),
@@ -276,7 +281,7 @@ function columnsOf(row) {
   const sample = cells.findIndex((c, i) => i > mode
     && (c.includes('답변') || c.includes('예시') || c === '학생' || c === '정답'))
   if (stage < 0 || tutor < 0) return null
-  return { stage, tutor, wrong, mode, sample }
+  return { stage, tutor, wrong, mode, sample, tipfx }
 }
 
 /** 한 칸을 **경로별로** 가른다 — 정오답분기 탭은 학생 방식과 예시 답변도 길마다 다르게 적는다.
@@ -475,6 +480,16 @@ function parse(tabName, range, section) {
       if (c0 && !/멘트$|버전$|^\[/.test(c0)) { cur.script.push(c0); continue }
     }
 
+    /* ── 개념 학습의 토익 TIP 은 **표보다 먼저**, 홀로 선 줄로 온다 (09-18 '1차 수정완료') ──
+       문항 블록의 TIP 은 강사 열에 있어서 아래 tip 처리로 가는데, 이것은 표 머리가 나오기도
+       전이라 단계 열에 홀로 있다. 그대로 두면 아래 lone 규칙이 **블록을 닫아** 뒤따르는 S3 가
+       주인 없는 줄이 되어 개념 학습이 통째로 사라진다(실측: LC 5턴·RC 6턴 전멸).
+       이 TIP 은 어느 턴에 붙는 카드가 아니라 **구간 내내 떠 있는 화면**이라 블록에 든다. */
+    if (cur && cur.kind === 'concept' && !cols) {
+      const head = parseTip(row[0])
+      if (head) { cur.tip = head; continue }
+    }
+
     /* ── 홀로 선 제목 줄은 앞 블록을 **닫는다** ──
        'FGI_이도윤' 에는 본편 말고도 '유형 학습 3 → 실전 문제 버전'(시간이 없을 때 쓰는 대체본),
        '실전 문제로 넘어갈 때 멘트' 같은 곁가지가 사이사이 들어 있다. 닫지 않으면 그것들이
@@ -539,21 +554,37 @@ function parse(tabName, range, section) {
          3문항이 표 머리로 오인돼 통째로 사라졌다(09-08 실측). 번호로 시작하기만 하면 받는다. */
       const numOnly = /^\d+$/.test(c0)
       const numbered = /^\d+\s*[.)]/.test(c0)
-      if (!numOnly && !numbered) {
+      /* ── 09-18 '1차 수정완료' — 전략 정리가 **두 칸으로 갈렸다** ──
+           전략명 | 화면에 보여줄 내용 | 정답 | 학생 응답 후 AI 강사
+         앞 개정에서는 소제목과 본문이 한 칸에 있었다("1. 인물의 동작 ⏎⏎ 인물이 …").
+         이제 왼쪽 칸이 곧 카드 제목이라 그걸 head 로 들고 간다. 번호가 '1.' 이 아니라
+         '전략 1.' 이라서 위의 두 가지로는 안 잡히고, 그러면 표 머리로 오인돼 **통째로 사라진다**
+         (실측: LC 4장·RC 5장 전멸). */
+      const strat = /^전략\s*\d+\s*[.)]/.test(c0)
+      /* 한 전략 아래 **빈칸이 여러 줄**로 이어지는 꼴 — RC 전략 1 의 ①②③ 이 그렇다.
+         전략명 칸이 비어 있고 본문·정답만 있다. 제목 없는 다음 장으로 잇는다. */
+      const cont = !c0 && !!cur.cols && cur.cols.answer >= 0
+        && !!clean(row[1]) && !!clean(row[cur.cols.answer])
+      if (!numOnly && !numbered && !strat && !cont) {
         const at = (re) => row.findIndex((x) => re.test(clean(x)))
         if (at(/^정답$/) >= 0) cur.cols = { options: at(/^(보기|선택지)$/), answer: at(/^정답$/), feedback: at(/AI\s*강사|피드백/) }
         continue        // 표 머리와 빈 줄은 여기서 끝
       }
+      /* 본문이 **옆칸**에 있는 꼴 — 번호만 있는 줄, 전략명이 있는 줄, 이어지는 줄 모두 그렇다 */
+      const aside = numOnly || strat || cont
       const rc = cur.cols || { options: 2, answer: 3, feedback: 4 }
       cur.quiz.push({
         /* 번호가 본문과 한 칸에 있으면 **그 칸이 곧 문항**이다 — 옆칸(row[1])은 비어 있다.
            머리의 번호는 뗀다("1. 인물의 동작" → "인물의 동작"): 화면이 순번을 따로 매긴다. */
-        text: numOnly ? clean(row[1]) : clean(c0.replace(/^\d+\s*[.)]\s*/, '')),
+        text: aside ? clean(row[1]) : clean(c0.replace(/^\d+\s*[.)]\s*/, '')),
+        /* 카드 제목 — 전략명 칸이 있으면 그것이 제목이다("전략 1. 인물 사진 오답 판별").
+           머리의 '전략 N.' 은 뗀다: 화면이 순번을 따로 매긴다. */
+        ...(strat ? { head: clean(c0.replace(/^전략\s*\d+\s*[.)]\s*/, '')) } : {}),
         /* ── 원본도 든다 — **줄바꿈이 뜻을 갖는다** (메모 124행) ──
            시트는 소제목과 문장을 빈 줄로 나눠 적는다("1. 인물의 동작 ⏎⏎ 인물이 …").
            clean() 이 그 줄바꿈을 공백으로 눌러 버려서 화면에 "인물의 동작 인물이 …" 로
            한 줄에 붙어 나왔다. 소제목을 가르려면 눌리기 전 글자가 있어야 한다. */
-        textRaw: String((numOnly ? row[1] : row[0]) ?? ''),   // ⚠️ c0 는 이미 clean() 을 거쳐 줄바꿈이 없다
+        textRaw: String((aside ? row[1] : row[0]) ?? ''),   // ⚠️ c0 는 이미 clean() 을 거쳐 줄바꿈이 없다
         options: rc.options >= 0 ? clean(row[rc.options]) : '',
         answer: clean(row[rc.answer]),
         /* 빈칸이 둘 이상인 문항은 **줄바꿈이 곧 칸 구분**이다 — clean() 이 그걸 공백으로
@@ -623,6 +654,8 @@ function parse(tabName, range, section) {
       modeRaw: clean(modeCell),
       sampleRaw: clean(sampleCell),
       samples: samples(sampleCell),
+      /* 개념 학습에서 이 턴이 여는 TIP 빈칸 — 없는 강의·없는 줄이 대부분이라 있을 때만 단다 */
+      ...(cols.tipfx >= 0 && tipReveal(row[cols.tipfx]) ? { tipAt: tipReveal(row[cols.tipfx]) } : {}),
       ...(gate ? { gate } : {}),
     })
 
@@ -690,15 +723,24 @@ function toRecapCard(q, id) {
     const h = rawLines[0].trim().replace(/^\d+\s*[.)]\s*/, '')
     return h && !h.includes('(') ? h : null
   }
-  const head = headOf()
+  /* 시트가 제목을 **옆칸에 따로** 적어 두면(09-18 전략명 칸) 그것이 제목이다 — 본문에서 캐지 않는다 */
+  const head = q.head || headOf()
   /* ── 문장 사이 줄바꿈도 **살린다** (메모 124행) ──
      시트는 한 항목 안에서도 문장을 줄로 나눠 적는다 — 예외 표현 항목은 설명 아래에 예시
      목록까지 줄로 달려 있다("be being ( ): 진열되고 있다 ⏎ be being cast: …").
      clean() 을 통째로 걸면 그 줄바꿈이 다 공백이 되어 한 문단으로 뭉치고, 예시가 본문에
      섞여 읽힌다. **줄마다 clean() 하고 다시 줄로 잇는다.**
      ⚠️ 빈 줄은 버린다. 남겨 두면 항목 사이보다 항목 안이 더 벌어져 되레 흐트러진다. */
-  const body = head ? rawLines.slice(2) : String(q.textRaw ?? q.text).split(/\r?\n/)
-  const text = body.map((l) => clean(l)).filter(Boolean).join('\n').replace(/\([\s　]*\)/g, '___')
+  const body = (head && !q.head) ? rawLines.slice(2) : String(q.textRaw ?? q.text).split(/\r?\n/)
+  const text = body.map((l) => clean(l)
+    /* 줄머리의 파이프는 시트에서 줄을 나누려고 찍은 표시다 — 읽히는 글자가 아니다 */
+    .replace(/^\|\s*/, '')
+    /* ── 예문의 밑줄은 **학생이 채울 빈칸이 아니다** ──
+       전략 카드에 예문이 붙었다("All component parts ________ for easy replacement").
+       그 밑줄을 그대로 두면 화면이 '___' 로 잘라 **없는 빈칸을 둘씩 만들어** 내고,
+       "빈칸 3개인데 정답은 1개" 로 카드가 통째로 버려진다. 채울 칸은 `(　　)` 쪽뿐이다. */
+    .replace(/_{2,}/g, '＿＿＿'))
+    .filter(Boolean).join('\n').replace(/\([\s　]*\)/g, '___')
   const choices = clean(q.options).split(/\s*[①②③④⑤]\s*/).map(num).filter(Boolean)
   const answer = num(q.answer)
   const drop = (why) => { console.log(`   ✗ 핵심요약 버림 — ${why}: "${clean(q.text).slice(0, 40)}"`); return null }
@@ -903,13 +945,18 @@ function playCue(tutor) {
  *     한글만 보고 자르면 `~` 가 영어 쪽에 남아 "rest one's arm on ~" 이 된다. */
 function parseTip(raw) {
   const lines = String(raw ?? '').split(/\r?\n/).map((l) => l.trim())
-  if (!/^토익\s*TIP/i.test(lines[0] || '')) return null
+  /* ── 머리의 글머리표를 떼고 본다 (09-18 '1차 수정완료') ──
+     시트가 "토익 TIP" → "💡토익 TIP", "어휘" → "📌어휘" 로 **이모지를 붙였다.** 글자로만
+     찾으면 그 순간 TIP 이 하나도 안 잡히고, 화면 카드로 갈 글이 **발화로 흘러 강사가 통째로
+     소리 내어 읽는다**("💡토익 TIP 인물의 행동을 묘사하는 동사를…" — 실측). */
+  const bare = (l) => String(l ?? '').replace(/^[^가-힣A-Za-z]+/, '').trim()
+  if (!/^토익\s*TIP/i.test(bare(lines[0]))) return null
   const body = []
   const vocab = []
   let inVocab = false
   for (const line of lines.slice(1)) {
     if (!line) continue
-    if (/^어휘$/.test(line)) { inVocab = true; continue }
+    if (/^어휘$/.test(bare(line))) { inVocab = true; continue }
     if (!inVocab) { body.push(line); continue }
     const at = line.search(/[가-힣]/)
     if (at <= 0) { body.push(line); continue }   // 어휘 절인데 영어가 없다 — 설명 줄로 본다
@@ -923,6 +970,41 @@ function parseTip(raw) {
   return body.length || vocab.length ? { body, vocab } : null
 }
 
+/** 'TIP 반영' 칸 → 이 턴에서 **토익 TIP 의 어느 빈칸이 열리는가.**
+ *
+ *  개념 학습은 빈칸이 뚫린 TIP 을 띄워 놓고 S3 를 진행한다. 칸이 열리는 자리를 시트가 적어 둔다.
+ *    "① be p.p. 공개"                     → 1번 칸에 'be p.p.'
+ *    "③ 직접 하는 주체 / ④ 당하는 대상 공개"   → 두 칸이 한 턴에 열린다
+ *    "①② 유지" · "TIP 전체 빈칸 상태" · "TIP 전체 완성"  → **여는 것이 없다**
+ *  ⚠️ '공개' 가 적힌 줄만 연다. '유지' 를 여는 것으로 읽으면 아직 안 배운 칸이 미리 열린다.
+ */
+function tipReveal(raw) {
+  const s = clean(raw)
+  if (!s || !/공개/.test(s)) return null
+  const out = []
+  /* ⚠️ 칸을 가르는 것은 **동그라미 숫자**다. 빗금(/)으로 가르면 안 된다 —
+     답 안에 빗금이 들어 있다("② has/have been p.p. 공개" → 'has' 만 남는다, 실측). */
+  for (const part of s.split(/(?=[①②③④⑤])/)) {
+    const n = '①②③④⑤'.indexOf(part[0]) + 1
+    if (!n) continue
+    const text = clean(part.slice(1).replace(/공개.*$/, '').replace(/\s*\/\s*$/, ''))
+    out.push(text ? { n, text } : { n })
+  }
+  return out.length ? out : null
+}
+
+/** TIP 판의 빈칸 자리 — `( ① ______ )`. 화면도 같은 자리를 찾아 채운다. */
+const TIP_SLOT = /\(\s*([①②③④⑤])\s*_+\s*\)/g
+
+/** 구간이 끝난 **다 채운 TIP** — 사이드 노트에 저장될 것은 이 꼴이다.
+ *  빈칸째로 저장하면 나중에 다시 열었을 때 아무것도 안 알려주는 종이가 남는다. */
+function fillConceptTip(tip, turns) {
+  const by = new Map()
+  for (const t of turns) for (const r of t.tipAt || []) if (r.text) by.set(r.n, r.text)
+  const fill = (line) => line.replace(TIP_SLOT, (whole, mark) => by.get('①②③④⑤'.indexOf(mark) + 1) || whole)
+  return { body: tip.body.map(fill), vocab: tip.vocab }
+}
+
 function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   /* 실전(리뷰)은 itemSeq 를 달지 않는다 — 아이템 표는 수업 문항 것이라
      실전 문항 번호로 되짚으면 엉뚱한 범위가 잡힌다. 화면은 focusQ 하나로 문항을 고른다. */
@@ -933,8 +1015,8 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
   const cue = playCue(said0)
   const tutor = cue ? cue.said : said0
   const base = kind === 'lesson'
-    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}) }
-    : { no, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}) }
+    ? { no, itemSeq: seq, occurrence: seq, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}), ...(t.tipAt ? { tipAt: t.tipAt } : {}) }
+    : { no, stage: t.stage, tutor, focusQ: qIdx, ...(t.tip ? { tip: t.tip } : {}), ...(t.tipAt ? { tipAt: t.tipAt } : {}) }
   /* S6 는 **어느 보기 이야기인지**를 달고 다닌다 — 화면이 학생이 고른 오답 하나와
      후속 질문으로 고른 하나만 골라 틀기 때문이다(build 의 orderTurns). 단계명에 적혀 있다. */
   if (t.optionRef) base.optionRef = t.optionRef
@@ -1116,10 +1198,10 @@ function build(src) {
     let intro = b.intro || ''
     if (kept.length && !kept[0].choices.length && /골라|적어/.test(intro)) {
       intro = intro
-        .replace(/빈칸에 들어갈 말을 (골라서|직접 적어서)/g, '빈칸에 들어갈 말을 채워서')
-        .replace(/채워서\s*배운 내용을 정리해\s*보세요/g, '채워서 문장을 소리 내어 말해 보세요')
-        .replace(/골라\s*보세요/g, '소리 내어 말해 보세요').replace(/골라보세요/g, '소리 내어 말해보세요')
-      console.log(`   ✎ "${b.title}" 도입을 '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요' 로 바꿨다`)
+        .replace(/빈칸에 들어갈 말을 (골라서|직접 적어서)/g, '빈칸에 들어갈 말을 직접 말하거나 글로 입력해서')
+        .replace(/입력해서\s*배운 내용을 정리해\s*보세요/g, '입력해서 배운 내용을 확인해 보세요')
+        .replace(/골라\s*보세요/g, '직접 말하거나 글로 입력해 보세요').replace(/골라보세요/g, '직접 말하거나 글로 입력해보세요')
+      console.log(`   ✎ "${b.title}" 도입을 '빈칸에 들어갈 말을 직접 말하거나 글로 입력해서' 로 바꿨다`)
     }
     return { title: b.title || '', intro, items: kept }
   }).filter((g) => g.items.length)
@@ -1135,6 +1217,8 @@ function build(src) {
        진행하므로 focusQ 0 을 달아 수업 턴 맨 앞에 붙인다(블록 순서상 저절로 앞이다). */
     const concept = b.kind === 'concept'
     const lesson = b.kind === 'lesson' || concept
+    /* 개념 학습의 TIP 판은 턴이 아니라 **구간 내내 떠 있는 화면**이라 강의에 든다 */
+    if (concept && b.tip) out.conceptTip = b.tip
     if (!lesson && src.skipPractice) continue      // 실전 대본이 미완이라 통째로 버린다
     const qIdx = concept ? 0 : lesson ? lessonSeq++ : practiceSeq++
     const target = lesson ? out.turns : out.review
@@ -1142,8 +1226,12 @@ function build(src) {
     const rows = orderTurns(b.turns)
     console.log(`\n[${concept ? '개념 학습' : lesson ? '유형 학습' : '실전'}${concept ? '' : ` ${qIdx + 1}`}] ${b.srcCode || '(코드 없음)'}`
       + `${b.answer ? `  정답 ${b.answer}` : ''} — ${b.turns.length}줄 → ${rows.length}턴`)
+    const pushed = []
     for (const [ti, t] of rows.entries()) {
       const turn = toTurn(t, qIdx, ++no, qIdx + 1, lesson ? 'lesson' : b.kind, audible, rows[ti + 1]?.tutor)
+      /* 개념 학습 턴은 문항이 아니라 **TIP 판 위에서** 돈다 — 화면이 사진 대신 판을 띄운다 */
+      if (concept) turn.board = true
+      pushed.push(turn)
       const k = turn.interaction.kind
       const extra = k === 'choice'
         ? ` [${turn.interaction.choices.map((c) => c.text + (c.correct ? '✓' : '')).join(' / ')}]`
@@ -1156,6 +1244,14 @@ function build(src) {
       const br = turn.tutorIfWrong ? '  ⑂ 정답/오답 갈래' : ''
       console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${au}${br}${rv}${gt}`)
       target.push(turn)
+    }
+    /* ── 구간 끝에서 TIP 판을 **노트로 접어 넣는다** ──
+       시트: "S3 개념 코칭이 끝나면 토익 Tip 화면에 뜨고, 학습자가 '확인' 을 누르면 사라져서
+       사이드에 저장된다." 마지막 턴에 다 채운 TIP 을 달아 두면 그 장치가 그대로 돈다 —
+       카드가 떠 있다가 다음으로 넘어가는 순간 위 버튼으로 날아가 쌓인다(TipCard 의 flying). */
+    if (concept && b.tip && pushed.length) {
+      pushed[pushed.length - 1].tip = fillConceptTip(b.tip, pushed)
+      console.log(`  ▶ 개념 학습 TIP 판 — 빈칸 ${(b.tip.body.join('\n').match(TIP_SLOT) || []).length}칸, 끝에서 노트로 접힌다`)
     }
   }
   /* ── 실전 앞뒤 강사 멘트 ──
@@ -1235,6 +1331,10 @@ export interface ScriptedLesson {
    *  **묶음이 여럿일 수 있다.** 이도윤은 전략 정리와 빈출 표현을 둘로 나눠 쓰고, 묶음마다
    *  화면 제목과 강사 도입을 따로 달아 뒀다. 윤다은은 묶음 하나에 제목이 없다. */
   summary?: { title: string; intro: string; items: RecapSentence[] }[]
+  /** 개념 학습 구간 내내 화면에 떠 있는 **토익 TIP 판** (시트 '개념 학습' 의 TIP 칸).
+   *  처음에는 \`( ① ______ )\` 가 빈칸인 채로 크게 뜨고, S3 턴이 지날 때마다 그 턴의
+   *  \`tipAt\` 이 가리키는 칸이 하나씩 열린다. 구간이 끝나면 학생이 '확인' 을 눌러 접는다. */
+  conceptTip?: { body: string[]; vocab: { en: string; ko: string }[] }
   /** 실전을 풀고 난 뒤, **틀린 문항이 있을 때만** 코칭 첫 마디로 하는 말 (시트 '실전 문제 풀이 후 멘트').
    *  {전체수}·{맞은수} 자리는 화면이 채점 결과로 채운다. 다 맞히면 코칭 자체가 없어 쓰이지 않는다.
    *  실전 **전** 멘트는 여기 없다 — 유형 학습 마지막 턴('실전 안내')으로 이미 들어가 있다. */
@@ -1245,7 +1345,7 @@ export interface ScriptedLesson {
 export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
 ${Object.entries(byInstructor).map(([inst, byCode]) => `  ${inst}: {
 ${Object.entries(byCode).map(([code, s]) => `    '${code}': {
-${s.intro ? `      intro: ${ind(JSON.stringify(s.intro, null, 2), '      ')},\n` : ''}${s.summary ? `      summary: ${ind(JSON.stringify(s.summary, null, 2), '      ')},\n` : ''}${s.practiceOutro ? `      practiceOutro: ${JSON.stringify(s.practiceOutro)},
+${s.intro ? `      intro: ${ind(JSON.stringify(s.intro, null, 2), '      ')},\n` : ''}${s.conceptTip ? `      conceptTip: ${ind(JSON.stringify(s.conceptTip, null, 2), '      ')},\n` : ''}${s.summary ? `      summary: ${ind(JSON.stringify(s.summary, null, 2), '      ')},\n` : ''}${s.practiceOutro ? `      practiceOutro: ${JSON.stringify(s.practiceOutro)},
 ` : ''}      turns: ${ind(JSON.stringify(s.turns, null, 2), '      ')},
       review: ${ind(JSON.stringify(s.review, null, 2), '      ')},
     },`).join('\n')}

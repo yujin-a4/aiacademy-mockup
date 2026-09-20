@@ -29,6 +29,54 @@ let _currentAudio: HTMLAudioElement | null = null
 let _currentUnlockCleanup: (() => void) | null = null
 let _playbackToken = 0
 
+/* ── 강사 목소리의 **실제 파형** ──
+   화면의 파형 칸(TutorDock 의 TutorWave)이 소리를 따라 움직이려면 지금 나가는 소리의 세기를
+   알아야 한다. 에이전트가 붙어 있을 때는 그쪽이 주파수를 주지만(getOutputByteFrequencyData),
+   대본 수업은 그냥 mp3 라 아무도 알려주지 않았다 — 그래서 파형이 늘 같은 모양으로 흔들렸다.
+   여기서 재생 중인 오디오를 AnalyserNode 에 한 번 통과시켜 그 값을 꺼내 준다.
+
+   ⚠️ **소리가 사라질 위험이 있는 자리다.** 지켜야 할 셋:
+     · 컨텍스트가 `running` 일 때만 물린다 — 잠긴 채 연결하면 그래프가 안 돌아 소리가 안 난다
+     · **같은 출처 파일에만** 물린다(`/tts/…mp3`). data: URL 실시간 생성분은 브라우저에 따라
+       오염된 소스로 보고 **무음**을 내보낸다 — 파형 하나 얻자고 목소리를 잃을 수는 없다
+     · 한 요소는 한 번만 — 두 번째 createMediaElementSource 는 예외를 던진다
+   못 물리면 조용히 포기한다(파형만 예전처럼 움직이고 소리는 그대로). */
+let _ac: AudioContext | null = null
+let _ana: AnalyserNode | null = null
+let _freq: Uint8Array<ArrayBuffer> | null = null
+const _tapped = new WeakSet<HTMLAudioElement>()
+
+function tapForWave(audio: HTMLAudioElement) {
+  if (typeof window === 'undefined') return
+  const src = audio.currentSrc || audio.src
+  if (!src || !(src.startsWith('/') || src.startsWith(window.location.origin))) return
+  try {
+    if (!_ac) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!Ctor) return
+      _ac = new Ctor()
+      _ana = _ac.createAnalyser()
+      _ana.fftSize = 128
+      _ana.smoothingTimeConstant = 0.7
+      _freq = new Uint8Array(new ArrayBuffer(_ana.frequencyBinCount))
+    }
+    void _ac.resume().catch(() => {})
+    if (_tapped.has(audio) || _ac.state !== 'running' || !_ana) return
+    const node = _ac.createMediaElementSource(audio)
+    node.connect(_ana)
+    _ana.connect(_ac.destination)
+    _tapped.add(audio)
+  } catch { /* 못 물렸다 — 소리는 그대로 나간다 */ }
+}
+
+/** 지금 나가는 강사 목소리의 주파수. 재생 중이 아니거나 못 물렸으면 undefined. */
+export function tutorVoiceFreq(): Uint8Array<ArrayBuffer> | undefined {
+  const a = _currentAudio
+  if (!_ana || !_freq || !a || a.paused || a.muted) return undefined
+  _ana.getByteFrequencyData(_freq)
+  return _freq
+}
+
 /** 음소거 상태 */
 let _muted = false
 let _muteListeners: Array<(muted: boolean) => void> = []
@@ -279,6 +327,7 @@ export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
 
     audio.onended = done
     audio.onerror = done
+    tapForWave(audio)
     audio.play().catch((err) => {
       if ((err as Error)?.name !== 'NotAllowedError') { done(); return }
       // autoplay 차단 → 다음 클릭/터치 시 재시도

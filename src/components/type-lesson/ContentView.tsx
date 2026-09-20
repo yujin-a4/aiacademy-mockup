@@ -75,6 +75,8 @@ export interface ContentState {
    *  하고, 화면에는 고른 보기가 파랗게만 남는다. 정답은 뒤따르는 풀이 단계에서 같이 연다.
    *  실전 채점 화면과 코칭(오답 리뷰)은 결과를 보는 자리라 색을 낸다(이 값을 켜지 않는다). */
   hideVerdict?: boolean
+  /** 정답 보기 아래 해설을 그릴 것인가 — **실전이 채점 뒤에만** 켠다(수업은 강사가 말로 한다) */
+  showWhy?: boolean
   onSelect: (qIdx: number, label: string) => void
   showKo: boolean
   /** 학생이 그어 지운 보기 `${qIdx}:${label}`. 시험지에 연필로 긋는 그 동작이다.
@@ -479,7 +481,11 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                   예전에는 학생이 고른 오답 아래에도 해석을 깔았다. 그런데 그 자리는 강사가
                   곧바로 말로 짚는 자리라 같은 내용이 글과 말로 두 번 나가고, 오답 넷을 다
                   들춰 보는 화면이 되어 정답이 묻힌다. 두 강사 모두 뺀다. */}
-              {showResult && o.why && isCorrect && (
+              {/* ── 해설은 **실전 채점 뒤에만** (09-18) ──
+                  유형 학습은 강사가 말로 짚는 자리다. 같은 내용이 글로 먼저 깔리면 학생이
+                  강사 말을 안 듣고 글을 읽고, 무엇보다 **아직 푸는 중인 문항의 답이 새어 나온다.**
+                  그래서 이 줄은 실전(PracticeStage)이 채점 뒤에 켜 줄 때만 그린다. */}
+              {st.showWhy && showResult && o.why && isCorrect && (
                 <p className="text-[11px] leading-relaxed mt-1 ml-9 text-[#16A34A]">{o.why}</p>
               )}
             </div>

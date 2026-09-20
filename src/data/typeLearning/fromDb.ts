@@ -115,7 +115,13 @@ function toQuestion(q: UiDbQuestion, label?: string): QuestionItem {
       label: o.label,
       text: o.text,
       correct: o.correct,
-      why: o.correct ? (o.evidence ?? undefined) : (o.explanation ?? undefined),
+      /* ── 정답 보기의 해설: 근거가 없으면 **해석이라도** 보여준다 (09-18) ──
+         화면은 채점 뒤 정답 보기 아래에만 해설을 깐다(ContentView 의 09-08 지정). 그런데 FGI
+         두 강의(LC-P1-01·RC-P5-08)는 `correct_evidence` 가 **한 줄도 없이** 적재돼 있어서
+         실전에서 해설이 통째로 안 보였다(DB 실측 09-18: 정답 보기 14/18개 모두 빈칸).
+         DB 전체로 보면 4345개 중 4241개는 근거가 차 있으니 이건 그 두 강의의 구멍이다.
+         근거가 차면 예전처럼 근거가 뜬다 — 이 폴백은 빈 자리를 덮을 뿐 순서를 바꾸지 않는다. */
+      why: o.correct ? (o.evidence ?? o.explanation ?? undefined) : (o.explanation ?? undefined),
       audio: o.audioUrl ?? undefined,   // 화면 보기와 같은 행에서 나온 mp3 — 매니페스트보다 우선
     })),
   }
