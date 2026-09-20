@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup, LessonTip } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
 import PhaseStepper from '@/components/lesson/PhaseStepper'
-import { TipCard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
+import { TipCard, ConceptBoard, TipButtons, TipSheet, type SeenTip, type TipSheetKind } from '@/components/type-lesson/TipNotes'
 import { useFontSettingsStore, FONT_SIZE_CLASSES, FONT_SCALE } from '@/store/fontSettingsStore'
 import FontSettingsController from '@/components/FontSettingsController'
 import MicButton, { stripNonSpeech } from '@/components/type-lesson/MicButton'
@@ -70,6 +70,56 @@ const INTERACTION_HINT: Record<Interaction['kind'], string> = {
  *  'next'(AI 진행)는 들려주고 넘어가는 턴이라 응답을 기다리면 답답해지고,
  *  나머지는 응답을 안 받고 넘어가면 스캐폴딩이 무의미해진다. */
 const needsAnswer = (turn: Turn) => turn.interaction.kind !== 'next'
+
+/** 판정 결과 — `O` 맞음 · `X` 틀림 · `P` 덜 말함 · `Q` 강사에게 묻는 말 · `N` 딴소리 · `?` 판정 못 함 */
+type Verdict = 'O' | 'X' | 'P' | 'Q' | 'N' | '?'
+
+/** ── 뜻으로 판정한다 — 화면이 낱말 겹침으로 못 가린 것만 여기로 온다 ──
+ *
+ *  수업 턴(judgeSubjective)과 마지막 정리 화면이 **같은 판정기를 쓴다.** 정리 화면은 시트가
+ *  한 칸에 답을 여럿 적어 두는 자리가 있어서("주어와 동사의 의미 관계, 의미") 글자 겹침만으로는
+ *  못 가린다 — 어느 쪽으로 말해도 맞다고 해야 한다.
+ *
+ *  ⚠️ 실패·타임아웃은 **O 로 떨어뜨리지 않는다.** 맞은 답을 틀렸다 하는 것이 더 나쁘다는
+ *     이유로 그랬다가, 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 "좋습니다" 가 나갔다(실측).
+ *     못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
+ *  ⚠️ 9초까지 기다린다. 로컬 실측 2.6초인데 태블릿 첫 호출이 3.5초를 자주 넘겨, 끊기면 '?' 가
+ *     되어 **맞은 답이 조용히 넘어갔다.** 몇 초 기다리는 쪽이 낫다. */
+async function askJudge(question: string, expected: string, said: string): Promise<Verdict> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 9000)
+  try {
+    const res = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        judge: true,
+        /* 학생 답은 **음성인식 전사**일 수 있다 — 소리로 깨진 영어 용어를 되돌린 추정본도
+           같이 보낸다(둘 다 주고 판정기가 고르게 한다). 원문만 보내면 "피피피" 가 오답이 된다. */
+        message: [
+          `[강사 질문] ${question}`,
+          `[기대 답] ${expected}`,
+          `[학생 답] ${said}`,
+          fixSttJargon(said) !== said ? `[소리 보정 추정] ${fixSttJargon(said)}` : '',
+        ].filter(Boolean).join('\n'),
+      }),
+    })
+    /* 서버가 실패한 것과 '판정을 못 읽었다' 를 로그에서 갈라 둔다 — 둘 다 '?' 로 끝나지만
+       원인이 다르다(구현 중 메모 66행). 섞어 놓으면 LLM 이 통째로 죽어 있어도 프롬프트를
+       의심하게 된다. */
+    if (!res.ok) { console.warn('[judge] 서버가 실패했다', res.status); return '?' }
+    const data = await res.json()
+    const v = String(data.dialogue ?? '').trim().toUpperCase()
+    /* 브라우저에서도 보이게 남긴다 — 서버 터미널 로그와 짝이다(api/gemini 의 같은 줄).
+       "맞게 말했는데 틀렸다" 를 쫓을 때 **판정기에 들어간 글자**부터 봐야 한다. */
+    console.log('[judge] 학생 답:', JSON.stringify(said), '· 보정:', JSON.stringify(fixSttJargon(said)),
+      '· 기대:', JSON.stringify(expected), '→', v)
+    for (const k of ['Q', 'N', 'X', 'P', 'O'] as const) if (v.startsWith(k)) return k
+    console.warn('[judge] 판정을 못 읽었다', data)
+    return '?'
+  } catch (e) { console.warn('[judge] 판정 실패', e); return '?' } finally { clearTimeout(timer) }
+}
 
 /* ── 말하기 답 판정 (대본 수업) ──
    시트의 '학생 예시 답변'을 정답 삼아 **핵심 낱말이 겹치는가**로만 본다. 문장이 똑같아야 한다고
@@ -1029,7 +1079,7 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
   )
 }
 
-export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedPracticeOutro, scriptedIntro, scriptedSummary }: {
+export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL_OWNER, lectureCode, lectureTitle, draftId, preparing, initialStage, scripted, scriptedReview, scriptedPracticeOutro, scriptedIntro, scriptedSummary, scriptedConceptTip }: {
   lesson: TypeLesson
   instructor?: string
   /** DB 레일로 돌 때의 해석 결과. 지금은 화면에 쓰지 않는다 —
@@ -1059,6 +1109,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   /** 마지막 정리 화면의 퀴즈 대본 (시트 '핵심요약'). 없으면 강의에 박아 둔 문장 3개를 쓴다.
    *  묶음이 여럿일 수 있다 — 이도윤은 전략 정리와 빈출 표현을 나눠 쓰고 제목을 따로 달았다 */
   scriptedSummary?: RecapGroup[]
+  /** 개념 학습 구간에 크게 띄우는 **토익 TIP 판** (시트 '개념 학습' 의 TIP 칸).
+   *  `( ① ______ )` 가 빈칸인 채로 먼저 뜨고, 턴의 `tipAt` 이 가리키는 자리가 하나씩 열린다.
+   *  구간 끝 턴에는 다 채운 TIP 이 `turn.tip` 으로 붙어 있어, 그대로 사이드 노트로 접힌다. */
+  scriptedConceptTip?: LessonTip
   /** 레일 편집기 드래프트로 열렸는가 — 배너를 띄운다. 정본과 헷갈리면 안 된다 */
   draftId?: string | null
   /** 'practice' 면 도입·수업을 건너뛰고 실전 세트부터 연다 (유형 그리드에서 오는 링크) */
@@ -1788,6 +1842,52 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      같이 줄어야 맞고, 무엇보다 **쌓아 둔 배열과 화면이 어긋날 일이 없다**(그 어긋남은
      조용해서 제일 늦게 발견된다). 15개짜리 목록이라 다시 세는 값은 무시할 만하다.
      문항 번호는 `focusQ + 1` — 화면이 학생에게 보여주는 번호와 같다. */
+  /* ── 개념 학습의 **TIP 판** (09-18 시트 개정) ──
+     문항이 아직 없는 구간이라 화면에는 사진 대신 이 판이 크게 뜬다. 판은 빈칸이 뚫린 채로
+     시작하고, 강사가 그 자리에 닿는 턴(`tipAt`)에서 한 칸씩 열린다.
+     **상태로 들지 않고 `turnIdx` 로 매번 다시 센다** — 되감으면 같이 닫혀야 맞다(TIP 노트와 같은 규칙).
+     구간 끝 턴에는 다 채운 TIP 이 `turn.tip` 으로 붙어 있어 거기서부터는 평소 카드가 그린다. */
+  const boardOpen: Record<number, string> | null = useMemo(() => {
+    if (!scriptedConceptTip || !turn.board) return null
+    /* ── 칸은 그 단계가 **끝나야** 열린다 ──
+       예전에는 턴이 시작하자마자 열었다. 그러면 강사가 아직 설명을 꺼내지도 않았는데 답이 먼저
+       화면에 뜬다 — 묻는 턴에서는 **정답을 미리 보여주는 것**이 되어버린다("…어떤 표현을 쓸까요?"
+       옆에 이미 be p.p. 가 떠 있었다). 그래서 둘로 갈라 본다:
+         · 학생에게 묻는 턴 — **답하고 넘어간 뒤**에 연다(지나간 턴이면 다 열려 있다)
+         · 강사가 읽기만 하는 턴 — 그 줄을 **다 읽은 뒤**에 연다(spokenTurn)
+       구간 마지막 턴이 읽기만 하는 턴인 강의가 있어서(RC 의 ③④), '지나간 턴' 만 보면 그 칸이
+       판 위에서는 영영 안 열린다 — 아래 두 번째 가지가 그 자리를 받는다. */
+    const open: Record<number, string> = {}
+    turns.forEach((t, i) => {
+      const done = i < turnIdx || (i === turnIdx && spokenTurn === i && !needsAnswer(t))
+      if (done) for (const r of t.tipAt ?? []) if (r.text) open[r.n] = r.text
+    })
+    return open
+  }, [scriptedConceptTip, turn.board, turns, turnIdx, spokenTurn])
+
+  /** 빈칸이 **다 열린** 판 — 접혀 들어가는 동안 보여줄 모습이다(마지막 칸까지 채워진 채로 간다) */
+  const boardFull: Record<number, string> | null = useMemo(() => {
+    if (!scriptedConceptTip) return null
+    const open: Record<number, string> = {}
+    for (const t of turns) if (t.board) for (const r of t.tipAt ?? []) if (r.text) open[r.n] = r.text
+    return open
+  }, [scriptedConceptTip, turns])
+
+  /* ── 개념 학습이 끝나면 **판째로 접혀 들어간다** ──
+     예전에는 판이 툭 사라지고 그 자리에 없던 쪽지가 튀어나와 날아갔다 — 학생이 방금 읽던 것과
+     날아가는 것이 다른 물건이라 "저기에 저장됐다" 로 안 읽혔다. 이제 판 자체가 줄어들고,
+     **그 아래에서 유형 학습 1번 문항이 드러난다.** 쪽지 쪽 애니메이션은 그동안 비켜선다. */
+  const [boardFlying, setBoardFlying] = useState(false)
+  const wasBoardRef = useRef(false)
+  useEffect(() => {
+    if (turn.board) { wasBoardRef.current = true; setBoardFlying(false); return }
+    if (!wasBoardRef.current) return
+    wasBoardRef.current = false
+    setBoardFlying(true)
+    const timer = setTimeout(() => setBoardFlying(false), 650)
+    return () => clearTimeout(timer)
+  }, [turn.board])
+
   /** 날아가는 중인 카드 — 세는 시점과 그리는 시점이 **같은 값을 봐야** 해서 위에 둔다 */
   const [tipExit, setTipExit] = useState<LessonTip | null>(null)
   const lastTipRef = useRef<LessonTip | null>(null)
@@ -3373,56 +3473,11 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return true
   }
 
-  /** 뜻으로 판정 — `O` 맞음 · `X` 틀림 · `Q` 강사에게 묻는 말 · `N` **딴소리** · `?` **판정 못 함.**
-   *
-   *  ⚠️ 예전에는 실패·타임아웃을 **O 로 떨어뜨렸다.** 맞은 답을 틀렸다고 하는 것이 더 나쁘다는
-   *     이유였는데, 그 바람에 자판을 누른 자국("ㅇㅁㄴㄹㄹ")에도 대본의 "좋습니다" 가 그대로
-   *     나갔다(실측). 못 했으면 못 했다고 하고, 부르는 쪽이 중립으로 넘긴다.
-   *  판정을 기다리느라 침묵이 길어지는 것도 나쁘므로 3.5초에서 끊는다(첫 호출이 느리다). */
-  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<'O' | 'X' | 'P' | 'Q' | 'N' | '?'> => {
+  /** 이 턴의 답을 뜻으로 판정 — 기대 답이 없는 자리는 무엇을 말해도 받아준다 */
+  const judgeSubjective = async (said: string, it: { hint?: string; accepts?: string[] }): Promise<Verdict> => {
     const expected = [it.hint, ...(it.accepts ?? [])].filter(Boolean).join(' / ')
-    if (!expected) return 'O'                // 기대 답이 없는 자리는 무엇을 말해도 받아준다
-    const ctrl = new AbortController()
-    /* ── 3.5초는 **짧았다** (09-18) ──
-       로컬 실측으로 판정 한 번이 2.6초다. 태블릿에서 처음 부르면 그걸 넘기기 일쑤고, 끊기면
-       '?' 가 되어 맞은 답이 조용히 넘어가 버린다(학생 눈에는 틀린 것으로 보인다).
-       기다리는 몇 초보다 **맞은 답을 놓치는 쪽**이 나쁘다. */
-    const timer = setTimeout(() => ctrl.abort(), 9000)
-    try {
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: ctrl.signal,
-        body: JSON.stringify({
-          judge: true,
-          /* 학생 답은 **음성인식 전사**일 수 있다 — 소리로 깨진 영어 용어를 되돌린 추정본도
-             같이 보낸다(둘 다 주고 판정기가 고르게 한다). 원문만 보내면 "피피피" 가 오답이 된다. */
-          message: [
-            `[강사 질문] ${stripAudioTags(turn.tutor)}`,
-            `[기대 답] ${expected}`,
-            `[학생 답] ${said}`,
-            fixSttJargon(said) !== said ? `[소리 보정 추정] ${fixSttJargon(said)}` : '',
-          ].filter(Boolean).join('\n'),
-        }),
-      })
-      /* 서버가 실패한 것과 '판정을 못 읽었다' 를 로그에서 갈라 둔다 — 둘 다 '?' 로 끝나지만
-         원인이 다르다(구현 중 메모 66행). 섞어 놓으면 LLM 이 통째로 죽어 있어도 프롬프트를
-         의심하게 된다. */
-      if (!res.ok) { console.warn('[judge] 서버가 실패했다', res.status); return '?' }
-      const data = await res.json()
-      const v = String(data.dialogue ?? '').trim().toUpperCase()
-      /* 브라우저에서도 보이게 남긴다 — 서버 터미널 로그와 짝이다(api/gemini 의 같은 줄).
-         "맞게 말했는데 틀렸다" 를 쫓을 때 **판정기에 들어간 글자**부터 봐야 한다. */
-      console.log('[judge] 학생 답:', JSON.stringify(said), '· 보정:', JSON.stringify(fixSttJargon(said)),
-        '· 기대:', JSON.stringify(expected), '→', v)
-      if (v.startsWith('Q')) return 'Q'
-      if (v.startsWith('N')) return 'N'
-      if (v.startsWith('X')) return 'X'
-      if (v.startsWith('P')) return 'P'
-      if (v.startsWith('O')) return 'O'
-      console.warn('[judge] 판정을 못 읽었다', data)
-      return '?'
-    } catch (e) { console.warn('[judge] 판정 실패', e); return '?' } finally { clearTimeout(timer) }
+    if (!expected) return 'O'
+    return askJudge(stripAudioTags(turn.tutor), expected, said)
   }
 
   /* ── 학생 질문 (대본 밖) ──
@@ -4448,7 +4503,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 덮어도 잃을 것이 없다. 강사가 그 줄을 읽는 동안 떠 있다가 다음 단계로 넘어가며
                 사라지고, 내용은 위 버튼에 쌓인다.
                 ⚠️ 실전에서는 띄우지 않는다 — 시험 자리에 힌트가 뜨면 안 된다. */}
-            {(turn.tip ?? tipExit) && !tipsHidden && !tipHidden && (
+            {/* ── 개념 학습은 **쪽지가 아니라 판**이다 ──
+                구간 내내 화면을 통째로 갖는다. 마지막 턴까지 판이 서 있다가, 다음으로 넘어가는
+                순간 아래 TipCard 가 그 내용을 들고 위 버튼으로 날아간다(tipExit). */}
+            {(boardOpen || boardFlying) && scriptedConceptTip && !tipsHidden && (
+              <ConceptBoard tip={scriptedConceptTip} flying={boardFlying}
+                open={(boardFlying ? boardFull : boardOpen) ?? {}} />
+            )}
+            {(turn.tip ?? tipExit) && !tipsHidden && !tipHidden && !turn.board && !boardFlying && (
               <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip || tuckedHere} />
             )}
           </div>
@@ -5735,10 +5797,13 @@ function spokenWordCount(words: string[], said: string): number {
   return last + 1
 }
 
-/** 정리 화면에서 **글자로 답을 받는가.**
- *  08-20 결정으로 껐다 — 빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메운다. 지금은 빈칸을
- *  채운 문장 전체를 소리 내어 읽게 한다. 되돌리려면 이 한 줄을 true 로. */
-const RECAP_TEXT_INPUT = false
+/** 정리 화면에서 **글자로도 답을 받는가.**
+ *
+ *  08-20 에는 껐었다 — 빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메운다는 이유였다.
+ *  **09-21 에 다시 켰다**(사용자 결정). 시트 도입 문구가 "직접 말하거나 **글로 입력해서**" 로
+ *  바뀌었고, FGI 에서 가장 큰 마찰이 음성인식이었다 — 말이 안 잡히는 학생을 그 자리에 세워
+ *  두는 것보다 낫다. 마이크는 그대로 있고, 글자 입력이 **하나 더** 생기는 것이다. */
+const RECAP_TEXT_INPUT = true
 
 /** 이 문항의 빈칸들 — 하나뿐이면 `answer`/`keywords` 가 그 칸이다.
  *  화면·채점·강사 멘트가 전부 이 배열 하나만 보게 해서, 칸이 하나든 둘이든 길이 갈리지 않는다. */
@@ -5996,13 +6061,12 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
 
       {(sentence.choices.length > 0 || (RECAP_TEXT_INPUT && at >= 0)) && (
       <div className="flex flex-wrap items-center gap-2 pl-9">
-        {/* ── 보기가 없으면 **문장을 통째로 말한다** ──
-            문장 사이 빈칸(전략 정리)은 주관식인데, 08-20 결정으로 **글자 입력을 받지 않는다.**
-            빈칸만 한 낱말씩 채우면 문장을 읽지 않고 칸만 메우게 된다 — 배운 말을 문장 안에서
-            꺼내 쓰는 것까지가 이 자리의 목적이라, 빈칸을 채운 **문장 전체**를 소리 내어 읽게 한다.
-            한 번 말하면 칸을 순서대로 찾아 한꺼번에 채운다(fillFromSpeech).
-            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다.
-            ⚠️ 글자 입력은 지운 것이 아니라 꺼 둔 것이다(RECAP_TEXT_INPUT) — 되돌리려면 여기 한 줄. */}
+        {/* ── 보기가 없으면 **말하거나 적는다** ──
+            문장 사이 빈칸(전략 정리)은 주관식이다. 말로 하면 빈칸을 채운 **문장 전체**를 읽고,
+            한 번의 말에서 칸을 순서대로 찾아 한꺼번에 채운다(fillFromSpeech) — 배운 말을 문장
+            안에서 꺼내 쓰는 것까지가 이 자리의 목적이라 그렇게 둔다.
+            글로 적으면 **한 칸씩** 받는다(입력칸 둘을 나란히 두면 어느 빈칸인지 알 수 없다).
+            뜻 고르기(어휘)는 그대로 보기다 — 그쪽은 고르는 것이 문제 자체다. */}
         {RECAP_TEXT_INPUT && sentence.choices.length === 0 && at >= 0 && (
           <RecapAnswerInput onSubmit={(said) => onPick(said, at)}
             order={blanks.length > 1 ? at : undefined} />
@@ -6076,6 +6140,9 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
    *  않는다: 칸에는 학생이 한 말이 그대로 들어가는데, 그 말을 다시 채점기에 넣으면 판정이
    *  글자에 따라 흔들린다(맞혔는데 잘라낸 조각이 키워드와 안 겹치는 일이 있다). */
   const [verdicts, setVerdicts] = useState<Record<string, (boolean | undefined)[]>>({})
+  /** 지금 판정기에 물어 둔 칸이 **몇 개인가** — 0 이 될 때까지 강사가 짚기 시작하지 않는다.
+   *  먼저 시작하면 곧 초록으로 바뀔 칸을 빨갛게 둔 채 해설이 지나간다. */
+  const [judging, setJudging] = useState(0)
   /** 지금 **소리 내어 읽는 중인** 문항과 거기서 들린 말 — 문장을 따라 밝히는 데만 쓴다 */
   const [live, setLive] = useState<{ id: string; text: string } | null>(null)
 
@@ -6119,7 +6186,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
      화면에 없는 조작을 시키면 학생이 없는 버튼을 찾는다. */
   const FILL_HINT = items[0]?.choices.length
     ? '빈칸에 들어갈 말을 골라 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
-    : '빈칸에 들어갈 말을 채워서 문장을 소리 내어 말해 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
+    : '빈칸에 들어갈 말을 직접 말하거나 글로 입력해 보세요. 다 채우면 채점하고 하나씩 짚어 줄게요.'
   const [line, setLine] = useState(group.intro || FILL_HINT)
   const [speaking, setSpeaking] = useState(false)
 
@@ -6202,11 +6269,13 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
      누를 것을 하나 더 두지 않는다. 장마다 한 번만 돈다(장 번호로 표를 남긴다). */
   const startedRef = useRef(-1)
   useEffect(() => {
-    if (!allDone || startedRef.current === page) return
+    /* 판정기에 물어 둔 칸이 남아 있으면 **기다린다** — 몇 초 뒤 초록이 될 칸을 빨갛게 둔 채
+       해설을 시작하면, 학생은 맞힌 것을 틀렸다고 들은 셈이 된다. */
+    if (!allDone || judging > 0 || startedRef.current === page) return
     startedRef.current = page
     void runWrapUp()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allDone, page])
+  }, [allDone, judging, page])
 
   useEffect(() => () => {
     runRef.current += 1; stopVoice(); stopCurrentAudio()
@@ -6231,9 +6300,35 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
     if (!playing) startedRef.current = -1
   }
 
+  /** ── 낱말로 못 가린 답은 **판정기에 묻는다** (09-18) ──
+   *  시트가 한 칸에 인정 답을 여럿 적어 두는 자리가 있고("주어와 동사의 의미 관계, 의미"),
+   *  학생은 배운 말을 제 말로 바꿔 꺼낸다("의미 관계요" · "주어랑 동사 관계"). 글자 겹침만
+   *  보면 그런 답이 오답으로 남는다 — 정리 화면은 받아쓰기가 아니라 **되짚는 자리**다.
+   *  맞다고 나온 것만 뒤집는다. 판정이 실패하면 낱말 판정 그대로 둔다.
+   *  ⚠️ 보기가 있는 자리(어휘 확인)는 묻지 않는다 — 고른 그대로 채점해야 무엇을 모르는지 보인다. */
+  const confirmByLlm = (s: RecapSentence, said: string, blank: number) => {
+    if (s.choices.length) return
+    const b = blanksOf(s)[blank] ?? blanksOf(s)[0]
+    const expected = Array.from(new Set([b.answer, ...b.keywords])).filter(Boolean).join(' / ')
+    if (!expected) return
+    setJudging((n) => n + 1)
+    void (async () => {
+      try {
+        const v = await askJudge(`${s.head ? `${s.head} — ` : ''}${s.en.replace(/___/g, '____')}`, expected, said)
+        if (v !== 'O') return
+        setVerdicts((p) => {
+          const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as boolean | undefined)
+          cur[blank] = true
+          return { ...p, [s.id]: cur }
+        })
+      } finally { setJudging((n) => n - 1) }
+    })()
+  }
+
   const answerOne = (s: RecapSentence, said: string, blank = 0) => {
     if (!said.trim()) return
     const ok = isRight(s, said, blank)
+    if (!ok) confirmByLlm(s, said, blank)
     /** 칸 하나만 갈아 끼운다 — 나머지 칸에 이미 넣은 답은 그대로 둔다 */
     setFills((p) => {
       const cur = p[s.id] ? [...p[s.id]] : blanksOf(s).map(() => undefined as string | undefined)
@@ -6313,6 +6408,8 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
       put.forEach((f, i) => { if (f.text) cur[i] = f.ok })
       return { ...p, [s.id]: cur }
     })
+    /* 낱말로 못 가린 칸만 판정기에 묻는다 — 뜻으로 맞았으면 위 판정을 뒤집는다 */
+    put.forEach((f, i) => { if (f.text && !f.ok) confirmByLlm(s, f.text, i) })
   }
 
   return (

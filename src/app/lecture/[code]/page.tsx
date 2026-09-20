@@ -176,6 +176,8 @@ export default function LecturePage() {
     /* 마지막 정리 퀴즈도 시트에 있다 — 강의에 박아 둔 영어 문장 대신 그 강의의 판단 순서를
        되짚는다. 묶음이 여럿일 수 있다(전략 정리 + 빈출 표현) */
     scriptedSummary={scenario?.summary}
+    /* 개념 학습 구간에 크게 뜨는 토익 TIP 판 — 빈칸이 하나씩 열린다 */
+    scriptedConceptTip={scenario?.conceptTip}
     /* ?stage=practice — 도입·수업을 건너뛰고 실전 세트부터. 유형 그리드에서 온다:
        한 강의가 수업/실전에 서로 다른 지문 변종을 담는 경우(이중 일반형 ↔ 표형)가 있어,
        그 변종을 보여주려면 실전으로 바로 들어가야 한다. */

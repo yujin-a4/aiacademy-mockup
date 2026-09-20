@@ -24,6 +24,39 @@ import type { LessonTip } from '@/data/typeLearning/types'
 /** 쌓인 팁 하나 — 몇 번 문제에서 나왔는지 함께 든다(모아 보기에서 되짚는 실마리) */
 export interface SeenTip { qNo: number; tip: LessonTip }
 
+/* ── 머리에 붙는 아이콘은 **선으로 그린다** ──
+   이모지(💡·📖)를 쓰면 기기마다 다른 그림이 뜨고(안드로이드·iOS·PC 가 제각각), 혼자만
+   색이 튀어서 화면에서 스티커처럼 논다. 같은 굵기의 윤곽선으로 그려 두면 글자 색을 따라가고
+   (currentColor) 크기도 글자와 함께 움직인다. 크기는 부르는 쪽이 className 으로 준다. */
+function LineIcon({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>{children}</svg>
+  )
+}
+
+/** 전구 — 토익 TIP */
+function BulbIcon({ className }: { className?: string }) {
+  return (
+    <LineIcon className={className}>
+      <path d="M12 3a6 6 0 0 0-3.4 10.9c.5.4.9 1 1 1.6l.1.5h4.6l.1-.5c.1-.6.5-1.2 1-1.6A6 6 0 0 0 12 3Z" />
+      <path d="M9.8 11.6 12 13.4l2.2-1.8" />
+      <path d="M9.7 18.3h4.6M10.6 21h2.8" />
+    </LineIcon>
+  )
+}
+
+/** 펼친 책 — 핵심 어휘 */
+function BookIcon({ className }: { className?: string }) {
+  return (
+    <LineIcon className={className}>
+      <path d="M12 6.8v12.4" />
+      <path d="M12 6.8C10.4 5.4 8.4 4.8 5.8 4.8c-.9 0-1.7.1-2.3.2v12.4c.6-.1 1.4-.2 2.3-.2 2.6 0 4.6.6 6.2 2" />
+      <path d="M12 6.8c1.6-1.4 3.6-2 6.2-2 .9 0 1.7.1 2.3.2v12.4c-.6-.1-1.4-.2-2.3-.2-2.6 0-4.6.6-6.2 2" />
+    </LineIcon>
+  )
+}
+
 export type TipSheetKind = 'tip' | 'vocab'
 
 /* ── 핵심어에 **펜을 긋는다** ──
@@ -173,6 +206,137 @@ export function TipCard({ tip, flying }: {
   )
 }
 
+/* ══ ①-2 개념 학습의 **큰 판** ══════════════════════════════════════════
+   S7 의 TIP 은 문제를 풀다 잠깐 뜨는 쪽지(TipCard)지만, 개념 학습은 **그 화면이 수업 자체**다
+   (시트: "빈 화면에 토익 Tip 이 크게 뜬 상태로 진행"). 아직 풀 문항이 없어서 뒤에 가릴 것도 없다.
+   그래서 쪽지를 키우지 않고 **판을 따로 만든다** — 잘 정리된 슬라이드 한 장처럼.
+     · 리드 문장은 크게 한 번, 그 아래로 규칙을 번호 카드로 쌓는다
+     · 빈칸은 **자리를 미리 보여 준다**(점선 칸에 ①②③). 열리면 파란 칩으로 바뀌며 톡 튀어나온다 —
+       무엇이 채워졌고 무엇이 남았는지가 강사 말을 안 듣고도 보여야 한다
+   ⚠️ 태블릿 가로가 기준이다(iPad Air). 글자는 md: 로 한 단 키우고, 폰에서도 가로 스크롤이 없게 둔다. */
+export function ConceptBoard({ tip, open, flying }: {
+  tip: LessonTip
+  /** 지금까지 열린 빈칸 — 판에 적힌 ①②③④ 번호 → 채워 넣을 말 */
+  open: Record<number, string>
+  /** 구간이 끝나 **판째로 노트 버튼에 빨려 들어가는 중**인가.
+   *  쪽지를 따로 띄워 날리지 않는다 — 학생이 방금까지 읽던 그 판이 그대로 접혀 들어가야
+   *  "저기에 저장됐다" 로 읽힌다. 줄어드는 동안 **아래에서 유형 학습 1번이 드러난다.** */
+  flying?: boolean
+}) {
+  const MARKS = '①②③④⑤'
+  const SLOT = /\(\s*([①②③④⑤])\s*_+\s*\)/g
+
+  /* 줄머리로 리드와 규칙을 가른다 — 시트는 규칙을 `• …` 이나 `1. …` 로 적는다 */
+  const lead: string[] = []
+  const steps: { n: number; text: string }[] = []
+  for (const line of tip.body) {
+    const m = /^(?:[•·]\s*|(\d+)[.)]\s*)/.exec(line)
+    if (!m) {
+      if (steps.length) steps[steps.length - 1].text += `\n${line}`   // 규칙에 딸린 보충 줄
+      else lead.push(line)
+      continue
+    }
+    steps.push({ n: m[1] ? Number(m[1]) : steps.length + 1, text: line.slice(m[0].length) })
+  }
+
+  /** 한 줄을 그린다 — 빈칸 자리는 칸으로 바꾼다 */
+  const draw = (text: string) => {
+    const out: React.ReactNode[] = []
+    let at = 0
+    for (const m of Array.from(text.matchAll(SLOT))) {
+      if (m.index! > at) out.push(text.slice(at, m.index))
+      const n = MARKS.indexOf(m[1]) + 1
+      out.push(<Slot key={m.index} mark={m[1]} text={open[n]} />)
+      at = m.index! + m[0].length
+    }
+    if (at < text.length) out.push(text.slice(at))
+    return out
+  }
+
+  /* ── 판이 노트 버튼까지 가는 거리를 **재서** 간다 ──
+     강사 창은 오른쪽 기둥·아래 간소판·작은 창으로 모양이 바뀌므로 방향을 박아 두면 그중
+     하나에서 엉뚱한 데로 날아간다(TipCard 와 같은 방식). 못 찾으면 제자리에서 작아진다. */
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [fly, setFly] = useState<{ x: number; y: number } | null>(null)
+  useEffect(() => {
+    if (!flying) { setFly(null); return }
+    const box = boxRef.current?.getBoundingClientRect()
+    const target = document.getElementById('tip-buttons')?.getBoundingClientRect()
+    if (!box || !target) { setFly({ x: 0, y: 0 }); return }
+    setFly({
+      x: (target.left + target.width / 2) - (box.left + box.width / 2),
+      y: (target.top + target.height / 2) - (box.top + box.height / 2),
+    })
+  }, [flying])
+
+  return (
+    <div
+      ref={boxRef}
+      style={fly ? { transform: `translate(${fly.x}px, ${fly.y}px) scale(0.05)`, opacity: 0 } : undefined}
+      className={`absolute inset-0 z-20 bg-gradient-to-b from-[#F7FAFF] to-[#EDF3FD] overflow-y-auto
+                  ${flying
+        /* 접히는 동안에는 **모서리를 둥글려** 판이 아니라 한 장의 카드로 보이게 한다.
+           스크롤도 잠근다 — 줄어드는 중에 내용이 흔들리면 빨려 들어가는 느낌이 깨진다. */
+        ? 'rounded-3xl overflow-hidden pointer-events-none origin-center transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
+        : ''}`}>
+      <div className="min-h-full flex flex-col px-5 md:px-10 lg:px-14 py-6 md:py-9">
+        {/* 슬라이드 머리 — 여기가 어디인지 한 줄 */}
+        <div className="flex items-center gap-2.5 mb-5 md:mb-7">
+          <BulbIcon className="w-[22px] h-[22px] md:w-[26px] md:h-[26px] text-[#2563EB]" />
+          <span className="text-[15px] md:text-[18px] font-black text-[#1C1B33] tracking-tight">토익 TIP</span>
+          <span className="ml-auto text-[11px] md:text-[12px] font-bold text-[#2563EB] bg-white border border-[#DBE7FA] rounded-full px-3 py-1">개념 학습</span>
+        </div>
+
+        {lead.length > 0 && (
+          <p className="text-[17px] md:text-[22px] lg:text-[24px] font-black leading-[1.5] text-[#1C1B33] mb-6 md:mb-8">
+            {lead.map((l, i) => <Fragment key={i}>{i > 0 && <br />}{l}</Fragment>)}
+          </p>
+        )}
+
+        {/* 규칙 카드 — 세로로 쌓되 **한 장 안에 다 들어오게** 한다(스크롤은 최후의 수단) */}
+        <div className="flex-1 flex flex-col justify-center gap-3 md:gap-4 pb-2">
+          {steps.map((s, i) => (
+            <div key={i} className="flex items-start gap-3 md:gap-4 rounded-2xl bg-white border border-[#E3EBF6]
+                                    shadow-[0_2px_16px_rgba(37,99,235,0.07)] px-4 md:px-6 py-4 md:py-5">
+              <span className="shrink-0 w-7 h-7 md:w-9 md:h-9 rounded-full bg-[#2563EB] text-white
+                               text-[13px] md:text-[15px] font-black flex items-center justify-center">{s.n}</span>
+              <p className="flex-1 min-w-0 text-[15px] md:text-[18px] lg:text-[19px] font-semibold
+                            leading-[1.9] md:leading-[2] text-[#1C1B33] whitespace-pre-line">
+                {draw(s.text)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {tip.vocab.length > 0 && (
+          <div className="mt-5 rounded-2xl bg-[#FFFBF5] border border-[#F5E7D0] px-4 md:px-6 py-3.5">
+            <p className="text-[11px] md:text-[12px] font-black text-[#B98B3E] mb-1.5">핵심 어휘</p>
+            <VocabList items={tip.vocab} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** 판의 빈칸 한 칸 — 닫혀 있으면 점선 자리(번호만), 열리면 파란 칩.
+ *  열리는 순간 튀어나오게 두는 것이 전부다: 강사 말과 화면이 같은 순간에 같은 것을 가리켜야 한다. */
+function Slot({ mark, text }: { mark: string; text?: string }) {
+  if (!text) {
+    return (
+      <span className="inline-flex items-center justify-center align-middle mx-1 min-w-[84px] md:min-w-[110px]
+                       h-[30px] md:h-[38px] rounded-lg border-[1.5px] border-dashed border-[#9DBCF0]
+                       bg-[#F3F8FF] text-[13px] md:text-[15px] font-black text-[#7BA4E8]">{mark}</span>
+    )
+  }
+  return (
+    <span className="animate-pop-badge inline-flex items-center align-middle mx-1 px-2.5 md:px-3.5
+                     h-[30px] md:h-[38px] rounded-lg bg-[#2563EB] text-white
+                     text-[14px] md:text-[17px] font-black tracking-tight
+                     shadow-[0_2px_10px_rgba(37,99,235,0.28)]">{text}</span>
+  )
+}
+
 /* ══ ② 강사 창 위 버튼 둘 ═══════════════════════════════════════════════ */
 export function TipButtons({ tips, vocabCount, locked, onOpen }: {
   tips: SeenTip[]
@@ -268,7 +432,9 @@ export function TipSheet({ kind, tips, onClose }: {
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-white">
       <div className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 border-b border-[#EEF2F7] bg-[#F8FAFF]">
-        <span className="text-[14px]">{kind === 'tip' ? '💡' : '📖'}</span>
+        {kind === 'tip'
+          ? <BulbIcon className="w-[17px] h-[17px] text-[#2563EB]" />
+          : <BookIcon className="w-[17px] h-[17px] text-[#2563EB]" />}
         <span className="text-[13px] font-black text-[#1C1B33]">
           {kind === 'tip' ? '토익 TIP' : '핵심 어휘'}
         </span>
