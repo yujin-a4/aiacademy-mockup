@@ -189,6 +189,12 @@ export interface Turn {
   tutorIfWrong?: string
   /** 이 턴이 끝나며 수업 칸에 띄울 토익 TIP 카드. S7 턴에만 붙는다 */
   tip?: LessonTip
+  /** **문항이 아니라 TIP 판 위에서 도는 턴**인가 (개념 학습 구간, 09-18 시트 개정).
+   *  화면은 사진·보기 대신 강의의 `conceptTip` 을 크게 띄운다. */
+  board?: boolean
+  /** 이 턴에서 **열리는 TIP 빈칸** — `n` 은 판에 적힌 ①②③④ 번호, `text` 는 채워 넣을 말.
+   *  개념 학습은 빈칸이 뚫린 채로 판을 먼저 띄우고, 코칭이 그 자리에 닿을 때 하나씩 연다. */
+  tipAt?: { n: number; text?: string }[]
   audio?: AudioCue
   reveal?: RevealState
   interaction: Interaction
