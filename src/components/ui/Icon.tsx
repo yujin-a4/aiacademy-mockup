@@ -18,6 +18,7 @@ export type IconName =
   | 'waves' | 'target' | 'puzzle' | 'gift' | 'bars' | 'bolt'  // 성향 문답
   | 'clap' | 'pin' | 'books' | 'box'                  // 상태·강의 목록
   | 'mic' | 'pen' | 'link' | 'check'                  // 수업 화면
+  | 'headset'                                         // 듣기(LC) — 읽기(RC)는 'books'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   thumbUp: <><path d="M7 10v10H4V10h3Z" /><path d="M7 10.5 11.5 4a2 2 0 0 1 2.9 2.4L13.5 9h4.9a2 2 0 0 1 2 2.5l-1.6 6A2 2 0 0 1 16.8 19H7" /></>,
@@ -46,6 +47,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   pen: <><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" /><path d="m14.5 6 3 3" /></>,
   link: <><path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7l-1.2 1.2" /><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.3 2.3a4 4 0 0 0 5.7 5.7l1.2-1.2" /></>,
   check: <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />,
+  headset: <><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><path d="M4 13.5h1.8a1.2 1.2 0 0 1 1.2 1.2v3.1A1.2 1.2 0 0 1 5.8 19H4.6A1.6 1.6 0 0 1 3 17.4v-2.3a1.6 1.6 0 0 1 1-1.6Z" /><path d="M20 13.5h-1.8a1.2 1.2 0 0 0-1.2 1.2v3.1a1.2 1.2 0 0 0 1.2 1.2h1.2a1.6 1.6 0 0 0 1.6-1.6v-2.3a1.6 1.6 0 0 0-1-1.6Z" /></>,
 }
 
 export default function Icon({ name, className, strokeWidth = 1.8 }: {
