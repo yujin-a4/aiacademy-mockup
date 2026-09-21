@@ -3,12 +3,12 @@ import Link from 'next/link'
 import Icon from '@/components/ui/Icon'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
-import { takeJustCompleted, getReviewDoneDays } from '@/lib/todayPlan'
+import { takeJustCompleted, getReviewDoneDays, isReviewDoneToday, reviewMark } from '@/lib/todayPlan'
 import { FGI_SCHEDULE, REVIEW_LABEL, DEMO_DDAY, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
 
 /* ── 타입 ── */
@@ -976,6 +976,47 @@ function Duration() {
 }
 
 /** 그날 강의를 다 들었는가 — 복습은 강의가 끝나야 열리므로 강의 셋으로 판단한다 */
+/* ── 상태 재현용 뒷문 (개발·설명용, 09-21) ──
+   이 화면의 상태는 **실제로 돌려서는 만들기 어렵다** — Day 3 까지 끝낸 화면을 보려면 강의를
+   아홉 개 들어야 하고, 복귀 연출은 수업을 끝내고 돌아오는 그 한 번에만 나온다. 그래서
+   URL 로 상태를 만든다(개발사 확인용·가이드 영상용). DB 는 건드리지 않고 **화면 안에서만**
+   끝낸 척한다.
+
+     /lessons?demoDay=3            → Day 1~2 를 다 끝낸 상태에서 Day 3 이 오늘
+     &demoLec=2                    → 오늘 Day 의 앞 2강을 끝낸 상태
+     &demoReview=1                 → 오늘 Day 의 복습까지 끝낸 상태(하루 닫힘)
+     &demoFresh=2                  → 방금 2강을 끝내고 돌아온 연출
+     &demoFreshReview=1            → 방금 복습을 끝내고 돌아온 연출(완료 카드로 모핑)
+     &demoReviewToday=1            → 그 복습을 '오늘' 끝낸 것으로(완료 카드 붙잡기)
+
+   ⚠️ 목업의 시연 장치다. 실제 진도(Supabase learner_progress)는 그대로 둔다. */
+interface DemoState {
+  day: number; lec: number; review: boolean
+  fresh: number; freshReview: boolean; reviewToday: boolean
+}
+function parseDemo(): DemoState | null {
+  if (typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search)
+  let hasDemo = false
+  q.forEach((_, k) => { if (k.startsWith('demo')) hasDemo = true })
+  if (!hasDemo) return null
+  const num = (k: string) => Number(q.get(k) ?? 0) || 0
+  return {
+    day: num('demoDay') || 1,
+    lec: num('demoLec'),
+    review: q.get('demoReview') === '1',
+    fresh: num('demoFresh'),
+    freshReview: q.get('demoFreshReview') === '1',
+    reviewToday: q.get('demoReviewToday') === '1' || q.get('demoFreshReview') === '1',
+  }
+}
+
+/* ── 되돌리는 스위치 (09-21) ──
+   `false` 로 두면 예전처럼 **복습까지 끝내는 순간 다음 Day 가 오늘 자리로 올라온다.**
+   `true` 면 그날 닫은 Day 를 오늘 자리에 **완료 카드**로 붙잡아 두고, 자율학습으로 유도한다.
+   다음 날이 되면(날짜 기준) 자동으로 풀린다. 이 줄 하나만 바꾸면 원래대로 돌아간다. */
+const HOLD_COMPLETED_DAY = true
+
 /** 그날이 닫혔는가 — **강의 셋 + 복습까지**(09-21 사용자 지시).
  *  복습은 하루의 마지막 칸이라, 그걸 건너뛰고 다음 Day 로 넘어가면 자리가 비어 버린다. */
 const dayDone = (day: ScheduleDay, doneSeq: Set<number>, reviewDone: ReadonlySet<number>) =>
@@ -1062,12 +1103,16 @@ function ReviewTile({ open, onOpen }: { open: boolean; onOpen?: () => void }) {
  *  ⚠️ **파트를 크게, 문항 수는 빼고**(09-21 사용자 지시). 회색 잔글씨로 'Part 5 · 문항 4개'
  *     를 붙여 뒀더니 정작 무슨 파트인지가 제일 안 보였다. 파트는 칩으로 올리고, 문항 수는
  *     지운다 — 그 숫자로 학생이 정하는 것이 없다(오늘 할 일은 이미 정해져 있다). */
-function TodayStep({ n, label, part, lc, sub, state, fresh, wake, onOpen }: {
+function TodayStep({ n, label, part, lc, sub, state, fresh, order = 0, wake, waitFor = 1, onOpen }: {
   n: number; label: string; state: 'done' | 'now' | 'todo'
   /** 방금 끝내고 돌아온 칸 — 체크가 튕기고 초록 파문이 한 번 인다 */
   fresh?: boolean
-  /** 그 바람에 다음 차례가 된 칸 — 한 박자 늦게 파랗게 깨어난다 */
+  /** 한 번에 여럿을 끝내고 온 길이면 **끝낸 차례대로** 0.14초씩 늦춰 튕긴다 */
+  order?: number
+  /** 그 바람에 다음 차례가 된 칸 — 앞의 축하가 다 끝난 뒤에 파랗게 깨어난다 */
   wake?: boolean
+  /** 앞에서 몇 칸이 축하받고 있는가 — 깨어나는 박자를 그만큼 뒤로 민다 */
+  waitFor?: number
   /** 눌러서 그 수업으로 간다 — **'이어서 학습' 만이 입구가 아니다**(09-21 사용자 지시).
    *  순서를 건너뛰어 3번부터 듣고 싶을 수도 있고, 끝낸 것을 다시 열 수도 있어야 한다.
    *  없으면(준비 중·잠긴 복습) 카드는 그냥 표시다. */
@@ -1085,6 +1130,8 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, wake, onOpen }: {
        그 안의 네모까지 그림자를 지면 카드 위에 카드가 떠 그림자가 겹쳐 지저분해진다. */
     <Shape
       {...(onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
+      style={fresh ? { animationDelay: `${order * 0.14}s` }
+        : wake ? { animationDelay: `${0.45 + Math.max(0, waitFor - 1) * 0.14}s` } : undefined}
       className={`flex-1 min-w-0 rounded-2xl border px-3 py-3 flex flex-col gap-2.5 text-left transition-colors ${
         fresh ? 'animate-step-ring' : wake ? 'animate-step-wake' : ''} ${
         onOpen ? 'hover:border-[#93C5FD] cursor-pointer' : ''} ${
@@ -1097,7 +1144,10 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, wake, onOpen }: {
         state === 'done' ? 'bg-[#E6FAEF] text-[#2FA36B]'
           : state === 'now' ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
         {state === 'done'
-          ? <Icon name="check" className={`w-3.5 h-3.5 ${fresh ? 'animate-step-pop' : ''}`} strokeWidth={3} />
+          ? <span style={fresh ? { animationDelay: `${order * 0.14}s` } : undefined}
+              className={`inline-flex ${fresh ? 'animate-step-pop' : ''}`}>
+              <Icon name="check" className="w-3.5 h-3.5" strokeWidth={3} />
+            </span>
           : n}
       </span>
       <span className="ml-auto shrink-0">
@@ -1106,8 +1156,10 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, wake, onOpen }: {
           : (
             <span className={`inline-flex items-center gap-1.5 ${state === 'now' ? 'text-[#64748B]' : 'text-[#A3AEBE]'}`}>
               {/* 아직 못 여는 복습은 **자물쇠**다 — 풀리는 순간 별로 바뀌며 튕긴다 */}
-              <Icon name={state === 'todo' ? 'lock' : 'star'}
-                className={`w-[15px] h-[15px] ${wake ? 'animate-unlock' : ''}`} />
+              <span style={wake ? { animationDelay: `${0.5 + Math.max(0, waitFor - 1) * 0.14}s` } : undefined}
+                className={`inline-flex ${wake ? 'animate-unlock' : ''}`}>
+                <Icon name={state === 'todo' ? 'lock' : 'star'} className="w-[15px] h-[15px]" />
+              </span>
               <span className="text-[11.5px] font-bold">복습</span>
             </span>
           )}
@@ -1127,20 +1179,93 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, wake, onOpen }: {
   )
 }
 
+/** ── 하루를 닫은 카드 ──
+ *  복습까지 끝낸 Day 는 **그날 안에는 완료된 채로 남는다**(09-21 결정). 다음 Day 를 곧바로
+ *  밀어 올리면 "끝냈다"는 감각이 0.3초 만에 사라지고, 다 한 자리에 다음 하루가 빚처럼 쌓인다.
+ *  대신 두 갈래를 준다 — 더 풀고 싶으면 **자율학습**, 앞서 가고 싶으면 **다음 Day**.
+ *  (되돌리려면 HOLD_COMPLETED_DAY = false) */
+function DayClosedCard({ day, onNext }: { day: ScheduleDay; onNext?: () => void }) {
+  const router = useRouter()
+  return (
+    <div id={`day-${day.day}`}
+      className="animate-card-morph rounded-3xl bg-[#F2FCF6] shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
+      <div className="flex items-center gap-3">
+        <span className="w-11 h-11 rounded-full bg-[#E6FAEF] flex items-center justify-center shrink-0">
+          <Icon name="check" className="w-5 h-5 text-[#2FA36B]" strokeWidth={3} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-black tracking-wide text-[#2FA36B]">DAY {day.day} 완료</p>
+          <p className="text-[18px] md:text-[20px] font-black text-[#1C1B33] leading-snug mt-0.5 tracking-tight">
+            오늘 할 일을 다 마쳤어요
+          </p>
+        </div>
+        <span className="shrink-0 text-[12.5px] font-black text-[#2FA36B]">4 / 4</span>
+      </div>
+
+      <p className="text-[12.5px] font-semibold text-[#79A98C] mt-2.5">
+        강의 3개와 오답 복습까지 끝냈어요. 다음 학습은 내일 이 자리에 올라옵니다.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2.5 mt-4">
+        <button onClick={() => router.push('/my-learning')}
+          className="min-h-[48px] px-6 rounded-2xl bg-[#2FA36B] hover:bg-[#268A5A] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
+          <Icon name="pen" className="w-4 h-4" strokeWidth={2.4} />
+          자율학습에서 더 풀기
+        </button>
+        {/* 마지막 Day 를 닫은 뒤에는 갈 다음 날이 없다 */}
+        {onNext && (
+          <button onClick={onNext}
+            className="min-h-[48px] px-4 rounded-2xl text-[13px] font-bold text-[#64748B] hover:text-[#1C1B33] transition-colors">
+            다음 Day 미리 시작하기 ›
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** ── 오늘 보드 — 이 화면의 주인공 ──
  *  그날 할 일 넷을 한 판에 놓고, 아직 안 한 것 중 **첫 번째**로 바로 보낸다. */
-function TodayBoard({ day, bySeq, doneSeq, reviewDone }: {
+function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext }: {
   day: ScheduleDay; bySeq: Map<number, DbLecture>; doneSeq: Set<number>; reviewDone: boolean
+  /** 하루를 닫으면 완료 카드로 넘어간다. 스위치가 꺼져 있으면 false */
+  holdOnClose?: boolean
+  /** URL 로 만든 상태 — 복귀 연출을 수업 없이 재현할 때만 들어온다 */
+  demo?: DemoState | null
+  /** '다음 Day 미리 시작하기' — 마지막 Day 에는 없다 */
+  onNext?: () => void
 }) {
   const router = useRouter()
   /* 수업 화면에서 남긴 '방금 끝냄' 을 한 번 가져와(가져가면 지워진다) 그 칸만 축하한다 */
-  const [freshSeq, setFreshSeq] = useState<number | null>(null)
-  useEffect(() => {
-    const code = takeJustCompleted()
-    if (!code) return
-    const seq = day.lectures.find((s) => bySeq.get(s)?.code === code)
-    if (seq != null) setFreshSeq(seq)
-  }, [day, bySeq])
+  const [freshSeqs, setFreshSeqs] = useState<number[]>([])
+  /* 복습을 끝내고 돌아온 길인가 — 마지막 칸(복습)이 튕긴다 */
+  const [freshReview, setFreshReview] = useState(false)
+  /* 막대는 **한 칸 전 길이에서 시작해 늘어난다.** null 이면 지금 길이 그대로 그린다.
+     ⚠️ useEffect 가 아니라 useLayoutEffect 다 — 그려진 뒤에 줄이면 꽉 찬 막대가 한 프레임
+     번쩍이고 뒤로 물러난다. 이 보드는 DB 가 온 뒤에야 처음 그려지므로 서버 렌더는 없다. */
+  const [barFrom, setBarFrom] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    /* 데모: 수업을 끝내고 돌아온 길을 흉내 낸다 — 앞 n 강을 방금 끝낸 것으로 */
+    if (demo) {
+      const seqs = day.lectures.slice(0, Math.min(demo.fresh, demo.lec))
+      if (!seqs.length && !demo.freshReview) return
+      setFreshSeqs(seqs)
+      setFreshReview(demo.freshReview)
+      setBarFrom(seqs.length + (demo.freshReview ? 1 : 0))
+      return
+    }
+    const codes = takeJustCompleted()
+    if (!codes.length) return
+    /* 완료 화면에서 '이어서'로 두세 강의를 내리 듣고 오는 길이 있다 → 끝낸 순서대로 다 짚는다 */
+    const seqs = codes
+      .map((code) => day.lectures.find((s) => bySeq.get(s)?.code === code))
+      .filter((s): s is number => s != null)
+    const didReview = codes.includes(reviewMark(day.day))
+    if (!seqs.length && !didReview) return
+    setFreshSeqs(seqs)
+    setFreshReview(didReview)
+    setBarFrom(seqs.length + (didReview ? 1 : 0))
+  }, [day, bySeq, demo])
   const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq), done: doneSeq.has(seq) }))
   const doneCount = items.filter((i) => i.done).length
   const reviewOpen = isReviewUnlocked(day, doneSeq)
@@ -1150,6 +1275,26 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone }: {
   /* 복습까지가 하루다 — 숫자도 진행 막대도 넷 중 몇을 닫았는지로 센다 */
   const closed = doneCount + (reviewDone ? 1 : 0)
   const pct = Math.round((closed / (items.length + 1)) * 100)
+  /* 체크가 튕기는 것과 같은 박자로 막대를 민다(260ms 뒤 출발, 0.7s 동안) */
+  const barPct = barFrom === null ? pct : Math.round((Math.max(0, closed - barFrom) / (items.length + 1)) * 100)
+  useEffect(() => {
+    if (barFrom === null) return
+    const t = setTimeout(() => setBarFrom(null), 260)
+    return () => clearTimeout(t)
+  }, [barFrom])
+
+  /* 축하가 다 돈 뒤에 완료 카드로 바꾼다 — 돌아오자마자 카드가 닫혀 버리면 무엇을 끝냈는지
+     보지 못한 채 화면만 바뀐다. 마지막 칸이 튕기고(0.14s 씩 밀림) 자물쇠까지 풀린 다음. */
+  const allClosed = closed === items.length + 1
+  const [celebrating, setCelebrating] = useState(false)
+  useLayoutEffect(() => {
+    if (!(freshSeqs.length || freshReview)) return
+    setCelebrating(true)
+    const t = setTimeout(() => setCelebrating(false), 1100 + freshSeqs.length * 140)
+    return () => clearTimeout(t)
+  }, [freshSeqs, freshReview])
+
+  if (allClosed && holdOnClose && !celebrating) return <DayClosedCard day={day} onNext={onNext} />
 
   return (
     <div id={`day-${day.day}`} className="rounded-3xl bg-white shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
@@ -1168,7 +1313,8 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone }: {
       )}
 
       <div className="h-2 rounded-full bg-[#EDF1F7] overflow-hidden mb-4">
-        <div className="h-full rounded-full bg-[#2563EB] transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-[#2563EB] transition-[width] duration-700 ease-out"
+          style={{ width: `${barPct}%` }} />
       </div>
 
       <div className="flex gap-2.5 mb-4">
@@ -1178,14 +1324,19 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone }: {
             part={i.lec?.part} lc={i.lec?.lcRc === 'LC'}
             sub={i.lec ? undefined : '준비 중'}
             onOpen={i.lec && isPlayable(i.lec) ? () => router.push(`/lecture/${i.lec!.code}`) : undefined}
-            fresh={freshSeq === i.seq && i.done}
-            wake={freshSeq !== null && freshSeq !== i.seq && next?.seq === i.seq}
+            fresh={freshSeqs.includes(i.seq) && i.done}
+            order={freshSeqs.indexOf(i.seq)}
+            wake={freshSeqs.length > 0 && !freshSeqs.includes(i.seq) && next?.seq === i.seq}
+            waitFor={freshSeqs.length}
             state={i.done ? 'done' : next?.seq === i.seq ? 'now' : 'todo'} />
         ))}
         {/* 마지막 강의를 끝내고 돌아온 길이면 다음 차례는 복습이다 — 여기도 같이 깨운다 */}
         <TodayStep n={items.length + 1} label="오답 복습"
           sub={reviewOpen ? undefined : '강의를 끝내면 열려요'}
-          wake={freshSeq !== null && reviewOpen && !reviewDone && !next}
+          fresh={freshReview && reviewDone}
+          order={freshSeqs.length}
+          wake={freshSeqs.length > 0 && !freshReview && reviewOpen && !reviewDone && !next}
+          waitFor={freshSeqs.length}
           onOpen={reviewOpen ? () => router.push(`/review/${day.day}`) : undefined}
           state={reviewDone ? 'done' : reviewOpen ? 'now' : 'todo'} />
       </div>
@@ -1351,6 +1502,8 @@ function CurriculumGrid({ view, onView }: {
    *  이 줄에 버튼만 홀로 두면 제목과 목록 사이에 빈 띠가 하나 생긴다(사용자 지적). */
   view: 'today' | 'all'
 }) {
+  /* URL 로 만든 상태(있으면). 실제 진도 위에 덮어쓰는 것이 아니라 **합쳐서** 본다 */
+  const [demo] = useState<DemoState | null>(parseDemo)
   const lectures = useCurriculumLectures()
   const doneCodes = useCompletedLectures()
   /* 시간표는 seq(커리큘럼 42강 번호)로 강의를 부른다 → 번호로 찾을 수 있게 한 번 말아둔다 */
@@ -1362,16 +1515,25 @@ function CurriculumGrid({ view, onView }: {
   /* 완료 기록은 강의 코드로 오고 시간표는 번호로 센다 → 한 번만 번호로 옮겨둔다 */
   const doneSeq = useMemo(() => {
     const s = new Set<number>()
-    for (const l of lectures) if (l.seq != null && doneCodes.has(l.code)) s.add(l.seq)
+    /* 데모 중에는 **실제 진도를 섞지 않는다** — 설명용 화면에 그 계정이 예전에 들은 강의가
+       완료로 뜨면 무엇이 시나리오이고 무엇이 그 계정의 기록인지 구분이 안 된다 */
+    if (!demo) for (const l of lectures) if (l.seq != null && doneCodes.has(l.code)) s.add(l.seq)
+    /* 데모: 앞선 Day 는 통째로, 오늘 Day 는 앞 n 강만 끝낸 것으로 친다 */
+    if (demo) {
+      for (const d of FGI_SCHEDULE) {
+        if (d.day < demo.day) d.lectures.forEach((q) => s.add(q))
+        else if (d.day === demo.day) d.lectures.slice(0, demo.lec).forEach((q) => s.add(q))
+      }
+    }
     return s
-  }, [lectures, doneCodes])
+  }, [lectures, doneCodes, demo])
 
   const [pastOpen, setPastOpen] = useState(false)
   /* 복습 완료는 아직 DB 가 아니라 localStorage 에 있다(lib/todayPlan) → 마운트 뒤에 읽는다.
      서버 렌더에서 읽으면 첫 화면과 어긋난다. */
   const [focusDay, setFocusDay] = useState<number | null>(null)
-  const [reviewDone, setReviewDone] = useState<ReadonlySet<number>>(() => new Set<number>())
-  useEffect(() => { setReviewDone(getReviewDoneDays()) }, [])
+  const [reviewDone, setReviewDoneRaw] = useState<ReadonlySet<number>>(() => new Set<number>())
+  useEffect(() => { setReviewDoneRaw(getReviewDoneDays()) }, [])
   /* 전체 보기에서 고른 Day 로 데려간다. 한 박자(80ms) 뒤에 옮기는 이유는 보기가 바뀌고
      그 줄이 화면에 붙은 다음이라야 위치가 잡히기 때문. 데려다 준 뒤 표시는 지운다 —
      같은 날을 다시 눌렀을 때도 또 펼쳐지게. */
@@ -1386,10 +1548,29 @@ function CurriculumGrid({ view, onView }: {
 
   /* 오늘은 **아직 다 안 들은 첫 날**이다. 날짜가 아니라 진도로 정한다 — FGI 는 하루에
      여러 날치를 몰아 보여 주는 자리라, 달력으로 정하면 첫날부터 '지난 날' 이 된다. */
-  const todayIdx = useMemo(() => {
-    const i = FGI_SCHEDULE.findIndex((d) => !dayDone(d, doneSeq, reviewDone))
+  /* 데모: 지난 Day 의 복습은 끝난 것으로, 오늘 Day 는 demoReview 일 때만 */
+  const reviewDoneAll = useMemo(() => {
+    if (!demo) return reviewDone
+    const s = new Set<number>()
+    for (const d of FGI_SCHEDULE) if (d.day < demo.day) s.add(d.day)
+    if (demo.review) s.add(demo.day)
+    return s as ReadonlySet<number>
+  }, [reviewDone, demo])
+
+  const naturalIdx = useMemo(() => {
+    const i = FGI_SCHEDULE.findIndex((d) => !dayDone(d, doneSeq, reviewDoneAll))
     return i < 0 ? FGI_SCHEDULE.length - 1 : i
-  }, [doneSeq, reviewDone])
+  }, [doneSeq, reviewDoneAll])
+  /* 오늘 닫은 Day 는 **그날 안에는 오늘 자리에 남는다**(HOLD_COMPLETED_DAY).
+     '다음 Day 미리 시작하기' 를 누르면 그 자리에서 풀린다(이번 방문 동안만). */
+  const [skipHold, setSkipHold] = useState(false)
+  const [holdIdx, setHoldIdx] = useState<number | null>(null)
+  useEffect(() => {
+    if (!HOLD_COMPLETED_DAY || skipHold || naturalIdx === 0) { setHoldIdx(null); return }
+    const prev = FGI_SCHEDULE[naturalIdx - 1]
+    setHoldIdx(prev && (demo ? demo.reviewToday : isReviewDoneToday(prev.day)) ? naturalIdx - 1 : null)
+  }, [naturalIdx, skipHold, demo])
+  const todayIdx = holdIdx ?? naturalIdx
   const today = FGI_SCHEDULE[todayIdx]
   const past = FGI_SCHEDULE.slice(0, todayIdx)
   const upcoming = FGI_SCHEDULE.slice(todayIdx + 1)
@@ -1399,7 +1580,7 @@ function CurriculumGrid({ view, onView }: {
 
   return (
     <div className="space-y-3.5">
-      {view === 'all' ? <AllDaysGrid bySeq={bySeq} doneSeq={doneSeq} reviewDone={reviewDone} todayIdx={todayIdx}
+      {view === 'all' ? <AllDaysGrid bySeq={bySeq} doneSeq={doneSeq} reviewDone={reviewDoneAll} todayIdx={todayIdx}
           onPick={(d) => {
             /* 지난 날이면 접혀 있는 '지난 학습'부터 펴 줘야 그 줄이 화면에 있다 */
             if (FGI_SCHEDULE.findIndex((x) => x.day === d) < todayIdx) setPastOpen(true)
@@ -1431,7 +1612,10 @@ function CurriculumGrid({ view, onView }: {
             </div>
           )}
 
-          <TodayBoard day={today} bySeq={bySeq} doneSeq={doneSeq} reviewDone={reviewDone.has(today.day)} />
+          <TodayBoard day={today} bySeq={bySeq} doneSeq={doneSeq} reviewDone={reviewDoneAll.has(today.day)}
+            demo={demo}
+            holdOnClose={HOLD_COMPLETED_DAY}
+            onNext={todayIdx < FGI_SCHEDULE.length - 1 ? () => setSkipHold(true) : undefined} />
 
           {/* 남은 날 — 머리 줄 없이 Day 덩이만 쌓는다. 바로 다음 날만 펼친 채로 시작한다.
               ('다가오는 학습' 이라는 제목은 뺐다 — Day 줄이 이미 그 말을 하고 있다) */}
