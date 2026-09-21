@@ -942,14 +942,34 @@ function splitTitle(title: string): { no: string | null; name: string } {
    ⚠️ **한쪽 면에만 색을 주는 테두리(왼쪽 액센트 바·상단 색띠)는 쓰지 않는다**(사용자 지시).
       파트 구분은 칩 색으로만 한다. */
 
+/* ── 상자는 **테두리 대신 그림자**다 (09-21) ──
+   연한 회색 윤곽선을 두르면 상자 수만큼 선이 생겨 화면이 격자처럼 보인다. 선을 지우고
+   바닥에서 살짝 떠 있게 두면 무엇이 한 덩어리인지가 그림자로 갈린다. 상태(완료·지금)는
+   테두리 색이 아니라 **옅은 틴트**로 말한다. */
+const CARD = 'shadow-[0_1px_2px_rgba(16,24,40,0.05),0_6px_20px_rgba(16,24,40,0.06)]'
+const CARD_HOVER = 'hover:shadow-[0_2px_5px_rgba(16,24,40,0.07),0_12px_28px_rgba(16,24,40,0.10)] transition-shadow'
+
+/* ── 듣기·읽기는 **색이 아니라 모양**으로 가른다 (09-21) ──
+   색칩(파랑/초록 → 라벤더/앰버)으로 두 번 고쳐 봤지만, 색은 이 화면에서 이미 **상태**를
+   말하고 있다(완료 민트·지금 블루·아직 회색). 영역까지 색으로 말하면 한 카드 안에서 색이
+   두 가지 뜻을 갖는다. 그래서 LC 는 헤드셋, RC 는 책 — 아이콘이 영역을, 색이 상태를 맡는다. */
+function PartMark({ lc, part, dim }: { lc: boolean; part: number; dim?: boolean }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${dim ? 'text-[#A3AEBE]' : 'text-[#64748B]'}`}>
+      <Icon name={lc ? 'headset' : 'books'} className="w-[15px] h-[15px]" />
+      <span className="text-[11.5px] font-bold">Part {part}</span>
+    </span>
+  )
+}
+
 /** 그날 강의를 다 들었는가 — 복습은 강의가 끝나야 열리므로 강의 셋으로 판단한다 */
 const dayDone = (day: ScheduleDay, doneSeq: Set<number>) => day.lectures.every((s) => doneSeq.has(s))
 
 /** 강의 한 장 — 목록 줄이 아니라 **타일**이다. 누르면 그 강의로 간다 */
 function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; onOpen: (code: string) => void }) {
   if (!lec) return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-[#FAFBFD] px-3.5 py-3.5 flex flex-col gap-2">
-      <span className="text-[10px] font-bold text-[#B4BCC8] bg-[#F3F4F6] px-2 py-0.5 rounded-md w-fit">준비 중</span>
+    <div className="rounded-2xl bg-[#F4F6FA] px-3.5 py-3.5 flex flex-col gap-2">
+      <span className="text-[10px] font-bold text-[#B4BCC8] bg-white/70 px-2 py-0.5 rounded-md w-fit">준비 중</span>
       <p className="text-[13px] font-bold text-[#B4BCC8]">콘텐츠 준비 중이에요</p>
     </div>
   )
@@ -960,21 +980,30 @@ function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; o
   return (
     <Shape
       {...(playable ? { type: 'button' as const, onClick: () => onOpen(lec.code) } : {})}
-      className={`rounded-2xl border px-3.5 py-3.5 flex flex-col gap-2 text-left transition-colors ${
-        done ? 'border-[#CFEBD8] bg-[#F8FDFA]'
-          : playable ? 'border-[#E5E7EB] bg-white hover:border-[#93C5FD]' : 'border-[#EEF1F5] bg-[#FAFBFD]'}`}>
+      className={`group rounded-2xl px-3.5 py-3.5 min-h-[112px] flex flex-col gap-2 text-left ${
+        playable ? `${CARD} ${CARD_HOVER} cursor-pointer active:scale-[0.99] transition-transform` : ''} ${
+        done ? 'bg-[#F2FCF6]' : playable ? 'bg-white' : 'bg-[#F4F6FA]'}`}>
       <div className="flex items-center gap-1.5">
-        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-          lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {lec.part}</span>
+        <PartMark lc={lc} part={lec.part} dim={!playable || !!done} />
         {done && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-[#16A34A]">
+          <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-[#2FA36B]">
             <Icon name="check" className="w-3 h-3" strokeWidth={3} />완료
           </span>
         )}
         {!playable && <span className="ml-auto text-[10px] font-bold text-[#B4BCC8]">준비 중</span>}
       </div>
       <p className={`text-[13.5px] font-bold leading-snug ${playable ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{name}</p>
-      <p className="mt-auto text-[11px] font-semibold text-[#94A3B8]">문항 {lec.questionCount}개</p>
+      {/* ── 누를 수 있다는 것을 **말과 화살표로** 말한다 (09-21) ──
+          그림자만으로는 읽을거리인지 누를 것인지 모른다(사용자 지적). 문항 수는 뺐다 —
+          그 숫자로 학생이 정하는 것이 없다. 대신 그 자리에 '시작하기 ›' 가 들어간다. */}
+      {playable && (
+        <span className={`mt-auto inline-flex items-center gap-1 text-[11.5px] font-bold ${
+          done ? 'text-[#2FA36B]' : 'text-[#2563EB]'}`}>
+          {done ? '다시 듣기' : '시작하기'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"
+            className="w-3 h-3 transition-transform group-hover:translate-x-0.5"><path d="M9 6l6 6-6 6" /></svg>
+        </span>
+      )}
     </Shape>
   )
 }
@@ -984,37 +1013,79 @@ function ReviewTile({ open, onOpen }: { open: boolean; onOpen?: () => void }) {
   const Shape = open && onOpen ? 'button' : 'div'
   return (
     <Shape {...(open && onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
-      className={`rounded-2xl border px-3.5 py-3.5 flex flex-col gap-2 text-left ${
-        open ? 'border-[#C7D2FE] bg-[#F8FAFF] hover:border-[#818CF8]' : 'border-dashed border-[#DDE3EC] bg-[#FAFBFD]'}`}>
-      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md w-fit ${
-        open ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'bg-[#F3F4F6] text-[#B4BCC8]'}`}>복습</span>
+      className={`group rounded-2xl px-3.5 py-3.5 min-h-[112px] flex flex-col gap-2 text-left ${
+        open ? `bg-[#F5F6FF] ${CARD} ${CARD_HOVER} cursor-pointer` : 'bg-[#F4F6FA]'}`}>
+      <span className={`inline-flex items-center gap-1.5 w-fit ${open ? 'text-[#64748B]' : 'text-[#A3AEBE]'}`}>
+        <Icon name="check" className="w-[15px] h-[15px]" />
+        <span className="text-[11.5px] font-bold">복습</span>
+      </span>
       <p className={`text-[13.5px] font-bold leading-snug ${open ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{REVIEW_LABEL}</p>
-      <p className="mt-auto text-[11px] font-semibold text-[#94A3B8]">
+      <p className="text-[11px] font-semibold text-[#94A3B8]">
         {open ? '그날 틀린 문항의 유사 문항' : '강의 3개를 끝내면 열려요'}
       </p>
+      {open && (
+        <span className="mt-auto inline-flex items-center gap-1 text-[11.5px] font-bold text-[#4F46E5]">
+          풀어 보기
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"
+            className="w-3 h-3 transition-transform group-hover:translate-x-0.5"><path d="M9 6l6 6-6 6" /></svg>
+        </span>
+      )}
     </Shape>
   )
 }
 
-/** 오늘 보드의 한 단계 — 완료·지금·아직 셋뿐이다 */
-function TodayStep({ n, label, sub, state }: {
-  n: number; label: string; sub: string; state: 'done' | 'now' | 'todo'
+/** 오늘 보드의 한 단계 — 완료·지금·아직 셋뿐이다.
+ *  ⚠️ **파트를 크게, 문항 수는 빼고**(09-21 사용자 지시). 회색 잔글씨로 'Part 5 · 문항 4개'
+ *     를 붙여 뒀더니 정작 무슨 파트인지가 제일 안 보였다. 파트는 칩으로 올리고, 문항 수는
+ *     지운다 — 그 숫자로 학생이 정하는 것이 없다(오늘 할 일은 이미 정해져 있다). */
+function TodayStep({ n, label, part, lc, sub, state, onOpen }: {
+  n: number; label: string; state: 'done' | 'now' | 'todo'
+  /** 눌러서 그 수업으로 간다 — **'이어서 학습' 만이 입구가 아니다**(09-21 사용자 지시).
+   *  순서를 건너뛰어 3번부터 듣고 싶을 수도 있고, 끝낸 것을 다시 열 수도 있어야 한다.
+   *  없으면(준비 중·잠긴 복습) 카드는 그냥 표시다. */
+  onOpen?: () => void
+  /** 강의면 파트 번호, 복습이면 없다 */
+  part?: number
+  /** LC 인가 — 칩 색을 가른다(RC 는 초록) */
+  lc?: boolean
+  /** 파트가 없는 단계(복습·준비 중)의 한 줄 */
+  sub?: string
 }) {
+  const Shape = onOpen ? 'button' : 'div'
   return (
-    <div className={`flex-1 min-w-0 rounded-2xl border px-3 py-3 flex flex-col gap-2.5 ${
-      state === 'done' ? 'border-[#CFEBD8] bg-[#F8FDFA]'
-        : state === 'now' ? 'border-[#2563EB] bg-[#F5F9FF]' : 'border-[#EEF1F5] bg-white'}`}>
+    /* ⚠️ 여기만 **테두리**다(09-21 사용자 지시). 바깥 오늘 보드가 이미 떠 있는 흰 카드라,
+       그 안의 네모까지 그림자를 지면 카드 위에 카드가 떠 그림자가 겹쳐 지저분해진다. */
+    <Shape
+      {...(onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
+      className={`flex-1 min-w-0 rounded-2xl border px-3 py-3 flex flex-col gap-2.5 text-left transition-colors ${
+        onOpen ? 'hover:border-[#93C5FD] cursor-pointer' : ''} ${
+        state === 'done' ? 'border-[#CDF0DD] bg-[#F7FCF9]'
+          : state === 'now' ? 'border-[#2563EB] bg-[#F5F9FF]' : 'border-[#EEF1F5] bg-white'}`}>
+      {/* 번호와 파트를 **한 줄**에 둔다(09-21) — 왼쪽 위는 번호 자리라 그 줄 오른쪽이 비어 있었고,
+          파트를 제목 위에 얹으면 카드가 세 층(번호·파트·제목)이 된다. */}
+      <div className="flex items-center gap-2">
       <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
-        state === 'done' ? 'bg-[#DCFCE7] text-[#16A34A]'
+        state === 'done' ? 'bg-[#E6FAEF] text-[#2FA36B]'
           : state === 'now' ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
         {state === 'done' ? <Icon name="check" className="w-3.5 h-3.5" strokeWidth={3} /> : n}
       </span>
+      <span className="ml-auto shrink-0">
+        {part !== undefined
+          ? <PartMark lc={!!lc} part={part} dim={state !== 'now'} />
+          : (
+            <span className={`inline-flex items-center gap-1.5 ${state === 'now' ? 'text-[#64748B]' : 'text-[#A3AEBE]'}`}>
+              <Icon name="check" className="w-[15px] h-[15px]" />
+              <span className="text-[11.5px] font-bold">복습</span>
+            </span>
+          )}
+      </span>
+      </div>
       <div className="min-w-0">
         <p className={`text-[12.5px] font-bold leading-snug ${
           state === 'todo' ? 'text-[#94A3B8]' : state === 'done' ? 'text-[#64748B]' : 'text-[#1C1B33]'}`}>{label}</p>
-        <p className="text-[11px] font-semibold text-[#A3AEBE] mt-0.5">{sub}</p>
+        {sub && <p className="text-[11px] font-semibold text-[#A3AEBE] mt-0.5">{sub}</p>}
       </div>
-    </div>
+    </Shape>
   )
 }
 
@@ -1033,7 +1104,7 @@ function TodayBoard({ day, bySeq, doneSeq, ddayLabel }: {
   const pct = Math.round((doneCount / (items.length + 1)) * 100)
 
   return (
-    <div className="rounded-3xl border border-[#DCE6F8] bg-white shadow-[0_6px_28px_rgba(37,99,235,0.10)] px-5 py-5">
+    <div className="rounded-3xl bg-white shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
       <div className="flex items-center gap-2.5 flex-wrap">
         <span className="text-[11px] font-black tracking-wide text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full">
           오늘 · DAY {day.day}
@@ -1059,10 +1130,13 @@ function TodayBoard({ day, bySeq, doneSeq, ddayLabel }: {
         {items.map((i, n) => (
           <TodayStep key={i.seq} n={n + 1}
             label={i.lec ? splitTitle(i.lec.title).name : `${i.seq}강`}
-            sub={i.lec ? `Part ${i.lec.part} · ${i.done ? '완료' : `문항 ${i.lec.questionCount}개`}` : '준비 중'}
+            part={i.lec?.part} lc={i.lec?.lcRc === 'LC'}
+            sub={i.lec ? undefined : '준비 중'}
+            onOpen={i.lec && isPlayable(i.lec) ? () => router.push(`/lecture/${i.lec!.code}`) : undefined}
             state={i.done ? 'done' : next?.seq === i.seq ? 'now' : 'todo'} />
         ))}
-        <TodayStep n={items.length + 1} label="오답 복습" sub={reviewOpen ? '지금 풀 수 있어요' : '강의를 끝내면 열려요'}
+        <TodayStep n={items.length + 1} label="오답 복습"
+          sub={reviewOpen ? undefined : '강의를 끝내면 열려요'}
           state={reviewOpen ? 'now' : 'todo'} />
       </div>
 
@@ -1090,7 +1164,7 @@ function DayDots({ done, total = 4 }: { done: number; total?: number }) {
   return (
     <span className="flex items-center gap-1 shrink-0">
       {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={`w-[7px] h-[7px] rounded-full ${i < done ? 'bg-[#22C55E]' : 'bg-[#DDE3EC]'}`} />
+        <span key={i} className={`w-[7px] h-[7px] rounded-full ${i < done ? 'bg-[#4ECB8A]' : 'bg-[#DFE4EC]'}`} />
       ))}
     </span>
   )
@@ -1110,13 +1184,12 @@ function DayRow({ day, bySeq, doneSeq, tone = 'plain' }: {
   return (
     <div className="space-y-2">
       <button onClick={() => setOpen((v) => !v)}
-        className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left transition-colors ${
-          tone === 'done' ? 'border-[#DDE7DC] bg-[#F7FCF8] hover:border-[#A7D7B8]'
-            : 'border-[#E5E7EB] bg-white hover:border-[#93C5FD]'}`}>
+        className={`w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left ${CARD} ${CARD_HOVER} ${
+          tone === 'done' ? 'bg-[#F2FCF6]' : 'bg-white'}`}>
         <span className={`w-[38px] h-[38px] rounded-xl flex flex-col items-center justify-center shrink-0 ${
-          tone === 'done' ? 'bg-[#E7F6EC]' : 'bg-[#F4F6FB]'}`}>
-          <span className={`text-[8.5px] font-bold leading-none ${tone === 'done' ? 'text-[#86B79A]' : 'text-[#A3AEBE]'}`}>DAY</span>
-          <span className={`text-[14px] font-black leading-none mt-0.5 ${tone === 'done' ? 'text-[#16A34A]' : 'text-[#64748B]'}`}>{day.day}</span>
+          tone === 'done' ? 'bg-[#E6FAEF]' : 'bg-[#F1F3F9]'}`}>
+          <span className={`text-[8.5px] font-bold leading-none ${tone === 'done' ? 'text-[#8FC9A9]' : 'text-[#A3AEBE]'}`}>DAY</span>
+          <span className={`text-[14px] font-black leading-none mt-0.5 ${tone === 'done' ? 'text-[#2FA36B]' : 'text-[#64748B]'}`}>{day.day}</span>
         </span>
         <span className="flex-1 min-w-0">
           <span className="block text-[13.5px] font-bold text-[#1C1B33] truncate">{heads.slice(0, 2).join(' · ')} 외 1</span>
@@ -1153,7 +1226,7 @@ function AllDaysGrid({ bySeq, doneSeq, todayIdx }: {
             <div className="flex items-center gap-2.5">
               <span className="text-[12.5px] font-black text-[#1C1B33] shrink-0">{week}주차</span>
               <div className="flex-1 h-[7px] rounded-full bg-[#EDF1F7] overflow-hidden">
-                <div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${(doneDays / days.length) * 100}%` }} />
+                <div className="h-full rounded-full bg-[#4ECB8A]" style={{ width: `${(doneDays / days.length) * 100}%` }} />
               </div>
               <span className="text-[12px] font-bold text-[#64748B] shrink-0">{doneDays} / {days.length}일</span>
             </div>
@@ -1164,16 +1237,14 @@ function AllDaysGrid({ bySeq, doneSeq, todayIdx }: {
                 const today = idx === todayIdx
                 const locked = idx > todayIdx + 1
                 return (
-                  <div key={d.day} className={`rounded-2xl border px-3.5 py-3 flex flex-col gap-2 ${
-                    done ? 'border-[#CFEBD8] bg-[#F8FDFA]'
-                      : today ? 'border-[#2563EB] bg-[#F5F9FF]'
-                        : locked ? 'border-[#EEF1F5] bg-[#FAFBFD]' : 'border-[#E5E7EB] bg-white'}`}>
+                  <div key={d.day} className={`rounded-2xl px-3.5 py-3 flex flex-col gap-2 ${locked ? '' : CARD} ${
+                    done ? 'bg-[#F2FCF6]' : today ? 'bg-[#EFF4FF]' : locked ? 'bg-[#F4F6FA]' : 'bg-white'}`}>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[13.5px] font-black ${
-                        done ? 'text-[#16A34A]' : today ? 'text-[#2563EB]' : locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
+                        done ? 'text-[#2FA36B]' : today ? 'text-[#2563EB]' : locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
                         DAY {d.day}
                       </span>
-                      {done && <span className="ml-auto text-[10px] font-black text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded-full">완료</span>}
+                      {done && <span className="ml-auto text-[10px] font-black text-[#2FA36B] bg-[#E6FAEF] px-2 py-0.5 rounded-full">완료</span>}
                       {today && <span className="ml-auto text-[10px] font-black text-white bg-[#2563EB] px-2 py-0.5 rounded-full">오늘</span>}
                     </div>
                     <div className="space-y-px">
@@ -1244,18 +1315,18 @@ function CurriculumGrid({ ddayLabel, view }: {
           {past.length > 0 && (
             <div className="space-y-2">
               <button onClick={() => setPastOpen((v) => !v)}
-                className="w-full rounded-2xl border border-[#DDE7DC] bg-[#F7FCF8] px-4 py-3 flex items-center gap-3 text-left hover:border-[#A7D7B8] transition-colors">
-                <span className="w-[26px] h-[26px] rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-                  <Icon name="check" className="w-3.5 h-3.5 text-[#16A34A]" strokeWidth={3} />
+                className={`w-full rounded-2xl bg-[#F2FCF6] px-4 py-3 flex items-center gap-3 text-left ${CARD} ${CARD_HOVER}`}>
+                <span className="w-[26px] h-[26px] rounded-full bg-[#E6FAEF] flex items-center justify-center shrink-0">
+                  <Icon name="check" className="w-3.5 h-3.5 text-[#2FA36B]" strokeWidth={3} />
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[13px] font-bold text-[#15803D]">
+                  <span className="block text-[13px] font-bold text-[#217A52]">
                     지난 학습 · Day {past[0].day}{past.length > 1 ? `–${past[past.length - 1].day}` : ''}
                   </span>
-                  <span className="block mt-0.5 text-[11.5px] font-semibold text-[#6E9A7E]">강의 {pastLectureDone}개 완료</span>
+                  <span className="block mt-0.5 text-[11.5px] font-semibold text-[#79A98C]">강의 {pastLectureDone}개 완료</span>
                 </span>
-                <span className="text-[11.5px] font-bold text-[#16A34A] shrink-0">{pastOpen ? '접기' : '펼쳐 보기'}</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#86B79A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                <span className="text-[11.5px] font-bold text-[#2FA36B] shrink-0">{pastOpen ? '접기' : '펼쳐 보기'}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#8FC9A9" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
                   className={`w-4 h-4 shrink-0 transition-transform ${pastOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
               </button>
               {pastOpen && past.map((d) => (
