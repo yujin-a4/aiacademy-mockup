@@ -214,6 +214,51 @@ export function TipCard({ tip, flying }: {
      · 빈칸은 **자리를 미리 보여 준다**(점선 칸에 ①②③). 열리면 파란 칩으로 바뀌며 톡 튀어나온다 —
        무엇이 채워졌고 무엇이 남았는지가 강사 말을 안 듣고도 보여야 한다
    ⚠️ 태블릿 가로가 기준이다(iPad Air). 글자는 md: 로 한 단 키우고, 폰에서도 가로 스크롤이 없게 둔다. */
+/* ── 판에서 **짚어 줄 말** ──
+   강조는 시트가 아니라 여기서 정한다. 대본(fgiScenario.ts)은 시트에서 자동 생성되는 파일이라
+   손으로 표시를 넣어 봐야 다음 생성 때 지워진다. 여기 적어 두면 생성과 무관하게 남고,
+   시트 문구가 바뀌면 **강조만 조용히 사라질 뿐** 판은 그대로 뜬다.
+   · BOLD   = 굵게 (무엇에 대한 이야기인지)
+   · MARKER = 노란 형광펜 (둘을 가르는 기준 — 판의 핵심) */
+const BOLD = ['사물이 나오는 사진', '동작과 상태']
+const MARKER = ['사물이 이미 놓여 있는 상태', '사물이 누군가에 의해 놓이거나 옮겨지고 있는 중']
+/* 위 두 목록은 한글 문장이라 정규식 특수문자가 없다 — 그대로 이어 붙여 나눈다 */
+const ACCENT = new RegExp(`(${[...BOLD, ...MARKER].join('|')})`)
+
+/** 글자 토막 하나를 그린다 — 짚어 줄 말만 굵게·형광펜, 나머지는 평소 글씨 */
+function accent(text: string): React.ReactNode[] {
+  return text.split(ACCENT).map((part, i) => {
+    if (MARKER.includes(part)) {
+      /* ── 형광펜은 **연한 파스텔 노랑, 크레파스 결** 로 (09-21) ──
+         진한 노랑을 아래 절반에만 깔았더니 굵은 밑줄로 보였다(사용자 지적). 이제
+         · 글자 높이의 대부분(78%)을 덮어 **칠한 자국**으로 읽히게 하고
+         · mix-blend-multiply 로 글자를 덮지 않고 **비쳐 보이게** 한다
+         밑줄·굵게는 넣지 않는다 — 칠한 것 하나로 충분하다. */
+      return (
+        <mark key={i} className="text-inherit px-1 rounded-[3px] no-underline"
+          style={{
+            /* ── 파스텔 = **채도를 내린다**, 알파만 내리는 게 아니다 (09-21) ──
+               알파만 낮췄더니 옅어졌을 뿐 여전히 샛노랬다(사용자 지적). 노랑의 채도 자체를
+               낮춰 크림/버터 쪽으로 옮긴다. 대신 색이 순해져 너무 묽으면 안 보이므로
+               알파는 조금 올린다. */
+            /* 🔴 **배경색을 끄는 것이 먼저다.** <mark> 는 UA 기본값이 background: yellow(#FFFF00) 라,
+               background-image 만 얹으면 그 밑에서 샛노랑이 그대로 비친다 — 색을 아무리 연하게
+               고쳐도 화면이 안 바뀌던 이유가 이것이었다(09-21 실측). */
+            backgroundColor: 'transparent',
+            backgroundImage: 'linear-gradient(rgba(250,229,141,0.8), rgba(250,229,141,0.8))',
+            backgroundSize: '100% 78%',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: '0 88%',
+            mixBlendMode: 'multiply',
+            textDecoration: 'none',
+          }}>{part}</mark>
+      )
+    }
+    if (BOLD.includes(part)) return <strong key={i} className="font-black">{part}</strong>
+    return <Fragment key={i}>{part}</Fragment>
+  })
+}
+
 export function ConceptBoard({ tip, open, flying }: {
   tip: LessonTip
   /** 지금까지 열린 빈칸 — 판에 적힌 ①②③④ 번호 → 채워 넣을 말 */
@@ -239,17 +284,17 @@ export function ConceptBoard({ tip, open, flying }: {
     steps.push({ n: m[1] ? Number(m[1]) : steps.length + 1, text: line.slice(m[0].length) })
   }
 
-  /** 한 줄을 그린다 — 빈칸 자리는 칸으로 바꾼다 */
+  /** 한 줄을 그린다 — 빈칸 자리는 칸으로, 짚어 줄 말은 굵게·형광펜으로 */
   const draw = (text: string) => {
     const out: React.ReactNode[] = []
     let at = 0
     for (const m of Array.from(text.matchAll(SLOT))) {
-      if (m.index! > at) out.push(text.slice(at, m.index))
+      if (m.index! > at) out.push(<Fragment key={`t${at}`}>{accent(text.slice(at, m.index))}</Fragment>)
       const n = MARKS.indexOf(m[1]) + 1
       out.push(<Slot key={m.index} mark={m[1]} text={open[n]} />)
       at = m.index! + m[0].length
     }
-    if (at < text.length) out.push(text.slice(at))
+    if (at < text.length) out.push(<Fragment key={`t${at}`}>{accent(text.slice(at))}</Fragment>)
     return out
   }
 
@@ -287,9 +332,11 @@ export function ConceptBoard({ tip, open, flying }: {
           <span className="ml-auto text-[11px] md:text-[12px] font-bold text-[#2563EB] bg-white border border-[#DBE7FA] rounded-full px-3 py-1">개념 학습</span>
         </div>
 
+        {/* 리드는 **통째로 굵게 쓰지 않는다**(09-21 사용자 지시) — 다 굵으면 어디가 핵심인지
+            사라진다. 굵은 것은 BOLD 에 적힌 말뿐이다. */}
         {lead.length > 0 && (
-          <p className="text-[17px] md:text-[22px] lg:text-[24px] font-black leading-[1.5] text-[#1C1B33] mb-6 md:mb-8">
-            {lead.map((l, i) => <Fragment key={i}>{i > 0 && <br />}{l}</Fragment>)}
+          <p className="text-[17px] md:text-[22px] lg:text-[24px] leading-[1.5] text-[#1C1B33] mb-6 md:mb-8">
+            {lead.map((l, i) => <Fragment key={i}>{i > 0 && <br />}{accent(l)}</Fragment>)}
           </p>
         )}
 

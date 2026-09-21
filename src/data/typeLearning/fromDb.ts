@@ -111,6 +111,9 @@ function toQuestion(q: UiDbQuestion, label?: string): QuestionItem {
     q: label ?? q.content.question_text ?? '알맞은 것을 고르세요.',
     code: q.code,                       // 학습 로그가 어느 문항이었는지 남긴다 (STEP 6)
     audio: q.content.audio_url,
+    /* 시트 해설은 **문항 단위**로 들어온다("(A) 동사 오답 … (D) 정답 …"). 보기별 근거가
+       비어 있는 강의(LC-P1-01·RC-P5-08)에서 실전 해설이 통째로 안 보이던 자리다(09-21). */
+    explanation: q.content.explanation,
     options: q.options.map((o) => ({
       label: o.label,
       text: o.text,

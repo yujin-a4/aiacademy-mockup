@@ -103,8 +103,26 @@ const config: Config = {
         /* 음성 모드의 동그라미 — **숨 쉰다.** 소리 크기는 인라인 transform 이 따로 얹으므로
            여기서는 크기를 건드리지 않는다(둘이 겹치면 서로 덮어쓴다). 밝기만 오간다. */
         'breathe':     'breathe 3.4s ease-in-out infinite',
+        /* 유리구슬 안에서 도는 물결 — 원을 아주 느리게 굴려 수면이 일렁이게 만든다.
+           크기·높이는 목소리에 따라 인라인 style 이 얹으므로 여기서는 회전만 한다. */
+        'orb-swirl':   'orbSwirl 7s linear infinite',
+        /* 정오답 표시 — 동그라미가 톡 올라오고 그 안의 선이 그려진다. 보기 줄 끝에 **작게** */
+        'mark-pop':    'markPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        'mark-draw':   'markDraw 0.32s 0.08s cubic-bezier(0.65, 0, 0.35, 1) both',
       },
       keyframes: {
+        markPop: {
+          '0%':   { transform: 'scale(0.4)', opacity: '0' },
+          '100%': { transform: 'scale(1)',   opacity: '1' },
+        },
+        markDraw: {
+          '0%':   { 'stroke-dashoffset': '26' },
+          '100%': { 'stroke-dashoffset': '0' },
+        },
+        orbSwirl: {
+          '0%':   { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
         breathe: {
           '0%, 100%': { filter: 'brightness(1)' },
           '50%':      { filter: 'brightness(1.12)' },
