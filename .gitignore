@@ -59,3 +59,6 @@ gcp/**/env.yaml
 
 # 시트 PDF 내보내기 (참고용, 용량 큼 - docs/scaffolding-sheet-structure.md로 대체됨)
 /AI어학원 콘텐츠.pdf
+docs/redesign/guide/*.mp4
+docs/redesign/guide/*.webm
+docs/redesign/guide/*.png

@@ -242,9 +242,19 @@ body {
 }
 .animate-unlock { animation: unlock-pop 0.85s 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
 
+/* ── 하루를 닫은 카드가 오늘 보드 자리로 들어선다 ──
+   보드가 사라지고 카드가 나타나는 것이 아니라 **줄어들며 자리를 물려받는** 것처럼 보이게.
+   높이가 크게 줄어드는 자리라, 살짝 눌렸다 펴지는 한 번의 움직임으로 그 낙차를 덮는다. */
+@keyframes card-morph {
+  0%   { transform: scaleY(1.06) translateY(-6px); opacity: 0; }
+  60%  { transform: scaleY(0.995) translateY(0);   opacity: 1; }
+  100% { transform: scaleY(1) translateY(0); }
+}
+.animate-card-morph { animation: card-morph 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: top center; }
+
 /* 움직임을 줄이라고 해 둔 기기에서는 표시만 남기고 움직이지 않는다 */
 @media (prefers-reduced-motion: reduce) {
-  .animate-step-pop, .animate-step-ring, .animate-step-wake, .animate-unlock { animation: none; }
+  .animate-step-pop, .animate-step-ring, .animate-step-wake, .animate-unlock, .animate-card-morph { animation: none; }
 }
 
 /* ── 스크롤바를 감추는 유틸 ──
