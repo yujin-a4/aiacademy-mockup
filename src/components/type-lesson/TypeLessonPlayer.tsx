@@ -7,6 +7,7 @@
    진행 상태(공개 범위)는 turns[0..idx]에서 매번 파생 — 이전/건너뛰기가 안전하다. */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import Icon, { type IconName } from '@/components/ui/Icon'
 import { useRouter } from 'next/navigation'
 import type { TypeLesson, Turn, AudioCue, Interaction, RecapSentence, RecapGroup, LessonTip } from '@/data/typeLearning'
 import ContentView, { targetTokens, markedWords, type ContentState } from '@/components/type-lesson/ContentView'
@@ -1021,7 +1022,7 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
   markVerdict?: { read: string | null; ok: boolean; hint: string } | null
 }) {
   const it = turn.interaction
-  let icon = ''
+  let icon: IconName = 'pen'
   let text = ''
   let sub = ''
   let done = false
@@ -1032,7 +1033,7 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
        길면 이 배너가 그것으로 꽉 찬다(실측). 여기는 **무엇을 하면 되는지**만 말하는 자리다.
        자료에 맞는 안내만 — 사진에는 탭할 단어가 없다. */
     const onPhoto = !!lesson.content.photo || lesson.content.questions.some((q) => q.photo)
-    icon = '🖍️'
+    icon = 'pen'
     text = onPhoto ? '펜으로 사진에 동그라미 치기' : '단어를 탭하거나 펜으로 밑줄'
     sub = markChecking ? '표시한 것 확인 중…'
       : markVerdict?.read ? `${markVerdict.ok ? '✓' : '✗'} ${markVerdict.read}`
@@ -1045,7 +1046,7 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
        초록색 "정답 선택 완료" 로 떴다(실측 보고 09-07). 아직 아무것도 안 골랐는데 다 한 것처럼
        보이고, 게다가 '정답' 이라는 말이 붙어 있어 틀린 학생에게 거짓말이 된다. */
     done = !!pickedTurn
-    icon = '🎯'; text = stripAudioTags(it.prompt ?? '보기에서 정답을 선택하세요')
+    icon = 'target'; text = stripAudioTags(it.prompt ?? '보기에서 정답을 선택하세요')
     /* 음원이 아직 나가는 중이면 **기다리는 중이라고 말해 준다** — 답을 고른 뒤 강사가 조용하면
        학생은 앱이 멈춘 줄 안다. 실제 시험처럼 보기는 끝까지 들려주고 그 뒤에 이어간다. */
     /* '정답 선택 완료' 라고 하지 않는다 — 고른 것이 정답인지는 아직 모른다(채점은 뒤에 온다).
@@ -1056,24 +1057,24 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
     const total = lesson.content.questions.length
     const answered = lesson.content.questions.filter((_, i) => answers[i]).length
     done = answered === total
-    icon = '✍️'; text = stripAudioTags(it.prompt ?? '모든 문항의 답을 선택하세요'); sub = `${answered}/${total} 선택`
+    icon = 'check'; text = stripAudioTags(it.prompt ?? '모든 문항의 답을 선택하세요'); sub = `${answered}/${total} 선택`
   } else if (it.kind === 'match') {
     const totalTargets = it.evidence.reduce((n, ev) => n + ev.targetIds.length, 0)
     const matched = it.evidence.reduce((n, ev) => n + ev.targetIds.filter((tid) => matchTapped.has(`${ev.passageId}:${tid}`)).length, 0)
     done = matched >= totalTargets
-    icon = '🔗'; text = stripAudioTags(it.prompt); sub = done ? '근거 모두 연결됨' : `근거 ${matched}/${totalTargets}`
+    icon = 'link'; text = stripAudioTags(it.prompt); sub = done ? '근거 모두 연결됨' : `근거 ${matched}/${totalTargets}`
   } else {
     return null
   }
   /* 강사 창 안(발화 박스 아래 / 채팅 흐름 안)에 뜬다 — 폭이 좁으므로 두 줄로 접어 쓴다 */
   return (
     <div className={`shrink-0 flex items-start gap-2 rounded-xl border px-3 py-2 ${
-      done ? 'border-[#86EFAC] bg-[#F0FDF4]' : 'border-[#FDBA74] bg-[#FFF7ED]'
+      done ? 'border-[#9FE7BC] bg-[#F2FCF6]' : 'border-[#FDBA74] bg-[#FFF7ED]'
     }`}>
-      <span className="text-[13px] shrink-0 leading-5">{icon}</span>
+      <Icon name={icon} className={`w-[15px] h-[15px] shrink-0 mt-[3px] ${done ? 'text-[#217A52]' : 'text-[#C2410C]'}`} />
       <div className="min-w-0 flex-1">
-        <p className={`text-[12px] font-bold leading-snug ${done ? 'text-[#15803D]' : 'text-[#C2410C]'}`}>{text}</p>
-        {sub && <p className={`mt-0.5 text-[11px] font-semibold ${done ? 'text-[#16A34A]' : 'text-[#9A3412]'}`}>{sub}</p>}
+        <p className={`text-[12px] font-bold leading-snug ${done ? 'text-[#217A52]' : 'text-[#C2410C]'}`}>{text}</p>
+        {sub && <p className={`mt-0.5 text-[11px] font-semibold ${done ? 'text-[#2FA36B]' : 'text-[#9A3412]'}`}>{sub}</p>}
       </div>
     </div>
   )
@@ -1856,14 +1857,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          · 학생에게 묻는 턴 — **답하고 넘어간 뒤**에 연다(지나간 턴이면 다 열려 있다)
          · 강사가 읽기만 하는 턴 — 그 줄을 **다 읽은 뒤**에 연다(spokenTurn)
        구간 마지막 턴이 읽기만 하는 턴인 강의가 있어서(RC 의 ③④), '지나간 턴' 만 보면 그 칸이
-       판 위에서는 영영 안 열린다 — 아래 두 번째 가지가 그 자리를 받는다. */
+       판 위에서는 영영 안 열린다 — 아래 두 번째 가지가 그 자리를 받는다.
+
+       ⚠️ **읽기만 하는 턴은 말이 끝날 때가 아니라 시작할 때 연다**(09-21 사용자 지시).
+          RC 의 ③④ 는 구간 **마지막** 턴에 함께 달려 있어서, 말이 끝나야 열면 열리자마자 판이
+          접혀 들어간다 — 채워지는 것을 볼 틈이 없었다. 이제 그 발화가 시작되는 순간 열린다.
+          묻는 턴(needsAnswer)은 그대로 **답한 뒤**다 — 거기서 먼저 열면 정답을 미리 보여준다. */
     const open: Record<number, string> = {}
     turns.forEach((t, i) => {
-      const done = i < turnIdx || (i === turnIdx && spokenTurn === i && !needsAnswer(t))
+      const done = i < turnIdx || (i === turnIdx && !needsAnswer(t))
       if (done) for (const r of t.tipAt ?? []) if (r.text) open[r.n] = r.text
     })
     return open
-  }, [scriptedConceptTip, turn.board, turns, turnIdx, spokenTurn])
+  }, [scriptedConceptTip, turn.board, turns, turnIdx])
 
   /** 빈칸이 **다 열린** 판 — 접혀 들어가는 동안 보여줄 모습이다(마지막 칸까지 채워진 채로 간다) */
   const boardFull: Record<number, string> | null = useMemo(() => {
@@ -1937,6 +1943,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      ⚠️ 붙잡아 두는 동안에도 **수업은 이미 다음 턴**이다. 카드는 클릭을 안 받게 해 두었다
         (flying 이면 pointer-events-none) — 안 그러면 다음 단계 버튼이 잠깐 안 눌린다. */
   useEffect(() => {
+    /* ── 화면에 없던 카드는 **날지 않는다** (09-21) ──
+       실전을 다 풀고 코칭 화면으로 넘어갈 때, 아무것도 안 뜬 화면에서 카드 하나가 TIP 버튼으로
+       빨려 들어갔다(사용자 지적). 실전 직전 턴의 TIP 을 `lastTipRef` 가 들고 있다가, 코칭이
+       열리며 `turn.tip` 이 비는 순간 그것을 날려 보낸 것이다 — 실전 내내 그 카드는 **감춰져
+       있었는데**(tipsHidden) 마치 방금 본 것처럼 날아간다.
+       이 애니메이션의 뜻은 하나다: **지금 보고 있던 것이 저 버튼에 쌓였다.** 보고 있지 않았으면
+       날릴 것도 없다. 그래서 감춰진 구간에서는 들고 있던 것을 그냥 버린다. */
+    if (tipsHidden) { lastTipRef.current = null; setTipExit(null); return }
     if (turn.tip) { lastTipRef.current = turn.tip; setTipExit(null); return }
     const gone = lastTipRef.current
     if (!gone) return
@@ -1944,7 +1958,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     setTipExit(gone)
     const timer = setTimeout(() => setTipExit(null), 650)
     return () => clearTimeout(timer)
-  }, [turn.tip])
+  }, [turn.tip, tipsHidden])
 
   /* ── 문제 끝에 뜬 카드는 **스스로 들어간다** (09-09 실측 보고) ──
      카드는 턴이 넘어갈 때 버튼으로 날아간다. 그런데 실전 오답 코칭에서는 TIP 이 그 문항의
@@ -4747,6 +4761,12 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
               {/* 보기가 처음 뜰 때만 **잠깐** — "말로만 답해야 하나" 를 여기서 끊는다.
                   key 가 턴마다 바뀌므로 새 보기가 뜰 때마다 다시 뜬다(같은 턴에서는 한 번). */}
               {chatMode === 'voice' && spokenTurn === turnIdx && tapHintKind && <TapHint key={`tap-${turnIdx}`} />}
+              {/* ── 보기는 **아래에서 쓱 올라온다** (09-21) ──
+                  강사 말이 끝나는 순간 보기가 툭 나타나면 화면이 한 번 튄다. iOS 액션 시트처럼
+                  아래에서 올라오면 "이제 네 차례" 가 움직임만으로 전해진다.
+                  key 에 '말이 끝났는가' 를 함께 넣는다 — 턴이 열릴 때가 아니라 **보기가 실제로
+                  나타나는 순간**에 애니메이션이 돌아야 한다. */}
+              <div key={`act-${turnIdx}-${spokenTurn === turnIdx ? 1 : 0}`} className="animate-slide-up">
               <InteractionDock
                 key={turnIdx}
                 turn={turn} lesson={lesson}
@@ -4771,6 +4791,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 matchTapped={matchTapped}
                 setPlayingId={setPlayingId}
               />
+              </div>
               {/* 스캐폴딩 마지막 턴 — **버튼 하나로 실전까지** 간다(09-18). 중간 단계를 두면
                   같은 일을 하는 버튼을 두 번 누르게 된다. */}
               {turnIdx === turns.length - 1 && !freePlay && !stripNav && (
@@ -5361,7 +5382,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                 RC 는 적정 시간을 넘기면 주황, 한참 넘기면 빨강으로 색만 바뀐다(위 paceBudget).
                 끊거나 넘기지는 않는다 — 실전 감각을 주는 것이 목적이지 탈락시키는 게 아니다. */}
             <span className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-sm text-[11px] font-bold tabular-nums transition-colors ${
-              pace === 'over' ? 'bg-[#FEF2F2] text-[#DC2626]'
+              pace === 'over' ? 'bg-[#FFF5F3] text-[#E8604E]'
                 : pace === 'warn' ? 'bg-[#FFF7ED] text-[#EA580C]'
                   : graded ? 'bg-[#F1F5F9] text-[#64748B]' : 'bg-[#EFF6FF] text-[#2563EB]'
             }`} title={[graded ? '걸린 시간' : '푸는 중', paceHint].filter(Boolean).join(' · ')}>
@@ -5454,19 +5475,19 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
           const urgent = countdown <= 3
           return (
             <div className={`mx-auto mb-2 flex items-center gap-2.5  px-3 py-1.5 ${
-              urgent ? 'bg-[#FEF2F2]' : 'bg-[#EFF6FF]'
+              urgent ? 'bg-[#FFF5F3]' : 'bg-[#EFF6FF]'
             } ${splitReading ? 'max-w-[1440px]' : 'max-w-[900px]'}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className={`w-3.5 h-3.5 shrink-0 ${urgent ? 'text-[#DC2626]' : 'text-[#2563EB]'}`}>
+                className={`w-3.5 h-3.5 shrink-0 ${urgent ? 'text-[#E8604E]' : 'text-[#2563EB]'}`}>
                 <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
               </svg>
               {/* P3·P4 는 넘어갈 페이지가 없다 — 이 시간은 '지금 이 문항에 답할 시간'이다 */}
-              <span className={`shrink-0 text-[11px] font-bold ${urgent ? 'text-[#B91C1C]' : 'text-[#2563EB]'}`}>
+              <span className={`shrink-0 text-[11px] font-bold ${urgent ? 'text-[#C0483C]' : 'text-[#2563EB]'}`}>
                 {setAudio ? `${(readingQ ?? 0) + 1}번 답할 시간` : '다음 문항까지'}
               </span>
-              <span className={`shrink-0 text-[16px] font-black tabular-nums leading-none w-4 text-center ${urgent ? 'text-[#DC2626]' : 'text-[#2563EB]'}`}>{countdown}</span>
+              <span className={`shrink-0 text-[16px] font-black tabular-nums leading-none w-4 text-center ${urgent ? 'text-[#E8604E]' : 'text-[#2563EB]'}`}>{countdown}</span>
               <span className="flex-1 min-w-0 h-1.5 rounded-full bg-white overflow-hidden">
-                <span className={`block h-full rounded-full transition-[width] duration-1000 ease-linear ${urgent ? 'bg-[#DC2626]' : 'bg-[#2563EB]'}`}
+                <span className={`block h-full rounded-full transition-[width] duration-1000 ease-linear ${urgent ? 'bg-[#E8604E]' : 'bg-[#2563EB]'}`}
                   style={{ width: `${(countdown / gapSec) * 100}%` }} />
               </span>
             </div>
@@ -5478,7 +5499,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
             {graded ? (
               <p className="text-[13px] font-bold text-[#1C1B33] truncate">채점 결과 <span className="text-[#2563EB]">{correct}/{total}</span> 정답</p>
             ) : (
-              <p className="text-[12px] font-bold text-[#6B7280] truncate shrink-0"><span className={answered === total ? 'text-[#16A34A]' : 'text-[#9CA3AF]'}>{answered}/{total}</span> 선택</p>
+              <p className="text-[12px] font-bold text-[#6B7280] truncate shrink-0"><span className={answered === total ? 'text-[#2FA36B]' : 'text-[#9CA3AF]'}>{answered}/{total}</span> 선택</p>
             )}
 
             {/* 화면 안에 이미 재생 자리가 있는 파트는 여기 버튼을 두지 않는다 — 소리 나는 곳과 트는 곳이
@@ -5532,8 +5553,8 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
                   {Array.from({ length: pages }, (_, i) => {
                     const s = stateOf(i)
                     const cls = i === page ? 'bg-[#2563EB] border-[#2563EB] text-white'
-                      : s === 'ok' ? 'border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]'
-                      : s === 'no' ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]'
+                      : s === 'ok' ? 'border-[#9FE7BC] bg-[#F2FCF6] text-[#217A52]'
+                      : s === 'no' ? 'border-[#FFB3AC] bg-[#FFF5F3] text-[#C0483C]'
                       : s === 'done' ? 'border-[#93C5FD] bg-[#EFF6FF] text-[#2563EB]'
                       : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
                     return (
@@ -5553,7 +5574,7 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
           <div className="flex-1 min-w-0 flex items-center justify-end gap-2">
             {/* 안 푼 문항 안내 — 버튼 바로 옆이라야 누른 사람이 본다 */}
             {warn && !graded && (
-              <span className="shrink-0 flex items-center gap-1.5  border border-[#FCA5A5] bg-[#FEF2F2] px-2.5 py-1.5 text-[11px] font-bold text-[#B91C1C] animate-fade-in">
+              <span className="shrink-0 flex items-center gap-1.5  border border-[#FFB3AC] bg-[#FFF5F3] px-2.5 py-1.5 text-[11px] font-bold text-[#C0483C] animate-fade-in">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">
                   <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" />
                 </svg>
@@ -5904,11 +5925,11 @@ function RecapBlankSentence({ text, filled, corrects, answers, graded, live, onF
                두 칸짜리 문항에서 첫 칸만 파래서 거기만 답하라는 뜻으로 읽혔다(08-28 지적). */
             ? 'border-[#CBD5E1] bg-[#F8FAFC] text-[#94A3B8]'
             : !graded ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-              : ok === false ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C]'
-                : 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
+              : ok === false ? 'border-[#F2705F] bg-[#FFF5F3] text-[#C0483C]'
+                : 'border-[#4ECB8A] bg-[#F2FCF6] text-[#217A52]'
         }`}>{mine ?? '____'}</span>
         {graded && ok === false && answers[i] && (
-          <span className="text-[12px] font-bold text-[#15803D] mr-1">→ {answers[i]}</span>
+          <span className="text-[12px] font-bold text-[#217A52] mr-1">→ {answers[i]}</span>
         )}
       </>
     )
@@ -5997,7 +6018,7 @@ function RecapVocabRow({ index, sentence, picked, correct, graded, onPick }: {
       <span className="pt-2.5 text-right text-[12.5px] font-bold text-[#A8B0BD] tabular-nums">{index + 1}</span>
       <div className="pt-2 flex items-center gap-1.5 min-w-0">
         {graded && (
-          <svg viewBox="0 0 20 20" fill="none" stroke={correct ? '#16A34A' : '#DC2626'} strokeWidth="2.4"
+          <svg viewBox="0 0 20 20" fill="none" stroke={correct ? '#2FA36B' : '#E8604E'} strokeWidth="2.4"
             strokeLinecap="round" strokeLinejoin="round" className="w-[17px] h-[17px] shrink-0">
             {correct ? <path d="M4 10.5l4 4 8-9" /> : <path d="M5 5l10 10M15 5L5 15" />}
           </svg>
@@ -6011,10 +6032,10 @@ function RecapVocabRow({ index, sentence, picked, correct, graded, onPick }: {
           치우되 옮기지 않는다: 남는 것은 정답 하나, 틀린 줄에만 내 답을 작게 곁들인다. */}
       {graded ? (
         <div className="pt-2 flex items-baseline gap-2.5 flex-wrap">
-          <span className="text-[14px] font-extrabold text-[#15803D]">{sentence.answer}</span>
+          <span className="text-[14px] font-extrabold text-[#217A52]">{sentence.answer}</span>
           {!correct && (
             <span className="text-[12px] font-bold text-[#94A3B8]">
-              내 답: <span className="text-[#B91C1C] line-through">{picked ?? '무응답'}</span>
+              내 답: <span className="text-[#C0483C] line-through">{picked ?? '무응답'}</span>
             </span>
           )}
         </div>
@@ -6072,7 +6093,7 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
     <div className={` border bg-white p-4 transition-all ${
       active ? 'border-[#2563EB] ring-2 ring-[#BFDBFE] shadow-[0_2px_14px_rgba(37,99,235,0.14)] scale-[1.01]'
         : !done || !graded ? 'border-[#E5E7EB]'
-          : anyWrong ? 'border-[#FCA5A5]' : 'border-[#86EFAC]'
+          : anyWrong ? 'border-[#FFB3AC]' : 'border-[#9FE7BC]'
     }`}>
       <div className="flex items-start gap-2.5 mb-2.5">
         {/* ── 번호는 ✓ 로 바뀌지 않는다 ──
@@ -6083,7 +6104,7 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
             대신 색만 초록으로 바꿔 채워진 칸을 알린다. */}
         <span className={`shrink-0 w-7 h-7 rounded-full text-[12px] font-black flex items-center justify-center transition-colors ${
           !done || !graded ? 'bg-[#EFF6FF] text-[#2563EB]'
-            : anyWrong ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#DCFCE7] text-[#15803D]'
+            : anyWrong ? 'bg-[#FFE9E5] text-[#C0483C]' : 'bg-[#E6FAEF] text-[#217A52]'
         }`}>{index + 1}</span>
         <div className="flex-1 min-w-0">
           {/* ── 소제목은 **문장 위 한 줄로 따로** 세운다 (메모 124행) ──
@@ -6135,8 +6156,8 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
               className={`text-[12px] font-semibold border px-3 py-1.5 transition-colors ${
                 done && graded
                   /* 강사가 짚는 자리 — 정답은 초록, 내가 고른 오답은 빨강 취소선, 나머지는 흐림 */
-                  ? isAnswer ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                    : filled?.[0] === c ? 'border-[#EF4444] bg-[#FEF2F2] text-[#B91C1C] line-through'
+                  ? isAnswer ? 'border-[#4ECB8A] bg-[#F2FCF6] text-[#217A52]'
+                    : filled?.[0] === c ? 'border-[#F2705F] bg-[#FFF5F3] text-[#C0483C] line-through'
                       : 'border-[#E5E7EB] text-[#CBD5E1]'
                   /* 아직 고르는 중 — 내가 고른 것만 파랗게 남고, 나머지도 그대로 누를 수 있다.
                      정답은 아직 말하지 않는다. */
@@ -6525,7 +6546,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
                  그 조작은 강사 대본에 없는 말이라, 화면이 알려주지 않으면 알 길이 없다. */}
           {items.some((s) => !s.choices.length) && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#64748B]">
-              <span aria-hidden className="text-[13px]">🎤</span>
+              <Icon name="mic" className="w-[14px] h-[14px] text-[#64748B]" />
               문장 옆 마이크를 누르고 빈칸을 채워 소리 내어 읽은 뒤, 마이크를 한 번 더 눌러 주세요.
             </p>
           )}
@@ -6684,8 +6705,8 @@ function InteractionDock(props: {
             {it.choices.map((c, i) => {
               const isPicked = picked === i
               const cls = done
-                ? c.correct ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                  : isPicked ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]' : 'border-[#E5E7EB] bg-white text-[#CBD5E1]'
+                ? c.correct ? 'border-[#4ECB8A] bg-[#F2FCF6] text-[#217A52]'
+                  : isPicked ? 'border-[#FFB3AC] bg-[#FFF5F3] text-[#C0483C]' : 'border-[#E5E7EB] bg-white text-[#CBD5E1]'
                 : 'border-[#DBEAFE] bg-white text-[#334155] hover:border-[#2563EB] hover:bg-[#F8FAFF]'
               return (
                 <button key={i} disabled={done} onClick={() => { props.setChoicePicked(i); props.onChoicePick?.(c) }}
@@ -6711,18 +6732,18 @@ function InteractionDock(props: {
           {it.choices.map((c, i) => {
             const isPicked = picked === i
             const cls = done
-              ? c.correct ? 'border-[#22C55E] bg-[#F0FDF4] text-[#15803D]'
-                : isPicked ? 'border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]' : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
+              ? c.correct ? 'border-[#4ECB8A] bg-[#F2FCF6] text-[#217A52]'
+                : isPicked ? 'border-[#FFB3AC] bg-[#FFF5F3] text-[#C0483C]' : 'border-[#E5E7EB] bg-white text-[#9CA3AF]'
               : 'border-[#DBEAFE] bg-white text-[#1C1B33] hover:border-[#2563EB] hover:bg-[#F8FAFF]'
             const badgeCls = done
-              ? c.correct ? 'bg-[#DCFCE7] text-[#15803D]' : isPicked ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-[#F1F5F9] text-[#94A3B8]'
+              ? c.correct ? 'bg-[#E6FAEF] text-[#217A52]' : isPicked ? 'bg-[#FFE9E5] text-[#C0483C]' : 'bg-[#F1F5F9] text-[#94A3B8]'
               : 'bg-[#EFF6FF] text-[#2563EB]'
             return (
               <button key={i} disabled={done} onClick={() => { props.setChoicePicked(i); props.onChoicePick?.(c) }}
                 className={`w-full flex items-center gap-2.5 text-[13px] font-semibold border  px-3.5 py-3 text-left transition-all active:scale-[0.99] ${cls}`}>
                 <span className={`shrink-0 w-6 h-6  flex items-center justify-center text-[12px] font-black ${badgeCls}`}>{i + 1}</span>
                 <span className="flex-1">{c.text}</span>
-                {done && c.correct && <span className="shrink-0 text-[#15803D]">✓</span>}
+                {done && c.correct && <span className="shrink-0 text-[#217A52]">✓</span>}
               </button>
             )
           })}

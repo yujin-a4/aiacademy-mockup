@@ -134,6 +134,24 @@ export const markedWords = (marks: Set<string>) => {
       pointerenter 가 오지 않으므로, 좌표로 짚는다(elementFromPoint + 이미 있는 data-mk).
    ⚠️ 낱말에 `touch-pan-y` — 세로로 끌면 지문이 그대로 스크롤되고, 가로로 끌 때만 낱말이 켜진다.
       `select-none` 이 없으면 끄는 동안 브라우저가 텍스트 블록부터 잡는다. */
+
+/** 보기 줄 끝의 정오답 표시 — 민트 체크 / 코랄 엑스. 글자는 쓰지 않는다 */
+function VerdictMark({ ok }: { ok: boolean }) {
+  return (
+    <span aria-label={ok ? '정답' : '내가 고른 답'}
+      className={`ml-auto shrink-0 w-[22px] h-[22px] rounded-full flex items-center justify-center
+                  animate-mark-pop motion-reduce:animate-none ${ok ? 'bg-[#E6FAEF]' : 'bg-[#FFE9E5]'}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke={ok ? '#2FA36B' : '#F2705F'} strokeWidth="3.2"
+        strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3" style={{ strokeDasharray: 26 }}>
+        {ok
+          ? <path d="M5 12.5l4.5 4.5L19 7" className="animate-mark-draw motion-reduce:animate-none" />
+          : <><path d="M6 6l12 12" className="animate-mark-draw motion-reduce:animate-none" />
+            <path d="M18 6L6 18" className="animate-mark-draw motion-reduce:animate-none" /></>}
+      </svg>
+    </span>
+  )
+}
+
 function startWordDrag(st: ContentState, key: string, _e: React.PointerEvent) {
   const already = new Set<string>()
   let moved = false
@@ -293,8 +311,8 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
   const readingNow = focused && !!st.selfAudio && (lesson.part === 3 || lesson.part === 4) && !graded
   return (
     <div ref={ref}
-      className={bare ? `py-1 ${spotted ? ' ring-2 ring-[#FCA5A5] bg-[#FEF2F2]' : ''}` : ` border p-4 transition-all ${
-        spotted ? 'border-[#FCA5A5] bg-[#FEF2F2] ring-2 ring-[#FCA5A5]/40'
+      className={bare ? `py-1 ${spotted ? ' ring-2 ring-[#FFB3AC] bg-[#FFF5F3]' : ''}` : ` border p-4 transition-all ${
+        spotted ? 'border-[#FFB3AC] bg-[#FFF5F3] ring-2 ring-[#FFB3AC]/40'
           : readingNow ? 'border-[#BFDBFE] bg-[#F5F9FF] shadow-[0_2px_16px_rgba(37,99,235,0.10)]'
             : `border-[#E5E7EB] bg-white ${focused ? 'shadow-[0_2px_16px_rgba(15,23,42,0.08)]' : ''}`
       }`}>
@@ -351,16 +369,16 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
           // 채점 전이라도 이미 틀린 보기는 표시해 둔다 (정답은 공개하지 않는다)
           const wrongTried = !showResult && !st.hideVerdict && !!st.wrongPicks?.has(`${qIdx}:${o.label}`)
           const rowCls = showResult
-            ? isCorrect ? 'border-[#86EFAC] bg-[#F0FDF4]'
-              : chosen ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E5E7EB] bg-white opacity-70'
+            ? isCorrect ? 'border-[#9FE7BC] bg-[#F2FCF6]'
+              : chosen ? 'border-[#FFB3AC] bg-[#FFF5F3]' : 'border-[#E5E7EB] bg-white opacity-70'
             /* 흐리게 두지 않는다 — "내가 고른 오답"은 지금 보라고 남겨둔 것이다.
                (예전엔 opacity-70 이라 빨강이 죽어서 그냥 지나간 줄처럼 보였다) */
-            : wrongTried ? 'border-[#EF4444] bg-[#FEF2F2]'
+            : wrongTried ? 'border-[#F2705F] bg-[#FFF5F3]'
               : chosen ? 'border-[#2563EB] bg-[#EFF6FF]'
                 : playing ? 'border-[#93C5FD] bg-[#EFF6FF]' : 'border-[#E5E7EB] bg-white'
           const circleCls = showResult
-            ? isCorrect ? 'border-[#22C55E] text-[#16A34A]' : chosen ? 'border-[#EF4444] text-[#EF4444]' : 'border-[#D1D5DB] text-[#9CA3AF]'
-            : wrongTried ? 'border-[#EF4444] text-[#EF4444]'
+            ? isCorrect ? 'border-[#4ECB8A] text-[#2FA36B]' : chosen ? 'border-[#F2705F] text-[#F2705F]' : 'border-[#D1D5DB] text-[#9CA3AF]'
+            : wrongTried ? 'border-[#F2705F] text-[#F2705F]'
               : chosen ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#D1D5DB] text-[#6B7280]'
           /* 보기가 음성인 유형(P1·P2)의 보기별 컨트롤.
              강사가 음원을 들려주고 나면 '스크립트 보기' **버튼이 열린다**(coached).
@@ -445,11 +463,15 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                     </span>
                   )}
                   {playing && !textHidden && <SpeakerIcon pulse />}
-                  {showResult && isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#16A34A]">정답</span>}
-                  {showResult && chosen && !isCorrect && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답</span>}
+                  {/* ── '정답'·'내 답' 글자 대신 **작은 표시** (09-21 사용자 지시) ──
+                      줄 끝에 글자를 두면 보기 문장과 같은 층으로 읽혀 눈이 한 번 더 걸린다.
+                      동그라미가 톡 올라오고 그 안에서 선이 그려지면 채점된 순간이 움직임으로
+                      전해진다. 크게 띄우지 않는다 — 22px 하나.
+                      ⚠️ 움직임을 줄여 둔 기기에서는 그리지 않고 그냥 뜬다(motion-reduce). */}
+                  {showResult && (isCorrect || chosen) && <VerdictMark ok={isCorrect} />}
                   {/* 채점 전(리뷰·수업 중 재시도)에도 내가 고른 오답임을 말해준다.
                       정답은 여전히 공개하지 않는다 — "이건 아니다"만 남긴다. */}
-                  {wrongTried && <span className="ml-auto shrink-0 text-[10px] font-black text-[#EF4444]">내 답 · 오답</span>}
+                  {wrongTried && <VerdictMark ok={false} />}
                 </button>
 
                 {strikable && (
@@ -486,11 +508,22 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
                   강사 말을 안 듣고 글을 읽고, 무엇보다 **아직 푸는 중인 문항의 답이 새어 나온다.**
                   그래서 이 줄은 실전(PracticeStage)이 채점 뒤에 켜 줄 때만 그린다. */}
               {st.showWhy && showResult && o.why && isCorrect && (
-                <p className="text-[11px] leading-relaxed mt-1 ml-9 text-[#16A34A]">{o.why}</p>
+                <p className="text-[11px] leading-relaxed mt-1 ml-9 text-[#2FA36B]">{o.why}</p>
               )}
             </div>
           )
         })}
+        {/* ── 문항 해설 — **채점 뒤 보기 아래 한 덩어리** (09-21) ──
+            시트('FGI 파트&문항')의 해설은 보기별이 아니라 **문항 단위**로 적혀 있고
+            (`questions.content.explanation`), 화면은 보기별 근거(`o.why`)만 읽고 있어서
+            그 두 강의에서는 해설이 통째로 안 보였다. 보기별 근거가 있으면 그것대로 위에 붙고,
+            이 덩어리는 그 아래 따로 깔린다 — 둘은 다른 글이다. */}
+        {st.showWhy && graded && !st.hideVerdict && q.explanation && (
+          <div className="mt-2 rounded-xl border border-[#E3EBF6] bg-[#F8FAFC] px-3.5 py-2.5">
+            <p className="text-[11px] font-black text-[#2563EB] mb-1">해설</p>
+            <p className="text-[12px] leading-[1.75] text-[#334155] whitespace-pre-line">{q.explanation}</p>
+          </div>
+        )}
       </div>
       )}
       {/* 세트 실전에서는 카드마다 달지 않는다 — 세 문항이 **같은 스크립트**를 보므로 세 번 반복된다.
@@ -577,7 +610,7 @@ function QuestionTabs({ lesson, st, pane }: { lesson: TypeLesson; st: ContentSta
                   idx === i ? 'bg-[#2563EB] border-[#2563EB] text-white' : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-[#93C5FD]'
                 }`}>
                 Q{i + 1}
-                {graded && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${correct ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />}
+                {graded && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${correct ? 'bg-[#4ECB8A]' : 'bg-[#F2705F]'}`} />}
                 {answered && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${idx === i ? 'bg-white/70' : 'bg-[#93C5FD]'}`} />}
               </button>
             )
@@ -798,8 +831,8 @@ function SentenceSpan({ s, st, focusBlank, docId }: { s: SentenceItem; st: Conte
       onClick={match && docId ? () => match.onTap(docId, s.id) : undefined}
       className={`[box-decoration-break:clone] rounded-[2px] transition-colors ${playing ? 'bg-[#EFF6FF]' : ''} ${
         match && docId ? 'cursor-pointer' : ''
-      } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC]' : ''}`}>
-      {matched && <span className="mr-0.5 text-[#16A34A] font-black">✓</span>}
+      } ${matched ? 'bg-[#F2FCF6] ring-1 ring-[#9FE7BC]' : ''}`}>
+      {matched && <span className="mr-0.5 text-[#2FA36B] font-black">✓</span>}
       <SentenceText text={s.en} st={st} focusBlank={focusBlank} scope={s.id} />{' '}
     </span>
   )
@@ -853,8 +886,8 @@ function MetaRow({ doc, m, st }: { doc: PassageDoc; m: { k: string; v: string };
         onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
         className={`flex-1 min-w-0 border border-[#111] px-2 py-[3px] font-exam text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))] text-[#111] truncate ${
           st.matchState ? 'cursor-pointer' : ''
-        } ${matched ? 'bg-[#F0FDF4] ring-1 ring-inset ring-[#86EFAC]' : 'bg-white'}`}>
-        {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{m.v}
+        } ${matched ? 'bg-[#F2FCF6] ring-1 ring-inset ring-[#9FE7BC]' : 'bg-white'}`}>
+        {matched && <span className="mr-1 text-[#2FA36B] font-black">✓</span>}{m.v}
       </div>
     </div>
   )
@@ -873,8 +906,8 @@ function MetaLines({ doc, st, sans }: { doc: PassageDoc; st: ContentState; sans?
             onClick={st.matchState ? () => st.matchState!.onTap(doc.id, targetId) : undefined}
             className={`font-exam ${sans ? 'text-[calc(12.5px*var(--fs,1))] md:text-[calc(13.5px*var(--fs,1))]' : 'text-[calc(13px*var(--fs,1))] md:text-[calc(14.5px*var(--fs,1))]'} text-[#111] ${
               st.matchState ? 'cursor-pointer' : ''
-            } ${matched ? 'bg-[#F0FDF4] ring-1 ring-[#86EFAC] rounded-[2px]' : ''}`}>
-            {matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}
+            } ${matched ? 'bg-[#F2FCF6] ring-1 ring-[#9FE7BC] rounded-[2px]' : ''}`}>
+            {matched && <span className="mr-1 text-[#2FA36B] font-black">✓</span>}
             <span className="font-bold">{m.k}{m.k.endsWith(':') ? '' : ':'} </span>{m.v}
           </p>
         )
@@ -905,10 +938,10 @@ function ExamTable({ table, docId, st }: { table: { headers: string[]; rows: str
             return (
               <tr key={i}
                 onClick={active ? () => st!.matchState!.onTap(docId!, targetId) : undefined}
-                className={`${active ? 'cursor-pointer' : ''} ${matched ? 'bg-[#F0FDF4]' : active ? 'hover:bg-[#EFF6FF]' : ''}`}>
+                className={`${active ? 'cursor-pointer' : ''} ${matched ? 'bg-[#F2FCF6]' : active ? 'hover:bg-[#EFF6FF]' : ''}`}>
                 {r.map((c, j) => (
                   <td key={j} className="border border-[#111] px-2.5 py-1.5 align-top">
-                    {j === 0 && matched && <span className="mr-1 text-[#16A34A] font-black">✓</span>}{c}
+                    {j === 0 && matched && <span className="mr-1 text-[#2FA36B] font-black">✓</span>}{c}
                   </td>
                 ))}
               </tr>
@@ -994,9 +1027,9 @@ function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
                 onClick={st.matchState ? () => st.matchState!.onTap(doc.id, c.id) : undefined}
                 className={`max-w-[84%] bg-white border border-[#111] rounded-[3px] px-2.5 py-1.5 ${
                   st.matchState ? 'cursor-pointer' : ''
-                } ${matched ? 'ring-2 ring-[#86EFAC]' : ''}`}>
+                } ${matched ? 'ring-2 ring-[#9FE7BC]' : ''}`}>
                 <p className="font-exam text-[calc(12px*var(--fs,1))] md:text-[calc(13px*var(--fs,1))] font-bold text-[#111] mb-0.5">
-                  {matched && <span className="mr-1 text-[#16A34A]">✓</span>}
+                  {matched && <span className="mr-1 text-[#2FA36B]">✓</span>}
                   {c.speaker}
                   {c.time && <span className="ml-1.5">[{c.time}]</span>}
                 </p>
