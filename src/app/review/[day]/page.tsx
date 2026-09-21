@@ -20,6 +20,7 @@ import { useDbQuestions, useCurriculumLectures } from '@/data/db/questionStore'
 import { buildReviewContent } from '@/data/typeLearning/fromDb'
 import { useReviewPlan } from '@/data/db/reviewStore'
 import { FGI_SCHEDULE, REVIEW_LABEL } from '@/data/curriculumSchedule'
+import { markReviewDone } from '@/lib/todayPlan'
 import type { TypeLesson } from '@/data/typeLearning'
 
 /** 실전 화면은 TypeLesson 한 벌을 받는다. 복습은 문항만 있으면 되므로 나머지는 자리만 채운다 */
@@ -79,6 +80,9 @@ export default function ReviewSessionPage() {
   /* 여기까지 비어 있으면 **그날 복습 문항 자체가 DB 에 없다.** 틀린 것이 없어도 무작위로
      채우기 때문에(메모 54행), 이제 빈 목록은 "오답이 없다"가 아니라 "낼 문항이 없다"이다. */
   if (!plan.codes.length) {
+    /* 낼 문항이 없는 날은 학생이 더 할 수 있는 것이 없다 → 여기서도 그 Day 의 복습을 닫는다.
+       안 그러면 콘텐츠가 없는 날에서 시간표가 영영 멈춘다(복습을 풀어야 다음 Day 로 간다). */
+    markReviewDone(day)
     return <Notice
       title={`D${day} 에는 아직 복습 문제가 준비되지 않았어요.`}
       body="이 날 강의에 짝지어 둔 복습 문항이 아직 없어요. 콘텐츠가 올라오면 여기서 바로 열려요."
@@ -109,7 +113,7 @@ export default function ReviewSessionPage() {
     <PracticeStage
       lesson={lesson}
       onExit={back}
-      onDone={setScore}
+      onDone={(r) => { setScore(r); markReviewDone(day) }}
       /* 복습은 수업 한 판의 4단계 흐름(도입·유형 학습·실전 문제·핵심 요약) 밖에 있다 —
          지나오지도 않을 단계가 회색으로 떠 있으면 아직 남은 것처럼 읽힌다. 자기 이름만 세운다. */
       steps={['복습']}
