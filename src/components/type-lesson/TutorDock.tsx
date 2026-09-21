@@ -192,14 +192,43 @@ export function TapHint() {
    · 새 말이 오면 바닥으로 붙는다. CC 를 끄면 이 칸이 파형으로 바뀐다. */
 export function ChatFlow({ messages }: { messages: ChatMsg[] }) {
   const boxRef = useRef<HTMLDivElement>(null)
+  /* ── 위로 올리면 따라오지 않는다 (09-21) ──
+     앞 대화를 읽으려고 손으로 올렸는데 새 말이 올 때마다 도로 바닥으로 끌려 내려갔다.
+     바닥에 붙어 있을 때만 따라 내려가고, 떨어져 있으면 아래 화살표만 띄운다. */
+  const [stuck, setStuck] = useState(true)
+  const pin = () => { const el = boxRef.current; if (el) el.scrollTop = el.scrollHeight }
   /* 마지막 말은 소리에 맞춰 길어진다 — 길이가 바뀔 때마다 바닥에 붙인다(구현 중 메모 57행) */
   const lastLen = messages[messages.length - 1]?.text.length ?? 0
-  useEffect(() => { const el = boxRef.current; if (el) el.scrollTop = el.scrollHeight }, [messages.length, lastLen])
+  useEffect(() => { if (stuck) pin() }, [messages.length, lastLen, stuck])
+  /* 선택지가 뜨면 이 칸이 **줄어든다**(아래 칸이 최대 45% 를 가져간다). 줄어든 만큼 바닥이
+     위로 올라가 방금 한 말이 선택지 뒤로 숨었다 — 높이가 바뀔 때도 다시 붙인다. */
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { if (stuck) pin() })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [stuck])
   return (
-    <div ref={boxRef} className="h-full w-full overflow-y-auto pr-0.5 space-y-2">
-      {messages.length === 0
-        ? <p className="text-[12px] font-semibold text-[#94A3B8] text-center py-3">아직 오간 말이 없어요.</p>
-        : messages.map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
+    <div className="relative h-full w-full min-h-0">
+      <div ref={boxRef} className="h-full w-full overflow-y-auto pr-0.5 space-y-2"
+        onScroll={(e) => {
+          const el = e.currentTarget
+          setStuck(el.scrollHeight - el.scrollTop - el.clientHeight < 40)
+        }}>
+        {messages.length === 0
+          ? <p className="text-[12px] font-semibold text-[#94A3B8] text-center py-3">아직 오간 말이 없어요.</p>
+          : messages.map((m, i) => <Bubble key={i} role={m.role} text={m.text} aside={m.aside} plain={m.plain} />)}
+      </div>
+      {!stuck && (
+        <button onClick={() => { setStuck(true); pin() }} aria-label="최신 대화로"
+          className="absolute bottom-1 right-1 w-11 h-11 rounded-full bg-white/95 border border-[#E5E7EB] shadow-md
+                     flex items-center justify-center text-[#2563EB]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <path d="M12 5v14M19 12l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
