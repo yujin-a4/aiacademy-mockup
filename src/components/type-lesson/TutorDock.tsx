@@ -152,7 +152,9 @@ function TutorWave({ speaking, getFreq }: { speaking: boolean; getFreq?: () => U
    (사용자 지적 09-18). 둘 다 되는데 한쪽만 보이는 것이다. 그렇다고 "눌러도 되고 말해도 돼요"
    를 상시로 걸면 글자가 하나 더 늘어 보기를 가린다 — **보기가 처음 뜰 때 2.4초만** 보여주고
    사라진다. 손가락이 한 번 톡 누르는 시늉을 하므로 글을 안 읽어도 뜻이 전해진다.
-   ⚠️ 사라질 때 **자리째 사라진다**(unmount) — 투명해지기만 하면 그 자리가 계속 비어 있다. */
+   ⚠️ **자리는 사라지지 않는다**(09-21). 예전에는 통째로 unmount 해서, 3초 뒤 손가락이 없어지는
+      순간 아래 보기가 위로 훅 올라왔다(사용자 지적) — 누르려던 자리가 움직인다. 이제 글자만
+      사라지고 **높이는 그대로** 둔다. 보기는 뜬 자리에 가만히 있는다. */
 export function TapHint() {
   const [state, setState] = useState<'in' | 'out' | 'gone'>('in')
   useEffect(() => {
@@ -160,10 +162,11 @@ export function TapHint() {
     const b = setTimeout(() => setState('gone'), 3200)
     return () => { clearTimeout(a); clearTimeout(b) }
   }, [])
-  if (state === 'gone') return null
+  /* 다 사라지면 **빈 자리만** 남긴다 — 손가락 물결(animate-ping)이 계속 돌지 않게 */
+  if (state === 'gone') return <div className="h-[30px]" />
   return (
-    <div className="flex justify-center pointer-events-none transition-opacity duration-300"
-      style={{ opacity: state === 'out' ? 0 : 1 }}>
+    <div className="h-[30px] flex justify-center pointer-events-none transition-opacity duration-300"
+      style={{ opacity: state === 'in' ? 1 : 0 }}>
       {/* ⚠️ 색은 **불투명하게** 쓴다. `bg-[#1F2A44]/92` 처럼 기본 눈금에 없는 투명도(92)를 붙이면
           테일윈드가 그 클래스를 아예 안 만든다 — 바탕이 사라지고 흰 글씨만 남아 **빈 흰 상자**로
           보였다(09-18 실측). 굳이 반투명이 필요하면 `/90` 처럼 눈금 위의 값이거나 `/[0.92]` 다. */}
@@ -348,21 +351,51 @@ function MicOrb({ live, sending, getFreq, onClick }: {
             transition: 'transform 110ms ease-out, opacity 140ms ease-out',
           }} />
       )}
+      {/* ── 유리구슬 (09-21) ──
+          꽉 찬 파란 원이던 자리다. 색만 바뀌니 "지금 내 말이 닿고 있나" 가 크기로만 전해졌다.
+          **속이 비치는 유리구슬 + 그 안의 물결**로 바꾼다: 조용하면 물이 바닥에 가라앉아 있고,
+          말하면 차오르며 파랗게 밝아진다. 물결은 아주 느리게 돌아 수면처럼 일렁인다.
+          · 겉은 유리 — 위쪽 하이라이트와 아래쪽 안쪽 그림자로 구체감을 만든다(이미지 없이 CSS 로)
+          · 안쪽 물결은 `overflow-hidden` 으로 구 안에 갇힌다
+          · 목소리 크기(level)는 **물 높이와 밝기** 로 들어간다 — 크기(scale)는 예전 그대로 */}
       <Shape
         {...(onClick ? { onClick, type: 'button' as const } : {})}
         aria-label={onClick ? '지금 말을 보내기' : live ? '듣고 있어요' : '지금은 말할 차례가 아니에요'}
         title={onClick ? '말이 안 넘어갈 때 눌러서 바로 보냅니다' : undefined}
-        className={`relative rounded-full ${live ? 'animate-breathe' : ''}`}
+        className={`relative rounded-full overflow-hidden ${live ? 'animate-breathe' : ''}`}
         style={{
           width: size, height: size,
           transform: `scale(${scale})`,
-          transition: 'transform 100ms ease-out, background 200ms linear',
-          background: sending
-            ? 'radial-gradient(circle at 35% 30%, #DBEAFE 0%, #93C5FD 60%, #93C5FD 100%)'
-            : live
-              ? 'radial-gradient(circle at 35% 30%, #93C5FD 0%, #3B82F6 55%, #2563EB 100%)'
-              : 'radial-gradient(circle at 35% 30%, #F1F5F9 0%, #E2E8F0 60%, #DDE3EC 100%)',
-        }} />
+          transition: 'transform 100ms ease-out',
+          background: 'radial-gradient(circle at 32% 26%, rgba(255,255,255,0.95) 0%, rgba(233,240,250,0.72) 38%, rgba(203,216,235,0.5) 68%, rgba(226,235,248,0.32) 100%)',
+          boxShadow: live
+            ? 'inset 0 -16px 30px rgba(59,130,246,0.28), inset 0 12px 22px rgba(255,255,255,0.85), 0 10px 26px rgba(37,99,235,0.18)'
+            : 'inset 0 -14px 26px rgba(148,163,184,0.22), inset 0 12px 22px rgba(255,255,255,0.8), 0 8px 20px rgba(100,116,139,0.12)',
+        }}>
+        {/* 물결 — 구보다 크게 잡아 가장자리가 보이지 않게 하고, 둥근 네모를 굴려 수면을 만든다.
+            top 이 낮아질수록 물이 차오른다(조용하면 62%, 크게 말하면 30% 부근). */}
+        <span aria-hidden
+          className={`absolute rounded-[42%] ${live ? 'animate-orb-swirl' : ''}`}
+          style={{
+            left: '-30%', width: '160%', height: '160%',
+            top: `${(live ? 60 : 68) - level * 30}%`,
+            filter: 'blur(5px)',
+            opacity: sending ? 0.5 : live ? 0.55 + level * 0.4 : 0.3,
+            background: sending
+              ? 'linear-gradient(140deg, rgba(191,219,254,0.95), rgba(147,197,253,0.9))'
+              : live
+                ? 'linear-gradient(140deg, rgba(125,211,252,0.95) 0%, rgba(59,130,246,0.92) 55%, rgba(37,99,235,0.9) 100%)'
+                : 'linear-gradient(140deg, rgba(203,213,225,0.9), rgba(180,195,215,0.85))',
+            transition: 'top 140ms ease-out, opacity 160ms ease-out',
+          }} />
+        {/* 유리 표면의 빛 — 왼쪽 위 작은 반사 하나면 구로 보인다 */}
+        <span aria-hidden className="absolute rounded-full"
+          style={{
+            left: '17%', top: '11%', width: '36%', height: '26%',
+            background: 'radial-gradient(closest-side, rgba(255,255,255,0.95), rgba(255,255,255,0))',
+            filter: 'blur(2px)',
+          }} />
+      </Shape>
     </div>
   )
 }

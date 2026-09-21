@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Icon from '@/components/ui/Icon'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useEffect } from 'react'
@@ -149,7 +150,7 @@ function RegularDashboard() {
     park_hyewon: '오늘 토익 공부할 시간이야. 지금 시작해야 돼, 알겠지?',
     yun_daeun: '안녕하세요~ 오늘도 같이 토익 공부해봐요! 잘 할 수 있어요.',
     lee_doyun: '공부할 시간이야. 오늘 목표 꼭 달성하고 자자고.',
-    seo_jian: '오늘도 잘 왔어요 💜 조급해하지 말고 같이 한 걸음씩 가봐요.',
+    seo_jian: '오늘도 잘 왔어요. 조급해하지 말고 같이 한 걸음씩 가봐요.',
     oh_jungja: '오늘도 왔네요. 천천히 한 문제씩 하면 돼요. 시작해봐요.',
   }
   const greeting = INST_GREETING[selectedInstructor ?? 'park_hyewon'] ?? '오늘 토익 공부할 시간이에요! 같이 시작해봐요.'
@@ -230,7 +231,9 @@ function RegularDashboard() {
         {/* ── 모바일 헤더 ── */}
         <header className="md:hidden px-4 pt-12 pb-3 bg-white border-b border-[#EBEBF0] sticky top-0 z-20">
           <div className="flex items-center justify-between">
-            <p className="text-[#1C1B33] text-[20px] font-bold">{userName || '학습자'}님 👋</p>
+            <p className="flex items-center gap-1.5 text-[#1C1B33] text-[20px] font-bold">
+              {userName || '학습자'}님<Icon name="wave" className="w-5 h-5 text-[#F59E0B]" />
+            </p>
             <div className="flex items-center gap-2">
               <button onClick={handlePhoneClick} className="relative w-9 h-9 rounded-full bg-[#FAFAFA] flex items-center justify-center">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.62 4.36 2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -332,7 +335,7 @@ function RegularDashboard() {
                 <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[11px] font-semibold text-[#6B7280]">연속 학습</p>
-                    <span className="text-[16px]">🔥</span>
+                    <Icon name="fire" className="w-[17px] h-[17px] text-[#F97316]" />
                   </div>
                   <p className="text-[40px] font-black text-[#D97706] leading-none">
                     {streakDay}<span className="text-[18px] font-bold ml-1">일</span>
@@ -351,13 +354,15 @@ function RegularDashboard() {
 
                 <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-[14px]">📅</span>
+                    <Icon name="calendar" className="w-[15px] h-[15px] text-[#2563EB]" />
                     <p className="text-[11px] font-semibold text-[#6B7280]">토익 시험</p>
                   </div>
                   <p className="text-[40px] font-black text-[#2563EB] leading-none">
                     {ddayLabel ?? 'D-?'}
                   </p>
-                  <p className="text-[11px] text-[#9CA3AF] mt-2">목표 점수까지 화이팅! 💪</p>
+                  <p className="flex items-center gap-1 text-[11px] text-[#9CA3AF] mt-2">
+                    목표 점수까지 화이팅!<Icon name="muscle" className="w-3.5 h-3.5" />
+                  </p>
                 </div>
 
               </div>

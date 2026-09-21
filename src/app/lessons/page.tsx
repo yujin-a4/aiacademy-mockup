@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Icon from '@/components/ui/Icon'
 import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect } from 'react'
@@ -7,7 +8,7 @@ import AccountMenu from '@/components/AccountMenu'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
-import { FGI_SCHEDULE, FGI_DEMO_SEQ, REVIEW_LABEL, DEMO_DDAY, demoLecturesOf, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
+import { FGI_SCHEDULE, REVIEW_LABEL, DEMO_DDAY, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -482,7 +483,9 @@ function TipSkillCard({ tip, courseTitle }: { tip: TipNote; courseTitle: string 
         <p className="text-[12px] text-[#6B7280] mt-2 leading-relaxed relative z-10">{tip.summary}</p>
         {tip.coach && (
           <div className="mt-4 flex items-start gap-2.5 bg-white border border-[#FDE68A] rounded-xl p-3 relative z-10">
-            <div className="w-8 h-8 rounded-full bg-[#F59E0B] flex items-center justify-center text-[15px] shrink-0">🎯</div>
+            <div className="w-8 h-8 rounded-full bg-[#F59E0B] flex items-center justify-center shrink-0">
+                      <Icon name="target" className="w-[17px] h-[17px] text-white" />
+                    </div>
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-[#B45309] mb-0.5">강사의 한마디</p>
               <p className="text-[12px] text-[#374151] leading-relaxed">{tip.coach}</p>
@@ -929,190 +932,280 @@ function splitTitle(title: string): { no: string | null; name: string } {
   return m ? { no: m[1], name: m[2] } : { no: null, name: title }
 }
 
-/* ── 하루 = 카드 하나 ──
-   커리큘럼을 파트별로 세우면 "오늘 뭘 하면 되는지"가 화면에 없다. 학습자가 여는 단위는 파트가
-   아니라 **하루**다 — 강의 셋을 듣고 복습 하나로 닫는다. 그래서 카드의 단위를 Day 로 바꾼다.
-   파트별로 세우던 PartSection 은 지웠다. 두 보기를 다 두면 어느 쪽이 정본인지 흐려진다. */
-function DaySection({ day, bySeq, doneSeq }: {
-  day: ScheduleDay; bySeq: Map<number, DbLecture>; doneSeq: Set<number>
-}) {
-  const router = useRouter()
-  const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq) }))
-  const ready = items.filter((i) => i.lec && isPlayable(i.lec)).length
-  const reviewOpen = isReviewUnlocked(day, doneSeq)
-  /* 왜 잠겼는가 — **어느 강의를 끝내야 하는지 이름으로** 말한다. "이날 강의를 끝내면 열려요" 는
-     세 강의 중 무엇이 남았는지를 안 알려줘서, 다 했다고 생각한 학생이 잠긴 줄만 본다. */
-  const lockReason = (() => {
-    const need = (demoLecturesOf(day).length ? demoLecturesOf(day) : day.lectures)
-      .filter((s) => !doneSeq.has(s))
-      .map((s) => bySeq.get(s)?.title ?? `${s}강`)
-    if (!need.length) return ''
-    return `${need[0]}${need.length > 1 ? ` 외 ${need.length - 1}개` : ''} 끝내면 열려요`
-  })()
+/* ── 내 학습 = **오늘 / 지난 / 전체** 세 갈래 (09-21 개편) ──
+   예전에는 Day 카드 12개가 한 줄로 늘어서고, 오늘 할 일은 그중 한 카드 **안의 한 줄**이었다.
+   그래서 (1) 오늘 무엇을 하면 되는지가 스크롤 뒤에 있었고 (2) 강의가 전부 같은 무게의
+   한 줄이라 화면이 목록으로 읽혔다. 세 갈래로 나눈다:
+     · 오늘  — 화면 맨 위 **오늘 보드**. 그날 4단계(강의 3 + 복습)와 '이어서 학습' 하나
+     · 지난  — 보드 위 접힌 줄. 펼치면 지난 Day 가 열린다
+     · 전체  — 머리의 보기 전환. Day 12개를 한 판에 놓고 색으로 상태를 본다
+   ⚠️ **한쪽 면에만 색을 주는 테두리(왼쪽 액센트 바·상단 색띠)는 쓰지 않는다**(사용자 지시).
+      파트 구분은 칩 색으로만 한다. */
 
+/** 그날 강의를 다 들었는가 — 복습은 강의가 끝나야 열리므로 강의 셋으로 판단한다 */
+const dayDone = (day: ScheduleDay, doneSeq: Set<number>) => day.lectures.every((s) => doneSeq.has(s))
+
+/** 강의 한 장 — 목록 줄이 아니라 **타일**이다. 누르면 그 강의로 간다 */
+function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; onOpen: (code: string) => void }) {
+  if (!lec) return (
+    <div className="rounded-2xl border border-[#EEF1F5] bg-[#FAFBFD] px-3.5 py-3.5 flex flex-col gap-2">
+      <span className="text-[10px] font-bold text-[#B4BCC8] bg-[#F3F4F6] px-2 py-0.5 rounded-md w-fit">준비 중</span>
+      <p className="text-[13px] font-bold text-[#B4BCC8]">콘텐츠 준비 중이에요</p>
+    </div>
+  )
+  const { name } = splitTitle(lec.title)
+  const lc = lec.lcRc === 'LC'
+  const playable = isPlayable(lec)
+  const Shape = playable ? 'button' : 'div'
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
-
-      {/* 하루 머리 — Day 가 제일 크다. 주차는 그 옆에 작게 */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#F3F4F6] flex items-center gap-3">
-        <div className="shrink-0 w-11 h-11 rounded-xl bg-[#EFF6FF] flex flex-col items-center justify-center">
-          <span className="text-[9px] font-bold text-[#93C5FD] leading-none">DAY</span>
-          <span className="text-[15px] font-black text-[#2563EB] leading-none mt-0.5">{day.day}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[#1C1B33] font-bold text-[14px]">{day.week}주차 · {day.day}일차</p>
-          {/* 하루가 무엇으로 이뤄지는지 한 줄 — 매일 같은 모양이라 한 번 읽으면 그만이다 */}
-          <p className="text-[#9CA3AF] text-[12px]">강의 3개 + 복습 1개</p>
-        </div>
-        <div className="shrink-0 text-right pl-2">
-          <p className="text-[13px] font-black text-[#2563EB]">{ready} / {items.length}</p>
-          <p className="text-[10px] text-[#D1D5DB] font-medium">수강 가능</p>
-        </div>
-      </div>
-
-      {/* ── 타임라인 세로선과 동그라미의 중심 ──
-          선은 컨테이너 왼쪽에서 28px 자리에 있고, 동그라미는 지름 20px 라 왼쪽 여백 + 10px 이
-          그 중심이다. 여백이 16px(px-4) 이면 중심이 26px — **2px 어긋난다.**
-          선을 옮기지 않고 여백을 18px 로 늘려 동그라미·파트·제목을 함께 민다. */}
-      <div className="relative pl-[18px] pr-4 py-2">
-        <div className="absolute left-[28px] top-0 bottom-0 w-px bg-[#F0F0F0]" />
-
-        {items.map(({ seq, lec }) => {
-          /* 시간표에는 있는데 DB 에 아직 없는 강의 — 콘텐츠가 덜 들어온 상태다 */
-          if (!lec) return (
-            <div key={seq} className="relative flex items-center gap-3 py-2.5 opacity-40">
-              <div className="relative z-10 w-5 h-5 rounded-full bg-[#F3F4F6] shrink-0" />
-              <span className="text-[13px] text-[#6B7280] flex-1 min-w-0 truncate">{seq}강</span>
-              <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">준비 중</span>
-            </div>
-          )
-
-          const { name } = splitTitle(lec.title)
-          const lc = lec.lcRc === 'LC'
-
-          /* ── 오늘의 수업 — 목록 안에서 그 줄만 카드로 부푼다 ──
-             위에 따로 빼지 않는다. 빼면 같은 강의가 화면에 두 번 나오고, 목록에서 그게 어느 날
-             무엇 다음인지가 사라진다. 아래 '기존 콘텐츠'(CourseSection)가 쓰는 방식과 같다 —
-             줄 하나가 그 자리에서 커지고 시작 버튼을 단다. */
-          if (FGI_DEMO_SEQ.has(seq) && isPlayable(lec)) {
-            const done = doneSeq.has(seq)
-            return (
-              <div key={lec.code} className="relative my-2.5 -mx-1">
-                <div className="rounded-2xl overflow-hidden border border-[#C7D2FE] shadow-[0_4px_20px_rgba(37,99,235,0.16)]">
-                  <div className="bg-white px-4 pt-4 pb-3">
-                    <div className="flex items-center gap-2 flex-wrap mb-2.5">
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-[#2563EB] shrink-0">
-                        ▶ 오늘의 수업
-                      </span>
-                      {/* 한 번 들은 뒤에도 자리는 그대로다 — 시연 중 되돌아갈 길이 사라지면 안 된다 */}
-                      {done && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0] shrink-0">수강 완료</span>
-                      )}
-                    </div>
-                    {/* 파트는 **제목 왼쪽**에 붙인다 — 반대쪽 끝에 있으면 제목을 읽고 눈을 되돌려야
-                        무슨 파트인지 안다. 제목이 길어 줄이 바뀌어도 칩은 첫 줄에 남는다(items-start). */}
-                    <div className="flex items-start gap-2">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md shrink-0 mt-[3px] ${
-                        lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
-                      }`}>Part {lec.part}</span>
-                      <p className="text-[#1C1B33] font-bold text-[15px] leading-snug">{name}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => router.push(`/lecture/${lec.code}`)}
-                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] py-3 font-bold text-[13px] text-white flex items-center justify-center gap-2 transition-all active:scale-[0.99]">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    {done ? '다시 듣기' : '시작하기'}
-                  </button>
-                </div>
-              </div>
-            )
-          }
-
-          /* 하루 안에 LC·RC 가 섞여 있다 → 파트 칩을 줄마다 둔다. 파트별 보기에서는 헤더가
-             그 일을 해서 필요 없었지만, 여기서는 줄마다 파트가 다르다. */
-          const partChip = (
-            /* 'P5' 가 아니라 'Part 5' — 학생이 시험에서 보는 이름 그대로 쓴다.
-               줄여 쓰면 자리는 아끼지만 파트 번호를 문항 번호로 읽는다. */
-            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
-              lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'
-            }`}>Part {lec.part}</span>
-          )
-
-          if (isPlayable(lec)) return (
-            <button key={lec.code} onClick={() => router.push(`/lecture/${lec.code}`)}
-              className="relative w-full flex items-center gap-2.5 py-2.5 text-left group">
-              <div className="relative z-10 w-5 h-5 rounded-full border-2 border-[#D1D5DB] bg-white flex items-center justify-center shrink-0 group-hover:border-[#2563EB] transition-colors">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#D1D5DB] group-hover:bg-[#2563EB] transition-colors" />
-              </div>
-              {partChip}
-              <span className="text-[13px] text-[#374151] flex-1 min-w-0 truncate group-hover:text-[#2563EB] transition-colors">{name}</span>
-              {/* 문항 수는 **사실이지 상태가 아니다** — 초록으로 두면 '완료·정답' 처럼 읽히고,
-                  바로 왼쪽 RC 파트 칩도 초록이라 같은 줄에 초록이 둘이 된다. 회색으로 물린다. */}
-              <span className="text-[10px] font-bold text-[#6B7280] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">{lec.questionCount}문항</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-          )
-
-          return (
-            <div key={lec.code} className="relative flex items-center gap-2.5 py-2.5 opacity-40">
-              <div className="relative z-10 w-5 h-5 rounded-full bg-[#F3F4F6] flex items-center justify-center shrink-0">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </div>
-              {partChip}
-              <span className="text-[13px] text-[#6B7280] flex-1 min-w-0 truncate">{name}</span>
-              <span className="text-[10px] font-semibold text-[#9CA3AF] bg-[#F3F4F6] px-1.5 py-0.5 rounded-md shrink-0">준비 중</span>
-            </div>
-          )
-        })}
-
-        {/* ── 복습 — 하루를 닫는 자리 ──
-            강의가 아니라 세션이다. 그날 강의에서 틀린 유형으로 새 문제를 낸다.
-            잠겨 있을 때도 **자리는 보인다** — 하루가 강의 셋으로 끝나는 게 아니라는 걸
-            화면이 먼저 말해줘야 한다.
-            색은 열렸을 때만 쓴다. 못 누르는 줄에 색을 주면 어디를 봐야 할지 흐려진다. */}
-        {/* 열렸으면 **눌러서 들어간다.** 자리만 보여주고 못 누르면, 하루가 복습으로 닫힌다는
-            그림만 있고 실제로 닫아 볼 수는 없다 — FGI 는 흐름의 끝까지 보는 자리다. */}
-        <div onClick={reviewOpen ? () => router.push(`/review/${day.day}`) : undefined}
-          className={`relative flex items-center gap-2.5 py-2.5 border-t border-dashed mt-1 ${
-          reviewOpen ? 'border-[#DBEAFE] cursor-pointer group' : 'border-[#F1F5F9]'
-        }`} title={reviewOpen
-          ? '이날 강의에서 틀린 유형으로 새 문제를 냅니다'
-          : `${lockReason} (실전까지 풀고 '정리' 화면을 지나야 완료로 기록됩니다)`}>
-          <div className={`relative z-10 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-            reviewOpen ? 'bg-[#EFF6FF]' : 'bg-[#F3F4F6]'
-          }`}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={reviewOpen ? '#2563EB' : '#9CA3AF'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6" /><path d="M3 13a9 9 0 1 0 3-7.7L3 8" /></svg>
-          </div>
-          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 ${
-            reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#6B7280]'
-          }`}>복습</span>
-          {/* 잠겼으면 **무엇을 해야 열리는지 화면에 적는다.** 예전엔 그 말이 title 툴팁에만 있었는데,
-              FGI 는 iPad 로 본다 — 마우스 얹을 곳이 없어 이유가 어디에도 안 보였다.
-              '끝내다' 가 문제를 다 푼 것으로 읽히는 것도 문제다: 정리 화면까지 지나야 완료로 찍힌다. */}
-          <span className={`text-[13px] flex-1 min-w-0 truncate transition-colors ${
-            reviewOpen ? 'text-[#374151] group-hover:text-[#2563EB]' : 'text-[#6B7280]'
-          }`}>
-            {REVIEW_LABEL}
-            {!reviewOpen && (
-              <span className="text-[11px] text-[#9CA3AF] font-medium ml-1.5">
-                · {lockReason}
-              </span>
-            )}
+    <Shape
+      {...(playable ? { type: 'button' as const, onClick: () => onOpen(lec.code) } : {})}
+      className={`rounded-2xl border px-3.5 py-3.5 flex flex-col gap-2 text-left transition-colors ${
+        done ? 'border-[#CFEBD8] bg-[#F8FDFA]'
+          : playable ? 'border-[#E5E7EB] bg-white hover:border-[#93C5FD]' : 'border-[#EEF1F5] bg-[#FAFBFD]'}`}>
+      <div className="flex items-center gap-1.5">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+          lc ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F0FDF4] text-[#16A34A]'}`}>Part {lec.part}</span>
+        {done && (
+          <span className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-[#16A34A]">
+            <Icon name="check" className="w-3 h-3" strokeWidth={3} />완료
           </span>
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-            reviewOpen ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F3F4F6] text-[#9CA3AF]'
-          }`}>{reviewOpen ? '열림' : '잠김'}</span>
-          {reviewOpen && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round"
-              className="shrink-0 group-hover:stroke-[#2563EB] transition-colors"><path d="M9 18l6-6-6-6" /></svg>
-          )}
-        </div>
+        )}
+        {!playable && <span className="ml-auto text-[10px] font-bold text-[#B4BCC8]">준비 중</span>}
+      </div>
+      <p className={`text-[13.5px] font-bold leading-snug ${playable ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{name}</p>
+      <p className="mt-auto text-[11px] font-semibold text-[#94A3B8]">문항 {lec.questionCount}개</p>
+    </Shape>
+  )
+}
+
+/** 복습 한 장 — 강의 셋을 끝내야 열린다. 잠겨 있을 때도 **자리는 보인다** */
+function ReviewTile({ open, onOpen }: { open: boolean; onOpen?: () => void }) {
+  const Shape = open && onOpen ? 'button' : 'div'
+  return (
+    <Shape {...(open && onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
+      className={`rounded-2xl border px-3.5 py-3.5 flex flex-col gap-2 text-left ${
+        open ? 'border-[#C7D2FE] bg-[#F8FAFF] hover:border-[#818CF8]' : 'border-dashed border-[#DDE3EC] bg-[#FAFBFD]'}`}>
+      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md w-fit ${
+        open ? 'bg-[#EEF2FF] text-[#4F46E5]' : 'bg-[#F3F4F6] text-[#B4BCC8]'}`}>복습</span>
+      <p className={`text-[13.5px] font-bold leading-snug ${open ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{REVIEW_LABEL}</p>
+      <p className="mt-auto text-[11px] font-semibold text-[#94A3B8]">
+        {open ? '그날 틀린 문항의 유사 문항' : '강의 3개를 끝내면 열려요'}
+      </p>
+    </Shape>
+  )
+}
+
+/** 오늘 보드의 한 단계 — 완료·지금·아직 셋뿐이다 */
+function TodayStep({ n, label, sub, state }: {
+  n: number; label: string; sub: string; state: 'done' | 'now' | 'todo'
+}) {
+  return (
+    <div className={`flex-1 min-w-0 rounded-2xl border px-3 py-3 flex flex-col gap-2.5 ${
+      state === 'done' ? 'border-[#CFEBD8] bg-[#F8FDFA]'
+        : state === 'now' ? 'border-[#2563EB] bg-[#F5F9FF]' : 'border-[#EEF1F5] bg-white'}`}>
+      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
+        state === 'done' ? 'bg-[#DCFCE7] text-[#16A34A]'
+          : state === 'now' ? 'bg-[#2563EB] text-white' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>
+        {state === 'done' ? <Icon name="check" className="w-3.5 h-3.5" strokeWidth={3} /> : n}
+      </span>
+      <div className="min-w-0">
+        <p className={`text-[12.5px] font-bold leading-snug ${
+          state === 'todo' ? 'text-[#94A3B8]' : state === 'done' ? 'text-[#64748B]' : 'text-[#1C1B33]'}`}>{label}</p>
+        <p className="text-[11px] font-semibold text-[#A3AEBE] mt-0.5">{sub}</p>
       </div>
     </div>
   )
 }
 
-function CurriculumGrid() {
+/** ── 오늘 보드 — 이 화면의 주인공 ──
+ *  그날 할 일 넷을 한 판에 놓고, 아직 안 한 것 중 **첫 번째**로 바로 보낸다. */
+function TodayBoard({ day, bySeq, doneSeq, ddayLabel }: {
+  day: ScheduleDay; bySeq: Map<number, DbLecture>; doneSeq: Set<number>; ddayLabel?: string | null
+}) {
+  const router = useRouter()
+  const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq), done: doneSeq.has(seq) }))
+  const doneCount = items.filter((i) => i.done).length
+  const reviewOpen = isReviewUnlocked(day, doneSeq)
+  const next = items.find((i) => !i.done && i.lec && isPlayable(i.lec))
+  /* 제목 두 개로 "오늘 무엇을 하는 날인지" 한 줄을 만든다 — 강의 목록을 읽지 않아도 알게 */
+  const heads = items.map((i) => (i.lec ? splitTitle(i.lec.title).name : null)).filter(Boolean) as string[]
+  const pct = Math.round((doneCount / (items.length + 1)) * 100)
+
+  return (
+    <div className="rounded-3xl border border-[#DCE6F8] bg-white shadow-[0_6px_28px_rgba(37,99,235,0.10)] px-5 py-5">
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <span className="text-[11px] font-black tracking-wide text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full">
+          오늘 · DAY {day.day}
+        </span>
+        <span className="text-[12px] font-semibold text-[#94A3B8]">
+          {day.week}주차{ddayLabel ? ` · 시험까지 ${ddayLabel}` : ''}
+        </span>
+        <span className="ml-auto text-[12.5px] font-black text-[#2563EB]">{doneCount} / {items.length + 1} 완료</span>
+      </div>
+
+      {heads.length > 0 && (
+        <p className="text-[19px] md:text-[21px] font-black text-[#1C1B33] leading-snug mt-2.5 mb-3.5 tracking-tight">
+          오늘은 <span className="text-[#2563EB]">{heads[0]}</span>
+          {heads[1] && <> 와 <span className="text-[#2563EB]">{heads[1]}</span></>}를 끝냅니다
+        </p>
+      )}
+
+      <div className="h-2 rounded-full bg-[#EDF1F7] overflow-hidden mb-4">
+        <div className="h-full rounded-full bg-[#2563EB] transition-all" style={{ width: `${pct}%` }} />
+      </div>
+
+      <div className="flex gap-2.5 mb-4">
+        {items.map((i, n) => (
+          <TodayStep key={i.seq} n={n + 1}
+            label={i.lec ? splitTitle(i.lec.title).name : `${i.seq}강`}
+            sub={i.lec ? `Part ${i.lec.part} · ${i.done ? '완료' : `문항 ${i.lec.questionCount}개`}` : '준비 중'}
+            state={i.done ? 'done' : next?.seq === i.seq ? 'now' : 'todo'} />
+        ))}
+        <TodayStep n={items.length + 1} label="오답 복습" sub={reviewOpen ? '지금 풀 수 있어요' : '강의를 끝내면 열려요'}
+          state={reviewOpen ? 'now' : 'todo'} />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11.5px] font-bold text-[#94A3B8]">이어서 할 것</p>
+          <p className="text-[14.5px] font-black text-[#1C1B33] truncate">
+            {next?.lec ? splitTitle(next.lec.title).name : reviewOpen ? REVIEW_LABEL : '오늘 일정을 다 마쳤어요'}
+          </p>
+        </div>
+        {next?.lec && (
+          <button onClick={() => router.push(`/lecture/${next.lec!.code}`)}
+            className="shrink-0 min-h-[48px] px-6 rounded-2xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21" /></svg>
+            이어서 학습
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** 진척 점 넷 — 접힌 줄에서 그날이 어디까지 갔는지만 말한다 */
+function DayDots({ done, total = 4 }: { done: number; total?: number }) {
+  return (
+    <span className="flex items-center gap-1 shrink-0">
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={`w-[7px] h-[7px] rounded-full ${i < done ? 'bg-[#22C55E]' : 'bg-[#DDE3EC]'}`} />
+      ))}
+    </span>
+  )
+}
+
+/** 접힌 하루 — 누르면 그날의 타일이 펼쳐진다 */
+function DayRow({ day, bySeq, doneSeq, tone = 'plain' }: {
+  day: ScheduleDay; bySeq: Map<number, DbLecture>; doneSeq: Set<number>
+  /** 지난 날은 초록으로 접혀 있다 */
+  tone?: 'plain' | 'done'
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const items = day.lectures.map((seq) => ({ seq, lec: bySeq.get(seq), done: doneSeq.has(seq) }))
+  const doneCount = items.filter((i) => i.done).length
+  const heads = items.map((i) => (i.lec ? splitTitle(i.lec.title).name : `${i.seq}강`))
+  return (
+    <div className="space-y-2">
+      <button onClick={() => setOpen((v) => !v)}
+        className={`w-full rounded-2xl border px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+          tone === 'done' ? 'border-[#DDE7DC] bg-[#F7FCF8] hover:border-[#A7D7B8]'
+            : 'border-[#E5E7EB] bg-white hover:border-[#93C5FD]'}`}>
+        <span className={`w-[38px] h-[38px] rounded-xl flex flex-col items-center justify-center shrink-0 ${
+          tone === 'done' ? 'bg-[#E7F6EC]' : 'bg-[#F4F6FB]'}`}>
+          <span className={`text-[8.5px] font-bold leading-none ${tone === 'done' ? 'text-[#86B79A]' : 'text-[#A3AEBE]'}`}>DAY</span>
+          <span className={`text-[14px] font-black leading-none mt-0.5 ${tone === 'done' ? 'text-[#16A34A]' : 'text-[#64748B]'}`}>{day.day}</span>
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13.5px] font-bold text-[#1C1B33] truncate">{heads.slice(0, 2).join(' · ')} 외 1</span>
+          <span className="block mt-0.5 text-[11.5px] font-semibold text-[#A3AEBE]">{day.week}주차 · 강의 3 + 복습 1</span>
+        </span>
+        <DayDots done={doneCount + (isReviewUnlocked(day, doneSeq) && doneCount === 3 ? 0 : 0)} />
+        <svg viewBox="0 0 24 24" fill="none" stroke="#C4CCD8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+          className={`w-4 h-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="grid grid-cols-2 gap-2.5 px-1 pb-1">
+          {items.map((i) => (
+            <LectureTile key={i.seq} lec={i.lec} done={i.done} onOpen={(code) => router.push(`/lecture/${code}`)} />
+          ))}
+          <ReviewTile open={isReviewUnlocked(day, doneSeq)} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** ── 전체 보기 — Day 12개를 한 판에 ──
+ *  상태는 색으로 가른다: 완료·오늘·수강 가능·아직. 여기서는 누르는 것이 아니라 **보는 것**이다. */
+function AllDaysGrid({ bySeq, doneSeq, todayIdx }: {
+  bySeq: Map<number, DbLecture>; doneSeq: Set<number>; todayIdx: number
+}) {
+  return (
+    <div className="space-y-3">
+      {([1, 2] as const).map((week) => {
+        const days = FGI_SCHEDULE.filter((d) => d.week === week)
+        const doneDays = days.filter((d) => dayDone(d, doneSeq)).length
+        return (
+          <div key={week} className="space-y-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[12.5px] font-black text-[#1C1B33] shrink-0">{week}주차</span>
+              <div className="flex-1 h-[7px] rounded-full bg-[#EDF1F7] overflow-hidden">
+                <div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${(doneDays / days.length) * 100}%` }} />
+              </div>
+              <span className="text-[12px] font-bold text-[#64748B] shrink-0">{doneDays} / {days.length}일</span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {days.map((d) => {
+                const idx = FGI_SCHEDULE.indexOf(d)
+                const done = dayDone(d, doneSeq)
+                const today = idx === todayIdx
+                const locked = idx > todayIdx + 1
+                return (
+                  <div key={d.day} className={`rounded-2xl border px-3.5 py-3 flex flex-col gap-2 ${
+                    done ? 'border-[#CFEBD8] bg-[#F8FDFA]'
+                      : today ? 'border-[#2563EB] bg-[#F5F9FF]'
+                        : locked ? 'border-[#EEF1F5] bg-[#FAFBFD]' : 'border-[#E5E7EB] bg-white'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[13.5px] font-black ${
+                        done ? 'text-[#16A34A]' : today ? 'text-[#2563EB]' : locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
+                        DAY {d.day}
+                      </span>
+                      {done && <span className="ml-auto text-[10px] font-black text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded-full">완료</span>}
+                      {today && <span className="ml-auto text-[10px] font-black text-white bg-[#2563EB] px-2 py-0.5 rounded-full">오늘</span>}
+                    </div>
+                    <div className="space-y-px">
+                      {d.lectures.map((seq) => {
+                        const lec = bySeq.get(seq)
+                        return (
+                          <p key={seq} className={`text-[11.5px] font-semibold leading-relaxed truncate ${
+                            locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
+                            {lec ? splitTitle(lec.title).name : `${seq}강`}
+                          </p>
+                        )
+                      })}
+                    </div>
+                    <DayDots done={d.lectures.filter((s) => doneSeq.has(s)).length} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+      <p className="text-[11.5px] font-semibold text-[#94A3B8] pt-1">점 4개 = 그날의 강의 3 + 복습 1</p>
+    </div>
+  )
+}
+
+function CurriculumGrid({ ddayLabel, view }: {
+  ddayLabel?: string | null
+  /** 오늘만 볼 것인가, 12일을 한 판에 볼 것인가 — **버튼은 머리 줄에 있다**(09-21).
+   *  이 줄에 버튼만 홀로 두면 제목과 목록 사이에 빈 띠가 하나 생긴다(사용자 지적). */
+  view: 'today' | 'all'
+}) {
   const lectures = useCurriculumLectures()
   const doneCodes = useCompletedLectures()
   /* 시간표는 seq(커리큘럼 42강 번호)로 강의를 부른다 → 번호로 찾을 수 있게 한 번 말아둔다 */
@@ -1128,27 +1221,78 @@ function CurriculumGrid() {
     return s
   }, [lectures, doneCodes])
 
+  const [pastOpen, setPastOpen] = useState(false)
+
+  /* 오늘은 **아직 다 안 들은 첫 날**이다. 날짜가 아니라 진도로 정한다 — FGI 는 하루에
+     여러 날치를 몰아 보여 주는 자리라, 달력으로 정하면 첫날부터 '지난 날' 이 된다. */
+  const todayIdx = useMemo(() => {
+    const i = FGI_SCHEDULE.findIndex((d) => !dayDone(d, doneSeq))
+    return i < 0 ? FGI_SCHEDULE.length - 1 : i
+  }, [doneSeq])
+  const today = FGI_SCHEDULE[todayIdx]
+  const past = FGI_SCHEDULE.slice(0, todayIdx)
+  const upcoming = FGI_SCHEDULE.slice(todayIdx + 1)
+  const pastLectureDone = past.reduce((n, d) => n + d.lectures.filter((s) => doneSeq.has(s)).length, 0)
+
   if (lectures.length === 0) return null
+
   return (
-    <div className="space-y-3">
-      {([1, 2] as const).map((week) => (
-        <div key={week} className="space-y-3">
-          {/* 주차 머리 — 카드가 아니라 구분선 한 줄. 카드로 만들면 Day 카드와 무게가 같아진다 */}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-[12px] font-black text-[#1C1B33]">{week}주차</span>
-            <span className="flex-1 h-px bg-[#E5E7EB]" />
-            <span className="text-[11px] font-semibold text-[#9CA3AF]">
-              D{(week - 1) * 6 + 1}–D{week * 6}
-            </span>
-          </div>
-          {FGI_SCHEDULE.filter((d) => d.week === week).map((d) => (
-            <DaySection key={d.day} day={d} bySeq={bySeq} doneSeq={doneSeq} />
-          ))}
-        </div>
-      ))}
+    <div className="space-y-3.5">
+      {view === 'all' ? <AllDaysGrid bySeq={bySeq} doneSeq={doneSeq} todayIdx={todayIdx} /> : (
+        <>
+          {/* 지난 학습 — 접어 둔다. 완료한 것을 되짚을 자리는 있어야 하되 오늘을 밀어내면 안 된다 */}
+          {past.length > 0 && (
+            <div className="space-y-2">
+              <button onClick={() => setPastOpen((v) => !v)}
+                className="w-full rounded-2xl border border-[#DDE7DC] bg-[#F7FCF8] px-4 py-3 flex items-center gap-3 text-left hover:border-[#A7D7B8] transition-colors">
+                <span className="w-[26px] h-[26px] rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
+                  <Icon name="check" className="w-3.5 h-3.5 text-[#16A34A]" strokeWidth={3} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-bold text-[#15803D]">
+                    지난 학습 · Day {past[0].day}{past.length > 1 ? `–${past[past.length - 1].day}` : ''}
+                  </span>
+                  <span className="block mt-0.5 text-[11.5px] font-semibold text-[#6E9A7E]">강의 {pastLectureDone}개 완료</span>
+                </span>
+                <span className="text-[11.5px] font-bold text-[#16A34A] shrink-0">{pastOpen ? '접기' : '펼쳐 보기'}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#86B79A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                  className={`w-4 h-4 shrink-0 transition-transform ${pastOpen ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {pastOpen && past.map((d) => (
+                <DayRow key={d.day} day={d} bySeq={bySeq} doneSeq={doneSeq} tone="done" />
+              ))}
+            </div>
+          )}
+
+          <TodayBoard day={today} bySeq={bySeq} doneSeq={doneSeq} ddayLabel={ddayLabel} />
+
+          {/* 다가오는 학습 — 바로 다음 날만 펼쳐 두고, 나머지는 접는다 */}
+          {upcoming.length > 0 && (
+            <>
+              <div className="flex items-baseline gap-2 pt-1">
+                <p className="text-[14px] font-black text-[#1C1B33]">다가오는 학습</p>
+                <span className="text-[11.5px] font-semibold text-[#A3AEBE]">Day {upcoming[0].day}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {upcoming[0].lectures.map((seq) => (
+                  <LectureTile key={seq} lec={bySeq.get(seq)} done={doneSeq.has(seq)}
+                    onOpen={(code) => { window.location.href = `/lecture/${code}` }} />
+                ))}
+                <ReviewTile open={isReviewUnlocked(upcoming[0], doneSeq)} />
+              </div>
+              <div className="space-y-2 pt-1">
+                {upcoming.slice(1).map((d) => (
+                  <DayRow key={d.day} day={d} bySeq={bySeq} doneSeq={doneSeq} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
+
 
 function TypeGrid() {
   const lectures = useCurriculumLectures()
@@ -1258,6 +1402,8 @@ export default function LessonsPage() {
   const [notesTab, setNotesTab] = useState<'lessons' | 'notes'>('lessons')
   /* 학습 뷰 전환 — 커리큘럼(FGI용 정규 42강) ↔ 유형별(개발사 소통용 15유형 샘플). 임시 토글. */
   const [lessonView, setLessonView] = useState<'curriculum' | 'type'>('curriculum')
+  /** 커리큘럼을 오늘 중심으로 볼지 12일 전체로 볼지 — 버튼이 머리 줄에 있어 여기서 든다 */
+  const [curriculumView, setCurriculumView] = useState<'today' | 'all'>('today')
   const openStudy = (lessonId: string) => {
     const i = studyNotes.findIndex(n => n.id === lessonId)
     setViewer({ kind: 'study', index: i < 0 ? 0 : i })
@@ -1299,7 +1445,7 @@ export default function LessonsPage() {
     )
     return {
       id: 0,
-      emoji: '📦',
+      emoji: '',
       accentColor: '#6B7280',
       title: '기존 콘텐츠',
       duration: '',
@@ -1354,106 +1500,66 @@ export default function LessonsPage() {
           <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-5 pb-28 md:pb-10">
             <div className="max-w-[680px] mx-auto w-full space-y-3">
 
-              {/* 상단 탭 */}
-              <div className="flex border-b border-[#DBEAFE] mb-1">
+              {/* 상단 탭 — 오른쪽 끝에 **UI 확인용 임시 전환**을 작게 붙인다.
+                  본문 가운데 두면 학습 화면의 일부처럼 보인다. FGI 전에 지울 자리다. */}
+              <div className="flex items-end border-b border-[#DBEAFE] mb-1">
                 {([['lessons', '학습'], ['notes', '내 노트함']] as const).map(([key, label]) => (
                   <button key={key} onClick={() => setNotesTab(key)}
-                    className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${notesTab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent hover:text-[#6B7280]'}`}>
+                    className={`px-5 py-2.5 text-[14px] font-medium border-b-2 -mb-px transition-all ${notesTab === key ? 'text-[#2563EB] border-[#2563EB] font-bold' : 'text-[#9CA3AF] border-transparent'}`}>
                     {label}{key === 'notes' && allNotes.length > 0 ? ` (${allNotes.length})` : ''}
                   </button>
                 ))}
+                <div className="ml-auto flex items-center gap-1.5 pb-1.5" title="UI 확인용 임시 전환 — FGI 전 삭제">
+                  <span className="text-[10px] font-bold text-[#EF4444]">임시</span>
+                  <div className="flex items-center gap-0.5 p-0.5 bg-[#F1F5F9] rounded-lg">
+                    <button onClick={() => setLessonView('curriculum')}
+                      className={`px-2 py-1 rounded-md text-[10.5px] font-bold transition-colors ${lessonView === 'curriculum' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-[#94A3B8]'}`}>
+                      커리큘럼
+                    </button>
+                    <button onClick={() => setLessonView('type')}
+                      className={`px-2 py-1 rounded-md text-[10.5px] font-bold transition-colors ${lessonView === 'type' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-[#94A3B8]'}`}>
+                      유형별
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {notesTab === 'lessons' ? (
                 <div className="space-y-3">
 
-              {/* 플랜 배너 — 블루 그라디언트 */}
-              <div className="bg-gradient-to-br from-[#2563EB] via-[#3B82F6] to-[#60A5FA] rounded-2xl px-5 py-5 relative overflow-hidden">
-                <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full" />
-                <div className="absolute right-24 bottom-2 w-16 h-16 bg-white/5 rounded-full" />
-                <div className="flex items-start justify-between gap-3 relative z-10">
-                  <div className="min-w-0">
-                    {/* 로그인한 계정의 이름 — 온보딩에서 받아 Supabase 프로필에 저장해 둔 값이다
-                        (AccountMenu 가 쓰는 것과 같은 값). 이름이 비어 있으면 '학습자'. */}
-                    <p className="text-white font-bold text-[18px] leading-snug mb-2.5">
-                      {userName || '학습자'}님의 플랜
-                    </p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">{streakDay}일차</span>
-                      {targetScore && (
-                        <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">목표 {targetScore}점</span>
-                      )}
-                      {ddayLabel && (
-                        <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">토익 {ddayLabel}</span>
-                      )}
-                    </div>
-                  </div>
-                  {/* 진도 링 */}
-                  <div className="relative w-[84px] h-[84px] shrink-0">
-                    <svg width="84" height="84" viewBox="0 0 84 84" className="absolute inset-0 -rotate-90">
-                      <circle cx="42" cy="42" r="34" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="7" />
-                      <circle cx="42" cy="42" r="34" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 34}
-                        strokeDashoffset={2 * Math.PI * 34 * (1 - overallPct / 100)} />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      {/* 커리큘럼이 Day 단위 시간표로 바뀐 뒤로 'Books 5개'는 옛 교재 묶음 수였다 —
-                          플랜의 크기는 이제 **며칠짜리인가**로 읽는다(FGI_SCHEDULE 의 Day 수). */}
-                      <span className="text-white text-[22px] font-black leading-none">{planDays}</span>
-                      <span className="text-white/70 text-[10px] font-bold leading-none mt-0.5">Days</span>
-                    </div>
-                  </div>
-                </div>
-                {/* 전체 진도 바 */}
-                <div className="flex items-center gap-2.5 mt-4 relative z-10">
-                  <span className="text-[11px] font-semibold text-white/80 shrink-0">전체 진도</span>
-                  <div className="flex-1 h-2 bg-white/25 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full transition-all" style={{ width: `${overallPct}%` }} />
-                  </div>
-                  <span className="text-[12px] font-black text-white shrink-0">{overallPct}%</span>
-                </div>
-              </div>
-
-              {/* 오늘 수업 일정 */}
-              <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${todayComplete ? 'bg-[#2563EB]' : 'bg-[#EFF6FF]'}`}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={todayComplete ? 'white' : '#60A5FA'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <p className="text-[#1C1B33] text-[13px] font-bold flex-1 min-w-0">
-                    {todayComplete
-                      ? '오늘 수업 일정을 완료했어요!'
-                      : `오늘 수업 일정 · ${todayTotal - todayDone}개 남았어요`}
+              {/* ── 머리는 **한 줄**이다 (09-21 개편) ──
+                  그라디언트 배너 + 진도 링 + '오늘 수업 일정' 카드가 화면 첫 장을 다 차지하고,
+                  정작 오늘 할 일은 그 아래 Day 카드 속에 있었다. 진도는 한 줄로 줄이고
+                  첫 화면은 **오늘 보드**에 내준다. */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[19px] font-black text-[#1C1B33] tracking-tight">
+                    {userName || '학습자'}님의 학습
                   </p>
-                  <span className="text-[12px] font-bold text-[#2563EB] shrink-0">{todayDone}/{todayTotal} 완료</span>
+                  <p className="text-[12px] font-semibold text-[#94A3B8] mt-0.5">
+                    {planDays}일 완성 플랜{targetScore ? ` · 목표 ${targetScore}점` : ''}
+                    {ddayLabel ? ` · 토익 ${ddayLabel}` : ''} · 전체 {overallPct}%
+                  </p>
                 </div>
-                <div className="h-1.5 bg-[#DBEAFE] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${todayTotal ? Math.round(todayDone / todayTotal * 100) : 0}%` }} />
+                <div className="w-[110px] h-[6px] rounded-full bg-[#E6EBF3] overflow-hidden shrink-0">
+                  <div className="h-full rounded-full bg-[#2563EB] transition-all" style={{ width: `${overallPct}%` }} />
                 </div>
-              </div>
-
-              {/* 학습 뷰 토글 — 커리큘럼(FGI) ↔ 유형별(개발사 소통) */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1 p-1 bg-[#F1F5F9] rounded-xl w-fit">
-                  <button
-                    onClick={() => setLessonView('curriculum')}
-                    className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${lessonView === 'curriculum' ? 'bg-white text-[#2563EB] shadow-[0_1px_4px_rgba(0,0,0,0.08)]' : 'text-[#94A3B8] hover:text-[#64748B]'}`}
-                  >
-                    📚 정규 커리큘럼
-                  </button>
-                  <button
-                    onClick={() => setLessonView('type')}
-                    className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${lessonView === 'type' ? 'bg-white text-[#2563EB] shadow-[0_1px_4px_rgba(0,0,0,0.08)]' : 'text-[#94A3B8] hover:text-[#64748B]'}`}
-                  >
-                    🧩 문항 유형별
-                  </button>
-                </div>
-                <span className="text-[11px] font-bold text-[#EF4444]">← UI 확인용 임시 버튼</span>
+                {lessonView === 'curriculum' && (
+                  <div className="flex items-center gap-1 p-1 bg-[#EDF1F7] rounded-full shrink-0">
+                    {(['today', 'all'] as const).map((v) => (
+                      <button key={v} onClick={() => setCurriculumView(v)}
+                        className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition-colors ${
+                          curriculumView === v ? 'bg-[#2563EB] text-white' : 'text-[#64748B]'}`}>
+                        {v === 'today' ? '오늘' : '전체'}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {lessonView === 'curriculum'
                 ? /* 커리큘럼 정규 수업 — lectures 테이블(정본). 문항 준비된 강의부터 플레이 가능 */
-                  <CurriculumGrid />
+                  <CurriculumGrid ddayLabel={ddayLabel} view={curriculumView} />
                 : /* 15문항 유형 그리드 — 유형별 샘플 수업 (개발사 소통용) */
                   <TypeGrid />
               }

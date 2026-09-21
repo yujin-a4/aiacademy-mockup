@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Icon from '@/components/ui/Icon'
 import { createClient } from '@/lib/supabase'
 
 const QUESTION = {
@@ -7,10 +8,10 @@ const QUESTION = {
   text: 'AI 강사가 정해진 시간에\n전화를 걸어준다면?',
   sub: '학습 관리를 위해 AI 강사가 직접 전화를 거는 기능이에요.',
   options: [
-    { emoji: '🙌', label: '완전 좋아요', desc: '매일 기다릴 것 같아요', value: 'very_good' },
-    { emoji: '👍', label: '좋은데, 시간은 제가 정할게요', desc: '원하는 시간대를 직접 설정하고 싶어요', value: 'good_if_flexible' },
-    { emoji: '😅', label: '조금 부담스러울 것 같아요', desc: '전화보다는 알림이 더 편할 것 같아요', value: 'prefer_notification' },
-    { emoji: '🙅', label: '필요 없을 것 같아요', desc: '스스로 챙기는 게 더 맞아요', value: 'not_needed' },
+    { icon: 'hands' as const, label: '완전 좋아요', desc: '매일 기다릴 것 같아요', value: 'very_good' },
+    { icon: 'thumbUp' as const, label: '좋은데, 시간은 제가 정할게요', desc: '원하는 시간대를 직접 설정하고 싶어요', value: 'good_if_flexible' },
+    { icon: 'awkward' as const, label: '조금 부담스러울 것 같아요', desc: '전화보다는 알림이 더 편할 것 같아요', value: 'prefer_notification' },
+    { icon: 'noThanks' as const, label: '필요 없을 것 같아요', desc: '스스로 챙기는 게 더 맞아요', value: 'not_needed' },
   ],
 }
 
@@ -105,7 +106,7 @@ export default function CallSurvey({ onClose, instructorName, instructorThumb }:
                       : 'border-[#F3F4F6] bg-[#FAFAFA] hover:border-[#BFDBFE] hover:bg-[#EFF6FF]'
                   }`}
                 >
-                  <span className="text-[24px] shrink-0">{opt.emoji}</span>
+                  <Icon name={opt.icon} className={`w-6 h-6 shrink-0 ${isSelected ? 'text-[#2563EB]' : 'text-[#64748B]'}`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-[14px] font-bold leading-snug ${isSelected ? 'text-[#2563EB]' : 'text-[#1C1B33]'}`}>
                       {opt.label}

@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Icon from '@/components/ui/Icon'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
@@ -614,7 +615,9 @@ export default function StatusPage() {
                           <div className="divide-y divide-[#F3F4F6]">
                             {rxPartIds !== null && weakParts.length === 0 && (
                               <div className="px-4 py-6 text-center">
-                                <p className="text-[12px] font-semibold text-[#374151]">이번 주 약점 파트가 없어요 👏</p>
+                                <p className="flex items-center gap-1.5 text-[12px] font-semibold text-[#374151]">
+                      이번 주 약점 파트가 없어요<Icon name="clap" className="w-4 h-4 text-[#F59E0B]" />
+                    </p>
                                 <p className="text-[11px] text-[#9CA3AF] mt-1">모든 파트 정답률이 70% 이상이에요.</p>
                               </div>
                             )}
@@ -645,7 +648,7 @@ export default function StatusPage() {
                                   )}
                                 </div>
                                 <p className="text-[11px] text-[#6B7280] flex items-start gap-1">
-                                  <span className="shrink-0">📍</span>
+                                  <Icon name="pin" className="w-4 h-4 shrink-0 text-[#2563EB]" />
                                   {PART_WEAK_REASONS[p.id] ?? '해당 파트에서 오답이 집중되고 있어요'}
                                 </p>
                                 <div className="flex justify-end">

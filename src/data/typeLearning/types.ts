@@ -32,6 +32,10 @@ export interface QuestionItem {
   readAudio?: string
   /** 이중·삼중 지문에서 이 문항의 근거가 있는 지문 id. 레일이 그 지문 탭을 여는 데 쓴다 */
   passageId?: string
+  /** 문항 해설 (DB `content.explanation` — 시트 'FGI 파트&문항' 의 해설 칸 그대로).
+   *  보기별 근거(`OptionItem.why`)와 다르다: 이건 네 보기를 한 번에 설명하는 한 덩어리다.
+   *  실전에서 **채점한 뒤에만** 문항 아래에 깔린다. */
+  explanation?: string
 }
 
 /** 문장 단위 스크립트/지문 — 음원 구간 재생·직독직해·하이라이트의 최소 단위 */
