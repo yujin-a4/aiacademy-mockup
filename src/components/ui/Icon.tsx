@@ -19,6 +19,9 @@ export type IconName =
   | 'clap' | 'pin' | 'books' | 'box'                  // 상태·강의 목록
   | 'mic' | 'pen' | 'link' | 'check'                  // 수업 화면
   | 'headset'                                         // 듣기(LC) — 읽기(RC)는 'books'
+  | 'clock'                                           // 걸리는 시간
+  | 'star'                                            // 복습
+  | 'lock'                                            // 아직 잠긴 칸
 
 const PATHS: Record<IconName, React.ReactNode> = {
   thumbUp: <><path d="M7 10v10H4V10h3Z" /><path d="M7 10.5 11.5 4a2 2 0 0 1 2.9 2.4L13.5 9h4.9a2 2 0 0 1 2 2.5l-1.6 6A2 2 0 0 1 16.8 19H7" /></>,
@@ -48,6 +51,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
   link: <><path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7l-1.2 1.2" /><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.3 2.3a4 4 0 0 0 5.7 5.7l1.2-1.2" /></>,
   check: <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />,
   headset: <><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><path d="M4 13.5h1.8a1.2 1.2 0 0 1 1.2 1.2v3.1A1.2 1.2 0 0 1 5.8 19H4.6A1.6 1.6 0 0 1 3 17.4v-2.3a1.6 1.6 0 0 1 1-1.6Z" /><path d="M20 13.5h-1.8a1.2 1.2 0 0 0-1.2 1.2v3.1a1.2 1.2 0 0 0 1.2 1.2h1.2a1.6 1.6 0 0 0 1.6-1.6v-2.3a1.6 1.6 0 0 0-1-1.6Z" /></>,
+  lock: <><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" /><path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7" /></>,
+  star: <path d="M12 3.8l2.6 5.3 5.9.9-4.25 4.1 1 5.9-5.25-2.8-5.25 2.8 1-5.9L3.5 10l5.9-.9L12 3.8Z" />,
+  clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 1.8" /></>,
 }
 
 export default function Icon({ name, className, strokeWidth = 1.8 }: {
