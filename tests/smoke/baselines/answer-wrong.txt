@@ -1,0 +1,4 @@
+Q1 · The monthly sales report ____ by the regional manager to evaluate the team's performance.
+❌
+오답 — 정답: is reviewed
+monthly sales report가 검토를 받는 대상이므로 수동태 필요
