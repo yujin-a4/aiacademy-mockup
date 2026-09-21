@@ -254,7 +254,7 @@ export default function MicButton({ lang, onResult, onInterim, onStart, classNam
   }
 
   const button = (
-    <button type="button" onClick={toggle} aria-label="음성 입력" disabled={phase === 'sending'}
+    <button type="button" onClick={toggle} aria-label={phase === 'recording' ? '말하기 멈추기' : '음성 입력'} disabled={phase === 'sending'}
       /* 못 알아들었으면 **버튼이 직접 알린다** — 빨간 테두리로 한 번 흔들린다.
          옆 글자만으로는 눈이 문장에 가 있어서 지나친다. 다시 누르면 원래대로 돌아온다. */
       className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${
@@ -263,9 +263,19 @@ export default function MicButton({ lang, onResult, onInterim, onStart, classNam
             : problem ? 'bg-[#FEF2F2] border-[#EF4444] text-[#B91C1C] animate-shake'
               : 'bg-white border-[#BFDBFE] text-[#2563EB] hover:bg-[#EFF6FF]'
       } ${className ?? ''}`}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
-      </svg>
+      {/* ── 녹음 중에는 **정지 네모**다 (09-21) ──
+          빨개져도 안에 마이크가 그대로 있으면 "누르면 녹음이 시작된다" 로 읽힌다. 실제로는
+          그 반대(누르면 멈춘다)라, 아이콘이 할 일을 거꾸로 말하고 있었다. 녹음 중에는
+          어디서나 통하는 정지 네모로 바꾼다. */}
+      {phase === 'recording' ? (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+          <rect x="5" y="5" width="14" height="14" rx="2.5" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" />
+        </svg>
+      )}
     </button>
   )
   /* 파형은 **버튼을 감싸는 고리**다. `-inset-3` 로 레이아웃 밖에 그려서 줄 높이가 안 밀린다. */
