@@ -267,3 +267,85 @@ body {
   scrollbar-width: none;      /* Firefox */
 }
 .scrollbar-none::-webkit-scrollbar { display: none; }  /* Chrome · Safari */
+
+/* ── /intro(회사 소개 사이트용 R&D 공개 페이지) 스크롤 리빌.
+   IntersectionObserver 가 `is-in` 을 한 번 붙이면 끝 — 되돌리지 않는다.
+   `prefers-reduced-motion` 에서는 애니메이션 없이 바로 보이게 둔다(안 그러면
+   모션을 끈 사용자에게 본문이 영영 투명한 채로 남는다). */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* /intro 히어로의 스크롤 힌트 — 가느다란 레일 위를 점이 반복해 내려간다.
+   누를 것이 없는 페이지라 "스크롤하세요" 를 글자 대신 움직임으로 말한다. */
+.intro-scroll-rail {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: 56px;
+  background: rgba(29, 48, 69, 0.18);
+  overflow: hidden;
+}
+.intro-scroll-rail::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  width: 3px;
+  height: 18px;
+  background: #1d3045;
+  animation: intro-scroll-dot 2.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes intro-scroll-dot {
+  0%   { top: -20px; opacity: 0; }
+  25%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { top: 58px; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-scroll-rail::after { animation: none; top: 0; }
+}
+
+/* /intro 필름 그레인 + 비네트. SVG 노이즈를 data URI 로 박아 네트워크 요청 0.
+   opacity 는 아주 낮게 — 보이면 지저분하고, 안 보일 만큼만 있어야 '질감' 이 된다. */
+.intro-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.intro-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.28) 100%);
+  mix-blend-mode: normal;
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-grain { opacity: 0.08; }
+}
+
+/* Lenis(부드러운 스크롤) 필수 규칙 — /intro 에서만 켜지지만 클래스는 <html> 에 붙는다.
+   ⚠️ 이게 없으면 브라우저의 `scroll-behavior: smooth` 와 Lenis 가 서로 스크롤을 잡아당겨
+   휠이 끊기거나 앵커 이동이 튄다. */
+html.lenis,
+html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
