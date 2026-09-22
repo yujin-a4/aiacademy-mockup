@@ -1,8 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// 로그인 없이 접근 가능한 경로 (로그인 화면 자체).
+// 로그인 없이 접근 가능한 경로 (로그인 화면 자체, 그리고 대외 공개 페이지).
+// `/intro` 는 회사 소개 사이트에 걸리는 R&D 공개 페이지다 — 로그인 게이트에 걸리면
+// 방문자가 첫 화면에서 로그인 창을 본다.
 const PUBLIC_PATHS = ['/']
+/** `/intro` 아래는 전부 공개 — 버전이 늘 때마다 위 배열을 고치지 않게 접두사로 본다. */
+const PUBLIC_PREFIXES = ['/intro']
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -28,7 +32,8 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isPublic = PUBLIC_PATHS.includes(request.nextUrl.pathname)
+  const path = request.nextUrl.pathname
+  const isPublic = PUBLIC_PATHS.includes(path) || PUBLIC_PREFIXES.some((x) => path === x || path.startsWith(x + '/'))
 
   // 미로그인 상태로 보호 경로 직접 접근 → 로그인 화면으로.
   if (!user && !isPublic) {
