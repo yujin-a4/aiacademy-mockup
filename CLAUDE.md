@@ -12,13 +12,16 @@ as AI tutors. UI/UX and interaction prototype, **not production code**: most "AI
 data, in-memory state, and per-route API stubs. The canonical product spec lives in the external
 **manyfast** project, not here — treat local files as exploratory, never final.
 
-**Where this fits in the roadmap:** this repo *is* **MVP0** — a pre-validation demo used in a controlled
-**FGI** (Focus Group Interview, 8~9월) before any real B2C build. Dev partner **캐치잇** (YBM = client/발주)
-will watch how this mockup performs and build the actual product (**MVP1**, ~300-user pilot, target launch
-Dec) based on it. Core hypotheses being validated: **H3** (scaffolding actually works) and **H2** (human-
-instructor-persona acceptance). Implication for how to work here: **polish and fidelity in the flows an
-FGI participant will actually click through matter more than backend robustness or scalability** — this is
-a demo built to validate product hypotheses, not infrastructure meant to be extended as-is.
+**Where this fits in the roadmap:** this repo *is* the **pre-validation demo**. Timeline (confirmed 09-22):
+a small 5-person **FGI** already ran in 09; the real one is **50 participants in 10월**; a public **R&D
+intro page** opens on the YBM corporate site **11/02** (concept + live AI-human 박혜원 + a one-cycle
+lesson trial); **open beta 2027-03**. The old ~300-user MVP1 pilot targeting Dec is **gone** — don't
+plan around it. Dev partner **캐치잇** (YBM = client/발주) builds the actual product based on this mockup.
+Core hypotheses: **H3** (scaffolding actually works) and **H2** (human-instructor-persona acceptance).
+Implication for how to work here: **polish and fidelity in the flows a participant will actually click
+through matter more than backend robustness or scalability** — this is a demo built to validate product
+hypotheses, not infrastructure meant to be extended as-is. From 11/02 the intro-page trial is clicked by
+**strangers with no facilitator**, so that flow also has to survive PC visitors and denied mic permission.
 
 - **Stack:** Next.js 14 (App Router) · React 18 · TypeScript (strict) · Tailwind · Zustand.
 - **Language:** Korean — UI copy, comments, and scenario scripts are all in Korean.
