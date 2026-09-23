@@ -252,7 +252,7 @@ export async function loadProfileFromSupabase(userId?: string): Promise<UserProf
     studyRange: null,
     // 최근 시험 결과는 아직 user_profiles 컬럼이 없다 — 온보딩 스토어(localStorage)에만 남는다
     lastExamDate: null,
-    currentLcScore: null,
-    currentRcScore: null,
+    currentTotalScore: null,
+    weakParts: [],
   }
 }

@@ -24,13 +24,24 @@ const TOEIC_DATES = [
   '2026-12-13', '2026-12-27',
 ]
 
-const SCORE_MIN = 5
-const SCORE_MAX = 495
+const SCORE_MIN = 10
+const SCORE_MAX = 990
 
-/** 토익 파트 점수는 5점 단위 */
+/** 토익 점수는 5점 단위 */
 function roundTo5(n: number) {
   return Math.round(n / 5) * 5
 }
+
+/** 취약 파트 선택지 — 파트 이름은 InstructorSelect·DbLessonScreen 과 같은 말을 쓴다 */
+const PARTS = [
+  { no: 1, kind: 'LC', name: '사진 묘사' },
+  { no: 2, kind: 'LC', name: '질의·응답' },
+  { no: 3, kind: 'LC', name: '짧은 대화' },
+  { no: 4, kind: 'LC', name: '짧은 담화' },
+  { no: 5, kind: 'RC', name: '단문 빈칸' },
+  { no: 6, kind: 'RC', name: '장문 빈칸' },
+  { no: 7, kind: 'RC', name: '독해' },
+] as const
 
 function getDefaultExamDate() {
   const twoMonthsLater = new Date()
@@ -94,41 +105,31 @@ function TwoColCard({
   )
 }
 
-/** LC / RC 파트 점수 입력 한 칸 */
-function ScoreField({
-  label, value, onChange,
+/** 총점 입력 한 칸 — 파트 구분 없이 990점 만점 총점만 받는다 */
+function TotalScoreField({
+  value, onChange,
 }: {
-  label: string; value: number | null; onChange: (v: number | null) => void
+  value: number | null; onChange: (v: number | null) => void
 }) {
-  const step = (delta: number) => {
-    const base = value ?? (delta > 0 ? SCORE_MIN - 5 : SCORE_MAX + 5)
-    onChange(Math.max(SCORE_MIN, Math.min(SCORE_MAX, roundTo5(base + delta))))
-  }
-  const btn = 'shrink-0 w-9 h-9 rounded-lg bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0] transition-colors flex items-center justify-center'
   return (
-    <div className="flex-1 min-w-0 bg-white border-2 border-[#E5E7EB] rounded-2xl px-5 py-4">
-      <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-2">{label}</p>
-      <div className="flex items-center gap-2">
-        <button type="button" aria-label={`${label} 5점 내리기`} onClick={() => step(-5)} className={btn}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M5 12h14" /></svg>
-        </button>
+    <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl px-6 py-5 focus-within:border-primary/50 transition-colors">
+      <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-2">총점</p>
+      <div className="flex items-baseline justify-center gap-2">
         <input
           type="text" inputMode="numeric" placeholder="0" value={value ?? ''}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9]/g, '')
             if (raw === '') return onChange(null)
-            // 입력 중에는 상한만 막는다 — 하한까지 걸면 "4"를 치는 순간 5로 튄다
+            // 입력 중에는 상한만 막는다 — 하한까지 걸면 "9"를 치는 순간 10으로 튄다
             onChange(Math.min(SCORE_MAX, Number(raw)))
           }}
           onBlur={() => {
             if (value === null) return
             onChange(Math.max(SCORE_MIN, Math.min(SCORE_MAX, roundTo5(value))))
           }}
-          className="flex-1 min-w-0 w-full text-center text-[#0F172A] font-bold text-[22px] leading-9 bg-transparent outline-none placeholder:text-[#CBD5E1] placeholder:font-normal"
+          className="w-[150px] text-center text-[#0F172A] font-bold text-[44px] leading-tight bg-transparent outline-none placeholder:text-[#CBD5E1] placeholder:font-normal"
         />
-        <button type="button" aria-label={`${label} 5점 올리기`} onClick={() => step(5)} className={btn}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-        </button>
+        <span className="text-[#94A3B8] text-[18px] font-semibold shrink-0">점</span>
       </div>
     </div>
   )
@@ -136,9 +137,9 @@ function ScoreField({
 
 export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const store = useOnboardingStore()
-  const [subStep, setSubStep] = useState<'current' | 'score' | 'date'>('current')
-  const [lcScore, setLcScore] = useState<number | null>(store.currentLcScore)
-  const [rcScore, setRcScore] = useState<number | null>(store.currentRcScore)
+  const [subStep, setSubStep] = useState<'current' | 'weak' | 'score' | 'date'>('current')
+  const [totalScore, setTotalScore] = useState<number | null>(store.currentTotalScore)
+  const [weak, setWeak] = useState<number[]>(store.weakParts)
   const [selectedScore, setSelectedScore] = useState<number | null>(null)
   const [score, setScore] = useState<number | null>(null)
   const [examDate, setExamDate] = useState(() => {
@@ -186,39 +187,28 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   }
 
   /* ─── 최근 시험 점수 ─── */
-  const totalScore = (lcScore ?? 0) + (rcScore ?? 0)
-  const currentValid = lcScore !== null && rcScore !== null
+  const currentValid = totalScore !== null && totalScore >= SCORE_MIN
 
   const handleCurrentNext = (skipped: boolean) => {
     if (skipped) {
-      setLcScore(null); setRcScore(null)
-      store.setLastExamResult(null, null, null)
+      setTotalScore(null)
+      store.setLastExamResult(null, null)
     } else {
       if (!currentValid) return
-      store.setLastExamResult(null, lcScore, rcScore)
+      store.setLastExamResult(null, totalScore)
     }
-    setSubStep('score')
+    setSubStep('weak')
   }
 
   if (subStep === 'current') return (
     <TwoColCard
       step="STEP 5"
       title={'최근 토익 점수를\n알려주세요'}
-      subtitle="가장 최근에 치른 시험 결과를 입력해 주세요. 지금 실력에 맞춰 커리큘럼을 짭니다"
+      subtitle="가장 최근에 치른 시험의 총점을 입력해 주세요. 지금 실력에 맞춰 커리큘럼을 짭니다"
     >
       <div className="animate-fade-in">
-        {/* LC · RC 점수 */}
-        <div className="flex gap-3 mb-3">
-          <ScoreField label="LC" value={lcScore} onChange={setLcScore} />
-          <ScoreField label="RC" value={rcScore} onChange={setRcScore} />
-        </div>
-
-        {/* 총점 */}
-        <div className="bg-[#EEF2FF] rounded-2xl px-6 py-4 flex items-center justify-between mb-5">
-          <span className="text-primary/70 text-[12px] font-semibold uppercase tracking-wider">총점</span>
-          <span className="text-primary font-bold text-[24px]">
-            {currentValid ? `${totalScore}점` : '—'}
-          </span>
+        <div className="mb-5">
+          <TotalScoreField value={totalScore} onChange={setTotalScore} />
         </div>
 
         <div className="space-y-2.5">
@@ -244,9 +234,68 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     </TwoColCard>
   )
 
+  /* ─── 취약 파트 ─── */
+  const handleWeakNext = () => {
+    store.setWeakParts(weak)
+    setSubStep('score')
+  }
+
+  if (subStep === 'weak') return (
+    <TwoColCard
+      step="STEP 6"
+      title={'어느 파트가\n어려우신가요?'}
+      subtitle="여러 개 고르셔도 됩니다. 고르신 파트를 커리큘럼 앞쪽에 배치합니다"
+    >
+      <div className="animate-fade-in">
+        <div className="grid grid-cols-2 gap-2.5 mb-5">
+          {PARTS.map((p) => {
+            const on = weak.includes(p.no)
+            return (
+              <button
+                key={p.no}
+                onClick={() => setWeak(on ? weak.filter(n => n !== p.no) : [...weak, p.no])}
+                aria-pressed={on}
+                className={`min-h-[56px] px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                  on
+                    ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
+                    : 'bg-white border-[#E5E7EB] hover:border-primary/40'
+                }`}
+              >
+                <p className={`text-[10px] font-semibold tracking-wider ${on ? 'text-white/70' : 'text-[#94A3B8]'}`}>
+                  {p.kind} · PART {p.no}
+                </p>
+                <p className={`text-[15px] font-bold ${on ? 'text-white' : 'text-[#0F172A]'}`}>{p.name}</p>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="space-y-2.5">
+          <button
+            onClick={handleWeakNext}
+            disabled={weak.length === 0}
+            className={`w-full h-12 font-bold text-[15px] rounded-xl transition-all ${
+              weak.length > 0
+                ? 'bg-primary hover:bg-[#1D4ED8] text-white active:scale-[0.98]'
+                : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+            }`}
+          >
+            {weak.length > 0 ? `${weak.length}개 선택 · 다음` : '다음'}
+          </button>
+          <button
+            onClick={() => { setWeak([]); store.setWeakParts([]); setSubStep('score') }}
+            className="w-full h-10 text-[#94A3B8] font-medium text-[13px] hover:text-[#64748B] transition-colors"
+          >
+            잘 모르겠어요
+          </button>
+        </div>
+      </div>
+    </TwoColCard>
+  )
+
   /* ─── 목표 점수 ─── */
   if (subStep === 'score') return (
-    <TwoColCard step="STEP 6" title={'목표 점수는\n얼마인가요?'}>
+    <TwoColCard step="STEP 7" title={'목표 점수는\n얼마인가요?'}>
       <div className="animate-fade-in">
         <div className="flex flex-col gap-4">
           {SCORE_OPTIONS.map((opt) => {
@@ -296,7 +345,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           })}
         </div>
         <button
-          onClick={() => setSubStep('current')}
+          onClick={() => setSubStep('weak')}
           className="w-full h-10 mt-4 text-[#94A3B8] font-medium text-[13px] hover:text-[#64748B] transition-colors"
         >
           이전으로
@@ -308,7 +357,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   /* ─── 시험 예정일 ─── */
   return (
     <TwoColCard
-      step="STEP 7"
+      step="STEP 8"
       title={'시험 예정일을\n알려주세요'}
       subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요"
     >
