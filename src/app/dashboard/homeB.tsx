@@ -131,7 +131,7 @@ function SideCard({ label, right, children, className = '' }: {
 }
 
 export default function HomeB() {
-  const { targetScore, currentLcScore, currentRcScore, selectedInstructor } = useOnboardingStore()
+  const { targetScore, currentTotalScore, selectedInstructor } = useOnboardingStore()
   const streakDay = useStreakDay()
 
   const lectures = useCurriculumLectures()
@@ -219,8 +219,7 @@ export default function HomeB() {
     ? '이어서 학습하기'
     : '오늘의 학습 시작'
 
-  const recentScore =
-    currentLcScore != null && currentRcScore != null ? currentLcScore + currentRcScore : null
+  const recentScore = currentTotalScore
 
   /* ── 한마디 — 이미 있는 룰베이스 두 개에서 고른다. 없는 통계를 지어내지 않는다 ──
      1순위: INST_WEAK_COMMENTS[강사][오늘 파트] — "P5에서 시간 다 쓰면 뒤가 무너져…" 식의 약점 지적.
