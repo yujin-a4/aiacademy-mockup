@@ -1,475 +1,330 @@
 'use client'
 
 /**
- * /intro/v3 — **AI 휴먼 기반 관리형 학습 서비스** 버전.
- * 기획 정본: 구글문서 "YBM AI 어학원 소개 페이지 기획안" VERSION 3 (8섹션).
+ * /intro/v3 - **나를 가장 잘 이해하는 AI 선생님** (2026-09-23 개편, 기획서 11섹션 판 반영).
  *
- * ⭐ V2 와 무엇이 다른가: V2 는 "AI 가 한 문제를 어떻게 가르치는가"였다.
- *   V3 는 **"수업과 수업 사이"** 다 — 혼자 공부할 때 학습 흐름을 누가 이어주는가.
- *   그래서 이 페이지의 연출 축은 '깊이로 들어가기'가 아니라 **'흩어진 것이 하나로 이어지기'** 다.
- *   02 에서 3D 공간에 흩어진 카드(TODAY·PROGRESS·LESSON·COMPLETE·NEXT)가 스크롤에 따라
- *   한 줄로 정렬되는 장면이 이 버전의 심장이다.
+ * 개편 전 판은 `/intro/v3-prev` 에 그대로 있다. 되돌리려면 그 파일을 이 자리에 덮으면 된다.
  *
- * 디자인 언어는 사용자가 준 시안(project_page_reference.png) 기준 — 딥 네이비 그라데이션,
- * 곡선 경계, 글래스 카드, 파란 글로우, 좌측 섹션 번호 레일, 한글 대형 제목 + 영문 보조 라벨.
- * MotionSites 템플릿은 쓰지 않았다(사용자 지시).
+ * ── 기획서(구글문서 "YBM AI 어학원 소개 페이지 기획안")에서 바뀐 것 ────────────────
+ *   · **AI HUMAN 과 SESSION DEMO 가 03·04 로 올라왔다.** 전에는 분석 이야기를 먼저 하고
+ *     사람이 뒤에 나왔는데 순서가 뒤집혔다. 먼저 선생님을 보여주고, 그다음에 그 판단의
+ *     근거를 설명한다. "기능보다 먼저 AI 휴먼 선생님과의 관계가 보이도록"(기획서 V3 개요).
+ *   · **SESSION DEMO 가 새로 생겼다.** 한 문제를 어떻게 가르치는지가 아니라,
+ *     지난 학습을 기억하고 오늘을 안내하고 다음을 준비하는 한 바퀴를 보여준다.
+ *   · 섹션마다 붙은 '화면 연출' 이 전부 같은 말을 한다: **AI 휴먼이 화면에서 안 사라진다.**
  *
- * ponytail: 3D 는 전부 CSS `perspective` + `transform` 이다. Three.js 를 안 쓴 이유는
- *   렌더링할 3D '물체'가 없어서다 — 여기서 움직이는 건 카드와 인물, 즉 평면이다.
- *   평면을 공간에 놓는 데 WebGL 컨텍스트를 띄울 이유가 없다(태블릿 배터리도 먹는다).
+ * ── 그래서 구조가 이렇게 됐다 ──────────────────────────────────────────────
+ *   01~06 = `_stage.tsx` 의 **무대 하나.** 여섯 섹션이 아니라 인물 하나가 서 있고 그 주위로
+ *           고민·말·카드·HUD 가 도는 한 덩어리다. 섹션으로 쪼개면 인물이 섹션마다
+ *           나타났다 사라져서 "계속 곁에 있다" 는 이 페이지의 주장 자체가 무너진다.
+ *   07~11 = 이 파일. 박혜원(별도 사례) · 학습 사이클 · 검증 · 다음 단계 · 신청.
+ *           여기서부터 인물이 바뀌므로(박혜원) 무대가 끝나는 게 맞다.
+ *
+ * ── 이 페이지의 규칙 (고쳐 쓸 때 지킬 것) ────────────────────────────────────
+ *   · **테마 하나.** 어떤 섹션도 밝은 면으로 뒤집지 않는다. 면의 깊이(INK/BASE/RAISE)만 바꾼다.
+ *   · **강조색 하나.** BLUE 말고 다른 색을 쓰지 않는다.
+ *   · **모서리 셋.** 누르는 것 = 완전 둥글게(pill) · 패널 = 16px · 영상/사진 = 24px.
+ *   · **아이브로우 금지.** 섹션 위 작은 대문자 라벨(`01 - Managed learning` 류)을 다시 붙이지 않는다.
+ *     화면에 보이는 대문자 영문은 전부 **내용**이다(START/BEFORE/LEARN 같은 단계 이름).
+ *   · **긴 줄표 금지.** U+2014 와 U+2013 은 주석까지 포함해 이 파일에 한 글자도 없다.
+ *     LLM 이 만든 화면의 가장 흔한 지문이라 `grep` 으로 0인지 확인되게 주석에도 안 쓴다.
+ *   · **글보다 화면.** 문단을 늘리지 말고 움직임으로 말한다(사용자 지시, 09-23).
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { ease, lerp, seg, usePointer, useReveal, useSmoothScroll, useTrackProgress } from '../_lib'
+import { ease, lerp, seg, useReveal, useSmoothScroll, useTrackProgress } from '../_lib'
+import { BASE, BLUE, INK, Stage, StageFlow } from './_stage'
 
-/* ── 디자인 토큰. 이 페이지 안에서만 쓴다 — 앱의 v2 토큰(primary/accent)과 섞지 않는다. */
-const INK = '#0B1830' // 가장 깊은 배경
-const BLUE = '#2E6BFF' // 강조
-
-/** 영문 보조 라벨 — 시안의 좌측/상단 작은 글자. */
-function Eyebrow({ children, tone = 'light' }: { children: React.ReactNode; tone?: 'light' | 'dark' }) {
-  return (
-    <span
-      className={`block text-[11px] font-semibold uppercase tracking-[0.34em] ${
-        tone === 'light' ? 'text-white/45' : 'text-[#0B1830]/45'
-      }`}
-    >
-      {children}
-    </span>
-  )
-}
-
-/** 섹션 사이 곡선 경계. 시안이 직선 대신 호(arc)로 면을 나눈다 — 그 느낌을 그대로 쓴다. */
-function Arc({ from, to, flip = false }: { from: string; to: string; flip?: boolean }) {
-  return (
-    <div className="relative -mt-px h-[9vw] min-h-[60px] w-full overflow-hidden" style={{ background: from }} aria-hidden>
-      <svg viewBox="0 0 1440 120" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path
-          d={flip ? 'M0,120 C420,0 1020,0 1440,120 L1440,120 L0,120 Z' : 'M0,0 C420,140 1020,140 1440,0 L1440,120 L0,120 Z'}
-          fill={to}
-        />
-      </svg>
-    </div>
-  )
-}
-
-/** 유리 카드 — 시안의 반투명 패널. 어두운 면에서만 쓴다(밝은 면에서는 그냥 흰 카드가 낫다). */
-function Glass({ className = '', children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div
-      className={`rounded-2xl border border-white/12 bg-white/[0.06] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
-/* ══════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════════ */
 
 export default function IntroV3() {
   useSmoothScroll()
   useReveal()
 
   /* ⚠️ main 에 `overflow-x: hidden` 을 쓰면 **하위의 position:sticky 가 전부 죽는다**
-     (실측: 02 섹션이 스크롤에 딸려 올라가 사라졌다). 조상에 overflow 가 있으면 그게
+     (실측: 섹션이 스크롤에 딸려 올라가 사라졌다). 조상에 overflow 가 있으면 그게
      스크롤 컨테이너가 되기 때문이다. `clip` 은 같은 일을 하면서 컨테이너를 만들지 않는다. */
-
   return (
-    <main className="bg-[#0B1830] text-white [overflow-x:clip]">
+    <main className="break-keep bg-[#0B1830] text-white [overflow-x:clip]">
       <div className="intro-grain" aria-hidden />
       <TopBar />
-      <Hero />
-      <PainPoint />
-      <Arc from={INK} to="#F2F5FA" />
-      <ManagedLearning />
-      <Arc from="#F2F5FA" to={INK} flip />
+      <Stage />
+      <StageFlow />
+      <Trial />
       <ParkHyeWon />
-      <SessionDemo />
-      <Arc from={INK} to="#F2F5FA" />
+      <LearningFlow />
       <WhatWeAreTesting />
-      <Arc from="#F2F5FA" to={INK} flip />
       <NextPhase />
-      <PreOpenCta />
+      <PreOpen />
       <Footer />
     </main>
   )
 }
 
+/** 상단 바. 한 줄 · 높이 72px.
+ *  R&D 고지가 여기 붙어 있다. 히어로 안에 넣으면 첫 화면이 안내문 묶음이 되고,
+ *  맨 아래에만 두면 낯선 방문자가 "출시된 서비스" 로 오해한 채 한참 내려간다.
+ *  **사이트 바는 원래 그 사이트가 뭔지 말하는 자리다.** 전문은 마지막 섹션에 있다. */
 function TopBar() {
   return (
     <header className="absolute inset-x-0 top-0 z-30">
-      <div className="mx-auto flex max-w-[1560px] items-center justify-between px-6 py-6 sm:px-10">
+      {/* 위쪽에 얇게 깔아 주는 그늘. 히어로 인물이 커지면서 밝은 머리카락이 화면 꼭대기까지
+          올라와 오른쪽 고지가 묻혔다(실측). 바를 색으로 덮으면 띠가 생기니 그라데이션으로. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[120px]"
+        style={{ background: 'linear-gradient(180deg, rgba(8,16,32,0.72), transparent)' }}
+        aria-hidden
+      />
+      <div className="relative mx-auto flex h-[72px] max-w-[1560px] items-center justify-between px-6 sm:px-10">
         <span className="text-[13px] font-bold tracking-[0.2em]">YBM</span>
-        <span className="text-[11px] font-medium uppercase tracking-[0.3em] text-white/45">
-          AI Academy · R&amp;D Project
-        </span>
+        <span className="text-[11px] tracking-[0.16em] text-white/70">AI Academy · 개발 중인 R&amp;D 프로젝트</span>
       </div>
     </header>
   )
 }
 
-/* ═══ SECTION 01. HERO ═══
-   시안의 첫 화면: 좌측에 번호 레일과 대형 제목, 우측에 인물 + 글로우 + 떠 있는 유리 칩.
-   칩은 스크롤과 마우스에 따라 서로 다른 깊이로 움직인다(=패럴랙스가 깊이를 만든다). */
-function Hero() {
-  const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
-  const pt = usePointer()
-
-
+function Title({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div ref={ref} className="relative h-[140vh]">
-      <div className="sticky top-0 h-screen overflow-hidden">
-        {/* 배경: 중앙에서 퍼지는 파란 글로우 두 겹 */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(1100px 640px at 72% 38%, rgba(46,107,255,0.34), transparent 62%),
-                         radial-gradient(900px 520px at 18% 82%, rgba(46,107,255,0.14), transparent 60%),
-                         ${INK}`,
-          }}
-        />
-
-        {/* 히어로 이미지 — **실존 인물 사진이 아니다.**
-            AI 휴먼이 오늘 학습·진행률·완료·다음 일정 패널을 고리 모양 선으로 이어 들고 있는
-            개념 이미지(gpt-image-2 생성). 박혜원 사진을 여기 쓰면 "이 사람이 관리해 준다"는
-            약속으로 읽히는데, 관리형 학습은 아직 기획 방향이지 제품이 아니다.
-            이미지 자체가 왼쪽을 비워 둔 구도라 글자 자리는 따로 만들 필요가 없다. */}
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: `translate3d(${pt.x * -10}px, ${lerp(0, -70, ease(p)) + pt.y * -8}px, 0) scale(${lerp(1.08, 1.02, ease(seg(p, 0, 0.6)))})`,
-          }}
-        >
-          <img
-            src="/intro/v3-hero.webp"
-            alt="AI 휴먼이 오늘 학습·진행률·다음 일정을 하나의 흐름으로 이어주는 모습을 표현한 이미지"
-            className="h-full w-full object-cover object-right"
-          />
-          {/* 글자 쪽으로 어둡게 — 이미지가 이미 왼쪽이 비어 있지만, 좁은 화면에서는 인물이
-              왼쪽까지 들어와서 스크림이 없으면 제목이 안 읽힌다. */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(90deg, ${INK} 0%, rgba(11,24,48,0.88) 22%, rgba(11,24,48,0.35) 48%, transparent 66%)`,
-            }}
-          />
-          <div className="absolute inset-x-0 bottom-0 h-40" style={{ background: `linear-gradient(0deg, ${INK}, transparent)` }} />
-        </div>
-
-        {/* 좌측 번호 레일 */}
-        <div className="pointer-events-none absolute left-6 top-1/2 hidden -translate-y-1/2 md:block">
-          {['01', '02', '03', '04', '05'].map((n, i) => (
-            <div key={n} className="mb-5 flex items-center gap-3">
-              <span className={`text-[11px] tracking-[0.2em] ${i === 0 ? 'text-white' : 'text-white/25'}`}>{n}</span>
-              <span className={`block h-px ${i === 0 ? 'w-8 bg-white' : 'w-4 bg-white/25'}`} />
-            </div>
-          ))}
-        </div>
-
-        {/* 카피 */}
-        <div className="relative flex h-full items-center px-6 sm:px-10 md:pl-24 lg:pl-32">
-          <div
-            className="max-w-[640px]"
-            style={{ transform: `translateY(${lerp(0, -80, ease(p))}px)`, opacity: 1 - seg(p, 0.62, 0.9) }}
-          >
-            <Eyebrow>01 — Managed learning</Eyebrow>
-            <p className="mt-7 text-[15px] text-white/60">사람이 만드는 더 큰 가능성, AI가 이어갑니다.</p>
-            <h1 className="mt-4 text-[clamp(2rem,4.4vw,4rem)] font-light leading-[1.22]">
-              혼자 공부할 때,
-              <br />
-              <span className="font-medium">누가 계속 학습을 이어준다면</span>
-              <br />
-              어떨까요?
-            </h1>
-            <p className="mt-8 max-w-lg text-[15px] leading-[1.95] text-white/65">
-              YBM은 AI 휴먼이 학습자의 곁에서 공부의 시작과 다음 단계를 이어주는{' '}
-              <strong className="font-medium text-white">AI 휴먼 기반 관리형 학습 서비스</strong>를 연구합니다.
-            </p>
-
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <a
-                href="#demo"
-                className="inline-flex min-h-[52px] items-center rounded-full px-7 text-[14px] font-medium"
-                style={{ background: BLUE, boxShadow: `0 14px 40px -12px ${BLUE}` }}
-              >
-                AI 휴먼 시연 보기
-              </a>
-              <a
-                href="#cta"
-                className="inline-flex min-h-[52px] items-center rounded-full border border-white/25 px-7 text-[14px] text-white/85"
-              >
-                오픈 베타 사전 알림
-              </a>
-            </div>
-
-            <p className="mt-10 text-[12px] leading-[1.9] text-white/40">
-              YBM AI 어학원은 현재 개발 중인 R&amp;D 프로젝트입니다. 정식으로 다운로드하거나 수강할 수 있는 서비스는
-              아닙니다.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <h2
+      data-reveal
+      className={`reveal text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35] tracking-[-0.01em] ${className}`}
+    >
+      {children}
+    </h2>
   )
 }
 
-/* ═══ SECTION 02. PAIN POINT ═══
-   기획서: "혼자 공부하면 수업 밖의 순간까지 내가 관리해야 한다."
-   앞서 카드를 정렬시키는 연출을 썼는데 **무슨 뜻인지 안 읽혔다**(사용자 지적).
-   정렬은 '정리됨'을 보여줄 뿐 이 섹션이 말해야 할 **부담**을 보여주지 못했다.
-   그래서 뒤집었다 — 혼자 내려야 하는 결정들이 **위에서 쏟아져 바닥에 쌓인다.**
-   쌓일수록 숫자가 올라가고, 다 쌓이면 한 줄이 뜬다. 해소는 다음 섹션(03)의 몫이다.
-   ponytail: 물리엔진 없음. 낙하는 진행률 → translateY 하나, 착지 지점은 미리 박아 둔 값. */
-const DECISIONS = [
-  '오늘 뭐부터 하지',
-  '어디까지 했더라',
-  '이 유형 또 틀렸는데',
-  '복습을 해야 하나',
-  '문제집을 바꿔야 하나',
-  '오늘은 몇 개나',
-  '시간이 없는데',
-  '내일도 할 수 있을까',
-  '이 강의가 맞나',
-  '단어부터 할까',
-  '다시 처음부터?',
-  '지금 잘하고 있나',
-  '어제 건 넘어갈까',
-  '주말에 몰아서?',
-]
+/* ═══ 체험 세션 ══════════════════════════════════════════════════════════════
+   기획서 04 SESSION DEMO 의 실체. 원래 "영상 시연형" 이었는데 **실제로 눌러 보는 것**으로
+   바꿨다(09-23 사용자 결정). 보여 주는 것과 해 보는 것은 다른 일이고, 11/02 방문자는
+   "이게 뭔지" 보다 "어떤 느낌인지" 를 알고 싶어 할 것이다.
 
-/** 카드가 떨어져 멈추는 자리. 손으로 박았다 — 난수를 쓰면 새로고침마다 그림이 달라진다. */
-const PILE = [
-  { x: 8, y: 9, r: -9 },
-  { x: 26, y: 7, r: 6 },
-  { x: 45, y: 10, r: -4 },
-  { x: 63, y: 8, r: 11 },
-  { x: 80, y: 11, r: -7 },
-  { x: 15, y: 22, r: 8 },
-  { x: 35, y: 20, r: -12 },
-  { x: 54, y: 23, r: 5 },
-  { x: 72, y: 21, r: -6 },
-  { x: 88, y: 24, r: 9 },
-  { x: 22, y: 35, r: -5 },
-  { x: 44, y: 37, r: 7 },
-  { x: 64, y: 34, r: -10 },
-  { x: 82, y: 38, r: 4 },
-]
+   ── 왜 무대(01~06) 안이 아니라 여기인가 ─────────────────────────────────────
+   무대는 스크롤로 돌아가고 체험은 화면을 눌러야 한다. 수업을 누르려고 손을 대는 순간
+   스크롤이 무대를 밀어서 **둘이 싸운다.** 그래서 여기는 스크롤 연출이 하나도 없는
+   평범한 섹션이다. 들어오면 멈춰서 만지는 자리다.
 
-function PainPoint() {
-  const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
+   ── 무엇이 도는가 ─────────────────────────────────────────────────────────
+   `/intro/trial/LC-P1-01?instructor=lee_doyun` = **FGI 에서 쓴 그 수업 그대로**다.
+   따로 만든 데모가 아니라 정본 플레이어를 공개 경로로 한 번 더 연 것이라(그 파일 주석 참고)
+   수업이 고쳐지면 여기도 같이 고쳐진다.
 
-  /* 카드마다 떨어지기 시작하는 시점을 어긋나게 둔다 — 한꺼번에 떨어지면 '전환'으로 보이고,
-     어긋나게 떨어져야 '쏟아진다'로 보인다. */
-  const fallOf = (i: number) => {
-    const start = 0.12 + (i / DECISIONS.length) * 0.5
-    return ease(seg(p, start, start + 0.16))
-  }
-  const landed = DECISIONS.filter((_, i) => fallOf(i) > 0.92).length
-  const closing = seg(p, 0.84, 0.95)
+   ── 눌러야 열린다 ─────────────────────────────────────────────────────────
+   iframe 을 처음부터 걸어 두지 않는다. 수업 화면은 무거운 앱이고(문항·음원·레일을 다 읽는다)
+   소개 페이지를 스치는 사람 대부분은 여기까지 안 온다. **누른 사람에게만 받아 온다.**
+   그리고 소리와 마이크는 사용자 제스처 다음에만 열린다 - 누르는 행위가 곧 그 제스처다.
 
-  return (
-    <div ref={ref} className="relative h-[240vh]" style={{ background: INK }}>
-      <div className="sticky top-0 h-screen overflow-hidden px-6 sm:px-10 md:px-16">
-        <div className="mx-auto h-full w-full max-w-[1240px]">
-          <div className="pt-[14vh]">
-            <Eyebrow>02 — The gap between classes</Eyebrow>
-            <h2 className="mt-6 max-w-2xl text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35]">
-              혼자 공부할 때는, 수업 밖의 순간까지
-              <br />
-              <span className="font-medium">내가 관리해야 합니다.</span>
-            </h2>
-          </div>
+   ponytail: 수업 화면은 태블릿 가로(1180x820)로 짠 화면이다. 좁은 곳에서는 억지로 쑤셔넣는
+     대신 **녹화 영상으로 물러선다.** 폰 세로에서 이 수업은 눌러도 못 쓴다 - 되는 척하는 것이
+     안 되는 것보다 나쁘다. */
+const TRIAL_W = 1180
+const TRIAL_H = 820
+const TRIAL_SRC = '/intro/trial/LC-P1-01?instructor=lee_doyun'
 
-          {/* 쏟아지는 결정들 */}
-          <div className="pointer-events-none absolute inset-x-6 bottom-0 top-[30vh] sm:inset-x-10 md:inset-x-16">
-            <div className="relative mx-auto h-full max-w-[1240px]" style={{ perspective: '900px' }}>
-              {DECISIONS.map((d, i) => {
-                const f = fallOf(i)
-                const slot = PILE[i]
-                return (
-                  <div
-                    key={d}
-                    className="absolute"
-                    style={{
-                      left: `${slot.x}%`,
-                      bottom: `${slot.y}%`,
-                      opacity: f > 0 ? Math.min(1, f * 4) * (1 - closing * 0.75) : 0,
-                      transform: `translate(-50%, ${lerp(-62, 0, f)}vh) rotate(${lerp(slot.r * 2.4, slot.r, f)}deg)`,
-                      willChange: 'transform, opacity',
-                    }}
-                  >
-                    <span className="block whitespace-nowrap rounded-xl border border-white/12 bg-white/[0.07] px-4 py-3 text-[13px] text-white/80 shadow-[0_18px_40px_-18px_rgba(0,0,0,0.8)] backdrop-blur-sm md:text-[14px]">
-                      {d}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* 쌓인 개수 — 애니메이션이 무슨 뜻인지 숫자로 못 박는다 */}
-          <div className="absolute right-6 top-[14vh] text-right sm:right-10 md:right-16">
-            <span className="block text-[11px] font-semibold uppercase tracking-[0.3em] text-white/40">
-              Decisions you make alone
-            </span>
-            <p className="mt-3 text-[clamp(2rem,5vw,3.6rem)] font-light tabular-nums" style={{ color: BLUE }}>
-              {String(landed).padStart(2, '0')}
-              <span className="ml-2 text-[0.4em] tracking-[0.2em] text-white/40">/ {DECISIONS.length}</span>
-            </p>
-          </div>
-
-          {/* 다 쌓이면 화면 한가운데에 크게 — 쏟아진 것들 위로 결론이 얹힌다.
-              뒤에 카드가 깔려 있어서 글자 뒤를 어둡게 깔아 준다(안 그러면 안 읽힌다). */}
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center px-6"
-            style={{ opacity: closing, transform: `translateY(${lerp(18, 0, closing)}px)` }}
-          >
-            <div
-              className="max-w-[860px] rounded-3xl px-8 py-10 text-center"
-              style={{ background: `radial-gradient(60% 60% at 50% 50%, rgba(11,24,48,0.92), rgba(11,24,48,0.55) 70%, transparent)` }}
-            >
-              <p className="text-[clamp(1.15rem,2.4vw,2rem)] font-light leading-[1.6] text-white">
-                공부할 콘텐츠가 있어도, 내가 잘하고 있는지,
-                <br className="hidden sm:block" /> 뭘 더 해야 하는지{' '}
-                <strong className="font-medium">혼자 이어가는 일이 어려울 때가 많습니다.</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+/** 주어진 상자에 수업 화면(1180x820)을 넣는 가장 큰 배율.
+ *  돌려서 넣는 쪽이 더 크면 돌린다 - 세로로 긴 폰에서는 **화면의 긴 변**을 써야 한다.
+ *  (390x844 폰: 그냥 넣으면 0.33, 돌려 넣으면 0.48. 같은 화면인데 절반이 더 보인다.) */
+function fitTrial(w: number, h: number) {
+  /* 1 을 넘기지 않는다. 늘리면 수업 화면이 1180px 로 그려진 뒤 확대돼서 글자가 흐려진다. */
+  const flat = Math.min(1, w / TRIAL_W, h / TRIAL_H)
+  const turned = Math.min(1, h / TRIAL_W, w / TRIAL_H)
+  return turned > flat * 1.15 ? { scale: turned, rotate: true } : { scale: flat, rotate: false }
 }
 
-/* ═══ SECTION 03. MANAGED LEARNING ═══ 밝은 면. 다섯 단계를 실제 카드로 세운다. */
-/* 관리형 학습의 다섯 장면.
-   ⚠️ 처음엔 '학습 시작 → 오늘 학습 확인 → 수업 진행 → 학습 완료 → 다음 학습 연결' 로 적었는데
-   그건 **흐름의 이름**일 뿐 관리가 아니었다(사용자 지적). 그래서 "사람 담임이 수업 밖에서
-   실제로 해주는 일"로 다시 뽑았다. 전부 **학습자가 안 해도 되는 일**의 목록이고,
-   02 에서 쏟아진 결정들과 하나씩 짝이 맞는다.
-   순서는 시간 순이다: 오늘 시작 → 나를 앎 → 틀림 → 밀림 → 안 옴. 마지막이 관계로 끝나서
-   다음 섹션(AI 휴먼)으로 자연스럽게 넘어간다. */
-const STEPS = [
-  {
-    n: '01',
-    k: 'Decide',
-    t: '오늘 분량을 정해서 가져옵니다',
-    d: '뭘 얼마나 할지 고민하는 시간을 없앱니다. 시험일까지 남은 날, 어제까지의 진도, 최근 오답을 보고 오늘 할 몫을 정해 옵니다.',
-  },
-  {
-    n: '02',
-    k: 'Remember',
-    t: '내가 어디서 흔들리는지 기억합니다',
-    d: '한 번 틀린 문제가 아니라, 여러 번 반복해서 놓치는 자리를 기억합니다. 매번 처음 만난 학습자로 대하지 않습니다.',
-  },
-  {
-    n: '03',
-    k: 'Carry over',
-    t: '틀린 건 그냥 지나가지 않습니다',
-    d: '오늘 틀린 유형이 다음 학습에 다시 올라옵니다. 언제 복습해야 하는지 학습자가 기억하고 있지 않아도 됩니다.',
-  },
-  {
-    n: '04',
-    k: 'Adjust',
-    t: '밀리면 계획을 다시 짭니다',
-    d: '계획대로 안 되는 날이 있습니다. 밀린 분량을 남은 기간에 다시 나눠, 그만두는 대신 이어가게 합니다.',
-  },
-  {
-    n: '05',
-    k: 'Reach out',
-    t: '며칠 비면, 먼저 말을 겁니다',
-    d: '돌아오는 일을 학습자의 의지에만 맡기지 않습니다. 비어 있는 날을 알아채고, 다시 시작할 지점을 들고 먼저 말을 겁니다.',
-  },
-]
+function Trial() {
+  const box = useRef<HTMLDivElement>(null)
+  const [inline, setInline] = useState(0) // 페이지 안에 넣었을 때의 배율
+  const [open, setOpen] = useState(false)
+  const [full, setFull] = useState({ scale: 0, rotate: false })
 
-function ManagedLearning() {
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const fit = () => {
+      setInline(Math.min(1, el.clientWidth / TRIAL_W, (window.innerHeight * 0.62) / TRIAL_H))
+      setFull(fitTrial(window.innerWidth, window.innerHeight))
+    }
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    window.addEventListener('resize', fit)
+    window.addEventListener('orientationchange', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+      window.removeEventListener('orientationchange', fit)
+    }
+  }, [])
+
+  /* 페이지 안에 넣어도 충분히 큰 화면이면 그 자리에서 연다.
+     좁으면 **전체화면으로 띄운다** - 기기를 가리지 말고 화면을 다 쓰면 된다. */
+  const roomy = inline >= 0.8
+
+  useEffect(() => {
+    if (!open || roomy) return
+    // 전체화면인 동안 뒤 페이지가 같이 스크롤되면 수업을 만지다 페이지가 밀린다.
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('keydown', esc)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open, roomy])
+
+  const frame = (scale: number, rotate: boolean) => (
+    <iframe
+      src={TRIAL_SRC}
+      title="AI 강사 수업 체험"
+      allow="microphone; autoplay; clipboard-write"
+      className="absolute left-1/2 top-1/2 border-0"
+      style={{
+        width: TRIAL_W,
+        height: TRIAL_H,
+        transform: `translate(-50%, -50%) ${rotate ? 'rotate(90deg) ' : ''}scale(${scale})`,
+      }}
+    />
+  )
+
   return (
-    <section className="bg-[#F2F5FA] px-6 py-28 text-[#0B1830] sm:px-10 md:px-16">
+    <section id="trial" className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
       <div className="mx-auto max-w-[1240px]">
-        <Eyebrow tone="dark">03 — Managed learning</Eyebrow>
-        <h2 data-reveal className="reveal mt-6 max-w-3xl text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35]">
-          강의하는 AI를 넘어,
+        <Title className="max-w-2xl">
+          AI 선생님이 이끌어주는 수업,
           <br />
-          <span className="font-medium">나를 기억하고 관리해 주는 AI 휴먼으로.</span>
-        </h2>
+          <span className="font-medium">지금 체험해 보세요</span>
+        </Title>
+        <p data-reveal className="reveal mt-8 max-w-2xl text-[15px] leading-[1.95] text-white/60">
+          아래는 지금 만들고 있는 수업 화면 그대로입니다. 이도윤 선생님의 LC 1강을 직접 눌러
+          보실 수 있습니다.
+        </p>
 
-        <div className="mt-16 grid gap-5 md:grid-cols-5" style={{ perspective: '1400px' }}>
-          {STEPS.map((s, i) => (
+        <div ref={box} className="mt-12 flex justify-center">
+          <div
+            className="relative overflow-hidden rounded-[24px] border border-white/15 bg-black/60 p-2"
+            style={{
+              width: inline ? TRIAL_W * inline + 16 : '100%',
+              height: inline ? TRIAL_H * inline + 16 : undefined,
+              boxShadow: `0 60px 140px -50px ${BLUE}`,
+            }}
+          >
             <div
-              key={s.n}
-              data-reveal
-              className="reveal group rounded-2xl border border-[#0B1830]/8 bg-white p-6 shadow-[0_18px_50px_-30px_rgba(11,24,48,0.5)]"
-              style={{ transitionDelay: `${i * 90}ms` }}
+              className="relative overflow-hidden rounded-[16px] bg-black"
+              style={{ width: inline ? TRIAL_W * inline : '100%', height: inline ? TRIAL_H * inline : 0 }}
             >
-              <span className="text-[11px] font-semibold uppercase tracking-[0.28em]" style={{ color: BLUE }}>
-                {s.k}
-              </span>
-              <p className="mt-4 text-[17px] font-medium">{s.t}</p>
-              <p className="mt-3 text-[13px] leading-[1.8] text-[#0B1830]/60">{s.d}</p>
-              <span className="mt-6 block h-px w-full bg-[#0B1830]/10" />
-              <span className="mt-3 block text-[11px] tracking-[0.2em] text-[#0B1830]/35">{s.n}</span>
+              {open && roomy ? (
+                frame(inline, false)
+              ) : (
+                <>
+                  {/* 누르기 전에는 녹화 영상이 소리 없이 돈다. 빈 화면을 눌러 달라고 하면
+                      무엇이 열릴지 모르는 채로 누르게 된다. */}
+                  <video
+                    src="/video/intro-lesson.mp4"
+                    muted
+                    loop
+                    playsInline
+                    autoPlay
+                    aria-hidden
+                    className="absolute inset-0 h-full w-full object-cover opacity-45"
+                  />
+                  <div className="absolute inset-0 bg-[#0A1526]/55" aria-hidden />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setOpen(true)}
+                      className="inline-flex min-h-[54px] items-center rounded-full px-8 text-[15px] font-medium text-white transition-transform active:scale-[0.98]"
+                      style={{ background: BLUE, boxShadow: `0 16px 44px -14px ${BLUE}` }}
+                    >
+                      수업 체험 시작하기
+                    </button>
+                    <p className="text-[12px] leading-[1.8] text-white/70">
+                      소리가 재생됩니다. 말로 답하는 단계에서는 마이크 권한을 물어봅니다.
+                      {!roomy && ' 화면을 가로로 돌리면 더 크게 보입니다.'}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-          ))}
+          </div>
         </div>
 
-        <p data-reveal className="reveal mt-12 max-w-2xl text-[13px] leading-[1.9] text-[#0B1830]/50">
-          여기 보여드리는 흐름은 현재 연구 중인 방향입니다. 실제로 제공되는 기능과 방식은 개발 범위에 따라 달라질 수
-          있습니다.
+        <p className="mt-6 text-[12px] leading-[1.9] text-white/40">
+          개발 중인 화면이라 일부 단계는 아직 다듬는 중입니다. 체험 내용은 저장되지 않습니다.
         </p>
       </div>
+
+      {/* 좁은 화면용 전체화면. 수업 화면이 1180x820 고정이라 좁은 곳에서는 페이지 안에 넣는 대신
+          **화면을 통째로 내준다.** 세로로 긴 기기에서는 돌려서 긴 변에 맞춘다. */}
+      {open && !roomy && (
+        <div className="fixed inset-0 z-[80] bg-[#05080F]">
+          <div className="absolute inset-0">{full.scale > 0 && frame(full.scale, full.rotate)}</div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="absolute right-4 top-4 z-10 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/25 bg-black/60 px-5 text-[14px] text-white backdrop-blur"
+          >
+            닫기
+          </button>
+        </div>
+      )}
     </section>
   )
 }
 
-/* ═══ SECTION 04. PARK HYE WON AI HUMAN ═══
-   실제 강사 → AI 휴먼 전환을 스크롤로 넘긴다. */
+/* ═══ 07. PARK HYE WON ═══════════════════════════════════════════════════════
+   무대가 끝나는 자리. 여기서부터 인물이 바뀐다.
+   기획 포인트(기획서): **V3 의 메인 컨셉은 특정 강사가 아니라 AI 휴먼 선생님이고,
+   박혜원은 실제 YBM 강사 자산을 쓴 대표 구현 사례다.** 그래서 페이지 앞이 아니라 여기 있고,
+   앞의 AI 휴먼과 얼굴이 다른 것도 그래서 문제가 아니다.
+   전환 자체가 이 섹션이 하는 말이라 글로 "구현했습니다" 를 반복하지 않는다. */
 function ParkHyeWon() {
   const ref = useRef<HTMLDivElement>(null)
   const p = useTrackProgress(ref)
-  const toAi = ease(seg(p, 0.22, 0.52))
+  const toAi = ease(seg(p, 0.2, 0.5))
 
   return (
-    <div ref={ref} className="relative h-[210vh]" style={{ background: INK }}>
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden px-6 sm:px-10 md:px-16">
-        <div className="mx-auto grid w-full max-w-[1240px] items-center gap-10 md:grid-cols-[0.9fr_1.1fr]">
+    <section id="park" ref={ref} className="relative md:h-[150vh]" style={{ background: BASE }}>
+      <div className="px-6 py-24 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:items-center md:overflow-hidden md:px-16 md:py-0">
+        <div className="mx-auto grid w-full max-w-[1240px] items-center gap-12 md:grid-cols-2 md:gap-16">
           <div>
-            <Eyebrow>04 — Park Hye Won</Eyebrow>
-            <h2 className="mt-6 text-[clamp(1.5rem,2.9vw,2.4rem)] font-light leading-[1.35]">
-              관리형 학습 서비스의 얼굴도,
+            <Title>
+              실제 강사를 기반으로 한
               <br />
-              <span className="font-medium">실제 강사를 기반으로 만들 수 있습니다.</span>
-            </h2>
-            <p className="mt-7 max-w-md text-[15px] leading-[1.95] text-white/65">
-              YBM 토익 스타강사 박혜원. 강사의 얼굴과 목소리, 말투를 기반으로 만든 AI 휴먼이 학습을 이어주는 역할을
-              맡을 수 있을지 확인하고 있습니다.
+              <span className="font-medium">AI 휴먼의 가능성</span>
+            </Title>
+            <p data-reveal className="reveal mt-8 max-w-md text-[15px] leading-[1.95] text-white/65">
+              YBM 토익 스타강사 박혜원. 얼굴과 목소리와 말투를 기반으로 AI 휴먼을 구현하고, 학습자와 상호작용하는
+              경험으로 어디까지 확장될 수 있을지 확인하고 있습니다.
             </p>
-            <ul className="mt-8 space-y-2.5">
-              {['오늘 학습을 시작해볼까요? — 말을 거는 장면', '학습 화면을 함께 확인하는 장면', '끝난 뒤 다음 학습을 안내하는 장면'].map(
-                (t, i) => (
-                  <li
+
+            {/* 영상이 보여주는 네 장면. 전환이 끝날 즈음 하나씩 켜진다. */}
+            <div className="mt-9 space-y-3">
+              {['실제 박혜원 강사', 'AI HUMAN 전환', 'AI 휴먼이 말하는 장면', '학습 상황에 반응하는 장면'].map((t, i) => {
+                const on = seg(p, 0.44 + i * 0.07, 0.54 + i * 0.07)
+                return (
+                  <div
                     key={t}
-                    className="flex items-start gap-3 text-[13px] leading-[1.8] text-white/55"
-                    style={{ opacity: seg(p, 0.45 + i * 0.08, 0.55 + i * 0.08) }}
+                    className="flex items-center gap-4"
+                    style={{ opacity: on, transform: `translateY(${lerp(10, 0, on)}px)` }}
                   >
-                    <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full" style={{ background: BLUE }} />
-                    {t}
-                  </li>
-                ),
-              )}
-            </ul>
+                    <span className="block h-px w-7" style={{ background: BLUE }} aria-hidden />
+                    <span className="text-[14px] text-white/75">{t}</span>
+                  </div>
+                )
+              })}
+            </div>
+
             <p className="mt-9 text-[12px] leading-[1.9] text-white/40">
-              실제 박혜원 강사가 실시간으로 학습을 관리하는 것이 아닙니다. 박혜원 강사를 기반으로 구현한 AI 휴먼을
-              활용한 시연 영상입니다.
+              실제 박혜원 강사가 실시간으로 학습을 관리하는 것은 아닙니다. 박혜원 강사를 기반으로 구현한 AI 휴먼의
+              시연 영상입니다.
             </p>
           </div>
 
-          {/* 사진 → 영상. 전환 중에 프레임이 살짝 돌아간다(평면을 공간에 놓는다). */}
+          {/* 사진 → 영상. 전환 중에 프레임이 살짝 돌아 평면이 공간에 놓인다. */}
           <div style={{ perspective: '1400px' }}>
             <div
-              className="relative mx-auto aspect-[4/5] w-full max-w-[460px] overflow-hidden rounded-[28px] border border-white/12"
+              className="relative mx-auto aspect-[4/5] w-full max-w-[460px] overflow-hidden rounded-[24px] border border-white/12"
               style={{
                 transform: `rotateY(${lerp(10, 0, toAi)}deg) rotateX(${lerp(-6, 0, toAi)}deg) scale(${lerp(0.94, 1, toAi)})`,
                 boxShadow: `0 40px 120px -40px ${BLUE}`,
@@ -477,7 +332,7 @@ function ParkHyeWon() {
             >
               <img
                 src="/instructor/park.png"
-                alt="실제 박혜원 강사"
+                alt="YBM 토익 강사 박혜원"
                 className="absolute inset-0 h-full w-full object-cover object-top"
                 style={{ opacity: 1 - toAi }}
               />
@@ -487,194 +342,223 @@ function ParkHyeWon() {
                 loop
                 playsInline
                 autoPlay
+                aria-hidden
                 className="absolute inset-0 h-full w-full object-cover object-top"
                 style={{ opacity: toAi }}
               />
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-5">
-                <span className="rounded-full bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.28em] backdrop-blur">
-                  {toAi > 0.5 ? 'AI Human' : 'Real Instructor'}
+                <span className="rounded-full bg-black/50 px-3 py-1.5 text-[10px] font-semibold tracking-[0.24em] backdrop-blur">
+                  {toAi > 0.5 ? 'AI HUMAN' : 'REAL'}
                 </span>
-                <span className="text-[11px] tracking-[0.2em] text-white/60">박혜원</span>
+                <span className="text-[12px] text-white/70">박혜원</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ═══ SECTION 05. SESSION DEMO ═══ 영상 시연형(B안). 스크롤이 재생 위치를 움직인다. */
-function SessionDemo() {
-  const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
-  const v = useRef<HTMLVideoElement>(null)
-  const scrub = seg(p, 0.18, 0.92)
-
-  /* 렌더 중에 currentTime 을 건드리면 안 된다 — 부수효과는 effect 에서. */
-  useEffect(() => {
-    const el = v.current
-    if (!el || !el.duration || Number.isNaN(el.duration)) return
-    const t = scrub * el.duration
-    if (Math.abs(el.currentTime - t) > 0.04) el.currentTime = t
-  }, [scrub])
-
-  const caption =
-    p < 0.38 ? ['수업 시작 전', '오늘 학습을 확인합니다'] : p < 0.7 ? ['수업 중', 'AI 강사가 질문으로 짚어줍니다'] : ['수업 이후', '다음 학습으로 이어집니다']
-
-  return (
-    <div id="demo" ref={ref} className="relative h-[230vh]" style={{ background: INK }}>
-      <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden px-6 sm:px-10">
-        <div className="w-full max-w-[1100px]">
-          <Eyebrow>05 — Session demo</Eyebrow>
-          <h2 className="mt-5 max-w-2xl text-[clamp(1.4rem,2.7vw,2.3rem)] font-light leading-[1.35]">
-            AI 휴먼과 함께하는 학습은,
-            <br />
-            <span className="font-medium">수업 전후까지 이어집니다.</span>
-          </h2>
-
-          <div className="mt-10" style={{ perspective: '1600px' }}>
-            <div
-              className="relative overflow-hidden rounded-[24px] border border-white/15 bg-black/50 p-2.5"
-              style={{
-                transform: `rotateX(${lerp(12, 0, ease(seg(p, 0, 0.22)))}deg) scale(${lerp(0.9, 1, ease(seg(p, 0, 0.22)))})`,
-                boxShadow: `0 60px 140px -50px ${BLUE}`,
-              }}
-            >
-              <div className="relative aspect-[1180/820] overflow-hidden rounded-[16px] bg-black">
-                {/* 임시 소재: 실제 수업 화면(LC 1강, 이도윤)을 녹화한 것. play() 는 부르지 않는다. */}
-                <video ref={v} src="/video/intro-lesson.mp4" muted playsInline preload="auto" className="h-full w-full object-cover" />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-7 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: BLUE }}>
-                {caption[0]}
-              </span>
-              <p className="mt-2 text-[14px] text-white/65">{caption[1]}</p>
-            </div>
-            {/* 재생 진행 막대 = 스크롤 진행 */}
-            <div className="hidden h-px w-56 bg-white/15 sm:block" aria-hidden>
-              <div className="h-full" style={{ width: `${scrub * 100}%`, background: BLUE }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/* ═══ SECTION 06. WHAT WE ARE TESTING ═══ 밝은 면. 연구 질문 셋 + 다섯 단어의 선. */
-function WhatWeAreTesting() {
-  return (
-    <section className="bg-[#F2F5FA] px-6 py-28 text-[#0B1830] sm:px-10 md:px-16">
-      <div className="mx-auto max-w-[1240px]">
-        <Eyebrow tone="dark">06 — What we are testing</Eyebrow>
-        <h2 data-reveal className="reveal mt-6 text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35]">
-          YBM이 지금 확인하고 있는 것은
-          <br />
-          <span className="font-medium">세 가지입니다.</span>
-        </h2>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {[
-            ['01', 'AI human as a continuous presence', 'AI 휴먼이 한 번의 설명이 아니라 학습 과정 전체에서 계속 존재할 수 있는가.'],
-            ['02', 'Class → learning flow', '한 번의 수업을 오늘의 학습과 다음 학습까지 이어지는 흐름으로 연결할 수 있는가.'],
-            ['03', 'Content → relationship', '콘텐츠를 보여주는 서비스를 넘어 학습자가 계속 돌아와 공부를 이어가는 관계를 만들 수 있는가.'],
-          ].map(([n, k, d], i) => (
-            <div
-              key={n}
-              data-reveal
-              className="reveal border-t-2 pt-6"
-              style={{ borderColor: BLUE, transitionDelay: `${i * 110}ms` }}
-            >
-              <span className="text-[11px] tracking-[0.2em] text-[#0B1830]/40">{n}</span>
-              <p className="mt-3 text-[12px] font-semibold uppercase tracking-[0.18em]" style={{ color: BLUE }}>
-                {k}
-              </p>
-              <p className="mt-4 text-[15px] leading-[1.85]">{d}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* 다섯 단어가 하나의 선으로 — 기획서의 화면 지시 */}
-        <div data-reveal className="reveal mt-20 flex items-center gap-3 overflow-x-auto pb-2">
-          {['Start', 'Today', 'Lesson', 'Complete', 'Next'].map((w, i) => (
-            <div key={w} className="flex shrink-0 items-center gap-3">
-              <span className="rounded-full border border-[#0B1830]/12 bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em]">
-                {w}
-              </span>
-              {i < 4 && <span className="block h-px w-8 md:w-16" style={{ background: BLUE }} />}
-            </div>
-          ))}
         </div>
       </div>
     </section>
   )
 }
 
-/* ═══ SECTION 07. NEXT PHASE ═══ */
+/* ═══ 08. LEARNING FLOW ══════════════════════════════════════════════════════
+   레이아웃 계열: **닫히는 고리.** 앞에서 겪은 흐름을 구조 한 장으로 정리한다.
+   다섯 단계를 한 줄로 늘어놓고 **마지막에서 처음으로 돌아오는 선**을 그린다.
+   그 되돌아오는 선이 이 섹션의 전부다. 직선으로 끝나면 "다섯 단계" 고,
+   닫히면 "계속 이어지는 학습" 이 된다. 섹션 제목이 말하는 게 정확히 그거다. */
+const FLOW_STEPS = [
+  ['START', '오늘의 시작점을 찾습니다', '최근 학습 상태를 보고 오늘 어디에서 시작할지 정합니다.'],
+  ['LEARN', '오늘의 학습을 진행합니다', '학습자는 공부하고, AI는 과정과 결과를 계속 쌓습니다.'],
+  ['ANALYZE', '오늘의 학습을 다시 읽습니다', '어디에서 막혔는지, 어떤 부분이 안정됐는지 확인합니다.'],
+  ['ADJUST', '다음 학습을 다시 구성합니다', '오늘의 결과를 바탕으로 다음 학습의 내용과 순서를 조정합니다.'],
+  ['CONTINUE', '다음에는 이어서 시작합니다', '지난 학습의 결과가 다음 수업의 출발점이 됩니다.'],
+]
+
+function LearningFlow() {
+  return (
+    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
+      <div className="mx-auto max-w-[1240px]">
+        <Title className="max-w-2xl">
+          한 번의 수업보다
+          <br />
+          <span className="font-medium">계속 이어지는 학습 경험</span>
+        </Title>
+
+        <div className="relative mt-16">
+          <div className="absolute inset-x-0 top-[7px] hidden h-px bg-white/20 md:block" aria-hidden />
+          <div className="grid gap-10 md:grid-cols-5 md:gap-6">
+            {FLOW_STEPS.map(([k, t, d], i) => (
+              <div key={k} data-reveal className="reveal relative" style={{ transitionDelay: `${i * 100}ms` }}>
+                <span
+                  className="block h-[15px] w-[15px] rounded-full border-[3px]"
+                  style={{ borderColor: BLUE, background: INK }}
+                  aria-hidden
+                />
+                <span className="mt-6 block text-[11px] font-semibold tracking-[0.26em]" style={{ color: BLUE }}>
+                  {k}
+                </span>
+                <p className="mt-3 text-[15px] font-medium leading-[1.5]">{t}</p>
+                <p className="mt-3 text-[13px] leading-[1.85] text-white/55">{d}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* 되돌아오는 선. CONTINUE 아래에서 나와 START 아래로 돌아간다. */}
+          <div className="relative mt-14 hidden h-16 md:block" aria-hidden>
+            <svg viewBox="0 0 1000 64" preserveAspectRatio="none" className="h-full w-full overflow-visible">
+              <path
+                d="M910,0 L910,44 Q910,56 898,56 L102,56 Q90,56 90,44 L90,0"
+                fill="none"
+                stroke={BLUE}
+                strokeOpacity="0.5"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d="M84,12 L90,0 L96,12"
+                fill="none"
+                stroke={BLUE}
+                strokeOpacity="0.5"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <span className="absolute inset-x-0 top-[26px] text-center text-[12px] text-white/45">
+              지난 학습의 결과가 다음 수업의 출발점이 됩니다
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ═══ 09. WHAT WE ARE TESTING ════════════════════════════════════════════════
+   레이아웃 계열: **엇갈린 편집형 목록.** 세 개를 균등 카드로 세우지 않는다.
+   숫자를 크게 쓰고 단마다 들여쓰기를 달리해서 눈이 한 번에 하나씩 읽게 한다. */
+const TESTING = [
+  ['01', '학습할수록\n더 깊이 이해할 수 있는가', '시간이 지나며 쌓이는 학습 정보를 통해 학습자의 패턴과 어려움을 더 깊이 이해할 수 있는가.', ['LEARN', 'KNOW']],
+  ['02', '이해한 만큼\n수업을 바꿀 수 있는가', '학습 상태가 달라질 때마다 다음 수업의 내용과 순서도 함께 달라질 수 있는가.', ['KNOW', 'ADJUST']],
+  ['03', '그 변화를\n선생님처럼 전달할 수 있는가', 'AI 휴먼이 학습자의 상황을 이해하고 자연스럽게 설명하고 제안하며 다음 학습으로 이어줄 수 있는가.', ['ADJUST', 'TEACH']],
+] as const
+
+/** 단마다 들여쓰기를 한 칸씩 더 준다. **`md:` 부터만** 준다 (폰에서 들여쓰면 글상자만 좁아진다).
+ *  Tailwind 는 클래스 이름을 빌드 때 훑어 가므로 `md:pl-${i*8}` 처럼 만들어 쓰면 안 나온다. */
+const INDENT = ['', 'md:pl-8', 'md:pl-16']
+
+function WhatWeAreTesting() {
+  return (
+    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: BASE }}>
+      <div className="mx-auto max-w-[1240px]">
+        <Title className="max-w-2xl">
+          AI 선생님은
+          <br />
+          <span className="font-medium">어디까지 나를 이해할 수 있을까요</span>
+        </Title>
+
+        <div className="mt-14">
+          {TESTING.map(([n, t, d, pair], i) => (
+            <div
+              key={n}
+              data-reveal
+              className={`reveal grid gap-6 border-t border-white/10 py-11 md:grid-cols-[auto_1fr_auto] md:items-start md:gap-12 ${INDENT[i]}`}
+              style={{ transitionDelay: `${i * 120}ms` }}
+            >
+              <span className="text-[clamp(2.2rem,4vw,3.4rem)] font-light leading-none text-white/20 tabular-nums">
+                {n}
+              </span>
+              <div>
+                <p className="whitespace-pre-line text-[clamp(1.1rem,1.9vw,1.5rem)] font-medium leading-[1.5]">{t}</p>
+                <p className="mt-5 max-w-xl text-[14px] leading-[1.9] text-white/60">{d}</p>
+              </div>
+              <div
+                className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.22em] md:pt-3"
+                style={{ color: BLUE }}
+              >
+                <span>{pair[0]}</span>
+                <span className="text-white/25" aria-hidden>
+                  →
+                </span>
+                <span>{pair[1]}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p data-reveal className="reveal mt-16 text-[clamp(1.3rem,3vw,2.4rem)] font-light leading-[1.5] md:pl-24">
+          이해하고, 바꾸고, <span className="font-medium">함께 가는 것.</span>
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/* ═══ 10. NEXT PHASE ═════════════════════════════════════════════════════════ */
 function NextPhase() {
   return (
-    <section className="px-6 py-28 sm:px-10 md:px-16" style={{ background: INK }}>
+    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
       <div className="mx-auto max-w-[1240px]">
-        <Eyebrow>07 — Next phase</Eyebrow>
-        <h2 data-reveal className="reveal mt-6 max-w-3xl text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35]">
-          AI 휴먼을, 실제 학습 생활 안으로
+        <Title className="max-w-2xl">
+          나를 이해하는 AI를
           <br />
-          <span className="font-medium">연결하는 다음 단계를 준비합니다.</span>
-        </h2>
+          <span className="font-medium">실제 학습 경험으로</span>
+        </Title>
 
-        <div className="mt-14 grid max-w-3xl gap-8 sm:grid-cols-2">
+        <div className="mt-14 grid max-w-3xl items-center gap-4 sm:grid-cols-[1fr_auto_1fr] sm:gap-0">
           <div data-reveal className="reveal rounded-2xl border border-white/12 p-7">
-            <Eyebrow>Now</Eyebrow>
+            <span className="text-[11px] font-semibold tracking-[0.26em] text-white/45">NOW</span>
             <p className="mt-4 text-2xl font-light">R&amp;D Prototype</p>
-            <p className="mt-1 text-[13px] tracking-[0.2em] text-white/45">2026.11</p>
+            <p className="mt-1 text-[13px] tracking-[0.16em] text-white/45">2026.11</p>
+          </div>
+          <div className="flex items-center justify-center py-2 sm:px-6" aria-hidden>
+            <span className="text-[20px] font-light text-white/25 sm:hidden">↓</span>
+            <span className="hidden text-[20px] font-light text-white/25 sm:inline">→</span>
           </div>
           <div
             data-reveal
             className="reveal rounded-2xl border p-7"
-            style={{ borderColor: BLUE, background: 'rgba(46,107,255,0.08)', transitionDelay: '120ms' }}
+            style={{ borderColor: BLUE, background: 'rgba(46,107,255,0.08)', transitionDelay: '130ms' }}
           >
-            <Eyebrow>Next</Eyebrow>
+            <span className="text-[11px] font-semibold tracking-[0.26em]" style={{ color: BLUE }}>
+              NEXT
+            </span>
             <p className="mt-4 text-2xl font-light">Open Beta</p>
-            <p className="mt-1 text-[13px] tracking-[0.2em] text-white/45">2027.03 Target</p>
+            <p className="mt-1 text-[13px] tracking-[0.16em] text-white/45">2027.03 Target</p>
           </div>
         </div>
 
-        <p data-reveal className="reveal mt-12 max-w-2xl text-[15px] leading-[1.95] text-white/60">
-          지금 공개하는 것은 완성된 서비스를 미리 약속하는 화면이 아닙니다. AI 휴먼이 학습자의 하루 공부 안에서 어떤
-          역할을 할 수 있을지, 그 가능성을 먼저 보여드리는 단계입니다.
+        <p data-reveal className="reveal mt-14 max-w-2xl text-[15px] leading-[1.95] text-white/60">
+          지금 공개하는 것은 완성된 서비스를 미리 보여드리는 화면이 아닙니다. AI가 학습자의 상태를 이해하고, 그에 맞춰
+          다음 학습을 조정하고, AI 휴먼이 선생님처럼 전달하는 경험을 실제 서비스 안에서 어떻게 구현할 수 있을지
+          하나씩 만들어가고 있습니다.
         </p>
       </div>
     </section>
   )
 }
 
-/* ═══ SECTION 08. PRE-OPEN CTA ═══ */
-function PreOpenCta() {
+/* ═══ 11. PRE-OPEN ═══════════════════════════════════════════════════════════
+   마지막은 가운데 정렬이다. 여기서는 메시지 자체가 화면이고, 할 일이 하나뿐이다.
+   ponytail: 수집 엔드포인트는 아직 배선하지 않았다. 개인정보 동의와 처리방침이
+     정리되면 여기서 POST 한다. 그때까지 아무 데도 보내지 않고 화면으로만 정직하게 막는다. */
+function PreOpen() {
   return (
     <section
       id="cta"
-      className="relative overflow-hidden px-6 py-36 sm:px-10"
-      style={{
-        background: `radial-gradient(900px 500px at 50% 120%, rgba(46,107,255,0.4), transparent 60%), ${INK}`,
-      }}
+      className="relative overflow-hidden px-6 py-32 sm:px-10 md:py-40"
+      style={{ background: `radial-gradient(900px 520px at 50% 118%, rgba(46,107,255,0.38), transparent 62%), ${BASE}` }}
     >
       <div data-reveal className="reveal mx-auto max-w-[820px] text-center">
-        <Eyebrow>08 — Pre-open</Eyebrow>
-        <h2 className="mt-6 text-[clamp(1.6rem,3.2vw,2.8rem)] font-light leading-[1.35]">
-          혼자 공부하는 시간에도,
+        <h2 className="text-[clamp(1.6rem,3.2vw,2.8rem)] font-light leading-[1.35] tracking-[-0.01em]">
+          나를 가장 잘 이해하는
           <br />
-          <span className="font-medium">강사가 곁에 있다면.</span>
+          <span className="font-medium">AI 선생님</span>
         </h2>
         <p className="mt-8 text-[15px] leading-[2] text-white/65">
-          수업을 시작하는 순간부터, 오늘 학습을 끝내는 순간까지. 그리고 다시 다음 학습을 시작할 때까지.
+          내가 어디에서 막히는지 알고, 지금 필요한 공부를 알고,
           <br />
-          현재 2027년 3월 오픈 베타를 목표로 개발 중입니다.
+          오늘의 결과에 따라 다음 수업을 다시 준비하는 선생님.
         </p>
+        <p className="mt-6 text-[15px] leading-[2] text-white/50">2027년 3월 오픈 베타를 목표로 개발 중입니다.</p>
 
         <form className="mx-auto mt-12 flex max-w-lg flex-col gap-3 sm:flex-row" onSubmit={(e) => e.preventDefault()}>
           <label htmlFor="v3-email" className="sr-only">
@@ -686,21 +570,21 @@ function PreOpenCta() {
             required
             inputMode="email"
             placeholder="이메일 주소"
-            className="min-h-[54px] flex-1 rounded-full border border-white/20 bg-white/5 px-6 text-[15px] placeholder:text-white/35 focus:border-white focus:outline-none"
+            className="min-h-[54px] flex-1 rounded-full border border-white/25 bg-white/[0.06] px-6 text-[15px] text-white placeholder:text-white/50 focus:border-white focus:outline-none"
           />
-          {/* ponytail: 수집 엔드포인트 미배선. 개인정보 동의·처리방침이 정리되면 여기서 POST 한다. */}
           <button
             type="submit"
-            className="min-h-[54px] rounded-full px-8 text-[14px] font-medium"
+            className="min-h-[54px] whitespace-nowrap rounded-full px-8 text-[14px] font-medium text-white transition-transform active:scale-[0.98]"
             style={{ background: BLUE, boxShadow: `0 16px 44px -14px ${BLUE}` }}
           >
-            오픈 베타 사전 알림 신청
+            사전 알림 신청
           </button>
         </form>
 
         <p className="mx-auto mt-8 max-w-lg text-[12px] leading-[1.9] text-white/40">
-          사전 알림 등록은 오픈 베타 참여 또는 정식 서비스 이용을 보장하지 않습니다. 개발 일정과 제공 방식은 변경될 수
-          있으며, 관련 내용이 정해지는 대로 안내드립니다.
+          YBM AI 어학원은 현재 개발 중인 R&amp;D 프로젝트이며, 정식으로 다운로드하거나 수강할 수 있는 서비스는
+          아닙니다. 사전 알림 등록은 오픈 베타 참여 또는 정식 서비스 이용을 보장하지 않습니다. 개발 일정과 제공 방식은
+          변경될 수 있으며 관련 내용이 정해지는 대로 안내드립니다.
         </p>
       </div>
     </section>
@@ -709,8 +593,8 @@ function PreOpenCta() {
 
 function Footer() {
   return (
-    <footer className="px-6 pb-14 sm:px-10 md:px-16" style={{ background: INK }}>
-      <div className="mx-auto flex max-w-[1240px] flex-col gap-2 border-t border-white/12 pt-8 text-[11px] uppercase tracking-[0.3em] text-white/35 sm:flex-row sm:justify-between">
+    <footer className="px-6 pb-14 sm:px-10 md:px-16" style={{ background: BASE }}>
+      <div className="mx-auto flex max-w-[1240px] flex-col gap-2 border-t border-white/12 pt-8 text-[11px] tracking-[0.24em] text-white/35 sm:flex-row sm:justify-between">
         <span>YBM · Language brings a bigger world</span>
         <span>R&amp;D Project · Open Beta Target 2027.03</span>
       </div>

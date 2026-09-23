@@ -349,3 +349,66 @@ html.lenis,
 html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-stopped { overflow: hidden; }
+
+/* /intro 무대(01~06) 안에서 쓰는 등장. **`.reveal` 을 쓰면 안 된다.**
+   무대의 장면은 스크롤 위치에 따라 DOM 에 붙었다 떨어지는데, `.reveal` 의 관찰자는 한 번
+   쏘고 `unobserve` 한다. 그래서 다시 붙은 요소는 `is-in` 을 영영 못 받고 투명하게 남는다
+   (실측: 내려갔다 올라오면 히어로 글자가 통째로 사라졌다).
+   이건 관찰자가 아니라 **붙을 때 한 번 도는 애니메이션**이라 다시 붙으면 다시 돈다. */
+.stage-rise {
+  animation: stage-rise 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes stage-rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-rise {
+    animation: none;
+  }
+}
+
+/* /intro 히어로에서 AI 휴먼 주위를 떠다니는 입자.
+   무한 루프는 원래 아껴 써야 하지만 여기서는 뜻이 있다 - **이 사람이 지금 살아 움직인다**는
+   신호다. 대신 아주 느리고(7~12초) 아주 작게만 움직인다. 눈에 띄면 그건 장식이고,
+   눈치채기 전에 느껴져야 분위기다.
+   ⚠️ 마우스 반응(인라인 transform)과 **같은 요소에 걸면 안 된다.** CSS 애니메이션이 인라인을
+   이겨서 마우스가 안 먹는다. 바깥은 마우스, 안쪽은 이 애니메이션으로 층을 나눈다. */
+.intro-float {
+  animation: intro-float 9s ease-in-out infinite alternate;
+}
+@keyframes intro-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(4px, -16px, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-float {
+    animation: none;
+  }
+}
+
+/* /intro 히어로의 **공전 고리.** 제자리에서 도는 원 하나가 전부다 -
+   고리 위에 얹은 점이 같이 돌면서 '돈다' 를 보여 준다(원만 돌면 아무 일도 안 일어난 것처럼 보인다). */
+.intro-orbit {
+  animation: intro-orbit linear infinite;
+}
+@keyframes intro-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-orbit {
+    animation: none;
+  }
+}

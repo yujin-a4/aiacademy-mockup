@@ -31,12 +31,20 @@ const VERSIONS = [
   {
     href: '/intro/v3',
     tag: 'Version 3',
-    title: 'AI 휴먼 기반 관리형 학습 서비스',
+    title: '나를 가장 잘 이해하는 AI 선생님',
     who: '혼자 공부하는 학습자',
-    line: '혼자 공부할 때, 누가 계속 학습을 이어준다면 어떨까요?',
+    line: '내가 어디에서 자주 막히는지, 지금 무엇이 필요한지.',
     ready: true,
   },
 ]
+
+/* 개편 전 V3. 되돌릴 수 있게 남겨 둔 것이라 위 카드와 같은 줄에 세우지 않는다.
+   새 판이 확정되면 이 링크와 `src/app/intro/v3-prev/` 를 함께 지운다. */
+const ARCHIVE = {
+  href: '/intro/v3-prev',
+  title: 'Version 3 (개편 전)',
+  line: 'AI 휴먼 기반 관리형 학습 서비스',
+}
 
 export default function IntroIndex() {
   return (
@@ -91,6 +99,16 @@ export default function IntroIndex() {
               </div>
             ),
           )}
+        </div>
+
+        <div className="mt-10 border-t border-white/10 pt-6">
+          <Link
+            href={ARCHIVE.href}
+            className="inline-flex min-h-[44px] items-center gap-3 text-[12px] text-white/45 transition-colors hover:text-white/80"
+          >
+            <span>{ARCHIVE.title}</span>
+            <span className="text-white/25">{ARCHIVE.line}</span>
+          </Link>
         </div>
 
         <p className="mt-16 text-[12px] leading-[1.9] text-white/35">
