@@ -5,6 +5,19 @@ import { createClient } from '@/lib/supabase'
 import { loadProfileFromSupabase } from '@/lib/profile'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
+/** 온보딩 확인 전용 계정 — 로그인할 때마다 저장된 프로필을 무시하고 온보딩 첫 화면부터 다시 연다.
+ *  온보딩을 고칠 때마다 새 계정을 파지 않으려고 둔다. 참가자 계정(ybm101~)과는 무관하다 */
+const ONBOARDING_ONLY_EMAIL = 'ybm00@ybm.co.kr'
+const isOnboardingOnly = (email?: string | null) => email?.toLowerCase() === ONBOARDING_ONLY_EMAIL
+
+/** 온보딩 답을 처음 상태로 — onboardingStore 의 초기값과 같다 */
+const ONBOARDING_BLANK = {
+  userName: '', rangeAxis: null, rhythm: null, difficulty: null, motivation: null,
+  targetScore: null, studyPeriod: null, examDate: null, dailyTime: null,
+  selectedInstructor: null, studyRange: null, lastExamDate: null,
+  currentTotalScore: null, weakParts: [],
+}
+
 const TYPING_PHRASES = [
   '고민하지 마세요.',
   'AI 강사가 분석해 드려요.',
@@ -49,7 +62,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user }, error }) => {
-      if (user && !error) router.replace('/dashboard')
+      if (user && !error) router.replace(isOnboardingOnly(user.email) ? '/onboarding' : '/dashboard')
       else {
         if (error) supabase.auth.signOut()
         setChecking(false)
@@ -79,10 +92,17 @@ export default function LoginPage() {
     return () => clearTimeout(t)
   }, [typedText, isDeleting, phraseIdx])
 
-  const proceedToApp = async (userId: string) => {
+  const proceedToApp = async (userId: string, email?: string) => {
     setShowWelcome(true)
     setTimeout(() => setWelcomeProgress(30), 80)
     setTimeout(() => setWelcomeProgress(65), 700)
+    if (isOnboardingOnly(email)) {
+      // 저장된 프로필을 불러오지 않고, 이 기기에 남은 지난 답도 비워 처음부터 시작한다
+      useOnboardingStore.setState(ONBOARDING_BLANK)
+      setWelcomeProgress(100)
+      setTimeout(() => router.replace('/onboarding'), 700)
+      return
+    }
     const profile = await loadProfileFromSupabase(userId).catch(() => null)
     if (profile?.userName) {
       if (profile.userName) store.setUserName(profile.userName)
@@ -114,7 +134,7 @@ export default function LoginPage() {
       return
     }
     const userId = signInData.user?.id
-    if (userId) proceedToApp(userId)
+    if (userId) proceedToApp(userId, signInData.user?.email)
     setLoading(false)
   }
 
