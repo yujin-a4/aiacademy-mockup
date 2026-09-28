@@ -1906,13 +1906,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      · 실전(practice) — **감춘다.** 시험을 보는 자리라 힌트가 화면에 있으면 안 된다.
        오답 코칭(review)에서 다시 나온다 — 거기서는 다시 보는 것이 곧 학습이다. */
   const tipsLocked = phase === 'wrap'
-  /* ── 윤다은 수업에서는 **아예 안 그린다** (09-08 지정) ──
-     윤다은 대본에는 '토익 TIP' 줄이 없어서(실측 0개) 끝까지 살아나지 않는 회색 버튼 둘이
-     강사 창 머리를 차지한다.
-     ⚠️ "TIP 이 하나도 없으면 숨긴다" 가 아니라 **강사 이름으로** 가른다 — 지정이 그렇다.
-        박혜원처럼 아직 대본이 없는 강사는 회색으로라도 자리를 보여 둔다(들어올 자리다).
-        그래서 **윤다은 대본에 TIP 이 생겨도 여기서 이름을 빼기 전까지는 안 나온다.** */
-  const tipsHidden = phase === 'practice' || instructor === 'yun_daeun'
+  /* (09-08 에는 윤다은 대본에 TIP 이 0개라 강사 이름으로 숨겼다. 09-28 '1차 수정완료' 에서
+     TIP 이 16장 들어와 이도윤과 같이 보인다.) */
+  const tipsHidden = phase === 'practice'
 
   /* 실전으로 넘어가며 열어 둔 판이 남아 있으면 닫는다(감추기만 하면 판은 그대로 떠 있다) */
   useEffect(() => { if (tipsHidden) setTipSheet(null) }, [tipsHidden])
@@ -3212,7 +3208,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       /* 고른 것을 넘기지 않는다 — "방금 고른 '몰라' 는 답이 아니에요" 가 되면 안 된다.
          다독이지 않는 강사(INST_SCRIPT_ONLY)는 그냥 다음 단계를 말한다 — prevOk 가 false 라
          대본이 맞장구로 시작해도 stripAck 이 떼어 주므로, 모른다는 학생에게 맞았다고 하지 않는다. */
-      if (scriptWillAnswerWrong()) {
+      /* 다음 줄이 **대본의 피드백**이면 그 줄이 풀어 준다 — 앞에 "괜찮아요, 같이 볼게요. 답은 …" 을
+         얹으면 같은 설명을 두 번 듣는다(09-28 사용자 지적). 피드백 없이 다음 단계로 가는 자리만 앱이 매듭짓는다. */
+      const nxFb = !atItemEnd && /피드백/.test(playedNeighbor(turnIdxRef.current, 1)?.stage ?? '')
+      if (scriptWillAnswerWrong() || nxFb) {
         /* 대본이 **오답일 때 할 말을 갖고 있다** — 앱은 한 마디도 얹지 않는다.
            얹으면 학생이 같은 말을 두 번 듣는다: 앱한테 한 번, 강사한테 또 한 번. */
       } else if (!INST_SCRIPT_ONLY[instructor]) {
