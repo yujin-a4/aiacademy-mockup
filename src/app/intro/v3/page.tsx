@@ -34,7 +34,7 @@
 import localFont from 'next/font/local'
 import { useEffect, useRef, useState } from 'react'
 
-import { ease, lerp, seg, useReveal, useSmoothScroll, useTrackProgress } from '../_lib'
+import { ease, lerp, seg, usePlayOnView, useReveal, useSmoothScroll } from '../_lib'
 import { BASE, BLUE, INK, Stage, StageFlow } from './_stage'
 
 /** 색면으로 뒤집는 구간의 파랑. 강조색 BLUE(#2E6BFF) 위에 흰 글자는 대비가 모자라(≈4.2:1) 한 톤 내렸다(≈5.3:1). */
@@ -221,30 +221,25 @@ function Trial() {
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState({ scale: 0, rotate: false })
 
-  /* 태블릿이 **살짝 뒤로 누운 채** 들어오다가 화면 가운데쯤 오면 똑바로 선다(사용자 요청 "약간만").
-     스크롤마다 리렌더하지 않게 스타일을 직접 쓴다. 움직임 줄이기 설정이면 처음부터 똑바로. */
+  /* 태블릿이 **살짝 뒤로 누운 채** 있다가, 보이면 한 번에 똑바로 선다(사용자 요청 "약간만").
+     스크롤에 물리지 않고 보이는 순간 CSS 전환으로 선다 - 스크롤 한 칸 한 칸에 각도가 걸리면 어색하다. */
   const tilt = useRef<HTMLDivElement>(null)
+  const [stood, setStood] = useState(false)
   useEffect(() => {
     const el = tilt.current
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let raf = 0
-    const draw = () => {
-      raf = 0
-      const r = el.getBoundingClientRect()
-      const vh = window.innerHeight
-      // 윗변이 화면 바닥에 닿을 때 0 → 화면 35% 높이까지 올라오면 1
-      const k = ease(seg(vh - r.top, 0, vh * 0.65))
-      el.style.transform = `perspective(1600px) rotateX(${lerp(14, 0, k)}deg) scale(${lerp(0.94, 1, k)})`
-    }
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(draw)
-    }
-    draw()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
+    if (!el) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return setStood(true)
+    const io = new IntersectionObserver(
+      (es) => {
+        if (es.some((e) => e.isIntersecting)) {
+          setStood(true)
+          io.disconnect()
+        }
+      },
+      { threshold: 0.35 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
 
   useEffect(() => {
@@ -315,7 +310,8 @@ function Trial() {
             className="relative overflow-hidden rounded-[24px] border border-white/25 bg-[#0A1526] p-2"
             style={{
               transformOrigin: '50% 100%',
-              willChange: 'transform',
+              transform: stood ? 'perspective(1600px) rotateX(0deg) scale(1)' : 'perspective(1600px) rotateX(14deg) scale(0.94)',
+              transition: 'transform 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
               width: inline ? TRIAL_W * inline + 16 : '100%',
               height: inline ? TRIAL_H * inline + 16 : undefined,
               boxShadow: '0 60px 120px -40px rgba(3,10,30,0.7)', // 파란 면 위라 파란 빛무리 대신 그림자
@@ -392,12 +388,13 @@ function Trial() {
    전환 자체가 이 섹션이 하는 말이라 글로 "구현했습니다" 를 반복하지 않는다. */
 function ParkHyeWon() {
   const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
+  // 보이면 실제 강사 → AI 휴먼 전환과 네 줄이 한 번에 재생된다(전에는 150vh 트랙에 스크롤로 물려 있었다)
+  const p = usePlayOnView(ref, 3.2, 0.5)
   const toAi = ease(seg(p, 0.2, 0.5))
 
   return (
-    <section id="park" data-nav="AI 휴먼" ref={ref} className="relative md:h-[150vh]" style={{ background: BASE }}>
-      <div className="px-6 py-24 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:items-center md:overflow-hidden md:px-16 md:py-0">
+    <section id="park" data-nav="AI 휴먼" ref={ref} className="relative" style={{ background: BASE }}>
+      <div className="px-6 py-24 sm:px-10 md:px-16 md:py-36">
         <div className="mx-auto grid w-full max-w-[1240px] items-center gap-12 md:grid-cols-2 md:gap-16">
           <div>
             <Title>
@@ -476,7 +473,8 @@ function ParkHyeWon() {
    **나흘치 수업 카드로 보여 준다.** 추상 도형 말고 실물로.
    윗줄(흐리게) = 교재 순서대로: Unit 1·2·3·4, 서로 모른다.
    아랫줄(밝게) = AI 선생님과: 그날의 결과 칩이 **빛줄기를 타고 다음 날 카드로 건너가** 그 카드를 만든다.
-   스크롤로 하루씩 이어진다(`md:h-[240vh]` + sticky, 박혜원 섹션과 같은 방식).
+   보이면 나흘이 한 번에 이어진다(`usePlayOnView`). 전에는 240vh 트랙에 스크롤로 물려 있었다 -
+   "스크롤 하나하나에 움직임이 걸려 어색하다" 는 지적으로 바꿨다.
 
    거쳐 온 것(같은 걸 또 하지 말 것):
    1. START·LEARN·ANALYZE·ADJUST·CONTINUE 다섯 칸 + 되돌아오는 화살표 → "너무 PPT 같다".
@@ -494,7 +492,7 @@ const AI_DAYS = [
 
 function LearningFlow() {
   const ref = useRef<HTMLElement>(null)
-  const p = useTrackProgress(ref)
+  const p = usePlayOnView(ref, 4.2, 0.45) // 보이면 나흘이 한 번에 이어진다(스크롤에 물리지 않는다)
   const [wide, setWide] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
@@ -512,8 +510,8 @@ function LearningFlow() {
   const travel = (i: number) => ease(seg(k, 0.25 + i * 0.2, 0.37 + i * 0.2)) // i 번째 칩이 i+1 로 건너간다
 
   return (
-    <section ref={ref} data-nav="학습 흐름" className="relative md:h-[240vh]" style={{ background: INK }}>
-      <div className="px-6 py-28 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:flex-col md:justify-center md:overflow-hidden md:px-16 md:py-0">
+    <section ref={ref} data-nav="학습 흐름" className="relative" style={{ background: INK }}>
+      <div className="px-6 py-28 sm:px-10 md:px-16 md:py-36">
         <div className="mx-auto w-full max-w-[1240px]">
           <Title className="max-w-4xl">
             한 번의 수업보다

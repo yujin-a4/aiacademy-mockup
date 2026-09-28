@@ -26,12 +26,14 @@ export function useSmoothScroll() {
     /* wheelMultiplier: 한 번 굴릴 때 더 많이 내려가게 — 소개 페이지는 읽는 페이지가 아니라
        훑는 페이지라 기본값(1)이면 답답하다. duration 은 짧게 잡아 반응을 빠르게. */
     const lenis = new Lenis({ duration: 0.95, smoothWheel: true, wheelMultiplier: 1.45 })
+    lenisRef.current = lenis // 무대가 한 걸음씩 넘길 때 관성을 멈추려고(useStageSteps)
     let id = requestAnimationFrame(function raf(t: number) {
       lenis.raf(t)
       id = requestAnimationFrame(raf)
     })
     return () => {
       cancelAnimationFrame(id)
+      lenisRef.current = null
       lenis.destroy()
     }
   }, [])
@@ -139,4 +141,247 @@ export function usePointer() {
     return () => window.removeEventListener('pointermove', on)
   }, [])
   return pt
+}
+
+/** **스크롤은 '어디까지' 만 정하고, 움직임은 시간이 돌린다.**
+ *
+ *  스크롤 위치에 움직임을 그대로 물리면(스크럽) 조금 굴리면 조금 움직이고, 멈추면 동작 중간에 얼어붙는다.
+ *  "스크롤 하나하나에 움직임이 걸려 있어서 어색하다"(사용자). 그래서 무대에 **멈춤 자리(stops)** 를 두고,
+ *  스크롤은 그중 어디로 갈지만 고른다. 다음 멈춤 쪽으로 30% 만 넘어가면 거기까지 **정해진 속도로 스스로 재생**된다.
+ *  되돌아갈 때는 재생하지 않고 곧장 그 자리로 간다.
+ *
+ *  scroll = 트랙 진행률(0~1). 멈춤 자리들은 스크롤 위에 **같은 간격**으로 깔린다(한 번 굴리면 한 칸).
+ *  stops = 멈출 재생 위치(오름차순, 0 과 1 포함) · durs[i] = stops[i] → stops[i+1] 에 걸리는 초.
+ *  돌려주는 값은 기존 진행률과 같은 자리(0~1)라, 장면 쪽 코드는 그대로 둔 채 넣고 빼기만 하면 된다. */
+export function usePlayhead(scroll: number, stops: readonly number[], durs: readonly number[]) {
+  const [p, setP] = useState(stops[0])
+  const cur = useRef(stops[0])
+  const target = useRef(stops[0])
+  const raf = useRef<number | null>(null)
+  const last = useRef(0)
+
+  const n = stops.length
+  const idx = Math.min(n - 1, Math.max(0, Math.floor(scroll * (n - 1) + 0.7)))
+  target.current = stops[idx]
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      cur.current = target.current
+      setP(cur.current)
+      return
+    }
+    if (raf.current != null) return
+    const tick = (t: number) => {
+      const dt = Math.min(0.05, last.current ? (t - last.current) / 1000 : 0.016)
+      last.current = t
+      const goal = target.current
+      // 되돌아가는 건 재생하지 않고 곧장 간다("올라갈 때는 빠르게", 사용자)
+      if (goal < cur.current) {
+        cur.current = goal
+        setP(goal)
+      }
+      const dir = Math.sign(goal - cur.current)
+      if (dir === 0) {
+        raf.current = null
+        last.current = 0
+        return
+      }
+      // 지금 놓인 칸의 속도로 간다(칸마다 걸리는 시간이 다르다)
+      let i = 0
+      while (i < n - 2 && (dir > 0 ? cur.current >= stops[i + 1] : cur.current > stops[i + 1])) i++
+      const rate = (stops[i + 1] - stops[i]) / durs[i]
+      const next = cur.current + dir * rate * dt
+      cur.current = dir > 0 ? Math.min(goal, next) : Math.max(goal, next)
+      setP(cur.current)
+      raf.current = requestAnimationFrame(tick)
+    }
+    raf.current = requestAnimationFrame(tick)
+  }, [idx, stops, durs, n])
+
+  // ⚠️ StrictMode 두 번째 마운트에서 rAF 가 안 도는 함정(useTrackProgress 참고) - 정리 때 id 를 비운다
+  useEffect(
+    () => () => {
+      if (raf.current != null) cancelAnimationFrame(raf.current)
+      raf.current = null
+      last.current = 0
+    },
+    [],
+  )
+
+  return p
+}
+
+/** 보이면 한 번 재생(0 → 1, dur 초). 스크럽 대신 쓰는 짝. 한 번 끝나면 1 에 머문다.
+ *  threshold = 요소가 얼마나 보여야 시작하나. 움직임 줄이기 설정이면 바로 1. */
+export function usePlayOnView(ref: React.RefObject<HTMLElement>, dur: number, threshold = 0.35) {
+  const [k, setK] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setK(1)
+      return
+    }
+    let raf = 0
+    let start = 0
+    const io = new IntersectionObserver(
+      (es) => {
+        if (!es.some((e) => e.isIntersecting)) return
+        io.disconnect()
+        const tick = (t: number) => {
+          if (!start) start = t
+          const v = Math.min(1, (t - start) / 1000 / dur)
+          setK(v)
+          if (v < 1) raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+      },
+      { threshold },
+    )
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [ref, dur, threshold])
+  return k
+}
+
+/* 페이지의 Lenis. 무대가 스크롤을 잠깐 쥐었다 놓으려면 관성을 멈출 수 있어야 한다. */
+type LenisLike = { stop(): void; start(): void; scrollTo(y: number, o?: { immediate?: boolean; force?: boolean; duration?: number }): void }
+const lenisRef: { current: LenisLike | null } = { current: null }
+const scrollToY = (y: number, immediate: boolean) => {
+  if (lenisRef.current) lenisRef.current.scrollTo(y, { immediate, force: true, duration: 0.9 })
+  else window.scrollTo({ top: y, behavior: immediate ? 'auto' : 'smooth' })
+}
+
+/** **제스처 한 번 = 한 걸음.** 무대가 화면을 꽉 채우는 동안에는 페이지 스크롤을 멈추고,
+ *  휠·스와이프·방향키 한 번마다 걸음을 하나씩 옮긴다. 마지막 걸음에서 한 번 더 내리면 페이지로 돌려준다.
+ *
+ *  왜: 멈춤 자리를 스크롤 위에 깔아 두는 방식(40vh 간격)은 한 번 휙 굴리면 관성으로 서너 칸을 한꺼번에 지나갔다
+ *  ("스크롤 한 번에 너무 많이 가버린다", 사용자). 기기마다 한 번 굴림의 거리가 달라서 간격으로는 못 막는다.
+ *  - 트랙패드는 한 번 쓸어도 관성 휠 이벤트가 1초 가까이 이어진다 → **휠이 450ms 잠잠해져야** 새 제스처로 보고,
+ *    걸음 사이는 **최소 0.9초** 벌린다(느린 기기·무거운 장면에서는 관성 이벤트 사이가 300ms 넘게 벌어졌다).
+ *  - 트랙(`el`)은 화면 두 장 높이면 된다. 들어오면 윗끝(아래로 올 때)·아랫끝(위로 올 때)에 딱 붙인다.
+ *  - 놓을 때는 잠깐(1.2초) 다시 붙잡지 않는다 - 빠져나가는 스크롤이 트랙을 지나가며 도로 잡혔다.
+ *  - **올라갈 때는 한 걸음씩 되감지 않는다**("그냥 빠르게 올라가도 된다", 사용자). 위로 한 번 = 첫 화면(히어로)으로 곧장.
+ *    아래 구간에서 올라와 무대에 들어와도 마찬가지로 첫 화면에서 시작한다(무대가 페이지 맨 위라 위에 다른 게 없다). */
+export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) {
+  const [step, setStep] = useState(0)
+  const stepRef = useRef(0)
+  stepRef.current = step
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let engaged = false
+    let freeUntil = 0
+    let lastWheel = 0 // 앞 휠 이벤트 시각 - 450ms 안에 또 오면 같은 제스처(관성)로 본다
+    let lastStep = -1e9 // 마지막으로 걸음을 옮긴 시각 - 0.9초 안에는 다시 옮기지 않는다
+    let touchY: number | null = null
+
+    const bounds = () => {
+      const top = el.getBoundingClientRect().top + window.scrollY
+      return { top, end: top + el.offsetHeight - window.innerHeight }
+    }
+    let swallow = false // 놓아 준 그 제스처의 남은 관성은 먹는다 - 안 먹으면 다음 섹션을 건너뛰어 체험까지 날아갔다(실측)
+    const release = () => {
+      engaged = false
+      swallow = true
+      freeUntil = performance.now() + 1200
+      lenisRef.current?.start()
+      const b = bounds()
+      scrollToY(b.end, true)
+      scrollToY(b.end + window.innerHeight, false) // 다음 섹션 윗끝에 정확히 선다
+    }
+    const move = (dir: 1 | -1) => {
+      if (dir < 0) return setStep(0) // 올라갈 때는 첫 화면으로 곧장(되감기 없음)
+      if (stepRef.current + 1 > count - 1) return release()
+      setStep(stepRef.current + 1)
+    }
+    let lastY = window.scrollY
+    const check = () => {
+      const up = window.scrollY < lastY
+      lastY = window.scrollY
+      if (engaged || performance.now() < freeUntil) return
+      const r = el.getBoundingClientRect()
+      if (r.top <= 0 && r.bottom >= window.innerHeight && r.height > 0) {
+        engaged = true
+        lenisRef.current?.stop()
+        const b = bounds()
+        // 위에서 내려오면 윗끝에 붙인다. 아래에서 올라오면 첫 화면으로 곧장 돌려놓는다.
+        if (up) setStep(0)
+        scrollToY(b.top, true)
+        lastY = window.scrollY
+      }
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (swallow) {
+        const now = performance.now()
+        const still = now - lastWheel < 450
+        lastWheel = now
+        if (still) {
+          e.preventDefault()
+          e.stopImmediatePropagation()
+          return
+        }
+        swallow = false
+      }
+      check()
+      if (!engaged) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      /* 두 겹으로 막는다. 무거운 장면(블록 물리)이 돌면 관성 휠 이벤트가 250ms 씩 벌어져 들어와
+         '잠잠해지면 새 제스처' 규칙만으로는 한 번 쓸기가 여러 걸음이 됐다(실측: 한 번에 끝까지 가서 페이지로 빠짐). */
+      const now = performance.now()
+      const fresh = now - lastWheel > 450
+      lastWheel = now
+      if (fresh && now - lastStep > 900 && Math.abs(e.deltaY) > 2) {
+        lastStep = now
+        move(e.deltaY > 0 ? 1 : -1)
+      }
+    }
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      check()
+      if (engaged) e.preventDefault()
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!engaged || touchY == null) return
+      const dy = touchY - (e.changedTouches[0]?.clientY ?? touchY)
+      touchY = null
+      if (Math.abs(dy) > 40) move(dy > 0 ? 1 : -1)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      check()
+      if (!engaged) return
+      const down = ['ArrowDown', 'PageDown', ' ', 'Spacebar'].includes(e.key)
+      const up = ['ArrowUp', 'PageUp'].includes(e.key)
+      if (!down && !up) return
+      e.preventDefault()
+      move(down ? 1 : -1)
+    }
+
+    window.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('keydown', onKey)
+    check()
+    return () => {
+      window.removeEventListener('scroll', check)
+      window.removeEventListener('wheel', onWheel, { capture: true })
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('keydown', onKey)
+      if (engaged) lenisRef.current?.start()
+    }
+  }, [ref, count])
+
+  return step
 }
