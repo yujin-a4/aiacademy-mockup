@@ -32,7 +32,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { BLOCK_H, BLOCK_W, usePile } from './_pile'
 
-import { ease, lerp, seg, usePointer, useTrackProgress } from '../_lib'
+import { ease, lerp, seg, usePlayhead, usePointer, useStageSteps } from '../_lib'
 
 /** 떨어지고 튕기는 곡선. 0 = 떨어지기 직전, 1 = 바닥에 붙어 멈춤.
  *
@@ -528,13 +528,23 @@ export const UTTERANCES = [
    무대
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* 무대가 **멈춰 서는 자리**(재생 위치, BEAT 와 같은 눈금). 스크롤 한 칸 = 다음 멈춤까지 스스로 재생.
+   히어로 → 더미가 떨어짐 → "혼자서는…" 문장 → 선생님의 네 마디(하나씩) → 분석 화면 다 뜸 → 무대 끝.
+   DURS = 칸마다 걸리는 초. 읽을 것이 생기는 칸(장면이 바뀌며 첫 마디가 찍히는 칸, 분석 네 줄이 찍히는 칸)은 길게.
+   트랙은 200vh 면 된다 - 걸음은 스크롤 거리가 아니라 제스처 수로 넘긴다(스크롤 위에 깔면 한 번 휙 굴림에 서너 칸이 넘어갔다).
+   고칠 때: 멈춤 자리는 **그 장면에서 다 보인 순간**(글자가 다 찍힌 뒤)에 둔다. 중간에 두면 반쯤 뜬 채로 선다. */
+const STOPS = [0, 0.1684, 0.3545, 0.6649, 0.7112, 0.7574, 0.8037, 0.9589] as const
+const DURS = [1.4, 1.6, 2.8, 1.6, 1.6, 1.6, 4.2] as const
+
 export function Stage() {
   const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
+  /* 제스처 한 번 = 한 걸음(useStageSteps). 분석 화면이 마지막 걸음이고, 거기서 한 번 더 내리면 페이지로 넘어간다. */
+  const step = useStageSteps(ref, STOPS.length)
+  const p = usePlayhead(step / (STOPS.length - 1), STOPS, DURS)
   const pt = usePointer()
 
   return (
-    <div ref={ref} data-nav="AI 선생님" className="relative hidden lg:block lg:h-[790vh]" style={{ background: BASE }}>
+    <div ref={ref} data-nav="AI 선생님" className="relative hidden lg:block lg:h-[200vh]" style={{ background: BASE }}>
       <div className="sticky top-0 h-[100dvh] overflow-hidden break-keep">
         {/* 바닥에 깔리는 빛. 인물이 움직이는 쪽을 따라간다. */}
         <div
@@ -730,6 +740,12 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
         {/* 등장은 `.stage-rise` 로 한다. `.reveal`(IntersectionObserver) 은 여기서 못 쓴다 -
             장면이 스크롤에 따라 붙었다 떨어지는데 관찰자는 한 번 쏘고 그만둬서,
             내려갔다 올라오면 글자가 영영 안 돌아온다(실측). */}
+        {/* 이 페이지가 **YBM R&D 가운데 한 프로젝트** 라는 걸 제목보다 먼저 한 줄로 밝힌다(사용자 요청).
+            참고 페이지의 '— RULE 02' 처럼 짧은 선 + 이름. 장식이 아니라 소속 표시라 둔다. */}
+        <p className="stage-rise mb-6 flex items-center gap-3 text-[13px] font-semibold tracking-[0.02em] text-white/75">
+          <span className="block h-px w-8" style={{ background: '#7fa6ff' }} aria-hidden />
+          YBM R&amp;D · AI 어학원 프로젝트
+        </p>
         <h1 className="stage-rise display break-keep text-[clamp(2.3rem,4.6vw,4.2rem)] leading-[1.14] tracking-[-0.02em]">
           {/* 굵은 제목체라 세 줄로 쌓는다. 한 줄로 늘리면 인물이 든 패드·빛 궤적과 겹친다(1180 실측). */}
           나를 가장 잘
@@ -738,12 +754,12 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
           <br />
           <span className="em">AI 선생님</span>
         </h1>
-        <p className="stage-rise mt-9 text-[clamp(0.95rem,1.25vw,1.1rem)] leading-[2] text-white/70" style={{ animationDelay: '150ms' }}>
-          내가 어디에서 자주 막히는지,
+        {/* 전에는 "내가 어디에서 자주 막히는지, …" 세 줄이었다 - 뒤 장면들이 그대로 보여 주는 말이라 빼고,
+            대신 YBM 이 무엇을 연구하고 이 프로젝트가 그중 무엇인지를 말한다. */}
+        <p className="stage-rise mt-9 max-w-[560px] break-keep text-[clamp(0.95rem,1.25vw,1.1rem)] leading-[1.9] text-white/75" style={{ animationDelay: '150ms' }}>
+          YBM은 AI 휴먼을 활용한 학습 서비스의 <strong className="font-semibold text-white">‘가르치는 방식’</strong>을 연구합니다.
           <br />
-          어떤 방식으로 공부하고 있는지,
-          <br />
-          지금 무엇이 필요한지.
+          AI 어학원은 그 연구를 담은 R&amp;D 프로젝트 중 하나입니다.
         </p>
         <div className="stage-rise mt-11 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
           <a
@@ -1011,13 +1027,18 @@ export function StageFlow() {
             alt="AI 휴먼 선생님이 학습자에게 말을 거는 모습을 표현한 이미지"
             className="mx-auto mb-4 h-[300px] w-auto object-contain"
           />
+          <p className="mb-4 flex items-center gap-3 text-[12.5px] font-semibold text-white/75">
+            <span className="block h-px w-6" style={{ background: '#7fa6ff' }} aria-hidden />
+            YBM R&amp;D · AI 어학원 프로젝트
+          </p>
           <h1 className="display text-[clamp(2.2rem,9vw,3rem)] leading-[1.16] tracking-[-0.02em]">
             나를 가장 잘 이해하는
             <br />
             <span className="em">AI 선생님</span>
           </h1>
-          <p className="mt-7 text-[15px] leading-[2] text-white/70">
-            내가 어디에서 자주 막히는지, 어떤 방식으로 공부하고 있는지, 지금 무엇이 필요한지.
+          <p className="mt-7 break-keep text-[15px] leading-[1.9] text-white/75">
+            YBM은 AI 휴먼을 활용한 학습 서비스의 <strong className="font-semibold text-white">‘가르치는 방식’</strong>을
+            연구합니다. AI 어학원은 그 연구를 담은 R&amp;D 프로젝트 중 하나입니다.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <a
