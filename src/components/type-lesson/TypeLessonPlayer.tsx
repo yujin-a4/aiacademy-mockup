@@ -24,7 +24,7 @@ import { koJosa, endsConsonant } from '@/lib/ttsText'
 import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_CUTOUTS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
-import TutorDock, { PulseAvatar, SpeechDots, TapHint, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
+import TutorDock, { ActionTray, PulseAvatar, SpeechDots, TapHint, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
 import { useConversation } from '@11labs/react'
 import { buildTutorVars } from '@/lib/learnerProfile'
 import { gateLevels, GATE_RULE, GATE_NAME, type Gate } from '@/data/typeLearning/stageGate'
@@ -1371,6 +1371,15 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return label === right ? null : label
   }
 
+  /** 이 문항에서 학생이 **틀리게 고른 보기 전부** — 처음 답과, 다시 골라서 또 틀린 답(09-28).
+   *  둘 다 학생이 실제로 헷갈린 보기라 묻지 않고 해설한다(시트: "학생이 고른 선지는 고정적으로 진행").
+   *  같은 보기를 두 번 골랐으면 한 번만. 길(맞힌/틀린)은 여전히 처음 답 하나로 정한다(wrongPickOf). */
+  const wrongPicksOf = (qIdx?: number): string[] => {
+    if (qIdx === undefined) return []
+    const right = lesson.content.questions[qIdx]?.options.find((o) => o.correct)?.label
+    return Array.from(new Set([firstPickRef.current[qIdx], answers[qIdx]].filter((l): l is string => !!l && l !== right)))
+  }
+
   /** 후속 질문에서 **아직 고를 수 있는** 보기 — 이미 들은 것은 뺀다('없어요'는 늘 남는다) */
   const askableOf = (t: Turn) => (t.interaction.kind === 'askOption'
     ? t.interaction.choices.filter((c) => !c.label || !askRef.current.heard.has(`${t.focusQ}:${c.label}`))
@@ -1394,7 +1403,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (t.gate === 'ifCorrect') return wrongPickOf(t.focusQ) === null
     if (t.gate === 'ifWrong') return wrongPickOf(t.focusQ) !== null
     return t.gate === 'ifPicked'
-      ? t.optionRef === wrongPickOf(t.focusQ)
+      ? !!t.optionRef && wrongPicksOf(t.focusQ).includes(t.optionRef)
       : !!t.optionRef && (askRef.current.want[q] ?? []).includes(t.optionRef)
   }
 
@@ -1937,22 +1946,28 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return () => clearTimeout(timer)
   }, [turn.tip, tipsHidden])
 
-  /* ── 문제 끝에 뜬 카드는 **스스로 들어간다** (09-09 실측 보고) ──
-     카드는 턴이 넘어갈 때 버튼으로 날아간다. 그런데 실전 오답 코칭에서는 TIP 이 그 문항의
-     **마지막 턴**이다(대본 47턴 전수: S7 표현 정리가 문항마다 끝) — 넘어갈 곳이 없으니 카드가
-     그대로 남는다. 게다가 카드는 수업 칸 전체를 덮으므로(#zoom-host 기준 absolute) 그 아래
-     [다음 문제] 줄까지 가린다. 학생 눈에는 **팝업이 뜬 채 화면이 멈춘 것**이 된다.
-     그래서 강사가 그 줄을 다 읽으면(spokenTurn) 잠깐 읽을 틈만 두고 앱이 날려 보낸다.
-     ⚠️ 문제 끝(atItemEnd)에서만이다. 수업 중의 TIP 은 다음 단계가 알아서 걷어간다. */
-  useEffect(() => {
-    if (!turn.tip || !atItemEnd || tuckedHere || spokenTurn !== turnIdx) return
-    const start = setTimeout(() => {
-      /* 이미 들어간 카드를 턴이 넘어갈 때 **또** 날리지 않게 지운다(위 effect 의 lastTipRef) */
-      lastTipRef.current = null
-      setTucked({ at: turnIdx, gone: false })
-    }, 1200)
-    return () => clearTimeout(start)
-  }, [turn.tip, atItemEnd, tuckedHere, spokenTurn, turnIdx])
+  /* ── 카드는 **학생이 X 를 눌러야** 들어간다 (09-28 사용자 지정) ──
+     예전에는 강사가 정리를 다 읽으면 다음 단계로 넘어가며 카드가 저절로 날아갔고, 문제 끝에서는
+     1.2초 뒤 앱이 날려 보냈다 — 읽는 속도는 학생마다 다른데 앱이 정했다. 시트도 "학습자가
+     버튼을 누르면 사라져서 사이드에 저장되고, 다음으로 넘어갈 수 있도록" 이라 적어 둔다.
+     그래서 카드가 떠 있는 동안은 자동 전진을 멈추고(아래 턴 진입 effect), X 를 누르면
+     날려 보낸 뒤 — 강사 말이 이미 끝났으면 — 그때 다음 단계로 간다. */
+  const tipClosedAtRef = useRef(-1)
+  const tipHolds = (t: Turn | undefined, at: number) =>
+    !!t?.tip && !tipsHidden && !t.board && tipClosedAtRef.current !== at
+  const closeTip = () => {
+    if (!turn.tip || tuckedHere) return
+    const at = turnIdx
+    tipClosedAtRef.current = at
+    /* 이미 들어간 카드를 턴이 넘어갈 때 **또** 날리지 않게 지운다(위 effect 의 lastTipRef) */
+    lastTipRef.current = null
+    setTucked({ at, gone: false })
+    /* 말이 끝나 전진을 붙잡고 있던 자리면 이제 놓아준다. 말하는 중이면 끝날 때 알아서 간다.
+       문제 끝(atItemEnd)은 [다음 문제] 를 학생이 누르는 자리라 여기서 넘기지 않는다. */
+    if (spokenTurn === at && !atItemEnd && !needsAnswer(turn) && nextIdxFrom(at) < turns.length) {
+      setTimeout(() => { if (turnIdxRef.current === at) advanceByApp(nextIdxFrom(at)) }, 650)
+    }
+  }
   useEffect(() => {
     if (!tucked || tucked.gone) return
     const done = setTimeout(() => setTucked((v) => (v ? { ...v, gone: true } : v)), 650)
@@ -2608,10 +2623,27 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
      한 문제 안에서는 시험지처럼 그대로 남아야 한다(위 enterBase 주석). 그런데 다음 사진·문장으로
      넘어간 뒤에도 남아 있으면 앞 문제에 친 동그라미가 새 사진 위에 떠 있다(실측 보고 08-18).
      필기 도구를 껐다 켜면 다시 보이는 것도 같은 뿌리다 — 획이 ref 에 그대로 있어서다. */
-  const drawnItemRef = useRef<number | null>(null)
-  const curNavKey = navKeyOf(turn) ?? null
+  /* ── 09-28: 지우지 않고 **문항별로 보관한다** (사용자 요청) ──
+     한 단계(수업·코칭) 안에서는 문항을 넘겼다가 돌아오면(수업 뒤 문제 번호 버튼) 그 문항에 쳤던
+     필기가 그대로 있어야 한다. 캔버스는 한 장이라 넘길 때 꺼내 두고 돌아오면 끼워 넣는다
+     (실전 화면 inkRef 와 같은 방식). **단계가 바뀌면** 보관함째 비운다 — 수업에서 친 동그라미가
+     코칭 화면에 뜨면 안 된다. 열쇠는 '지금 보이는 문항' 이다: 수업이 끝나 학생이 고른 문항(freeItem)도 포함. */
+  const inkByItemRef = useRef<{ phase: string; store: Record<string, Stroke[]> }>({ phase, store: {} })
+  const drawnItemRef = useRef<string | null>(null)
+  const curNavKey = `${phase}:${phase !== 'review' && canPickItem && freeItem != null ? freeItem : navKeyOf(turn) ?? ''}`
   useEffect(() => {
-    if (drawnItemRef.current !== null && drawnItemRef.current !== curNavKey) draw.clearCanvas()
+    const prev = drawnItemRef.current
+    if (prev === curNavKey) return
+    const box = inkByItemRef.current
+    if (prev !== null && box.phase === prev.split(':')[0]) box.store[prev] = draw.exportStrokes()
+    if (box.phase !== phase) inkByItemRef.current = { phase, store: {} }
+    const list = inkByItemRef.current.store[curNavKey] ?? []
+    draw.loadStrokes(list)
+    /* 불러온 획을 '이 턴에서 새로 그은 것' 으로 세지 않게 표시 판정의 기준선도 지금 자리로 맞춘다
+       (enterBase 머리말 — 안 맞추면 손도 안 댔는데 동그라미 판정이 돈다) */
+    const base = enterBase()
+    base.strokes = list.length
+    base.ink = snapInk()
     drawnItemRef.current = curNavKey
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curNavKey])
@@ -2877,7 +2909,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
          이미 알고 있으므로 여기서 짧은 여유만 두고 넘긴다.
          · 에이전트 없이 도는 폴백은 버튼으로 진행하므로 자동 전진하지 않는다(읽을 시간이 필요하다)
          · 마지막 턴은 넘기지 않는다 — 실전 문제로 튀지 않고 [실전 문제 풀기] 버튼을 학생이 누르게 한다 */
-      if (alive && !askingRef.current && (scripted || agentOnRef.current) && !needsAnswer(turn) && nextIdxFrom(turnIdx) < turns.length && !atItemEnd) {
+      /* TIP 카드가 떠 있으면 **학생이 X 를 누를 때까지** 붙잡는다(closeTip 이 놓아준다) */
+      if (alive && !askingRef.current && (scripted || agentOnRef.current) && !needsAnswer(turn) && nextIdxFrom(turnIdx) < turns.length && !atItemEnd
+          && !tipHolds(turn, turnIdx)) {
         await new Promise((res) => setTimeout(res, 700))
         /* 기다리는 **사이에** 학생이 물어봤을 수 있다 — 그 700ms 안에 들어온 질문을 놓치면
            강사가 답하는 동안 화면이 다음 단계로 넘어간다(두 목소리가 겹친다). 한 번 더 본다. */
@@ -4438,6 +4472,85 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             )
   })()
 
+  /* ── 강사가 시키는 것 두 가지 — 펼친 강사 창과 접었을 때의 '할 일 줄' 이 **같은 것**을 쓴다 (09-28) ──
+     접으면 이것들이 떠 있는 얼굴 옆이 아니라 수업 칸 아래 줄로 간다(ActionTray) — 문제를 덮지 않게.
+     ① 행동 지시 (필기해 보세요·탭해 보세요…) */
+  const dockHint = (
+    <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded}
+      pickedQ={phase === 'review' ? answeredQ : graded}
+      pickedTurn={pickedTurnRef.current === turnIdx}
+      matchTapped={matchTapped}
+      /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
+         판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
+      markDone={markDone} markChecking={markChecking} markVerdict={markVerdict}
+      cuePlaying={cuePlaying} />
+  )
+  /* ② 선택지 / 다음 단계 버튼 */
+  const dockActions = (
+    <>
+      {/* 보기가 처음 뜰 때만 **잠깐** — "말로만 답해야 하나" 를 여기서 끊는다.
+          key 가 턴마다 바뀌므로 새 보기가 뜰 때마다 다시 뜬다(같은 턴에서는 한 번). */}
+      {chatMode === 'voice' && spokenTurn === turnIdx && tapHintKind && <TapHint key={`tap-${turnIdx}`} />}
+      {/* ── 보기는 **아래에서 쓱 올라온다** (09-21) ──
+          강사 말이 끝나는 순간 보기가 툭 나타나면 화면이 한 번 튄다. iOS 액션 시트처럼
+          아래에서 올라오면 "이제 네 차례" 가 움직임만으로 전해진다.
+          key 에 '말이 끝났는가' 를 함께 넣는다 — 턴이 열릴 때가 아니라 **보기가 실제로
+          나타나는 순간**에 애니메이션이 돌아야 한다. */}
+      <div key={`act-${turnIdx}-${spokenTurn === turnIdx ? 1 : 0}`} className="animate-slide-up">
+      <InteractionDock
+        key={turnIdx}
+        turn={turn} lesson={lesson}
+        goNext={goNext}
+        spoken={spokenTurn === turnIdx}
+        answers={answers} graded={graded} submitAll={submitAll}
+        choicePicked={choicePicked} setChoicePicked={setChoicePicked}
+        onChoicePick={pickChoice}
+        askChoices={turn.interaction.kind === 'askOption' ? askableOf(turn) : undefined}
+        onAskPick={pickAskOption}
+        subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
+        scripted={scripted}
+        /* 판정은 answerSubjective 한 곳에만 둔다 — 두 군데서 따로 판정하면
+           같은 답이 통로에 따라 다르게 처리된다(여기는 낱말 겹침만 보고 있었다) */
+        onSubjectiveSubmit={(text) => { answerSubjective(text) }}
+        markDone={markDone}
+        onMarkDone={() => {
+          const it = turn.interaction
+          if (it.kind === 'mark' && it.targetWords) setTutorMarks((p) => { const n = new Set(p); targetTokens(it.targetWords).forEach((w) => n.add(w)); return n })
+          setMarkDone(true)
+        }}
+        matchTapped={matchTapped}
+        setPlayingId={setPlayingId}
+      />
+      </div>
+      {/* 스캐폴딩 마지막 턴 — **버튼 하나로 실전까지** 간다(09-18). 중간 단계를 두면
+          같은 일을 하는 버튼을 두 번 누르게 된다. */}
+      {turnIdx === turns.length - 1 && !freePlay && !stripNav && (
+        <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>{phase === 'review' ? '핵심 요약으로 →' : '실전 문제 풀기 →'}</button>
+      )}
+      {/* ── 혼자 들어보는 구간 ──
+          강사와의 대화는 여기서 끝났다(위 useEffect 가 세션을 닫는다). 화면에 그 말을 적어준다 —
+          강사가 조용해진 이유를 모르면 학생은 고장 난 줄 안다. */}
+      {freePlay && (
+        <div className="space-y-2">
+          {/* 안내 문단은 뺐다(09-18) — 끝났다는 말은 토스트가 이미 했고, 여기 남으면
+              학생이 [실전 문제 풀기] 를 누르기 전에 글을 한 번 더 읽어야 한다. */}
+          {/* 실전으로 가는 버튼은 아래 '앞으로 가는 줄' 에 있다 — 여기 또 두면 같은 일을 하는
+              버튼이 화면에 둘이다. 아이템이 없는 옛 강의에서만 이 자리가 그 일을 한다. */}
+          {!stripNav && (
+            <button onClick={() => setPhase('practice')} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
+          )}
+        </div>
+      )}
+      {/* 리뷰에서 이 문항이 끝났으면(맞혔거나 정답을 열었으면) 다음 틀린 문항으로.
+          수업에서는 에이전트가 next_step 으로 넘기지만, 리뷰까지 그것만 믿으면
+          에이전트가 조용할 때 학생이 갇힌다 — 여기서는 학생이 직접 넘길 수 있어야 한다. */}
+      {phase === 'review' && turnIdx < turns.length - 1
+        && turn.interaction.kind === 'pickAnswer' && graded.has(turn.interaction.qIdx) && (
+        <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>다음 문제 →</button>
+      )}
+    </>
+  )
+
   /* 필기 버튼 — 놓이는 자리만 배치에 따라 달라진다(아래 두 군데 중 한 곳에만 그려진다) */
   const penFab = (
     <PenFab drawMode={draw.drawMode} toggleDraw={draw.toggleDraw}
@@ -4520,7 +4633,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
             <ContentView lesson={lesson} st={st} readingSideBySide={dockMode === 'mini'} />
             {/* ── 토익 TIP 카드 — **강사 창이 아니라 수업 칸**에 뜬다 ──
                 이 턴(S7 표현 정리)은 사진을 다시 볼 자리가 아니라 강사가 정리를 말하는 자리라
-                덮어도 잃을 것이 없다. 강사가 그 줄을 읽는 동안 떠 있다가 다음 단계로 넘어가며
+                덮어도 잃을 것이 없다. 학생이 X 를 누를 때까지 떠 있다가(closeTip) 버튼으로 들어가며
                 사라지고, 내용은 위 버튼에 쌓인다.
                 ⚠️ 실전에서는 띄우지 않는다 — 시험 자리에 힌트가 뜨면 안 된다. */}
             {/* ── 개념 학습은 **쪽지가 아니라 판**이다 ──
@@ -4531,10 +4644,14 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                 open={(boardFlying ? boardFull : boardOpen) ?? {}} />
             )}
             {(turn.tip ?? tipExit) && !tipsHidden && !tipHidden && !turn.board && !boardFlying && (
-              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip || tuckedHere} />
+              <TipCard tip={(turn.tip ?? tipExit)!} flying={!turn.tip || tuckedHere} onClose={turn.tip ? closeTip : undefined}
+                nudge={!!turn.tip && !tuckedHere && spokenTurn === turnIdx} />
             )}
           </div>
 
+          {/* 강사 창을 접었으면 **할 일 줄**이 여기 — 문제 바로 아래, '다음 문제' 줄 위.
+              떠 있는 얼굴 옆에 띄우면 문제를 덮는다(09-28). 누를 것이 없으면 닫힌다. */}
+          {dockMode === 'mini' && <ActionTray hint={dockHint} actions={dockActions} />}
           {/* 옆 기둥 배치에서는 문제 영역 바로 아래에 둔다 */}
           {dockMode !== 'bottom' && navStrip}
           {/* 세로 배치에서만 — 필기 버튼이 수업 칸 안에 앉는다(아래 강사 판을 안 덮게) */}
@@ -4727,16 +4844,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           }}
           onStartAgent={startAgent}
           /* ── ① 행동 지시 (필기해 보세요·탭해 보세요…) — 수업 영역이 아니라 강사 창에서 뜬다 ── */
-          hint={
-            <ContentActionHint turn={turn} lesson={lesson} answers={answers} graded={graded}
-              pickedQ={phase === 'review' ? answeredQ : graded}
-              pickedTurn={pickedTurnRef.current === turnIdx}
-              matchTapped={matchTapped}
-              /* 표시(mark) 턴 — 학생이 다 짚었다고 알리면 화면을 합성해 무엇을 짚었는지 판정한다.
-                 판정 결과는 강사에게 넘어가 코칭이 되고, 실패해도 진행은 막지 않는다. */
-              markDone={markDone} markChecking={markChecking} markVerdict={markVerdict}
-              cuePlaying={cuePlaying} />
-          }
+          hint={dockHint}
           /* ── ② 선택지 / 다음 단계 버튼 ── */
           /* 단계가 바뀌면 텍스트 모드 채팅에서 카드가 새 말풍선처럼 다시 꽂힌다 */
           /* ── 토익 TIP · 핵심 어휘 ── 창 맨 위의 버튼 둘과, 창을 덮는 모아 보기.
@@ -4762,70 +4870,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 키보드 모드에서 **글로 답할 차례**면 입력칸에 커서를 준다 — 입력칸을 한 번 더 찾아
              누르는 일을 덜어 준다. 다만 키보드가 실제로 올라오는지는 기기가 정한다(iOS 는 안 연다). */
           focusInput={chatMode === 'text' && turn.interaction.kind === 'subjective' && !subjSent}
-          actions={
-            <>
-              {/* 보기가 처음 뜰 때만 **잠깐** — "말로만 답해야 하나" 를 여기서 끊는다.
-                  key 가 턴마다 바뀌므로 새 보기가 뜰 때마다 다시 뜬다(같은 턴에서는 한 번). */}
-              {chatMode === 'voice' && spokenTurn === turnIdx && tapHintKind && <TapHint key={`tap-${turnIdx}`} />}
-              {/* ── 보기는 **아래에서 쓱 올라온다** (09-21) ──
-                  강사 말이 끝나는 순간 보기가 툭 나타나면 화면이 한 번 튄다. iOS 액션 시트처럼
-                  아래에서 올라오면 "이제 네 차례" 가 움직임만으로 전해진다.
-                  key 에 '말이 끝났는가' 를 함께 넣는다 — 턴이 열릴 때가 아니라 **보기가 실제로
-                  나타나는 순간**에 애니메이션이 돌아야 한다. */}
-              <div key={`act-${turnIdx}-${spokenTurn === turnIdx ? 1 : 0}`} className="animate-slide-up">
-              <InteractionDock
-                key={turnIdx}
-                turn={turn} lesson={lesson}
-                goNext={goNext}
-                spoken={spokenTurn === turnIdx}
-                answers={answers} graded={graded} submitAll={submitAll}
-                choicePicked={choicePicked} setChoicePicked={setChoicePicked}
-                onChoicePick={pickChoice}
-                askChoices={turn.interaction.kind === 'askOption' ? askableOf(turn) : undefined}
-                onAskPick={pickAskOption}
-                subjText={subjText} setSubjText={setSubjText} subjSent={subjSent} setSubjSent={setSubjSent}
-                scripted={scripted}
-                /* 판정은 answerSubjective 한 곳에만 둔다 — 두 군데서 따로 판정하면
-                   같은 답이 통로에 따라 다르게 처리된다(여기는 낱말 겹침만 보고 있었다) */
-                onSubjectiveSubmit={(text) => { answerSubjective(text) }}
-                markDone={markDone}
-                onMarkDone={() => {
-                  const it = turn.interaction
-                  if (it.kind === 'mark' && it.targetWords) setTutorMarks((p) => { const n = new Set(p); targetTokens(it.targetWords).forEach((w) => n.add(w)); return n })
-                  setMarkDone(true)
-                }}
-                matchTapped={matchTapped}
-                setPlayingId={setPlayingId}
-              />
-              </div>
-              {/* 스캐폴딩 마지막 턴 — **버튼 하나로 실전까지** 간다(09-18). 중간 단계를 두면
-                  같은 일을 하는 버튼을 두 번 누르게 된다. */}
-              {turnIdx === turns.length - 1 && !freePlay && !stripNav && (
-                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>{phase === 'review' ? '핵심 요약으로 →' : '실전 문제 풀기 →'}</button>
-              )}
-              {/* ── 혼자 들어보는 구간 ──
-                  강사와의 대화는 여기서 끝났다(위 useEffect 가 세션을 닫는다). 화면에 그 말을 적어준다 —
-                  강사가 조용해진 이유를 모르면 학생은 고장 난 줄 안다. */}
-              {freePlay && (
-                <div className="space-y-2">
-                  {/* 안내 문단은 뺐다(09-18) — 끝났다는 말은 토스트가 이미 했고, 여기 남으면
-                      학생이 [실전 문제 풀기] 를 누르기 전에 글을 한 번 더 읽어야 한다. */}
-                  {/* 실전으로 가는 버튼은 아래 '앞으로 가는 줄' 에 있다 — 여기 또 두면 같은 일을 하는
-                      버튼이 화면에 둘이다. 아이템이 없는 옛 강의에서만 이 자리가 그 일을 한다. */}
-                  {!stripNav && (
-                    <button onClick={() => setPhase('practice')} className={PRIMARY_BTN + ' w-full'}>실전 문제 풀기 →</button>
-                  )}
-                </div>
-              )}
-              {/* 리뷰에서 이 문항이 끝났으면(맞혔거나 정답을 열었으면) 다음 틀린 문항으로.
-                  수업에서는 에이전트가 next_step 으로 넘기지만, 리뷰까지 그것만 믿으면
-                  에이전트가 조용할 때 학생이 갇힌다 — 여기서는 학생이 직접 넘길 수 있어야 한다. */}
-              {phase === 'review' && turnIdx < turns.length - 1
-                && turn.interaction.kind === 'pickAnswer' && graded.has(turn.interaction.qIdx) && (
-                <button onClick={goNext} className={PRIMARY_BTN + ' w-full'}>다음 문제 →</button>
-              )}
-            </>
-          }
+          actions={dockActions}
         />
         {/* 세로 배치 — '다음 문제' 줄은 **강사 판보다 아래**, 화면 맨 밑이다.
             나가는 문은 항상 맨 아래에 있어야 한다 — 강사 판 위에 두면 대화 중간에 끼어든다 */}
@@ -6653,32 +6698,36 @@ function AskMultiPick({ list, onPick }: {
   const opts = list.filter((c) => c.label)
   const none = list.find((c) => !c.label)
   const toggle = (l: string) => setSel((p) => { const n = new Set(p); if (n.has(l)) n.delete(l); else n.add(l); return n })
+  /* ── 보기는 **가로 한 줄의 큰 글자 타일** (09-28) ──
+     "A번 선택지" 처럼 짧은 글을 폭 전체 버튼에 세로로 쌓으면 버튼 안이 텅 비어 보였다(사용자 지적).
+     고르는 것은 글자 하나라 글자를 크게 세우고, 켜지면 파랗게 차며 모서리에 ✓ 가 붙는다. */
   return (
     <div className="space-y-2">
       <p className="text-[11.5px] font-semibold text-[#64748B]">여러 개를 골라도 돼요</p>
-      {opts.map((c) => {
-        const on = sel.has(c.label as string)
-        return (
-          <button key={c.label} onClick={() => toggle(c.label as string)} aria-pressed={on}
-            className={`w-full min-h-[44px] flex items-center gap-2.5 text-[13px] font-semibold border px-3.5 py-2.5 text-left
-                        transition-all active:scale-[0.99] ${on
-                          ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
-                          : 'border-[#DBEAFE] bg-white text-[#1C1B33]'}`}>
-            <span className={`shrink-0 w-6 h-6 flex items-center justify-center border-2 text-[12px] font-black transition-colors ${
-              on ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#BFDBFE] bg-white text-[#2563EB]'}`}>{on ? '✓' : c.label}</span>
-            <span className="flex-1">{c.text}</span>
-          </button>
-        )
-      })}
-      <div className="grid grid-cols-2 gap-2 pt-1">
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(opts.length, 1)}, minmax(0, 1fr))` }}>
+        {opts.map((c) => {
+          const on = sel.has(c.label as string)
+          return (
+            <button key={c.label} onClick={() => toggle(c.label as string)} aria-pressed={on} aria-label={c.text}
+              className={`relative h-14 flex items-center justify-center border-2 text-[22px] font-black leading-none
+                          transition-all active:scale-[0.97] ${on
+                            ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.25)]'
+                            : 'border-[#DBEAFE] bg-white text-[#2563EB]'}`}>
+              {c.label}
+              {on && <span className="absolute top-1 right-1.5 text-[11px] font-black">✓</span>}
+            </button>
+          )
+        })}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
         <button onClick={() => onPick(none ? [none] : [])}
-          className="min-h-[44px] text-[13px] font-semibold border border-[#E5E7EB] bg-[#F8FAFC] text-[#64748B] active:scale-[0.99]">
+          className="h-11 text-[13px] font-semibold border border-[#E5E7EB] bg-[#F8FAFC] text-[#64748B] active:scale-[0.99]">
           {none?.text ?? '없음'}
         </button>
         <button disabled={!sel.size} onClick={() => onPick(opts.filter((c) => sel.has(c.label as string)))}
-          className="min-h-[44px] text-[13px] font-black bg-[#2563EB] text-white active:scale-[0.99]
+          className="col-span-2 h-11 text-[13px] font-black bg-[#2563EB] text-white active:scale-[0.99]
                      disabled:bg-[#E5E7EB] disabled:text-[#94A3B8]">
-          확인{sel.size ? ` (${sel.size})` : ''}
+          {sel.size ? `${opts.filter((c) => sel.has(c.label as string)).map((c) => c.label).join('·')} 설명 듣기` : '확인'}
         </button>
       </div>
     </div>
