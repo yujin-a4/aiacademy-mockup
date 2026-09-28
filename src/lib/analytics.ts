@@ -40,11 +40,12 @@ const COHORT_KEY = 'ybm_fgi_cohort'
 /** 링크로 정해졌는가 — 이 표식이 있으면 로그인 계정이 참가자를 덮지 못한다 */
 const FROM_LINK_KEY = 'ybm_fgi_from_link'
 export const PARTICIPANT_PARAM = 'p'
-/** 링크를 잃었을 때의 안전망 — 참가자용으로 파둔 개인 계정(`ybm00`~`ybm50`, `ybm101`~`ybm200`,
- *  `scripts/create-fgi-accounts.js`). 이 꼴로 로그인하면 링크 없이도 참가자로 본다.
- *  **`ybm` 로 시작하기만 하면 다 받으면 안 된다** — 우리 계정까지 딸려 들어간다. 두 자리 또는 101~200 으로 좁힌다.
- *  공용 `guest##` 는 우리도 쓰므로 일부러 뺀다. 이 정규식은 저 스크립트와 짝이다 — 한쪽만 바꾸면 어긋난다. */
-const FGI_ID = /^YBM(\d{2}|10[1-9]|1[1-9]\d|200)$/
+/** 참가자 계정 — 10월 FGI 부터는 링크 없이 웹앱에서 **로그인만** 하므로 이게 참가자 구분의 정본이다.
+ *  `ybm101`~`ybm200` 만 참가자용이다. 두 자리 `ybm00`~`ybm99` 는 내부용으로 돌렸다 — `ybm00` 은
+ *  온보딩 확인 전용(app/page.tsx)이라 FGI 로 세면 통계가 더러워진다(09월 FGI 의 `ybm11~15` 기록은
+ *  GA 에 이미 남아 있다). **`ybm` 로 시작하기만 하면 다 받으면 안 된다** — 우리 계정까지 딸려
+ *  들어간다. 공용 `guest##` 도 우리가 쓰므로 뺀다. */
+const FGI_ID = /^YBM(10[1-9]|1[1-9]\d|200)$/
 
 let participant: string | null = null
 let isFgi = false
@@ -85,8 +86,10 @@ export function initParticipant(search: URLSearchParams): string | null {
  *  계정은 **링크 없이 들어온 사람**을 이을 때만 쓴다. */
 export function setParticipantFromAccount(email: string | null | undefined): string | null {
   if (typeof window === 'undefined' || !email) return participant
-  if (fromLink) return participant            // 링크가 정본 — 공용 계정이 덮어쓰지 못하게 막는다
   const code = email.split('@')[0].trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16)
+  // 링크가 정본 — 공용 계정이 덮어쓰지 못하게 막는다. 단 **참가자 계정은 링크보다 세다**:
+  // 09월 FGI 때 `?p=YBM11` 로 연 태블릿을 다시 쓰면, 이 예외 없이는 새 참가자가 전부 YBM11 로 찍힌다.
+  if (fromLink && !FGI_ID.test(code)) return participant
   if (!code || code === participant) return participant
   remember(code, FGI_ID.test(code))
   identify()                                  // 이미 보낸 user property 를 새 값으로 덮는다
