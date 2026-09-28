@@ -341,6 +341,9 @@ export async function playAndWait(audio: HTMLAudioElement): Promise<void> {
 /** 지금 나가는 강사 음원의 재생 위치. 없으면(아직 받는 중이거나 브라우저 TTS) null.
  *  화면이 **말과 글자를 맞추는 데** 쓴다 — 글자를 시간으로 흘려보내면 소리와 어긋나지만,
  *  재생 위치를 따라가면 어긋날 수가 없다. */
+/** 지금 걸린 음원 — 끊긴 줄을 재려고 화면이 잡아 둔다(멈춰도 currentTime 은 남는다) */
+export const currentAudio = () => _currentAudio
+
 export function playbackProgress(): { current: number; duration: number } | null {
   const a = _currentAudio
   if (!a || !Number.isFinite(a.duration) || a.duration <= 0) return null

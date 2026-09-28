@@ -193,8 +193,7 @@ const POSE_KEYS = [
   { at: 0.425, i: 3 },
   { at: 0.44, i: 1 }, // 03 말을 건다: 한 손을 든다 (구간 내내)
   { at: 0.652, i: 1 },
-  { at: 0.667, i: 4 }, // 05 판단의 근거가 주위에 뜬다: 두 팔을 벌린다
-  { at: 0.825, i: 4 },
+  { at: 0.69, i: 1 }, // 05 에서는 인물이 빠져 있다. **숨어 있는 동안** 06 자세로 갈아입는다
   { at: 0.84, i: 2 }, // 06 다음 수업 카드를 건넨다: 손을 내민다
   { at: 1.0, i: 2 },
 ]
@@ -223,13 +222,23 @@ function poseMix(p: number) {
  *  전에는 `/intro/v3-hero.webp` 를 크롭하고 타원 마스크로 가장자리를 녹여 썼다. 그때 배운 것:
  *  마스크 반경이 50% 를 넘으면 그라데이션이 상자 밖에서 끝나서 **잘린 사각형이 그대로 보인다.**
  *  지금은 알파가 있어서 마스크 자체가 필요 없다. */
+const POSE6_EXT = 240 // pose-6 을 왼쪽으로 늘린 폭(px, 원본 880 기준)
+/** pose-6 은 늘린 띠의 **왼쪽 17% 만** 녹인다. 거기엔 빛 궤적 꼬리만 있고 패널은 20% 부터라 패널은 선명하다.
+ *  안 녹이면 좁은 화면(1180)에서 궤적 꼬리가 제목 글자 위를 지나간다(인물 층이 글자보다 위). */
+const SWIRL_FADE = 'linear-gradient(90deg, transparent 0%, #000 17%)'
+const EDGE_FADE = 'linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%)'
+
 function AiHuman({ p, pt }: { p: number; pt: { x: number; y: number } }) {
   const q = pose(p)
   const w = poseMix(p)
+  /* 05 에서는 **잠시 빠진다.** 그 자리를 선생님이 분석한 화면이 채운다(사용자 제안).
+     들어가고 나오는 건 짧게 - 06 이 시작될 때는 이미 돌아와 카드를 건넬 자세다. */
+  const away = seg(p, BEAT.powered[0], BEAT.powered[0] + 0.02) * (1 - seg(p, BEAT.powered[1] - 0.018, BEAT.powered[1] + 0.002))
   return (
     <div
       className="pointer-events-none absolute z-[1] hidden lg:block"
       style={{
+        opacity: 1 - away,
         left: `${q.x}%`,
         top: `${q.y}vh`, // 보통은 바닥에 선다(100 - h). 히어로만 따로 준다
         height: `${q.h}vh`,
@@ -252,23 +261,25 @@ function AiHuman({ p, pt }: { p: number; pt: { x: number; y: number } }) {
       {/* 다섯 장을 겹쳐 두고 가중치로 갈아탄다. 세 장이 같은 캔버스라 겹쳐도 어긋나지 않는다.
           **가중치가 0 인 장은 아예 안 그린다** - 다섯 장을 늘 깔아 두면 보이지도 않는 층을
           매 프레임 합성한다. 실제로 살아 있는 건 언제나 한두 장뿐이다. */}
-      {/* 양옆을 녹인다. 손에 든 빛 패널(pose-6)·뻗은 팔(pose-3·5)이 캔버스 끝까지 차 있어서
-          그대로 두면 **세로 직선으로 잘린 자리**가 보였다(사용자 지적). 홀로그램이라 녹는 게 자연스럽다. */}
-      <div
-        className="relative h-full w-full"
-        style={{
-          maskImage: 'linear-gradient(90deg, transparent 0%, #000 16%, #000 88%, transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(90deg, transparent 0%, #000 16%, #000 88%, transparent 100%)',
-        }}
-      >
+      {/* 양옆 끝 5% 만 녹인다. 뻗은 팔(pose-3·5)이 캔버스 끝까지 차 있어서 그대로 두면 **세로 직선으로
+          잘린 자리**가 보인다. 16% 였을 땐 손까지 흐려져 "왼쪽이 흐리다" 는 지적을 받았다.
+          ⭐ **pose-6 은 녹이지 않는다.** 손가락으로 누르는 빛 패널이 원본에서 왼쪽이 잘려 있었고, 녹이면
+          "패드 왼쪽 끝이 흐릿하다" 가 됐다(사용자 지적). 그래서 이미지를 왼쪽으로 240px 늘려 패널을 완성했다
+          (FLUX.2 Pro Outpaint 로 바탕색 위에서 늘린 뒤, 새 띠만 밝기로 알파를 되살리고 원본 픽셀은 그대로 덮음).
+          캔버스가 880 → 1120 이라 **이 장만 상자 왼쪽으로 삐져나오게** 놓는다. 인물 몸은 다른 포즈와 같은 자리다. */}
+      <div className="relative h-full w-full">
         {w.map((weight, i) =>
           weight > 0.002 ? (
             <img
               key={i}
               src={`/intro/human/pose-${i + 1}.webp`}
               alt=""
-              className="absolute inset-0 h-full w-full object-contain"
-              style={{ opacity: weight }}
+              className={`absolute top-0 h-full max-w-none object-contain ${i === 5 ? '' : 'left-0 w-full'}`} /* max-w-none: 기본 img{max-width:100%} 가 넓힌 pose-6 을 도로 줄인다 */
+              style={
+                i === 5
+                  ? { opacity: weight, left: `${(-POSE6_EXT / 880) * 100}%`, width: `${((880 + POSE6_EXT) / 880) * 100}%`, maskImage: SWIRL_FADE, WebkitMaskImage: SWIRL_FADE }
+                  : { opacity: weight, maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }
+              }
             />
           ) : null,
         )}
@@ -547,26 +558,9 @@ export const UTTERANCES = [
   { say: '이 부분은 이제 꽤 안정적이에요.\n다음 단계로 넘어가볼까요?', info: '다시 볼 부분' },
 ]
 
-/** 인물 주위에 뜨는 칩. x·y 는 화면 비율(칩의 **중심**).
- *  자리를 고를 때 지킨 것 셋: 왼쪽 위(제목 자리)를 비운다 · x 는 20~50% 안(그 밖이면
- *  잘리거나 인물에 겹친다) · 서로 세로로 18% 이상 떨어뜨린다(칩 높이가 대략 13%). */
-export const HUD = [
-  { k: 'WEAKNESS', t: '자주 막히는 데에는 패턴이 있습니다', f: '학습 기록 → 반복 패턴 → 약점 분석', x: 26, y: 47 },
-  { k: 'PRIORITY', t: '지금 더 필요한 공부부터', f: '전체 학습 → 현재 상태 → 우선 학습', x: 20, y: 66 },
-  { k: 'DAILY PLAN', t: '오늘 할 만큼', f: '현재 상태 → 오늘의 학습', x: 30, y: 85 },
-  { k: 'DYNAMIC CURRICULUM', t: '내가 달라지면 학습 계획도 달라집니다', f: '기존 계획 → 현재 상태 → 새로운 학습 경로', x: 50, y: 31 },
-  { k: 'REVIEW', t: '오늘의 어려움이 다음 수업에 반영됩니다', f: '오늘의 결과 → 다음 학습', x: 50, y: 66 },
-]
-
 /* 건네면서 하는 말. 줄바꿈이 들어가서 JSX 안에 직접 쓰기보다 여기 두는 게 읽기 낫다. */
 const HANDOVER_LINE = `“지난번에 어려워했던 부분부터
 다시 시작해볼까요?”`
-
-export const PIPELINE = [
-  { head: '이전 학습', items: ['개념 A 반복 오답', '학습 속도 저하', '일부 학습 미완료'] },
-  { head: 'AI 분석', items: ['반복 약점 확인', '학습 진행 상태 확인', '우선순위 재조정'] },
-  { head: '다음 학습', items: ['개념 A 복습 우선', '학습량 조정', '미완료 학습 재배치'] },
-]
 
 /* ══════════════════════════════════════════════════════════════════════════
    무대
@@ -621,25 +615,22 @@ export function Stage() {
   )
 }
 
-/** 인물을 감싸고 도는 **신경망.** 점(뉴런)이 인물 둘레를 천천히 공전하고, 가까운 점끼리
- *  가는 선으로 이어지고, 가끔 한 점이 켜지면 그 점에 이어진 선들이 같이 밝아진다(신호가 흐른다).
+/** 인물을 감싸고 도는 **빛 점 몇 개.** 인물 둘레를 천천히 공전하고, 가까운 것끼리 가는 선으로
+ *  이어지고, 가끔 하나가 켜진다. 일부러 적고 조용하다.
  *
- *  전에는 CSS 원 세 개를 `rotateX` 로 눕혀 돌린 **토성 고리**였다. 지적받고 걷어냈다
- *  ("허접해 보인다", "왼쪽이 잘린다"). 이유: 선 한 줄짜리 원은 기계 장치로 읽혔고,
- *  고리 상자 끝에서 선이 잘렸다. 인물 옷에 이미 별자리 같은 점·선이 박혀 있어서,
- *  **그 무늬가 몸 밖으로 번져 나온 것**처럼 보이는 쪽이 이 인물과 한 몸이다.
+ *  거쳐 온 길(같은 걸 또 하지 말 것):
+ *  1. CSS 원 세 개를 눕혀 돌린 **토성 고리** - "허접하다", 고리 상자 끝에서 선이 잘렸다.
+ *  2. 점 110개 신경망 - "점이 너무 많아서 징그럽다". 벌레 떼처럼 읽혔다.
+ *  3. 학습 아이콘 유리 타일(Aa·책·체크·전구…) - "너무 정직해서 이상하다". 뺐다.
+ *  → 인물 옷에 박힌 점·선 무늬가 몸 밖으로 조금 번져 나온 정도만 남긴다. 주인공은 인물이다.
  *
- *  ⭐ 고리 때의 요점은 그대로 지킨다: **인물 뒤로 들어갔다 앞으로 나온다.**
- *  캔버스 두 장(인물 뒤 z-0 / 앞 z-[3])에 나눠 그리고, 점마다 공전각의 sin 으로 어느 쪽인지 정한다.
- *  먼 쪽은 위로 조금 올라가고 작고 어둡다(기울어진 궤도 + 원근).
- *
- *  · 캔버스는 **화면 폭 전체**를 덮는다. 컨테이너(max-w) 안에 두면 넓은 화면에서 가장자리가 잘린다.
- *  · 앞쪽 점은 **얼굴 높이에서 녹인다.** 얼굴 위를 지나는 점은 먼지로 보인다.
- *  · 글자 쪽(화면 왼쪽 40%)으로 가면 녹인다.
- *  · 움직임 줄이기 설정이면 공전·발화를 멈추고 한 장만 그린다.
- *
- *  ponytail: 점 110개 × 쌍 비교 O(n²) = 프레임당 6천 번. 점을 수백 개로 늘릴 거면 격자 버킷으로. */
-const NODES = 110
+ *  ⭐ 인물 뒤로 들어갔다 앞으로 나온다: 캔버스 두 장(뒤 z-0 / 앞 z-[3])에 나눠 그리고,
+ *  공전각의 sin 으로 어느 쪽인지 정한다. 먼 쪽은 위로 조금 올라가고 작고 어둡다.
+ *  · 캔버스는 **화면 폭 전체** - 컨테이너 안이면 넓은 화면에서 가장자리가 잘린다.
+ *  · 앞쪽은 **얼굴 높이에서 녹인다**(얼굴 위를 지나는 점은 먼지로 보인다).
+ *  · 왼쪽을 흐리게 하지 않는다(사용자 지적).
+ *  · 움직임 줄이기 설정이면 멈춘 한 장만 그린다. */
+const DOTS = 16
 
 function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
   const back = useRef<HTMLCanvasElement>(null)
@@ -667,15 +658,17 @@ function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
     fit()
     addEventListener('resize', fit)
 
-    // r·y 는 화면 높이 비율. 반지름을 여러 겹으로 흩어야 고리가 아니라 구름이 된다.
-    const nodes = Array.from({ length: NODES }, () => ({
-      a: Math.random() * Math.PI * 2, // 공전각
-      r: 0.2 + Math.random() * 0.36, // 공전 반지름
-      y: (Math.random() - 0.4) * 0.8, // 가슴 기준 높이
-      w: 0.04 + Math.random() * 0.06, // 각속도(rad/s). 방향은 다 같다 - 제각각이면 벌레 떼다
-      s: 0.7 + Math.random() * 1.5, // 점 크기(px)
-      f: 0, // 발화 밝기. 켜지면 1, 금방 꺼진다
-    }))
+    // r·y 는 화면 높이 비율.
+    const items = [
+      ...Array.from({ length: DOTS }, () => ({
+        a: Math.random() * Math.PI * 2,
+        r: 0.22 + Math.random() * 0.22,
+        y: (Math.random() - 0.4) * 0.7,
+        w: 0.05 + Math.random() * 0.04,
+        s: 1 + Math.random() * 1.4,
+        f: 0,
+      })),
+    ]
 
     let raf = 0
     let last = performance.now()
@@ -684,20 +677,20 @@ function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       if (!still && now > nextFire) {
-        nodes[(Math.random() * NODES) | 0].f = 1
-        nextFire = now + 180 + Math.random() * 420
+        items[(Math.random() * items.length) | 0].f = 1
+        nextFire = now + 500 + Math.random() * 900
       }
       const cx = W * 0.795 + ptRef.current.x * -16
       const cy = H * 0.46 + ptRef.current.y * -12
-      const P = nodes.map((n) => {
+      const P = items.map((n) => {
         if (!still) n.a += n.w * dt
-        n.f *= Math.exp(-dt * 2.4)
+        n.f *= Math.exp(-dt * 1.8)
         const z = Math.sin(n.a) // -1 = 인물 뒤 가장 먼 곳, 1 = 가장 가까운 곳
         const k = 1 + z * 0.16 // 원근
         const R = n.r * H
         const x = cx + Math.cos(n.a) * R * k
         const y = cy + n.y * H * k + z * R * 0.18 // 먼 쪽이 위로 = 기울어진 궤도
-        let m = (0.4 + 0.6 * (z + 1) * 0.5) * Math.min(1, Math.max(0, (x / W - 0.4) / 0.12))
+        let m = 0.45 + 0.55 * (z + 1) * 0.5
         if (z > 0) m *= Math.min(1, Math.max(0, (y / H - 0.34) / 0.12)) // 얼굴 앞은 비운다
         return { x, y, k, m, side: z > 0 ? 1 : 0, n }
       })
@@ -706,19 +699,19 @@ function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
         c.clearRect(0, 0, W, H)
         c.globalCompositeOperation = 'lighter'
       }
-      const L = H * 0.16
-      for (let i = 0; i < NODES; i++) {
-        const A = P[i]
-        if (A.m <= 0.01) continue
-        for (let j = i + 1; j < NODES; j++) {
+      // 연결선. 물건이 떨어져 있어도 '이어진 체계' 로 읽히게 하는 정도만.
+      const L = H * 0.2
+      for (let i = 0; i < P.length; i++) {
+        for (let j = i + 1; j < P.length; j++) {
+          const A = P[i]
           const B = P[j]
-          if (B.side !== A.side || B.m <= 0.01) continue
+          if (B.side !== A.side) continue
           const d = Math.hypot(A.x - B.x, A.y - B.y)
           if (d > L) continue
           const hot = Math.max(A.n.f, B.n.f)
           const c = ctx[A.side]
-          c.strokeStyle = `rgba(${hot > 0.05 ? '170,205,255' : '46,107,255'},${(1 - d / L) * Math.min(A.m, B.m) * (0.5 + hot * 0.9)})`
-          c.lineWidth = 0.6 + hot * 0.8
+          c.strokeStyle = `rgba(${hot > 0.05 ? '170,205,255' : '46,107,255'},${(1 - d / L) * Math.min(A.m, B.m) * (0.35 + hot * 0.6)})`
+          c.lineWidth = 0.7
           c.beginPath()
           c.moveTo(A.x, A.y)
           c.lineTo(B.x, B.y)
@@ -728,12 +721,12 @@ function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
       for (const A of P) {
         if (A.m <= 0.01) continue
         const c = ctx[A.side]
-        const r = A.n.s * A.k * (1 + A.n.f * 0.8)
-        c.fillStyle = `rgba(46,107,255,${A.m * (0.18 + A.n.f * 0.35)})` // 번짐
+        const r = A.n.s * A.k
+        c.fillStyle = `rgba(46,107,255,${A.m * (0.14 + A.n.f * 0.3)})` // 번짐
         c.beginPath()
         c.arc(A.x, A.y, r * 4.5, 0, Math.PI * 2)
         c.fill()
-        c.fillStyle = `rgba(207,224,255,${A.m * (0.8 + A.n.f * 0.2)})` // 심지
+        c.fillStyle = `rgba(207,224,255,${A.m * 0.85})` // 심지
         c.beginPath()
         c.arc(A.x, A.y, r, 0, Math.PI * 2)
         c.fill()
@@ -857,19 +850,52 @@ function SceneHuman({ t }: { t: number }) {
 }
 
 /* ─── 05 AI POWERED LEARNING ──────────────────────────────────────────────
-   기획서: "AI 휴먼 주변에 약점·우선순위·오늘 분량 등 정보가 HUD 처럼 나타나는 연출."
-   다섯 칸을 나란히 세우지 않는 이유가 여기 있다. 나란히 세우면 **기능 목록**이 되고,
-   인물 주위에 뜨면 **이 선생님이 나를 아는 근거**가 된다. 같은 다섯 개인데 뜻이 달라진다.
-   마지막에 다섯 개가 한 장의 '다음 수업' 으로 모인다. */
+   **선생님이 잠시 빠지고, 그 선생님이 본 것이 화면을 채운다.**
+   분석 화면이 뜨고 → 최근 2주 문항 격자를 훑고 → 한 줄(품사 자리)이 패턴으로 켜지고 →
+   피드백 네 줄이 차례로 찍힌다(패턴 → 우선순위 → 오늘 분량 → 커리큘럼 조정).
+
+   전에는 인물 주위에 칩 다섯 개(WEAKNESS·PRIORITY…)가 떴다가 'NEXT LESSON' 한 장으로 모였다.
+   "눈에 안 들어온다" 는 지적 - 무게가 같은 다섯 조각이 흩어져 있어서 무엇이 결론인지 안 보였고,
+   영문 라벨과 화살표 문구(학습 기록 → 반복 패턴 → …)가 분석이 아니라 설명서로 읽혔다.
+   사용자 제안대로 **분석해서 피드백이 나오는 화면**으로 바꿨다. 근거(격자)와 결론(문장)이 한 화면에 있다.
+
+   ⚠️ 여기 숫자·유형은 **예시**다(구현된 기능이 아니라 연구 방향). 패널에 '예시 화면' 을 달았다. */
+export const FINDINGS = [
+  { k: '패턴 발견', t: '자주 막히는 데에는 패턴이 있습니다', f: 'Part 5 품사 자리 문제에서 최근 5번 중 4번 막혔어요.' },
+  { k: '우선순위', t: '지금 더 필요한 공부부터 합니다', f: '목표 점수까지 효과가 가장 큰 순서: 품사 자리 → 시제' },
+  { k: '오늘 분량', t: '오늘 할 만큼만 정합니다', f: '최근 학습 속도에 맞춰 오늘은 25분, 12문항' },
+  { k: '커리큘럼 조정', t: '목표에 도달할 수 있도록 커리큘럼을 조절합니다', f: '' },
+]
+
+/** 격자: 유형 여섯 줄 × 최근 14일. 값 = 0 안 풂 · 1 맞음 · 2 막힘.
+ *  **품사 자리(0번 줄)만 막힘이 몰려 있게** 그렸다 - 한눈에 '저 줄이다' 가 보여야 패턴이다.
+ *  나머지 줄에도 막힘을 드문드문 섞는다. 전부 깨끗하면 꾸민 표로 보인다. */
+const GRID_ROWS = ['품사 자리', '시제', '수 일치', '전치사', '접속사', '어휘']
+const GRID = [
+  [1, 0, 2, 1, 2, 0, 2, 2, 1, 2, 0, 2, 2, 2],
+  [1, 1, 0, 1, 2, 1, 1, 0, 1, 1, 2, 1, 0, 1],
+  [0, 1, 1, 1, 0, 1, 1, 1, 2, 1, 1, 0, 1, 1],
+  [1, 0, 1, 2, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 0, 1, 1, 1, 2, 0, 1, 1, 1, 0, 1],
+  [0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+]
+/** 피드백 네 줄이 찍히기 시작하는 지점(장면 진행률). 찍히는 건 짧게(0.05), 남는 건 길게(~0.65-0.8 다 같이 읽는 자리). */
+const FIND_AT = [0.34, 0.44, 0.54, 0.64]
+
 function ScenePowered({ t }: { t: number }) {
-  const head = 1 - seg(t, 0.3, 0.42)
-  /* 박자: 칩이 하나씩 차오르고(~0.45) → **다섯을 같이 읽고**(~0.68) → 한 장으로 모이고(~0.78) → 남는다. */
-  const merge = ease(seg(t, 0.68, 0.78)) // 다섯 개가 한 장으로 모인다
-  const card = seg(t, 0.66, 0.78) // 모이는 동안 이미 자라기 시작한다(사이가 비면 안 된다)
+  /* 들어오는 건 **앞 장면(말풍선)이 다 걷힌 뒤**다. 미리 켜 두면 제목이 말풍선과 포개진다(실측). */
+  const head = seg(t, 0.12, 0.18)
+  const panel = ease(seg(t, 0.14, 0.2)) // 선생님이 빠진 자리에 분석 화면이 들어선다
+  const scan = seg(t, 0.18, 0.3) // 격자를 왼쪽에서 오른쪽으로 훑는다
+  const hit = ease(seg(t, 0.3, 0.34)) // 품사 자리 줄이 패턴으로 켜진다
+  const shown = FIND_AT.filter((a) => t >= a).length // 지금까지 찍힌 줄 수
+  /* 나갈 때는 **화면이 먼저 비키고 그다음 선생님이 돌아온다**(AiHuman 의 away 와 맞물림).
+     같이 움직이면 돌아오는 인물이 패널 위에 겹쳐 두 장이 포개진다(실측). */
+  const out = seg(t, 0.8, 0.87)
 
   return (
     <>
-      <div className="absolute left-0 top-[12vh] px-6 sm:px-10 lg:px-16" style={{ opacity: head }}>
+      <div className="absolute left-0 top-1/2 w-[46%] -translate-y-1/2 px-6 sm:px-10 lg:px-16" style={{ opacity: head * (1 - out) }}>
         <Head>
           다음 수업을 정하는 건
           <br />
@@ -877,98 +903,152 @@ function ScenePowered({ t }: { t: number }) {
           <br />
           <span className="font-medium">오늘의 나입니다</span>
         </Head>
+        <p className="mt-8 max-w-[380px] text-[14px] leading-[1.9] text-white/55">
+          선생님은 매 수업의 기록을 보고, 무엇이 막혔는지와 그다음에 무엇을 할지를 다시 정합니다.
+        </p>
       </div>
 
-      {/* 인물과 칩을 잇는 실. 정보가 인물에게서 나온다는 것을 선 하나로 말한다. */}
-      <svg className="absolute inset-0 h-full w-full" aria-hidden>
-        {HUD.map((h, i) => {
-          const on = seg(t, 0.05 + i * 0.08, 0.13 + i * 0.08)
-          /* 인물 쪽(x1)에서 칩 쪽(x2)으로 **그어진다.** 그냥 켜면 선이 거기 원래 있던 것처럼
-             보이고, 그어지면 정보가 저 사람에게서 나왔다는 뜻이 된다.
-             `pathLength="1"` 로 길이를 1 로 정규화하면 화면 크기와 무관하게 비율로 그릴 수 있다
-             (실제 길이를 재서 dasharray 에 넣을 필요가 없다). */
-          return (
-            <line
-              key={h.k}
-              x1="72%"
-              y1="48%"
-              x2={`${h.x + 5}%`}
-              y2={`${h.y}%`}
-              stroke={BLUE}
-              strokeOpacity={0.3 * (1 - merge)}
-              strokeWidth="1"
-              pathLength="1"
-              strokeDasharray="1"
-              strokeDashoffset={1 - ease(on)}
-            />
-          )
-        })}
-      </svg>
-
-      {HUD.map((h, i) => {
-        const on = ease(seg(t, 0.05 + i * 0.08, 0.15 + i * 0.08))
-        return (
-          <div
-            key={h.k}
-            className="absolute w-[min(21vw,262px)] rounded-2xl border px-5 py-4 backdrop-blur-md"
-            style={{
-              left: `${lerp(h.x, 70, merge)}%`,
-              top: `${lerp(h.y, 48, merge)}%`,
-              borderColor: 'rgba(46,107,255,0.34)',
-              background: 'rgba(11,24,48,0.78)',
-              opacity: on * (1 - merge),
-              transform: `translate(-50%, -50%) translateY(${lerp(18, 0, on)}px) scale(${lerp(1, 0.5, merge)})`,
-              willChange: 'transform, opacity',
-            }}
-            aria-hidden
-          >
-            <span className="text-[10.5px] font-semibold tracking-[0.22em]" style={{ color: BLUE }}>
-              {h.k}
-            </span>
-            <p className="mt-2.5 text-[14px] font-medium leading-[1.5]">{h.t}</p>
-            <p className="mt-2 text-[11.5px] leading-[1.6] text-white/45">{h.f}</p>
-          </div>
-        )
-      })}
-
-      {/* 다섯이 모여 한 장이 된다 */}
       <div
-        className="absolute left-[10%] top-1/2 w-[min(30vw,380px)] rounded-2xl border p-8"
+        className="absolute right-[4%] top-1/2 w-[min(50%,720px)] rounded-3xl border p-7 backdrop-blur-md xl:p-9"
         style={{
-          borderColor: BLUE,
-          background: 'rgba(46,107,255,0.1)',
-          opacity: card,
-          transform: `translateY(-50%) scale(${lerp(0.92, 1, card)})`,
+          borderColor: 'rgba(46,107,255,0.35)',
+          background: 'rgba(11,24,48,0.82)',
+          boxShadow: '0 40px 120px -40px rgba(46,107,255,0.45)',
+          opacity: panel * (1 - out),
+          transform: `translateY(calc(-50% + ${lerp(24, 0, panel) - out * 24}px))`,
         }}
+        aria-hidden={panel < 0.5}
       >
-        <span className="text-[11px] font-semibold tracking-[0.26em]" style={{ color: BLUE }}>
-          NEXT LESSON
-        </span>
-        <p className="mt-4 text-[clamp(1.05rem,1.6vw,1.3rem)] font-medium leading-[1.5]">
-          다음에 무엇을 얼마나 어떤 순서로.
-          <br />
-          지금의 학습 상태에 맞춰 다시 정합니다.
-        </p>
+        {/* 머리: 누가 무엇을 하는 화면인지 */}
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2.5 text-[13px] font-medium text-white/85">
+            <span
+              className="block h-2 w-2 rounded-full motion-safe:animate-pulse"
+              style={{ background: BLUE, boxShadow: `0 0 10px ${BLUE}` }}
+            />
+            {shown < FIND_AT.length ? '학습 기록을 분석하고 있어요' : '분석을 마쳤어요'}
+          </span>
+          <span className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/50">예시 화면</span>
+        </div>
+
+        {/* 근거: 최근 2주 문항 격자. 훑는 선이 지나간 칸만 보인다. */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="mb-3 flex justify-between text-[11.5px] text-white/45">
+            <span>최근 2주 · 유형별 풀이 기록</span>
+            <span className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <i className="block h-2.5 w-2.5 rounded-[3px] bg-white/25" />
+                맞음
+              </span>
+              <span className="flex items-center gap-1.5">
+                <i className="block h-2.5 w-2.5 rounded-[3px]" style={{ background: BLUE }} />
+                막힘
+              </span>
+            </span>
+          </div>
+          <div className="relative">
+            {GRID.map((row, r) => (
+              <div
+                key={r}
+                className="flex items-center gap-3 rounded-lg px-2 py-[3px]"
+                style={{
+                  background: r === 0 ? `rgba(46,107,255,${0.16 * hit})` : undefined,
+                  boxShadow: r === 0 ? `inset 0 0 0 1px rgba(120,165,255,${0.7 * hit})` : undefined,
+                  opacity: r === 0 ? 1 : lerp(1, 0.45, hit), // 패턴이 잡히면 나머지 줄은 물러난다
+                }}
+              >
+                <span className="w-[64px] shrink-0 text-[11.5px] text-white/60">{GRID_ROWS[r]}</span>
+                <div className="grid flex-1 grid-cols-[repeat(14,minmax(0,1fr))] gap-[5px]">
+                  {row.map((v, c) => (
+                    <i
+                      key={c}
+                      className="block aspect-square rounded-[4px]"
+                      style={{
+                        background: v === 2 ? BLUE : v === 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.05)',
+                        boxShadow: v === 2 && r === 0 ? `0 0 ${12 * hit}px ${BLUE}` : undefined,
+                        opacity: scan * 14 > c ? 1 : 0.08,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {/* 훑는 선 */}
+            <span
+              className="pointer-events-none absolute bottom-0 top-0 block w-px"
+              style={{
+                left: `calc(64px + 20px + (100% - 84px) * ${scan})`,
+                background: `linear-gradient(180deg, transparent, ${BLUE}, transparent)`,
+                boxShadow: `0 0 14px ${BLUE}`,
+                opacity: scan > 0 && scan < 1 ? 1 : 0,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 결론: 피드백이 한 줄씩 찍힌다 */}
+        <div className="mt-6 space-y-4">
+          {FINDINGS.map((x, i) => {
+            const on = seg(t, FIND_AT[i], FIND_AT[i] + 0.05)
+            return (
+              <div key={x.k} className="flex gap-4" style={{ opacity: on > 0 ? 1 : 0.14 }}>
+                <span
+                  className="mt-[3px] w-[84px] shrink-0 text-[12px] font-semibold"
+                  style={{ color: on > 0 ? BLUE : 'rgba(255,255,255,0.5)' }}
+                >
+                  {x.k}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15.5px] font-medium leading-[1.5]">
+                    <Typed text={x.t} p={on} />
+                  </p>
+                  {x.f ? (
+                    <p className="mt-1 text-[12.5px] leading-[1.6] text-white/50" style={{ opacity: seg(t, FIND_AT[i] + 0.04, FIND_AT[i] + 0.08) }}>
+                      {x.f}
+                    </p>
+                  ) : (
+                    /* 커리큘럼 조정은 글보다 '바뀌었다' 는 모양이 빠르다: 옛 계획을 긋고 새 계획을 세운다. */
+                    <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px]" style={{ opacity: seg(t, FIND_AT[i] + 0.04, FIND_AT[i] + 0.08) }}>
+                      <span className="text-white/40 line-through decoration-white/40">Day 12 · 어휘 확장</span>
+                      <span className="text-white/35" aria-hidden>
+                        →
+                      </span>
+                      <span className="rounded-full px-2.5 py-0.5 font-medium" style={{ background: 'rgba(46,107,255,0.22)', color: '#CFE0FF' }}>
+                        Day 12 · 품사 자리 다시 보기
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </>
   )
 }
 
 /* ─── 06 CONTINUOUS LEARNING ──────────────────────────────────────────────
-   기획서: "어제의 학습 카드가 AI 분석 영역으로 이동하고 새로운 다음 수업 카드로 재조립.
-   마지막에는 AI 휴먼이 그 카드를 직접 건네는 듯한 연출."
-   그래서 세 장을 나란히 놓지 않고 **한 자리에서 갈아입힌다.** 나란히 놓으면 '세 단계'고,
-   한 자리에서 바뀌면 '같은 것이 달라졌다' 가 된다. 이 섹션이 하려는 말이 후자다. */
+   **05 가 '선생님이 본 것' 이면 06 은 '선생님이 건네는 것' 이다.**
+   분석 화면이 비킨 자리로 선생님이 돌아와, 05 에서 방금 바뀐 바로 그 카드(Day 12 · 품사 자리 다시 보기)를
+   손에서 내민다. 그래서 '다음 수업은 오늘 이미 시작된다' 가 말이 아니라 장면이 된다.
+
+   전에는 카드 한 장이 '이전 학습 → AI 분석 → 다음 학습' 으로 세 번 갈아입었다. 05 를 분석 화면으로
+   바꾸고 나니 **같은 이야기를 두 번** 하게 됐다(사용자 지적: "중복 아닌가"). 분석은 05 에 맡기고
+   여기서는 전달만 한다 - 09 의 이해 → 조정 → 전달 순서와도 맞물린다.
+
+   카드는 **선생님 손에서 나와 이쪽으로 온다**(오른쪽 → 왼쪽, 작게 → 크게). 반대로 움직이면
+   카드를 선생님께 드리는 모양이 된다. */
+const NEXT_CARD = { day: 'Day 12', title: '품사 자리 다시 보기', meta: '25분 · 12문항', why: '오늘 막힌 문제에서 시작합니다' }
+
 function SceneContinuous({ t }: { t: number }) {
-  const head = 1 - seg(t, 0.5, 0.6)
-  const { step, inner, isLast } = stepAt(t, 0.06, 0.6, PIPELINE.length)
-  const o = fadeStep(inner, isLast)
-  const hand = ease(seg(t, 0.64, 0.76)) // 선생님이 카드를 건넨다
-  const cur = PIPELINE[step]
+  const give = ease(seg(t, 0.06, 0.3)) // 손에서 나와 이쪽으로 온다
+  const say = seg(t, 0.26, 0.34)
+  const tail = seg(t, 0.44, 0.54)
 
   return (
     <>
-      <div className="absolute left-0 top-[13vh] px-6 sm:px-10 lg:px-16" style={{ opacity: head }}>
+      <div className="absolute left-0 top-[13vh] px-6 sm:px-10 lg:px-16">
         <Head>
           다음 수업은
           <br />
@@ -976,38 +1056,37 @@ function SceneContinuous({ t }: { t: number }) {
         </Head>
       </div>
 
-      {/* 한 장이 세 번 갈아입는다. 마지막 장이 인물 쪽으로 건너간다. */}
-      <div
-        className="absolute top-1/2 w-[min(30vw,380px)] rounded-2xl border p-8"
-        style={{
-          left: `${lerp(12, 52, hand)}%`,
-          borderColor: step === 1 ? BLUE : 'rgba(255,255,255,0.14)',
-          background: step === 1 ? 'rgba(46,107,255,0.08)' : RAISE,
-          opacity: o * (1 - hand * 0.15),
-          transform: `translateY(-50%) scale(${lerp(0.96, 1, o) * lerp(1, 0.86, hand)})`,
-          willChange: 'transform, opacity, left',
-        }}
-      >
-        <span
-          className="text-[11px] font-semibold tracking-[0.26em]"
-          style={{ color: step === 1 ? BLUE : 'rgba(255,255,255,0.45)' }}
-        >
-          {cur.head}
-        </span>
-        <ul className="mt-5 space-y-2.5 text-[15px] leading-[1.7] text-white/70">
-          {cur.items.map((x) => (
-            <li key={x}>{x}</li>
-          ))}
-        </ul>
-      </div>
-
-      <Bubble o={hand} x={16} y={52}>
-        <Typed text={HANDOVER_LINE} p={seg(hand, 0.1, 0.45)} />
+      <Bubble o={say} x={38} y={32}>
+        <Typed text={HANDOVER_LINE} p={seg(t, 0.3, 0.42)} />
       </Bubble>
 
-      <div className="absolute bottom-[12vh] left-0 px-6 sm:px-10 lg:px-16" style={{ opacity: hand }}>
+      <div
+        className="absolute w-[min(26vw,340px)] rounded-3xl border p-7"
+        style={{
+          left: `${lerp(62, 30, give)}%`, // 62% = pose-2 의 내민 손 언저리
+          top: `${lerp(50, 64, give)}%`,
+          borderColor: BLUE,
+          background: 'rgba(16,31,60,0.92)',
+          boxShadow: `0 30px 90px -30px ${BLUE}`,
+          opacity: Math.min(1, give * 3),
+          transform: `translate(-50%, -50%) scale(${lerp(0.5, 1, give)}) rotate(${lerp(-6, 0, give)}deg)`,
+          willChange: 'transform, opacity, left, top',
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-semibold" style={{ color: BLUE }}>
+            다음 수업 · {NEXT_CARD.day}
+          </span>
+          <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-[11px] text-white/55">준비됨</span>
+        </div>
+        <p className="mt-4 text-[clamp(1.2rem,1.7vw,1.45rem)] font-medium leading-[1.4]">{NEXT_CARD.title}</p>
+        <p className="mt-2 text-[13px] text-white/55">{NEXT_CARD.meta}</p>
+        <p className="mt-5 border-t border-white/10 pt-4 text-[12.5px] leading-[1.6] text-white/50">{NEXT_CARD.why}</p>
+      </div>
+
+      <div className="absolute bottom-[10vh] left-0 px-6 sm:px-10 lg:px-16" style={{ opacity: tail }}>
         <p className="text-[15px] leading-[1.9] text-white/60">
-          학습은 하루마다 끊기지 않습니다. 어제의 학습이 오늘의 출발점이 됩니다.
+          학습은 하루마다 끊기지 않습니다. 오늘의 학습이 다음 수업의 출발점이 됩니다.
         </p>
       </div>
     </>
@@ -1119,13 +1198,15 @@ export function StageFlow() {
           <span className="font-medium">오늘의 나입니다</span>
         </h2>
         <div className="mt-10">
-          {HUD.map((h, i) => (
+          {FINDINGS.map((h, i) => (
             <div key={h.k} className={`py-7 ${i > 0 ? 'border-t border-white/10' : ''}`}>
-              <span className="text-[10.5px] font-semibold tracking-[0.22em]" style={{ color: BLUE }}>
+              <span className="text-[12px] font-semibold" style={{ color: BLUE }}>
                 {h.k}
               </span>
               <p className="mt-3 text-[16px] font-medium leading-[1.5]">{h.t}</p>
-              <p className="mt-2 text-[12.5px] leading-[1.7] text-white/45">{h.f}</p>
+              <p className="mt-2 text-[12.5px] leading-[1.7] text-white/45">
+                {h.f || 'Day 12 · 어휘 확장 → Day 12 · 품사 자리 다시 보기'}
+              </p>
             </div>
           ))}
         </div>
@@ -1141,32 +1222,16 @@ export function StageFlow() {
           <br />
           <span className="font-medium">오늘 이미 시작됩니다</span>
         </h2>
-        <div className="mt-10 space-y-3">
-          {PIPELINE.map((c, i) => (
-            <div key={c.head}>
-              {i > 0 && (
-                <p className="py-2 text-center text-[20px] font-light text-white/25" aria-hidden>
-                  ↓
-                </p>
-              )}
-              <div
-                className="rounded-2xl border p-6"
-                style={{
-                  borderColor: i === 1 ? BLUE : 'rgba(255,255,255,0.12)',
-                  background: i === 1 ? 'rgba(46,107,255,0.08)' : RAISE,
-                }}
-              >
-                <p className="text-[15px] font-medium" style={{ color: i === 1 ? BLUE : undefined }}>
-                  {c.head}
-                </p>
-                <ul className="mt-4 space-y-2 text-[14px] leading-[1.7] text-white/65">
-                  {c.items.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
+        <div className="mt-10 rounded-3xl border p-7" style={{ borderColor: BLUE, background: 'rgba(16,31,60,0.92)' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-semibold" style={{ color: BLUE }}>
+              다음 수업 · {NEXT_CARD.day}
+            </span>
+            <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-[11px] text-white/55">준비됨</span>
+          </div>
+          <p className="mt-4 text-[20px] font-medium leading-[1.4]">{NEXT_CARD.title}</p>
+          <p className="mt-2 text-[13px] text-white/55">{NEXT_CARD.meta}</p>
+          <p className="mt-5 border-t border-white/10 pt-4 text-[12.5px] leading-[1.6] text-white/50">{NEXT_CARD.why}</p>
         </div>
         <p
           className="mt-8 rounded-2xl border px-6 py-6 text-[15px] font-light leading-[1.7]"
@@ -1175,7 +1240,7 @@ export function StageFlow() {
           “지난번에 어려워했던 부분부터 다시 시작해볼까요?”
         </p>
         <p className="mt-8 text-[15px] leading-[1.9] text-white/60">
-          학습은 하루마다 끊기지 않습니다. 어제의 학습이 오늘의 출발점이 됩니다.
+          학습은 하루마다 끊기지 않습니다. 오늘의 학습이 다음 수업의 출발점이 됩니다.
         </p>
       </section>
     </div>
