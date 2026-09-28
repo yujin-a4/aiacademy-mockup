@@ -23,7 +23,13 @@
 /** 인증은 프로젝트마다 열쇠를 복사하지 않고 **공용 한 벌**을 쓴다 —
  *  `C:\Users\YBM\.google-scripts` (googleapis 까지 같이 내주므로 여기 설치돼 있지 않아도 된다).
  *  그 토큰에는 이미 `analytics.edit` 이 붙어 있다. 죽으면 `node C:/Users/YBM/.google-scripts/login.mjs` 한 번. */
-const { google, getAuthClient } = require('C:/Users/YBM/.google-scripts/auth.cjs')
+/* 공용 폴더가 없는 PC 에서는 scripts/token_ga.json 으로 돌아간다 — 없으면 `node scripts/ga-login.js` */
+const { google, getAuthClient } = (() => {
+  try { return require('C:/Users/YBM/.google-scripts/auth.cjs') } catch {
+    const { google } = require('googleapis')
+    return { google, getAuthClient: () => google.auth.fromJSON(require('./token_ga.json')) }
+  }
+})()
 
 /** 측정 ID — 이걸로 어느 속성인지 스스로 찾는다(속성 번호를 손으로 넣지 않는다) */
 const MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-M1KH3TJZJB'
@@ -54,7 +60,7 @@ const DIMENSIONS = [
   { parameterName: 'step', displayName: '스텝', scope: 'EVENT', description: '온보딩 몇 번째 단계' },
   { parameterName: 'target', displayName: '대상', scope: 'EVENT', description: '막힌 음원 등 이벤트 대상' },
   { parameterName: 'turn', displayName: '턴', scope: 'EVENT', description: '수업 턴 번호' },
-  { parameterName: 'nth', displayName: '회차', scope: 'EVENT', description: '몇 번째 수업인가(리텐션)' },
+  { parameterName: 'nth', displayName: '회차', scope: 'EVENT', description: '강사가 몇 번째 되물었나' },
 ]
 
 /** measurementUnit: STANDARD(단위 없는 수) · SECONDS · MILLISECONDS · …
@@ -62,6 +68,8 @@ const DIMENSIONS = [
 const METRICS = [
   { parameterName: 'elapsed_sec', displayName: '풀이시간', scope: 'EVENT', measurementUnit: 'SECONDS', description: '실전 한 판에 걸린 시간' },
   { parameterName: 'sec', displayName: '경과초', scope: 'EVENT', measurementUnit: 'SECONDS', description: '이벤트가 일어난 시점의 경과 초' },
+  { parameterName: 'played_sec', displayName: '들은초', scope: 'EVENT', measurementUnit: 'SECONDS', description: '강사 말을 끊기 전까지 들은 시간' },
+  { parameterName: 'left_sec', displayName: '남은초', scope: 'EVENT', measurementUnit: 'SECONDS', description: '강사 말을 끊었을 때 남아 있던 시간' },
   { parameterName: 'dwell_sec', displayName: '결과체류', scope: 'EVENT', measurementUnit: 'SECONDS', description: '결과 화면을 들여다본 시간' },
   { parameterName: 'score_pct', displayName: '점수', scope: 'EVENT', measurementUnit: 'STANDARD', description: '실전 정답률 %' },
   { parameterName: 'pace_ratio', displayName: '속도배수', scope: 'EVENT', measurementUnit: 'STANDARD', description: 'RC 적정 시간 대비 배수(1.5 = 1.5배 걸림)' },

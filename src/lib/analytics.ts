@@ -40,11 +40,11 @@ const COHORT_KEY = 'ybm_fgi_cohort'
 /** 링크로 정해졌는가 — 이 표식이 있으면 로그인 계정이 참가자를 덮지 못한다 */
 const FROM_LINK_KEY = 'ybm_fgi_from_link'
 export const PARTICIPANT_PARAM = 'p'
-/** 링크를 잃었을 때의 안전망 — 참가자용으로 파둔 개인 계정(`ybm00`~`ybm50`,
+/** 링크를 잃었을 때의 안전망 — 참가자용으로 파둔 개인 계정(`ybm00`~`ybm50`, `ybm101`~`ybm200`,
  *  `scripts/create-fgi-accounts.js`). 이 꼴로 로그인하면 링크 없이도 참가자로 본다.
- *  **`ybm` 로 시작하기만 하면 다 받으면 안 된다** — 우리 계정까지 딸려 들어간다. 숫자 두 자리로 좁힌다.
+ *  **`ybm` 로 시작하기만 하면 다 받으면 안 된다** — 우리 계정까지 딸려 들어간다. 두 자리 또는 101~200 으로 좁힌다.
  *  공용 `guest##` 는 우리도 쓰므로 일부러 뺀다. 이 정규식은 저 스크립트와 짝이다 — 한쪽만 바꾸면 어긋난다. */
-const FGI_ID = /^YBM\d{2}$/
+const FGI_ID = /^YBM(\d{2}|10[1-9]|1[1-9]\d|200)$/
 
 let participant: string | null = null
 let isFgi = false
@@ -139,39 +139,6 @@ export function track(event: string, params: EventParams = {}) {
 
 /** 초 단위 경과 — 이벤트마다 `Date.now()` 를 빼는 코드가 흩어지지 않게 여기 둔다 */
 export const secSince = (startMs: number) => Math.round((Date.now() - startMs) / 1000)
-
-/* ── 첫 진입 · 몇 번째 수업인가 ──
-   FGI 규모(8~9명)에서는 GA 의 '재방문 사용자' 같은 집계가 무의미하다. 대신 기기에 두 값만
-   들고 있으면 **"처음 열고 첫 수업까지 얼마나 걸렸나"** 와 **"두 번째 수업으로 이어졌나"** 가 나온다.
-   후자는 이 규모에서 리텐션의 유일한 실물이다. */
-const FIRST_SEEN_KEY = 'ybm_first_seen'
-const LESSON_COUNT_KEY = 'ybm_lesson_count'
-
-const readNum = (key: string) => {
-  try { return Number(window.localStorage.getItem(key)) || 0 } catch { return 0 }
-}
-const writeNum = (key: string, v: number) => {
-  try { window.localStorage.setItem(key, String(v)) } catch { /* 저장이 막힌 환경 */ }
-}
-
-/** 앱을 처음 연 시각. 없으면 지금으로 찍는다 */
-export function markFirstSeen() {
-  if (typeof window === 'undefined') return
-  if (!readNum(FIRST_SEEN_KEY)) writeNum(FIRST_SEEN_KEY, Date.now())
-}
-
-/** 수업을 한 판 시작했다 — 몇 번째인지와 첫 진입 이후 몇 초 만인지를 붙여 보낸다 */
-export function trackLessonStart(params: EventParams = {}) {
-  if (typeof window === 'undefined') return
-  const nth = readNum(LESSON_COUNT_KEY) + 1
-  writeNum(LESSON_COUNT_KEY, nth)
-  const first = readNum(FIRST_SEEN_KEY)
-  track('lesson_started', {
-    nth,
-    ...(nth === 1 && first ? { sec_since_first_open: Math.round((Date.now() - first) / 1000) } : {}),
-    ...params,
-  })
-}
 
 /** 화면 이동 한 번. 라우터가 바뀔 때 `Analytics` 가 부른다 */
 export function pageview(path: string) {

@@ -3,7 +3,7 @@
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { GA_ON, identify, initParticipant, isInternalPath, markFirstSeen, pageview, setParticipantFromAccount } from '@/lib/analytics'
+import { GA_ON, identify, initParticipant, isInternalPath, pageview, setParticipantFromAccount } from '@/lib/analytics'
 
 /**
  * 화면이 바뀔 때마다 page_view 를 보낸다.
@@ -21,7 +21,6 @@ function RouteTracker() {
        "참가자가 처음 어디로 들어왔나" 가 fgi 쪽에 남는다 */
     initParticipant(new URLSearchParams(search.toString()))
     identify()
-    markFirstSeen()
     const qs = search.toString()
     pageview(pathname + (qs ? `?${qs}` : ''))
   }, [pathname, search])

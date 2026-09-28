@@ -60,9 +60,12 @@ const OUT = path.join(__dirname, '..', 'src', 'data', 'typeLearning', 'fgiScenar
      ③ 틀리면 **답을 다시 고르게 한다**(S5 의 오답 경로가 '보기 재선택'). 화면은 처음 답을
         따로 기억해 길을 유지한다(TypeLessonPlayer 의 firstPickRef). */
 const DOYUN_TAB = 'FGI_이도윤 (개념학습 추가 버전)_1차 수정완료'
-const DAEUN_TAB = process.argv.includes('--daeun-old') ? 'FGI_윤다은_간결' : 'FGI_윤다은_정오답분기'
+/* 09-28 '1차 수정완료' — 오답 해설 질문이 S6 **앞**에 오고(이도윤은 뒤), 단계명에 보기가 붙었다
+   ('S5 정답 근거 연결 - B'). 제목도 'LC 1강' → '1강 LC' 로 뒤집혔다. 옛 탭은 --daeun-prev */
+const DAEUN_TAB = process.argv.includes('--daeun-old') ? 'FGI_윤다은_간결'
+  : process.argv.includes('--daeun-prev') ? 'FGI_윤다은_정오답분기' : 'FGI_윤다은_정오답분기_1차 수정완료'
 const SOURCES = [
-  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: DAEUN_TAB, section: /^LC\s*1강/ },
+  { instructor: 'yun_daeun', lecture: 'LC-P1-01', tab: DAEUN_TAB, section: /^(LC\s*1강|1강\s*LC)/ },
   { instructor: 'yun_daeun', lecture: 'RC-P5-08', tab: DAEUN_TAB, section: /^RC\s*24강/ },
   /* 이도윤 — 같은 문항, 다른 대본. 표 모양도 윤다은 탭과 다르다:
        · 도입이 '화면 텍스트 | AI 강사 대사' 두 칸이다 — 화면 텍스트가 곧 '오늘 배울 내용'.
@@ -296,6 +299,9 @@ function pathSplit(raw) {
   if (!/오답\s*경로\s*:/.test(s)) return { ok: s, wrong: s }
   const at = s.search(/오답\s*경로\s*:/)
   const strip = (x) => x.replace(/^\s*(?:정답|오답)\s*경로\s*:\s*/, '').trim()
+  /* "정답 경로 / 오답 경로: …" — 두 길이 **같은 답**이라는 표기(09-28). 앞을 따로 자르면
+     맞힌 길의 모범답안이 "정답 경로 /" 라는 글자만 남는다(실측). */
+  if (/^\s*정답\s*경로\s*\/\s*$/.test(s.slice(0, at))) { const both = strip(s.slice(at)); return { ok: both, wrong: both } }
   return { ok: strip(s.slice(0, at)), wrong: strip(s.slice(at)) }
 }
 
@@ -325,7 +331,7 @@ function splitPoints(text) {
 }
 
 /** 강의를 가르는 제목 줄 — "LC 1강 Part 1 …", "RC 24강 Part 5 …" */
-const LECTURE_TITLE = /^(LC|RC)\s*\d+강/
+const LECTURE_TITLE = /^((LC|RC)\s*\d+강|\d+강\s*(LC|RC))/
 
 /** 탭에서 이 강의 몫의 줄만 잘라낸다. `section` 이 없으면 탭 전체가 한 강의다.
  *  줄번호로 자르지 않는 이유 — 콘텐츠팀이 위에 줄을 끼워 넣으면 번호가 통째로 밀린다. */
@@ -420,6 +426,8 @@ function applyOneTone(TONE, values) {
   }
   return n
 }
+
+const dupAnswer = (s) => String(s ?? '').replace(/\s*[\r\n]*\s*복수\s*정답\s*:\s*/g, ' / ')
 
 function parse(tabName, range, section) {
   const tab = JSON.parse(fs.readFileSync(DUMP, 'utf8')).sheets.find((s) => s.name === tabName)
@@ -586,10 +594,12 @@ function parse(tabName, range, section) {
            한 줄에 붙어 나왔다. 소제목을 가르려면 눌리기 전 글자가 있어야 한다. */
         textRaw: String((aside ? row[1] : row[0]) ?? ''),   // ⚠️ c0 는 이미 clean() 을 거쳐 줄바꿈이 없다
         options: rc.options >= 0 ? clean(row[rc.options]) : '',
-        answer: clean(row[rc.answer]),
+        /* "행동 ⏎ 복수 정답: 동작" (09-28) — 둘째 줄은 칸이 아니라 **같은 칸의 다른 답**이다.
+           줄바꿈으로 두면 빈칸 둘로 읽히고, 한 줄로 누르면 정답 글자에 붙는다. '/' 로 잇는다. */
+        answer: clean(dupAnswer(row[rc.answer])),
         /* 빈칸이 둘 이상인 문항은 **줄바꿈이 곧 칸 구분**이다 — clean() 이 그걸 공백으로
            눌러 버리므로 날것 그대로도 같이 들고 간다(toRecapCard 가 여기서 칸을 가른다). */
-        answerRaw: String((rc.answer >= 0 ? row[rc.answer] : '') ?? ''),
+        answerRaw: dupAnswer(String((rc.answer >= 0 ? row[rc.answer] : '') ?? '')),
         feedback: rc.feedback >= 0 ? clean(row[rc.feedback]) : '',
       })
       continue
@@ -645,7 +655,14 @@ function parse(tabName, range, section) {
     }
 
     const sampleRaw = cols.sample >= 0 ? row[cols.sample] : ''
-    const stage = clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업'
+    let stage = clean(row[cols.stage]) || cur.turns[cur.turns.length - 1]?.stage || '수업'
+    /* S5 는 **정답 보기** 이야기다 — 단계명에 다른 보기가 적혀 있으면 시트 오기다(09-28 RC 1번 '- D',
+       정답 B). 그대로 두면 엉뚱한 보기의 스크립트가 열린다. */
+    const s5 = /^S5.*[-–]\s*([A-D])\s*$/.exec(stage)
+    if (s5 && cur.answer && s5[1] !== cur.answer) {
+      console.log(`   ✎ "${stage}" → 정답이 ${cur.answer} 라서 고쳐 읽는다(시트 오기)`)
+      stage = stage.replace(/[A-D]\s*$/, cur.answer)
+    }
     const mk = (say, modeCell, sampleCell, gate) => ({
       stage,
       tutor: say,
@@ -718,7 +735,10 @@ function toRecapCard(q, id) {
      RC 쪽은 소제목 없이 한 문장이라("1. 능동·수동을 판단할 때 첫째, …") 그때는 안 가른다.
      화면이 번호를 따로 매기므로 소제목의 머리 번호는 뗀다. */
   const rawLines = String(q.textRaw ?? '').split(/\r?\n/)
+  /* 빈 줄 없이 바로 글머리표 줄이 이어지는 꼴도 소제목이다(09-28 윤다은 "인물 사진 ⏎ • 인물의 ( ) …") */
+  const bulletNext = rawLines.length >= 2 && /^[•·●]/.test(rawLines[1].trim())
   const headOf = () => {
+    if (bulletNext) { const h = rawLines[0].trim(); return h && !h.includes('(') ? h : null }
     if (rawLines.length < 3 || rawLines[1].trim()) return null
     const h = rawLines[0].trim().replace(/^\d+\s*[.)]\s*/, '')
     return h && !h.includes('(') ? h : null
@@ -731,7 +751,7 @@ function toRecapCard(q, id) {
      clean() 을 통째로 걸면 그 줄바꿈이 다 공백이 되어 한 문단으로 뭉치고, 예시가 본문에
      섞여 읽힌다. **줄마다 clean() 하고 다시 줄로 잇는다.**
      ⚠️ 빈 줄은 버린다. 남겨 두면 항목 사이보다 항목 안이 더 벌어져 되레 흐트러진다. */
-  const body = (head && !q.head) ? rawLines.slice(2) : String(q.textRaw ?? q.text).split(/\r?\n/)
+  const body = (head && !q.head) ? rawLines.slice(bulletNext ? 1 : 2) : String(q.textRaw ?? q.text).split(/\r?\n/)
   const text = body.map((l) => clean(l)
     /* 줄머리의 파이프는 시트에서 줄을 나누려고 찍은 표시다 — 읽히는 글자가 아니다 */
     .replace(/^\|\s*/, '')
@@ -1021,6 +1041,7 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
      후속 질문으로 고른 하나만 골라 틀기 때문이다(build 의 orderTurns). 단계명에 적혀 있다. */
   if (t.optionRef) base.optionRef = t.optionRef
   if (t.gate) base.gate = t.gate
+  if (t.path) base.path = t.path
   if (cue) base.audio = { kind: 'option', qIdx, label: cue.label }
   /* 다음 줄에 따로 적혀 있던 (오답) 갈래 — parse 가 앞 턴에 붙여 온다 */
   if (t.wrongLine) {
@@ -1050,6 +1071,12 @@ function toTurn(t, qIdx, no, seq, kind, audible, nextTutor) {
       return { ...base, ...(audible ? { audio: { kind: 'options', qIdx, labels: ['A', 'B', 'C', 'D'] } } : {}),
         interaction: { kind: 'pickAnswer', qIdx } }
     case 'O/X': {
+      /* ── 묻지 않는 줄에 O/X 가 적힌 자리는 시트 오기다 ── (09-28 RC 1번 S6-C: "C는 바로 제외!")
+         그대로 두면 강사가 결론을 말해 놓고 학생에게 O/X 를 누르라고 한다. */
+      if (!/\?/.test(tutor)) {
+        console.log(`   ✎ "${t.stage}" 은 묻는 말이 없어 O/X 가 아니라 듣기로 읽는다(시트 오기)`)
+        return { ...base, interaction: { kind: 'next' } }
+      }
       /* 시험지에 치는 표시 그대로 O·X 로 낸다 — '맞아요/아니에요' 는 문장이라 눈이 읽어야 하고,
          O/X 는 기호라 바로 눌린다. 화면도 이 둘이면 좌우 큰 버튼으로 바꿔 그린다. */
       const yes = /^(O|o|ㅇ|맞|네|예)/.test(first || '')
@@ -1150,17 +1177,26 @@ function orderTurns(rows0) {
   const askAt = rows.findIndex((t) => t.mode === '보기고르기')
   if (askAt < 0) return rows
 
+  /* ── 오답 해설(S6) 묶음은 질문 **앞에도 뒤에도** 올 수 있다 ──
+       이도윤: S6 … → 후속 질문 → S7     윤다은(09-28): 오답 해설 질문 → S6 … → S7
+     그리고 보기 꼬리표는 **S6 만** 본다 — 윤다은은 S5 에도 '- B' 를 달았는데(정답 보기),
+     그걸 해설 묶음으로 보면 '고른 오답이 B 일 때만' 이 되어 아무도 못 듣는다(실측). */
   const head = []
+  const tail = []
   const groups = []
-  for (const t of rows.slice(0, askAt)) {
-    const m = /[-–(]\s*([A-D])\s*\)?\s*$/.exec(t.stage)
-    if (!m) { head.push(t); continue }
+  rows.forEach((t, i) => {
+    if (i === askAt) return
+    const m = /^S6/.test(t.stage) && /[-–(]\s*([A-D])\s*\)?\s*$/.exec(t.stage)
+    if (!m) { (i < askAt ? head : tail).push(t); return }
     const last = groups[groups.length - 1]
     if (last && last.label === m[1]) last.rows.push(t)
     else groups.push({ label: m[1], rows: [t] })
-  }
-  const stamp = (gate) => groups.flatMap((g) => g.rows.map((t) => ({ ...t, optionRef: g.label, gate })))
-  return [...head, ...stamp('ifPicked'), rows[askAt], ...stamp('onDemand'), ...rows.slice(askAt + 1)]
+  })
+  /* 맞힌 길/틀린 길(ifCorrect/ifWrong)로 갈린 S6 는 그 조건을 `path` 로 옮겨 둔다 —
+     gate 자리는 '고른 오답/골라 들은 것' 이 차지하므로, 안 옮기면 두 벌이 다 나온다. */
+  const stamp = (gate) => groups.flatMap((g) => g.rows.map((t) => ({
+    ...t, optionRef: g.label, gate, ...(t.gate === 'ifCorrect' || t.gate === 'ifWrong' ? { path: t.gate } : {}) })))
+  return [...head, ...stamp('ifPicked'), rows[askAt], ...stamp('onDemand'), ...tail]
 }
 
 function build(src) {
@@ -1239,7 +1275,7 @@ function build(src) {
         : k === 'subjective' && turn.interaction.accepts ? ` (예시 ${turn.interaction.accepts.length}개)` : ''
       const rv = turn.reveal ? `  스크립트 열림 ${turn.reveal.optionText[0].labels.join('')}` : ''
       const GATE_LABEL = { ifPicked: '고른 오답일 때', onDemand: '후속질문으로', ifCorrect: '맞혔을 때만', ifWrong: '틀렸을 때만' }
-      const gt = turn.gate ? `  [${turn.optionRef ? `${turn.optionRef} · ` : ''}${GATE_LABEL[turn.gate]}]` : ''
+      const gt = turn.gate ? `  [${turn.optionRef ? `${turn.optionRef} · ` : ''}${GATE_LABEL[turn.gate]}${turn.path ? ` · ${GATE_LABEL[turn.path]}` : ''}]` : ''
       const au = turn.audio?.kind === 'option' ? `  ♪ ${turn.audio.label} 보기 음원` : ''
       const br = turn.tutorIfWrong ? '  ⑂ 정답/오답 갈래' : ''
       console.log(`  ${String(no).padStart(2)} ${t.stage.padEnd(18)} ${t.mode.padEnd(6)} → ${k}${extra}${au}${br}${rv}${gt}`)
