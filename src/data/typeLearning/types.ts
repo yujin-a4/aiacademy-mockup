@@ -213,6 +213,9 @@ export interface Turn {
    *    'ifWrong'   — 문항을 **틀렸을 때만**   ┘ 틀리면 S4 로 판단을 처음부터 다시 세운다
    *  화면은 조건에 안 맞는 턴을 건너뛴다. */
   gate?: 'ifPicked' | 'onDemand' | 'ifCorrect' | 'ifWrong'
+  /** gate 가 ifPicked/onDemand 인 S6 가 **맞힌 길·틀린 길로도** 갈릴 때 (09-28 윤다은 1차 수정).
+   *  틀린 학생에게는 힌트를 먼저 주는 다른 질문을 한다 — 두 조건을 다 맞아야 튼다. */
+  path?: 'ifCorrect' | 'ifWrong'
 }
 
 /** 세션 정리(4단계 프레임의 마지막 — 실전 문제 이후) 핵심 문장 1개.

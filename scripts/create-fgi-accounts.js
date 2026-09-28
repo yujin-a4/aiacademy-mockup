@@ -1,10 +1,10 @@
 /**
- * FGI 참가자 계정 만들기 — ybm00 ~ ybm50 (비밀번호 1234)
+ * FGI 참가자 계정 만들기 — ybm101 ~ ybm200 (비밀번호 1234). ybm00~ybm50 은 앞서 이 스크립트로 만들었다.
  *
  * 계정 규칙
- *   ybm00~ybm50  참가자용. 로그인 아이디가 곧 GA 의 participant 가 된다(ybm07 → YBM07).
+ *   ybm00~ybm50, ybm101~ybm200  참가자용. 로그인 아이디가 곧 GA 의 participant 가 된다(ybm07 → YBM07).
  *   guest00~     내부용. 우리가 쓰는 계정이라 GA 에서 cohort=internal 로 갈린다.
- *   → 이 구분은 src/lib/analytics.ts 의 FGI_ID(/^YBM\d{2}$/) 와 짝이다. 한쪽만 바꾸면 어긋난다.
+ *   → 이 구분은 src/lib/analytics.ts 의 FGI_ID(/^YBM(\d{2}|10[1-9]|1[1-9]\d|200)$/) 와 짝이다. 한쪽만 바꾸면 어긋난다.
  *
  * 왜 SQL 로 만드나
  *   Admin API(auth.admin.createUser)를 쓰려면 service_role 키가 필요한데 이 레포에는 없다.
@@ -24,8 +24,8 @@ const { Client } = require('pg')
 
 const DOMAIN = '@ybm.co.kr'
 const PASSWORD = '1234'
-const FROM = 0
-const TO = 50
+const FROM = 101
+const TO = 200
 const ids = () => Array.from({ length: TO - FROM + 1 }, (_, i) => `ybm${String(FROM + i).padStart(2, '0')}`)
 
 /** pgcrypto 가 어느 스키마에 있는지 — Supabase 는 보통 extensions 다 */

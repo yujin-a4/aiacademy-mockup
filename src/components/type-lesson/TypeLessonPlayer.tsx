@@ -18,7 +18,7 @@ import FontSettingsController from '@/components/FontSettingsController'
 import MicButton, { stripNonSpeech } from '@/components/type-lesson/MicButton'
 import { DrawingOverlay, PenFab, useDrawingTool, type Stroke } from '@/components/DrawingOverlay'
 import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
-import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress, tutorVoiceFreq } from '@/lib/tts'
+import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress, tutorVoiceFreq, currentAudio } from '@/lib/tts'
 /* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
 import { koJosa, endsConsonant } from '@/lib/ttsText'
 import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_CUTOUTS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
@@ -39,7 +39,7 @@ import SessionEndFlow from '@/components/session/SessionEndFlow'
 import type { PartKey } from '@/lib/sessionHistory'
 import { getTodayProgress, markLectureDone } from '@/lib/todayPlan'
 import type { RailDiag } from '@/data/typeLearning/fromSteps'
-import { track, secSince, trackLessonStart } from '@/lib/analytics'
+import { track, secSince } from '@/lib/analytics'
 
 /* 레일 정본이 이도윤 ver 한 벌뿐 — 온보딩에서 다른 강사를 골라도 짚는 순서는 이 레일을 따르고
    목소리·얼굴·화법만 그 강사가 된다. (강사별 레일이 채워지면 lesson.turns를 강사별로 고르게 바꾼다) */
@@ -64,7 +64,7 @@ const INTERACTION_HINT: Record<Interaction['kind'], string> = {
   match: '지문에서 근거가 되는 문장을 **직접 탭하게** 한다. "근거 문장을 눌러봐" 라고 분명히 말한다.',
   /* 대본 수업 전용(후속 질문). 대본이 할 말을 다 정해 둔 자리라 에이전트가 끼어들 일은 없지만,
      종류를 빠뜨리면 타입이 막는다 — 뜻은 적어 둔다. */
-  askOption: '더 설명을 듣고 싶은 오답 보기를 **하나 고르게** 한다. 없으면 "없어요" 를 누르면 된다고 말한다.',
+  askOption: '더 설명을 듣고 싶은 오답 보기를 **골라 체크하게** 한다(여러 개 가능, 다 골랐으면 [확인]). 없으면 "없음" 을 누르면 된다고 말한다.',
 }
 
 /** 학생이 할 일이 있는 턴인가 — 진행 규칙이 여기서 갈린다.
@@ -1342,7 +1342,9 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
    *  ⚠️ **ref 로 든다.** 화면이 스스로 넘기는 자리(advanceByApp)는 턴에 들어설 때 만들어진
    *  클로저 안에서 돈다 — 그 안에서 state 를 읽으면 방금 표시한 '들었다' 가 안 보여서
    *  후속 질문이 이미 들은 보기를 또 내민다. 값은 ref 로, 다시 그리기는 tick 으로 나눈다. */
-  const askRef = useRef<{ heard: Set<string>; want: Record<number, string>; done: Set<number> }>(
+  /* want 는 **여럿**이다 (09-28) — 한 번에 여러 개 체크하고 [확인] 한다. 해설은 대본 순서대로
+     이어서 돈다(A→C→D). 한 번 답하면 done 이라 다시 묻지 않는다. */
+  const askRef = useRef<{ heard: Set<string>; want: Record<number, string[]>; done: Set<number> }>(
     { heard: new Set(), want: {}, done: new Set() })
   const [, setAskTick] = useState(0)
   const bumpAsk = () => setAskTick((n) => n + 1)
@@ -1383,6 +1385,8 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     }
     if (!t.gate) return true
     const q = t.focusQ ?? -1
+    /* 맞힌 길·틀린 길로도 갈린 S6 — 길이 안 맞으면 보기가 맞아도 안 튼다 */
+    if (t.path && (t.path === 'ifCorrect') !== (wrongPickOf(t.focusQ) === null)) return false
     /* ── 채점 뒤 갈래 (RC) ──
        맞히면 S5 로 근거만 짧게 확인하고, 틀리면 S4 로 판단을 처음부터 다시 세운다.
        둘 다 틀면 같은 낱말에 동그라미를 두 번 치게 된다(실측: RC 1번 'are에 동그라미' 두 줄).
@@ -1391,7 +1395,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (t.gate === 'ifWrong') return wrongPickOf(t.focusQ) !== null
     return t.gate === 'ifPicked'
       ? t.optionRef === wrongPickOf(t.focusQ)
-      : t.optionRef === askRef.current.want[q]
+      : !!t.optionRef && (askRef.current.want[q] ?? []).includes(t.optionRef)
   }
 
   /** i 부터 앞으로 걸으며 **틀 수 있는 첫 턴**을 찾는다 */
@@ -1412,22 +1416,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     return undefined
   }
 
-  /** cur 다음에 갈 곳.
-   *  대개 바로 다음이지만, **오답 해설 하나를 다 듣고 나면 후속 질문으로 되돌아간다** —
-   *  이 대본에서 뒤로 가는 자리는 여기 하나뿐이다. 더 고를 것이 없으면 되돌아가지 않고
-   *  그냥 앞으로 걸어 S7(표현 정리)로 나간다. */
-  const nextIdxFrom = (cur: number) => {
-    const t = turns[cur]
-    if (t?.gate === 'onDemand') {
-      const nx = turns[cur + 1]
-      const sameRun = nx?.gate === 'onDemand' && nx.optionRef === t.optionRef && nx.focusQ === t.focusQ
-      if (!sameRun) {
-        const back = turns.findIndex((x) => x.interaction.kind === 'askOption' && x.focusQ === t.focusQ)
-        if (back >= 0 && shouldPlay(turns[back])) return back
-      }
-    }
-    return seekPlayable(cur + 1)
-  }
+  /** cur 다음에 갈 곳 — 늘 앞으로 걷는다.
+   *  (09-28 까지는 해설 하나를 듣고 후속 질문으로 되돌아갔다. 이제 한 번에 여러 개를 고르므로
+   *   고른 해설이 대본 순서대로 이어서 돌고, 끝나면 S7 로 나간다.) */
+  const nextIdxFrom = (cur: number) => seekPlayable(cur + 1)
   /* 도입(LessonIntro) → 수업 진입 여부. 실전으로 바로 들어온 경우엔 도입을 지나온 것으로 본다
      (도입 화면이 실전 위에 다시 뜨면 "시작하기"가 수업으로 되돌린다) */
   const [started, setStarted] = useState(initialStage === 'practice')
@@ -1449,30 +1441,19 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   useEffect(() => {
     if (!started || lessonStartSentRef.current) return
     lessonStartSentRef.current = true
-    trackLessonStart({ lecture: lessonProp.id, part: lessonProp.part, area: lessonProp.area, entry: initialStage ?? 'lesson' })
+    track('lesson_started', { lecture: lessonProp.id, part: lessonProp.part, area: lessonProp.area, entry: initialStage ?? 'lesson' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started])
   /* 강사 창 배치 — 우측 패널(기본) ⇄ 최소화(작은 창). 강사 말·선택지·행동 지시·입력이 전부 이 창 안에 있다 */
   const [dockMode, setDockMode] = useState<DockMode>('sidebar')
   const dockModeRef = useRef(dockMode)
   dockModeRef.current = dockMode
-  /* ── 측정 (GA) ──
-     "강사 패널을 언제 접는가" 가 FGI 관찰 항목이라, 접힘/펼침을 **누가 시켰는지까지** 남긴다.
-     화면이 좁아 코드가 자동으로 접는 경우가 있어(아래 matchMedia), 안 가르면 학생이 접은 것으로 읽힌다. */
+  /* 수업을 연 시각 — 이벤트마다 '수업 시작 후 몇 초' 를 붙인다 */
   const lessonStartRef = useRef(Date.now())
   /* 지금 어느 단계인가 — 같은 강사 패널을 **수업**에서 접는 것과 **오답 같이 보기**에서 접는 것은
      전혀 다른 신호다. 이벤트마다 단계를 실어야 나중에 갈라 볼 수 있다. */
   const phaseRef = useRef(phase)
   phaseRef.current = phase
-  const setDock = (m: DockMode, by: 'user' | 'auto' = 'user') => {
-    if (dockModeRef.current !== m) {
-      track('tutor_panel_toggled', {
-        to: m, by, turn: turnIdxRef.current + 1, sec: secSince(lessonStartRef.current),
-        lecture: lesson.id, part: lesson.part, stage: phaseRef.current,
-      })
-    }
-    setDockMode(m)
-  }
   const feedRef = useRef<HTMLDivElement>(null)   // 대화 흐름 — 새 발화·새 단계가 오면 아래로 따라간다
   const [chatMode, setChatMode] = useState<'text' | 'voice'>('voice')
   /* 에이전트 콜백은 세션 시작 시점 클로저를 잡는다 — 지금 모드는 ref 로 읽어야 최신이다 */
@@ -2122,10 +2103,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     const apply = () => {
       setNarrow(mq.matches)
       if (mq.matches) {
-        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDock('bottom', 'auto') }
+        if (dockModeRef.current === 'sidebar') { autoMiniRef.current = true; setDockMode('bottom') }
       } else if (autoMiniRef.current) {
         autoMiniRef.current = false
-        setDock('sidebar', 'auto')        // 학생이 직접 접은 건 되돌리지 않는다
+        setDockMode('sidebar')        // 학생이 직접 접은 건 되돌리지 않는다
       }
     }
     apply()
@@ -3038,8 +3019,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     armReveal(text)
     /* 채팅·화면에는 시트 문장 그대로, **읽을 때만** 홀로 선 알파벳을 한글 음으로 바꾼다
        ("D에서는" → "디에서는"). 한국어 목소리에 알파벳을 그대로 주면 발음이 뭉개진다. */
+    /* 이 줄을 실은 음원 — 끝까지 안 가고 멈췄으면 학생이 강사 말을 끊은 것이다(아래 finally) */
+    let voice: HTMLAudioElement | null = null
+    const turnAt = turnIdxRef.current
     try {
       await speakTTS(koLetters(text), ttsPersona, instructor, (hasAudio) => {
+        /* onStart 바로 뒤에 playAndWait 가 음원을 건다 — 한 박자 뒤에 잡아야 이번 줄의 음원이다 */
+        if (hasAudio) queueMicrotask(() => { voice = currentAudio() })
         setVoiceLoading(false)
         startReveal(text, hasAudio)
         /* ── 다음 줄을 지금 받아둔다 ──
@@ -3055,6 +3041,21 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
       if (revealRef.current) cancelAnimationFrame(revealRef.current)
       revealRef.current = null
       setTyped(null); setVoiceLoading(false); setNarrating(false)
+      /* ── 강사 말을 끊었나 (H2 · 페이싱) ──
+         답을 먼저 누르거나 다음으로 넘기면 낭독이 중간에 멈춘다. 몇 초 남기고 끊었는지가
+         "설명이 길다 / 이 강사 말은 안 듣는다" 의 신호다. 0.5초 미만 남은 건 끝까지 들은 것으로 본다.
+         브라우저 TTS 로 떨어진 줄은 재생 위치를 못 읽어서 빠진다. */
+      const a = voice as HTMLAudioElement | null
+      if (a && !a.ended && Number.isFinite(a.duration) && a.duration - a.currentTime > 0.5) {
+        track('tutor_speech_cut', {
+          turn: turnAt + 1,
+          played_sec: Math.round(a.currentTime * 10) / 10,
+          left_sec: Math.round((a.duration - a.currentTime) * 10) / 10,
+          chars: text.length,
+          aside,
+          stage: phaseRef.current, lecture: lesson.id, part: lesson.part,
+        })
+      }
     }
   }
 
@@ -3650,16 +3651,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   }
 
   /** 후속 질문에 답했다 — **채점하지 않는다.** 무엇을 더 들을지 고르는 자리다.
-   *  보기를 골랐으면 그 해설(gate='onDemand')로 걸어가고, '없어요' 면 남은 해설을 통째로 건너뛴다.
-   *  해설을 다 듣고 나면 nextIdxFrom 이 이 턴으로 되돌려 보낸다 — 남은 보기가 있는 한 계속 묻는다. */
-  const pickAskOption = (c: { label: string | null; text: string }) => {
+   *  **여럿을 한 번에** 받는다(09-28) — 고른 보기들의 해설(gate='onDemand')이 대본 순서대로 이어서
+   *  돌고, 빈 목록('없음')이면 남은 해설을 통째로 건너뛴다. 한 번 답하면 다시 묻지 않는다. */
+  const pickAskOption = (cs: { label: string | null; text: string }[]) => {
     if (turn.interaction.kind !== 'askOption') return
     const q = turn.focusQ ?? -1
-    if (c.label) askRef.current.want[q] = c.label
-    else { askRef.current.want[q] = ''; askRef.current.done.add(q) }
+    const picked = cs.filter((c) => c.label)
+    askRef.current.want[q] = picked.map((c) => c.label as string)
+    askRef.current.done.add(q)
     bumpAsk()
-    setChatLog((prev) => [...prev, { role: 'user', text: c.text }])
-    logResponse(c.text, null)
+    const said = picked.length ? picked.map((c) => c.text).join(', ') : (cs[0]?.text ?? '없음')
+    setChatLog((prev) => [...prev, { role: 'user', text: said }])
+    logResponse(said, null)
     respondedRef.current.add(turnIdx)
     /* 맞고 틀림이 없는 답이라 **맞장구도 없다** — 여기서 prevOk 를 남기면 다음 대본의
        첫머리가 까닭 없이 잘린다(stripAck). */
@@ -3983,9 +3986,13 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     }
     if (it.kind === 'askOption') {
       const list = askableOf(turn)
+      /* 여럿을 한 번에 말하는 꼴 — "A랑 C요" · "비, 디" (09-28 복수 선택). 조각마다 맞춰 본다 */
+      const many = Array.from(new Set(text.split(/\s*(?:이랑|랑|하고|그리고|,|와|과|and|&)\s*|\s+/)
+        .map((p) => matchSpokenLabel(p, list)).filter((i) => i >= 0 && list[i].label))).sort((a, b) => a - b)
+      if (many.length > 1) { pickAskOption(many.map((i) => list[i])); return true }
       const at = matchSpokenLabel(text, list)
       if (at < 0) return false
-      pickAskOption(list[at]); return true
+      pickAskOption([list[at]]); return true
     }
     return false
   }
@@ -4057,7 +4064,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     if (at === -2) { await askAside(text); return }
     if (at >= 0) {
       if (it.kind === 'choice') { setChoicePicked(at); pickChoice(it.choices[at]); return }
-      if (it.kind === 'askOption') { pickAskOption(askableOf(turn)[at]); return }
+      if (it.kind === 'askOption') { pickAskOption([askableOf(turn)[at]]); return }
     }
     await missedChoice(text)
   }
@@ -4556,7 +4563,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
         {/* 우: 강사 창 — 우측 패널 ⇄ 최소화(작은 창).
             작은 창은 fixed라 여기 자리를 차지하지 않는다. 내용은 슬롯으로 넘기고 배치는 도크가 정한다. */}
         <TutorDock
-          mode={dockMode} setMode={setDock}
+          mode={dockMode} setMode={setDockMode}
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
@@ -6127,7 +6134,10 @@ function RecapCard({ index, sentence, filled, corrects, onPick, onSpeak, onInter
             지시문은 여기 안 붙는다 — 목록 위에 한 번만 있다(label 을 안 넘긴다). */}
         {canSpeak && (
           <div className="shrink-0">
-            <MicButton lang={/[가-힣]/.test(sentence.en + sentence.answer) ? 'ko-KR' : 'en-US'}
+            {/* 언어는 **받을 답**으로 정한다 — 문장에 한글 해석이 붙어 있어도 답이 영어면 영어로 듣는다
+                ("The wall is ___ painted. → 벽이 …" 를 한국어로 들으면 being 이 '빙' 이 된다, 09-28).
+                한국어 발음 대체어(SPOKEN_KO)가 달린 답은 한국어로 듣는다. */}
+            <MicButton lang={blanks.some((b) => /[가-힣]/.test(b.answer + b.keywords.join(''))) ? 'ko-KR' : 'en-US'}
               onResult={(t) => onSpeak(t, Math.max(at, 0))} onInterim={onInterim} onStart={onStart} />
           </div>
         )}
@@ -6633,6 +6643,49 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
   )
 }
 
+/* ── 오답 해설 고르기 — **여럿을 체크하고 [확인]** (09-28 윤다은 1차 수정 "복수 선택 가능") ──
+   보기는 눌러서 켜고 끈다. '없음' 은 체크가 아니라 바로 넘어가는 버튼이다 — 체크한 것과
+   '없음' 이 같이 켜지는 모순을 애초에 못 만들게 한다. [확인] 은 하나라도 골라야 눌린다. */
+function AskMultiPick({ list, onPick }: {
+  list: { label: string | null; text: string }[]
+  onPick: (cs: { label: string | null; text: string }[]) => void
+}) {
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const opts = list.filter((c) => c.label)
+  const none = list.find((c) => !c.label)
+  const toggle = (l: string) => setSel((p) => { const n = new Set(p); if (n.has(l)) n.delete(l); else n.add(l); return n })
+  return (
+    <div className="space-y-2">
+      <p className="text-[11.5px] font-semibold text-[#64748B]">여러 개를 골라도 돼요</p>
+      {opts.map((c) => {
+        const on = sel.has(c.label as string)
+        return (
+          <button key={c.label} onClick={() => toggle(c.label as string)} aria-pressed={on}
+            className={`w-full min-h-[44px] flex items-center gap-2.5 text-[13px] font-semibold border px-3.5 py-2.5 text-left
+                        transition-all active:scale-[0.99] ${on
+                          ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
+                          : 'border-[#DBEAFE] bg-white text-[#1C1B33]'}`}>
+            <span className={`shrink-0 w-6 h-6 flex items-center justify-center border-2 text-[12px] font-black transition-colors ${
+              on ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-[#BFDBFE] bg-white text-[#2563EB]'}`}>{on ? '✓' : c.label}</span>
+            <span className="flex-1">{c.text}</span>
+          </button>
+        )
+      })}
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <button onClick={() => onPick(none ? [none] : [])}
+          className="min-h-[44px] text-[13px] font-semibold border border-[#E5E7EB] bg-[#F8FAFC] text-[#64748B] active:scale-[0.99]">
+          {none?.text ?? '없음'}
+        </button>
+        <button disabled={!sel.size} onClick={() => onPick(opts.filter((c) => sel.has(c.label as string)))}
+          className="min-h-[44px] text-[13px] font-black bg-[#2563EB] text-white active:scale-[0.99]
+                     disabled:bg-[#E5E7EB] disabled:text-[#94A3B8]">
+          확인{sel.size ? ` (${sel.size})` : ''}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ── 상호작용 독 — 인터랙션 종류별 UI ── */
 function InteractionDock(props: {
   turn: Turn; lesson: TypeLesson
@@ -6653,7 +6706,7 @@ function InteractionDock(props: {
   onSubjectiveSubmit?: (text: string) => void
   /** 후속 질문에서 **아직 고를 수 있는** 보기 — 이미 들은 해설은 화면이 빼고 넘긴다 */
   askChoices?: { label: string | null; text: string }[]
-  onAskPick?: (c: { label: string | null; text: string }) => void
+  onAskPick?: (cs: { label: string | null; text: string }[]) => void
 }) {
   const { turn, lesson } = props
   const it: Interaction = turn.interaction
@@ -6663,28 +6716,12 @@ function InteractionDock(props: {
     return null
   }
 
-  /* ── 후속 질문 — "더 듣고 싶은 오답 보기 있나요?" ──
-     **채점하지 않는다.** 틀린 답이 없는 물음이라 정답/오답 색을 쓰지 않고, 고르면 곧바로
-     그 해설로 넘어간다(피드백 문구도 없다 — 강사가 바로 그 보기를 설명하기 시작한다).
-     목록은 화면이 걸러 준다: 이미 들은 보기는 빠지고 '없어요' 는 늘 남는다. */
+  /* ── 후속 질문 — "설명을 듣고 싶은 오답 보기 있나요?" ──
+     **채점하지 않는다.** 틀린 답이 없는 물음이라 정답/오답 색을 쓰지 않는다.
+     목록은 화면이 걸러 준다: 이미 들은 보기(학생이 고른 오답)는 빠지고 '없음' 은 늘 남는다. */
   if (it.kind === 'askOption') {
     if (!props.spoken) return null
-    const list = props.askChoices ?? it.choices
-    return (
-      <div className="space-y-2">
-        {list.map((c, i) => (
-          <button key={c.label ?? '_none'} onClick={() => props.onAskPick?.(c)}
-            className={`w-full flex items-center gap-2.5 text-[13px] font-semibold border px-3.5 py-3 text-left
-                        transition-all active:scale-[0.99] ${c.label
-                          ? 'border-[#DBEAFE] bg-white text-[#1C1B33] hover:border-[#2563EB] hover:bg-[#F8FAFF]'
-                          : 'border-[#E5E7EB] bg-[#F8FAFC] text-[#64748B] hover:border-[#94A3B8]'}`}>
-            <span className={`shrink-0 w-6 h-6 flex items-center justify-center text-[12px] font-black ${
-              c.label ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-[#F1F5F9] text-[#94A3B8]'}`}>{c.label ?? '–'}</span>
-            <span className="flex-1">{c.text}</span>
-          </button>
-        ))}
-      </div>
-    )
+    return <AskMultiPick list={props.askChoices ?? it.choices} onPick={(cs) => props.onAskPick?.(cs)} />
   }
 
   /* 선택 응답 (퀵버튼) — 고르면 바로 피드백. "다음" 버튼 없음 */
