@@ -31,10 +31,29 @@
  *   · **글보다 화면.** 문단을 늘리지 말고 움직임으로 말한다(사용자 지시, 09-23).
  */
 
+import localFont from 'next/font/local'
 import { useEffect, useRef, useState } from 'react'
 
 import { ease, lerp, seg, useReveal, useSmoothScroll, useTrackProgress } from '../_lib'
 import { BASE, BLUE, INK, Stage, StageFlow } from './_stage'
+
+/** 색면으로 뒤집는 구간의 파랑. 강조색 BLUE(#2E6BFF) 위에 흰 글자는 대비가 모자라(≈4.2:1) 한 톤 내렸다(≈5.3:1). */
+const BLUE_BLOCK = '#2458E0'
+
+/** 제목 글꼴: **페이퍼로지**(Paperlogy, 눈누 · 상업 무료). 반듯한 기하 산세리프라 어두운 홀로그램 화면과 결이 맞는다.
+ *  제목 전체(`.display`)는 SemiBold, 강조 줄(`.em`)은 ExtraBold + 밝은 파랑으로 한 번 더 튄다.
+ *  거쳐 온 것: 마루부리(명조) "너무 차분하다" → 에이투지체(참고 페이지 AI컨닝데이의 제목체) "테마와 안 어울린다" -
+ *  에이투지는 둥글고 장난스러워 주황 만화 페이지엔 맞지만 이 페이지의 차가운 빛과는 따로 놀았다.
+ *  두 굵기 합 316KB. next/font 라 이 페이지에서만 받는다. */
+const displayFont = localFont({
+  src: [
+    { path: './Paperlogy-6SemiBold.woff2', weight: '600' },
+    { path: './Paperlogy-8ExtraBold.woff2', weight: '800' },
+  ],
+  display: 'swap',
+  variable: '--font-display',
+})
+
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 
@@ -46,14 +65,16 @@ export default function IntroV3() {
      (실측: 섹션이 스크롤에 딸려 올라가 사라졌다). 조상에 overflow 가 있으면 그게
      스크롤 컨테이너가 되기 때문이다. `clip` 은 같은 일을 하면서 컨테이너를 만들지 않는다. */
   return (
-    <main className="break-keep bg-[#0B1830] text-white [overflow-x:clip]">
+    <main className={`${displayFont.variable} break-keep bg-[#0B1830] text-white [overflow-x:clip]`}>
       <div className="intro-grain" aria-hidden />
       <TopBar />
+      <SectionNav />
       <Stage />
       <StageFlow />
+      {/* 무대의 마지막(06 '다음 수업은 오늘 이미 시작됩니다')을 빼고 그 자리에 이 섹션을 이어 붙였다 */}
+      <LearningFlow />
       <Trial />
       <ParkHyeWon />
-      <LearningFlow />
       <WhatWeAreTesting />
       <NextPhase />
       <PreOpen />
@@ -66,6 +87,68 @@ export default function IntroV3() {
  *  R&D 고지가 여기 붙어 있다. 히어로 안에 넣으면 첫 화면이 안내문 묶음이 되고,
  *  맨 아래에만 두면 낯선 방문자가 "출시된 서비스" 로 오해한 채 한참 내려간다.
  *  **사이트 바는 원래 그 사이트가 뭔지 말하는 자리다.** 전문은 마지막 섹션에 있다. */
+/* ═══ 구간 목차 (오른쪽 점) ═══════════════════════════════════════════════════
+   참고한 AI컨닝데이 페이지의 오른쪽 점 목차. 긴 스크롤 페이지에서 **지금 어디쯤인지** 보여 주고, 누르면 그 구간으로 간다.
+   `data-nav` 가 붙은 구간을 스스로 모은다(목차를 따로 적어 두면 구간을 옮길 때 어긋난다).
+   · 화면에 안 보이는 구간(폰 전용 StageFlow 등)은 뺀다.
+   · 이름은 **지금 구간만** 보인다. hover 로 여는 건 터치 기기에서 못 쓴다.
+   · 넓은 화면(lg)에서만 띄운다 - 폰·세로 태블릿에서는 글자 위에 얹힌다. */
+function SectionNav() {
+  const [items, setItems] = useState<{ label: string; el: HTMLElement }[]>([])
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('[data-nav]')).filter((e) => e.getClientRects().length > 0)
+    setItems(els.map((el) => ({ label: el.dataset.nav ?? '', el })))
+    // 화면 한가운데 줄에 걸친 구간이 '지금' 이다
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setActive(els.indexOf(e.target as HTMLElement))
+      },
+      { rootMargin: '-50% 0px -50% 0px' },
+    )
+    els.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <nav aria-label="페이지 구간" className="fixed right-4 top-1/2 z-40 hidden -translate-y-1/2 lg:block">
+      <ul>
+        {items.map((it, i) => {
+          const on = i === active
+          return (
+            <li key={it.label}>
+              <button
+                type="button"
+                onClick={() => it.el.scrollIntoView({ behavior: 'smooth' })}
+                className="flex min-h-[44px] w-full items-center justify-end gap-3 pl-6 pr-1"
+                aria-current={on ? 'true' : undefined}
+                aria-label={it.label}
+              >
+                <span
+                  className="whitespace-nowrap text-[11.5px] font-semibold text-white transition-opacity duration-300"
+                  style={{ opacity: on ? 0.95 : 0 }}
+                >
+                  {it.label}
+                </span>
+                <span
+                  className="block rounded-full transition-all duration-300"
+                  style={{
+                    width: on ? 9 : 5,
+                    height: on ? 9 : 5,
+                    background: on ? '#fff' : 'rgba(255,255,255,0.4)',
+                    boxShadow: on ? `0 0 12px ${BLUE}` : undefined,
+                  }}
+                />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+  )
+}
+
 function TopBar() {
   return (
     <header className="absolute inset-x-0 top-0 z-30">
@@ -88,7 +171,7 @@ function Title({ children, className = '' }: { children: React.ReactNode; classN
   return (
     <h2
       data-reveal
-      className={`reveal text-[clamp(1.5rem,3vw,2.6rem)] font-light leading-[1.35] tracking-[-0.01em] ${className}`}
+      className={`reveal display text-[clamp(1.7rem,3.4vw,3rem)] leading-[1.3] tracking-[-0.01em] ${className}`}
     >
       {children}
     </h2>
@@ -137,6 +220,32 @@ function Trial() {
   const [inline, setInline] = useState(0) // 페이지 안에 넣었을 때의 배율
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState({ scale: 0, rotate: false })
+
+  /* 태블릿이 **살짝 뒤로 누운 채** 들어오다가 화면 가운데쯤 오면 똑바로 선다(사용자 요청 "약간만").
+     스크롤마다 리렌더하지 않게 스타일을 직접 쓴다. 움직임 줄이기 설정이면 처음부터 똑바로. */
+  const tilt = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = tilt.current
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let raf = 0
+    const draw = () => {
+      raf = 0
+      const r = el.getBoundingClientRect()
+      const vh = window.innerHeight
+      // 윗변이 화면 바닥에 닿을 때 0 → 화면 35% 높이까지 올라오면 1
+      const k = ease(seg(vh - r.top, 0, vh * 0.65))
+      el.style.transform = `perspective(1600px) rotateX(${lerp(14, 0, k)}deg) scale(${lerp(0.94, 1, k)})`
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(draw)
+    }
+    draw()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
 
   useEffect(() => {
     const el = box.current
@@ -188,25 +297,28 @@ function Trial() {
   )
 
   return (
-    <section id="trial" className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
+    <section id="trial" data-nav="수업 체험" className="on-blue px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: BLUE_BLOCK }}>
       <div className="mx-auto max-w-[1240px]">
-        <Title className="max-w-2xl">
+        <Title className="max-w-4xl">
           AI 선생님이 이끌어주는 수업,
           <br />
-          <span className="font-medium">지금 체험해 보세요</span>
+          <span className="em">지금 체험해 보세요</span>
         </Title>
-        <p data-reveal className="reveal mt-8 max-w-2xl text-[15px] leading-[1.95] text-white/60">
+        <p data-reveal className="reveal mt-8 max-w-2xl text-[15px] leading-[1.95] text-white/85">
           아래는 지금 만들고 있는 수업 화면 그대로입니다. 이도윤 선생님의 LC 1강을 직접 눌러
           보실 수 있습니다.
         </p>
 
         <div ref={box} className="mt-12 flex justify-center">
           <div
-            className="relative overflow-hidden rounded-[24px] border border-white/15 bg-black/60 p-2"
+            ref={tilt}
+            className="relative overflow-hidden rounded-[24px] border border-white/25 bg-[#0A1526] p-2"
             style={{
+              transformOrigin: '50% 100%',
+              willChange: 'transform',
               width: inline ? TRIAL_W * inline + 16 : '100%',
               height: inline ? TRIAL_H * inline + 16 : undefined,
-              boxShadow: `0 60px 140px -50px ${BLUE}`,
+              boxShadow: '0 60px 120px -40px rgba(3,10,30,0.7)', // 파란 면 위라 파란 빛무리 대신 그림자
             }}
           >
             <div
@@ -249,7 +361,7 @@ function Trial() {
           </div>
         </div>
 
-        <p className="mt-6 text-[12px] leading-[1.9] text-white/40">
+        <p className="mt-6 text-[12px] leading-[1.9] text-white/70">
           개발 중인 화면이라 일부 단계는 아직 다듬는 중입니다. 체험 내용은 저장되지 않습니다.
         </p>
       </div>
@@ -284,14 +396,14 @@ function ParkHyeWon() {
   const toAi = ease(seg(p, 0.2, 0.5))
 
   return (
-    <section id="park" ref={ref} className="relative md:h-[150vh]" style={{ background: BASE }}>
+    <section id="park" data-nav="AI 휴먼" ref={ref} className="relative md:h-[150vh]" style={{ background: BASE }}>
       <div className="px-6 py-24 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:items-center md:overflow-hidden md:px-16 md:py-0">
         <div className="mx-auto grid w-full max-w-[1240px] items-center gap-12 md:grid-cols-2 md:gap-16">
           <div>
             <Title>
               실제 강사를 기반으로 한
               <br />
-              <span className="font-medium">AI 휴먼의 가능성</span>
+              <span className="em">AI 휴먼의 가능성</span>
             </Title>
             <p data-reveal className="reveal mt-8 max-w-md text-[15px] leading-[1.95] text-white/65">
               YBM 토익 스타강사 박혜원. 얼굴과 목소리와 말투를 기반으로 AI 휴먼을 구현하고, 학습자와 상호작용하는
@@ -361,70 +473,135 @@ function ParkHyeWon() {
 }
 
 /* ═══ 08. LEARNING FLOW ══════════════════════════════════════════════════════
-   레이아웃 계열: **닫히는 고리.** 앞에서 겪은 흐름을 구조 한 장으로 정리한다.
-   다섯 단계를 한 줄로 늘어놓고 **마지막에서 처음으로 돌아오는 선**을 그린다.
-   그 되돌아오는 선이 이 섹션의 전부다. 직선으로 끝나면 "다섯 단계" 고,
-   닫히면 "계속 이어지는 학습" 이 된다. 섹션 제목이 말하는 게 정확히 그거다. */
-const FLOW_STEPS = [
-  ['START', '오늘의 시작점을 찾습니다', '최근 학습 상태를 보고 오늘 어디에서 시작할지 정합니다.'],
-  ['LEARN', '오늘의 학습을 진행합니다', '학습자는 공부하고, AI는 과정과 결과를 계속 쌓습니다.'],
-  ['ANALYZE', '오늘의 학습을 다시 읽습니다', '어디에서 막혔는지, 어떤 부분이 안정됐는지 확인합니다.'],
-  ['ADJUST', '다음 학습을 다시 구성합니다', '오늘의 결과를 바탕으로 다음 학습의 내용과 순서를 조정합니다.'],
-  ['CONTINUE', '다음에는 이어서 시작합니다', '지난 학습의 결과가 다음 수업의 출발점이 됩니다.'],
+   **나흘치 수업 카드로 보여 준다.** 추상 도형 말고 실물로.
+   윗줄(흐리게) = 교재 순서대로: Unit 1·2·3·4, 서로 모른다.
+   아랫줄(밝게) = AI 선생님과: 그날의 결과 칩이 **빛줄기를 타고 다음 날 카드로 건너가** 그 카드를 만든다.
+   스크롤로 하루씩 이어진다(`md:h-[240vh]` + sticky, 박혜원 섹션과 같은 방식).
+
+   거쳐 온 것(같은 걸 또 하지 말 것):
+   1. START·LEARN·ANALYZE·ADJUST·CONTINUE 다섯 칸 + 되돌아오는 화살표 → "너무 PPT 같다".
+   2. 끝나는 선 vs 빛이 도는 동그라미 → "누가 저렇게 단순하게 해". 도형은 뜻을 설명만 하고 보여 주지 않았다.
+   → 무엇이 이어지는지(막힌 곳 → 다음 수업)가 **글자로 보이게** 했다. 예시는 05·06 무대의 '품사 자리' 와 같은 이야기다.
+
+   폰에서는 스크롤로 잠그지 않는다 - 전부 펼친 채 세로로 쌓는다(가로 네 칸이 설 자리가 없다). */
+const PLAIN_DAYS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4']
+const AI_DAYS = [
+  { title: 'Part 5 기본 문제', why: '첫 수업', result: '품사 자리 4/5 막힘' },
+  { title: '품사 자리 다시 보기', why: '어제 막힌 곳부터', result: '품사 자리 안정 ✓' },
+  { title: '시제로 넘어가기', why: '안정된 곳은 넘어가고', result: '시제 3/5 막힘' },
+  { title: '시제 + 품사 섞어 풀기', why: '약한 둘을 함께', result: '' },
 ]
 
 function LearningFlow() {
-  return (
-    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
-      <div className="mx-auto max-w-[1240px]">
-        <Title className="max-w-2xl">
-          한 번의 수업보다
-          <br />
-          <span className="font-medium">계속 이어지는 학습 경험</span>
-        </Title>
+  const ref = useRef<HTMLElement>(null)
+  const p = useTrackProgress(ref)
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const k = wide ? p : 1 // 폰은 다 펼친 채
 
-        <div className="relative mt-16">
-          <div className="absolute inset-x-0 top-[7px] hidden h-px bg-white/20 md:block" aria-hidden />
-          <div className="grid gap-10 md:grid-cols-5 md:gap-6">
-            {FLOW_STEPS.map(([k, t, d], i) => (
-              <div key={k} data-reveal className="reveal relative" style={{ transitionDelay: `${i * 100}ms` }}>
-                <span
-                  className="block h-[15px] w-[15px] rounded-full border-[3px]"
-                  style={{ borderColor: BLUE, background: INK }}
-                  aria-hidden
-                />
-                <span className="mt-6 block text-[11px] font-semibold tracking-[0.26em]" style={{ color: BLUE }}>
-                  {k}
-                </span>
-                <p className="mt-3 text-[15px] font-medium leading-[1.5]">{t}</p>
-                <p className="mt-3 text-[13px] leading-[1.85] text-white/55">{d}</p>
-              </div>
-            ))}
+  /* 박자: 윗줄이 한 번에 깔리고(0.04~0.14) → 아랫줄 첫 카드(0.18) → 칩이 건너가고 다음 카드가 선다 ×3 → 남는다(0.86~).
+     칸마다 [칩 출발, 칩 도착=다음 카드 등장] 을 붙여 둔다. */
+  const plain = ease(seg(k, 0.04, 0.14))
+  const dayOn = (i: number) => ease(seg(k, 0.18 + i * 0.2, 0.24 + i * 0.2))
+  const travel = (i: number) => ease(seg(k, 0.25 + i * 0.2, 0.37 + i * 0.2)) // i 번째 칩이 i+1 로 건너간다
+
+  return (
+    <section ref={ref} data-nav="학습 흐름" className="relative md:h-[240vh]" style={{ background: INK }}>
+      <div className="px-6 py-28 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:flex-col md:justify-center md:overflow-hidden md:px-16 md:py-0">
+        <div className="mx-auto w-full max-w-[1240px]">
+          <Title className="max-w-4xl">
+            한 번의 수업보다
+            <br />
+            <span className="em">계속 이어지는 학습 경험</span>
+          </Title>
+
+          {/* 윗줄: 교재 순서대로 */}
+          <div className="mt-12 md:mt-14" style={{ opacity: 0.35 + 0.65 * plain }}>
+            <div className="mb-3 flex items-baseline justify-between gap-4">
+              <span className="text-[13px] font-semibold text-white/50">교재 순서대로</span>
+              <span className="text-[12.5px] text-white/40">어제 어디서 막혔든, 오늘은 다음 단원</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-[4%]">
+              {PLAIN_DAYS.map((u, i) => (
+                <div
+                  key={u}
+                  className="rounded-2xl border border-white/10 px-5 py-4"
+                  style={{ opacity: plain, transform: `translateY(${lerp(10, 0, plain)}px)` }}
+                >
+                  <span className="text-[11.5px] text-white/35">Day {i + 1}</span>
+                  <p className="mt-1 text-[15px] text-white/50">{u}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* 되돌아오는 선. CONTINUE 아래에서 나와 START 아래로 돌아간다. */}
-          <div className="relative mt-14 hidden h-16 md:block" aria-hidden>
-            <svg viewBox="0 0 1000 64" preserveAspectRatio="none" className="h-full w-full overflow-visible">
-              <path
-                d="M910,0 L910,44 Q910,56 898,56 L102,56 Q90,56 90,44 L90,0"
-                fill="none"
-                stroke={BLUE}
-                strokeOpacity="0.5"
-                strokeWidth="1.5"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                d="M84,12 L90,0 L96,12"
-                fill="none"
-                stroke={BLUE}
-                strokeOpacity="0.5"
-                strokeWidth="1.5"
-                vectorEffect="non-scaling-stroke"
-              />
-            </svg>
-            <span className="absolute inset-x-0 top-[26px] text-center text-[12px] text-white/45">
-              지난 학습의 결과가 다음 수업의 출발점이 됩니다
-            </span>
+          {/* 아랫줄: AI 선생님과 */}
+          <div className="mt-10 md:mt-12">
+            <div className="mb-3 flex items-baseline justify-between gap-4">
+              <span className="text-[13px] font-semibold" style={{ color: '#7fa6ff' }}>
+                AI 선생님과
+              </span>
+              <span className="text-[12.5px] text-white/70">어제 막힌 곳이 오늘의 수업이 됩니다</span>
+            </div>
+            <div className="relative grid gap-3 md:grid-cols-4 md:gap-[4%]">
+              {AI_DAYS.map((d, i) => {
+                const on = dayOn(i)
+                const go = i < AI_DAYS.length - 1 ? travel(i) : 0
+                const arrived = i > 0 ? travel(i - 1) : 1 // 앞 칩이 도착해야 '왜' 줄이 켜진다
+                return (
+                  <div key={d.title} className="relative h-full">
+                    <div
+                      className="relative h-full rounded-2xl border px-5 pb-5 pt-4"
+                      style={{
+                        borderColor: `rgba(46,107,255,${0.25 + 0.5 * on})`,
+                        background: BASE,
+                        boxShadow: on > 0.5 ? `0 20px 60px -30px ${BLUE}` : undefined,
+                        opacity: on,
+                        transform: `translateY(${lerp(16, 0, on)}px)`,
+                      }}
+                    >
+                      <span className="text-[11.5px] text-white/45">Day {i + 1}</span>
+                      <p className="mt-1 text-[16px] font-semibold leading-[1.4]">{d.title}</p>
+                      <p className="mt-1 text-[12.5px]" style={{ color: '#7fa6ff', opacity: arrived }}>
+                        {d.why}
+                      </p>
+                      {d.result && (
+                        <span
+                          className="mt-4 inline-flex rounded-full px-2.5 py-1 text-[11.5px] font-medium"
+                          style={{ background: 'rgba(46,107,255,0.18)', color: '#CFE0FF', opacity: seg(on, 0.6, 1) }}
+                        >
+                          {d.result}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 다음 날로 건너가는 빛줄기 + 칩. 넓은 화면에서만(카드 사이 4% 틈을 건넌다) */}
+                    {d.result && (
+                      <div className="pointer-events-none absolute left-full top-1/2 hidden h-px md:block" style={{ width: '17%' }} aria-hidden>
+                        <div
+                          className="h-px origin-left"
+                          style={{ background: `linear-gradient(90deg, ${BLUE}, #CFE0FF)`, transform: `scaleX(${go})`, boxShadow: `0 0 10px ${BLUE}` }}
+                        />
+                        <span
+                          className="absolute top-1/2 block h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-white"
+                          style={{
+                            left: `${go * 100}%`,
+                            opacity: go > 0 && go < 1 ? 1 : 0,
+                            boxShadow: `0 0 14px 3px ${BLUE}`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -452,12 +629,12 @@ const DEPTH = [0.04, 0.1, 0.2]
 
 function WhatWeAreTesting() {
   return (
-    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: BASE }}>
+    <section data-nav="R&D" className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: BASE }}>
       <div className="mx-auto max-w-[1240px]">
-        <Title className="max-w-2xl">
+        <Title className="max-w-4xl">
           AI 선생님은
           <br />
-          <span className="font-medium">어디까지 나를 이해할 수 있을까요</span>
+          <span className="em">어디까지 나를 이해할 수 있을까요</span>
         </Title>
         <p data-reveal className="reveal mt-7 max-w-xl text-[15px] leading-[1.9] text-white/60">
           아직 정답이 나오지 않은 질문입니다. 이번 R&amp;D에서 세 가지를 직접 확인하고 있습니다.
@@ -490,7 +667,7 @@ function WhatWeAreTesting() {
             <div
               key={k}
               data-reveal
-              className="reveal flex flex-col rounded-3xl border p-8 md:min-h-[340px] md:p-9"
+              className="reveal relative isolate flex flex-col overflow-hidden rounded-3xl border p-8 md:min-h-[340px] md:p-9"
               style={{
                 transitionDelay: `${i * 140}ms`,
                 background: `rgba(46,107,255,${DEPTH[i]})`,
@@ -498,16 +675,24 @@ function WhatWeAreTesting() {
               }}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[13px] tabular-nums text-white/40">0{i + 1}</span>
+                <p className="text-[15px] font-medium tracking-[0.02em]" style={{ color: i === 2 ? '#CFE0FF' : '#7fa6ff' }}>
+                  {k}
+                </p>
                 <span className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11.5px] text-white/65">
                   <span className="block h-1.5 w-1.5 rounded-full motion-safe:animate-pulse" style={{ background: BLUE }} />
                   확인 중
                 </span>
               </div>
-              <p className="mt-6 text-[15px] font-medium tracking-[0.02em]" style={{ color: i === 2 ? '#CFE0FF' : BLUE }}>
-                {k}
-              </p>
-              <p className="mt-3 whitespace-pre-line text-[clamp(1.35rem,2vw,1.7rem)] font-medium leading-[1.4] tracking-[-0.01em]">
+              {/* 카드 뒤에 깔린 큰 숫자. 읽히는 글이 아니라 결이다 - 흐리게, 카드 밖으로 잘리게.
+                  `isolate` + `-z-10` 이라 카드 바탕 위·글자 아래에 앉는다. */}
+              <span
+                aria-hidden
+                className="display pointer-events-none absolute -bottom-12 -right-3 -z-10 select-none text-[200px] leading-none"
+                style={{ fontWeight: 800, color: `rgba(255,255,255,${0.04 + i * 0.015})` }}
+              >
+                0{i + 1}
+              </span>
+              <p className="mt-8 whitespace-pre-line text-[clamp(1.35rem,2vw,1.7rem)] font-medium leading-[1.4] tracking-[-0.01em]">
                 {q}
               </p>
               <p className="mt-auto pt-8 text-[13.5px] leading-[1.8] text-white/55 md:min-h-[3.6em]">{d}</p>
@@ -518,7 +703,7 @@ function WhatWeAreTesting() {
         <p data-reveal className="reveal mt-16 break-keep text-center text-[clamp(1.2rem,2.6vw,2.1rem)] font-light leading-[1.55]">
           이해하고, 조정하고, 선생님처럼 전달할 수 있는지.
           <br />
-          <span className="font-medium">그것을 확인하는 R&amp;D입니다.</span>
+          <span className="em">그것을 확인하는 R&amp;D입니다.</span>
         </p>
       </div>
     </section>
@@ -528,12 +713,12 @@ function WhatWeAreTesting() {
 /* ═══ 10. NEXT PHASE ═════════════════════════════════════════════════════════ */
 function NextPhase() {
   return (
-    <section className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
+    <section data-nav="로드맵" className="px-6 py-28 sm:px-10 md:px-16 md:py-36" style={{ background: INK }}>
       <div className="mx-auto max-w-[1240px]">
-        <Title className="max-w-2xl">
+        <Title className="max-w-4xl">
           나를 이해하는 AI를
           <br />
-          <span className="font-medium">실제 학습 경험으로</span>
+          <span className="em">실제 학습 경험으로</span>
         </Title>
 
         <div className="mt-14 grid max-w-3xl items-center gap-4 sm:grid-cols-[1fr_auto_1fr] sm:gap-0">
@@ -577,21 +762,22 @@ function PreOpen() {
   return (
     <section
       id="cta"
-      className="relative overflow-hidden px-6 py-32 sm:px-10 md:py-40"
-      style={{ background: `radial-gradient(900px 520px at 50% 118%, rgba(46,107,255,0.38), transparent 62%), ${BASE}` }}
+      data-nav="사전 알림"
+      className="on-blue relative overflow-hidden px-6 py-32 sm:px-10 md:py-40"
+      style={{ background: BLUE_BLOCK }}
     >
       <div data-reveal className="reveal mx-auto max-w-[820px] text-center">
-        <h2 className="text-[clamp(1.6rem,3.2vw,2.8rem)] font-light leading-[1.35] tracking-[-0.01em]">
+        <h2 className="display text-[clamp(1.8rem,3.6vw,3.2rem)] leading-[1.3] tracking-[-0.01em]">
           나를 가장 잘 이해하는
           <br />
-          <span className="font-medium">AI 선생님</span>
+          <span className="em">AI 선생님</span>
         </h2>
-        <p className="mt-8 text-[15px] leading-[2] text-white/65">
+        <p className="mt-8 text-[15px] leading-[2] text-white/85">
           내가 어디에서 막히는지 알고, 지금 필요한 공부를 알고,
           <br />
           오늘의 결과에 따라 다음 수업을 다시 준비하는 선생님.
         </p>
-        <p className="mt-6 text-[15px] leading-[2] text-white/50">2027년 3월 오픈 베타를 목표로 개발 중입니다.</p>
+        <p className="mt-6 text-[15px] leading-[2] text-white/75">2027년 3월 오픈 베타를 목표로 개발 중입니다.</p>
 
         <form className="mx-auto mt-12 flex max-w-lg flex-col gap-3 sm:flex-row" onSubmit={(e) => e.preventDefault()}>
           <label htmlFor="v3-email" className="sr-only">
@@ -603,18 +789,18 @@ function PreOpen() {
             required
             inputMode="email"
             placeholder="이메일 주소"
-            className="min-h-[54px] flex-1 rounded-full border border-white/25 bg-white/[0.06] px-6 text-[15px] text-white placeholder:text-white/50 focus:border-white focus:outline-none"
+            className="min-h-[54px] flex-1 rounded-full border border-white/40 bg-white/[0.12] px-6 text-[15px] text-white placeholder:text-white/70 focus:border-white focus:outline-none"
           />
           <button
             type="submit"
-            className="min-h-[54px] whitespace-nowrap rounded-full px-8 text-[14px] font-medium text-white transition-transform active:scale-[0.98]"
-            style={{ background: BLUE, boxShadow: `0 16px 44px -14px ${BLUE}` }}
+            className="min-h-[54px] whitespace-nowrap rounded-full bg-white px-8 text-[14px] font-semibold transition-transform active:scale-[0.98]"
+            style={{ color: BLUE_BLOCK, boxShadow: '0 16px 44px -18px rgba(0,0,0,0.45)' }}
           >
             사전 알림 신청
           </button>
         </form>
 
-        <p className="mx-auto mt-8 max-w-lg text-[12px] leading-[1.9] text-white/40">
+        <p className="mx-auto mt-8 max-w-lg text-[12px] leading-[1.9] text-white/65">
           YBM AI 어학원은 현재 개발 중인 R&amp;D 프로젝트이며, 정식으로 다운로드하거나 수강할 수 있는 서비스는
           아닙니다. 사전 알림 등록은 오픈 베타 참여 또는 정식 서비스 이용을 보장하지 않습니다. 개발 일정과 제공 방식은
           변경될 수 있으며 관련 내용이 정해지는 대로 안내드립니다.
