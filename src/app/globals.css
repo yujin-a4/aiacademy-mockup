@@ -373,3 +373,22 @@ html.lenis body { height: auto; }
     animation: none;
   }
 }
+
+/* /intro 제목 — 페이퍼로지(Paperlogy). 글꼴은 intro/v3/page.tsx 의 next/font 가 --font-display 로 넣는다.
+   제목 전체는 SemiBold, 강조 줄(.em)은 ExtraBold + 밝은 파랑. 굵은 제목체라 자간을 좁혀야 덩어리로 읽힌다. */
+.display {
+  font-family: var(--font-display), 'Pretendard', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.em {
+  font-family: var(--font-display), 'Pretendard', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #7fa6ff;
+}
+
+/* 파란 면(on-blue) 위에서는 강조 파랑이 배경에 묻힌다 → 흰색 */
+.on-blue .em {
+  color: #fff;
+}
