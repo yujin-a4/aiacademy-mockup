@@ -109,12 +109,14 @@ export const BLUE = '#2E6BFF'
  *
  * 고칠 때 지킬 것: 구간을 늘리고 싶으면 **멈춤 쪽을 늘린다.** 움직임을 늘리면
  *   길어지기만 하고 읽히는 건 그대로다. */
+/* 09-28: 02 를 260 → 420vh 로 늘렸다("너무 빨리 지나간다"). 그리고 06 CONTINUOUS(선생님이 Day12 카드를 건넴)를
+   **뺐다** - 그 자리에는 무대 바로 다음 섹션으로 '한 번의 수업보다 계속 이어지는 학습 경험'(page.tsx LearningFlow)이 온다.
+   70 / 420 / 170 / 130 = 790vh. POSES·POSE_KEYS 의 at 도 같은 비율로 옮겼다 - 여기만 바꾸면 인물 자세가 장면과 어긋난다. */
 const BEAT = {
-  hero: [0, 0.0933],
-  pain: [0.0933, 0.44],
-  human: [0.44, 0.6667],
-  powered: [0.6667, 0.84],
-  cont: [0.84, 1],
+  hero: [0, 0.0886],
+  pain: [0.0886, 0.6203],
+  human: [0.6203, 0.8354],
+  powered: [0.8354, 1],
 } as const
 
 type Range = readonly [number, number]
@@ -156,10 +158,9 @@ function lit(p: number, r: Range) {
  *  생각의 순서: **말을 할 때 가까이 오고, 남에게 자리를 내줄 때 물러선다.** */
 const POSES: Array<{ at: number; x: number; h: number; glow: number; y?: number }> = [
   { at: 0.0, x: 80, h: 152, y: 1, glow: 0.34 }, // 01 히어로. 크게 잡아 상체만 보인다
-  { at: 0.27, x: 86, h: 66, glow: 0.2 }, // 02 고민이 쏟아진다. 자리를 내주고 끝으로 물러선다
-  { at: 0.55, x: 67, h: 96, glow: 0.42 }, // 03 말을 건다. 가장 가까이 온다
-  { at: 0.76, x: 75, h: 86, glow: 0.36 }, // 05 판단의 근거가 주위에 뜬다
-  { at: 0.94, x: 78, h: 80, glow: 0.3 }, // 06 다음 수업 카드를 건넨다
+  { at: 0.3595, x: 86, h: 66, glow: 0.2 }, // 02 고민이 쏟아진다. 자리를 내주고 끝으로 물러선다
+  { at: 0.7247, x: 67, h: 96, glow: 0.42 }, // 03 말을 건다. 가장 가까이 온다
+  { at: 0.9241, x: 75, h: 86, glow: 0.36 }, // 05 판단의 근거가 주위에 뜬다
 ]
 
 function pose(p: number) {
@@ -188,14 +189,11 @@ function pose(p: number) {
  *  팔다리가 두 벌 보여서 이중노출처럼 읽힌다. */
 const POSE_KEYS = [
   { at: 0.0, i: 5 }, // 01 히어로: 빛으로 된 수업 화면에 손을 댄다
-  { at: 0.078, i: 5 },
-  { at: 0.093, i: 3 }, // 02 고민이 쏟아진다: 팔짱 끼고 지켜본다
-  { at: 0.425, i: 3 },
-  { at: 0.44, i: 1 }, // 03 말을 건다: 한 손을 든다 (구간 내내)
-  { at: 0.652, i: 1 },
-  { at: 0.69, i: 1 }, // 05 에서는 인물이 빠져 있다. **숨어 있는 동안** 06 자세로 갈아입는다
-  { at: 0.84, i: 2 }, // 06 다음 수업 카드를 건넨다: 손을 내민다
-  { at: 1.0, i: 2 },
+  { at: 0.0741, i: 5 },
+  { at: 0.0882, i: 3 }, // 02 고민이 쏟아진다: 팔짱 끼고 지켜본다
+  { at: 0.5973, i: 3 },
+  { at: 0.6203, i: 1 }, // 03 말을 건다: 한 손을 든다 (구간 내내). 05 에서는 인물이 빠져 있다
+  { at: 1.0, i: 1 },
 ]
 const POSE_COUNT = 6
 
@@ -233,7 +231,7 @@ function AiHuman({ p, pt }: { p: number; pt: { x: number; y: number } }) {
   const w = poseMix(p)
   /* 05 에서는 **잠시 빠진다.** 그 자리를 선생님이 분석한 화면이 채운다(사용자 제안).
      들어가고 나오는 건 짧게 - 06 이 시작될 때는 이미 돌아와 카드를 건넬 자세다. */
-  const away = seg(p, BEAT.powered[0], BEAT.powered[0] + 0.02) * (1 - seg(p, BEAT.powered[1] - 0.018, BEAT.powered[1] + 0.002))
+  const away = seg(p, BEAT.powered[0], BEAT.powered[0] + 0.02) // 무대의 마지막 장면이라 돌아오지 않는다
   return (
     <div
       className="pointer-events-none absolute z-[1] hidden lg:block"
@@ -304,7 +302,7 @@ function Slot({ on, children }: { on: number; children: React.ReactNode }) {
 /** 무대 위 글자가 앉는 자리. 인물이 오른쪽에 있으니 글은 왼쪽에 머문다. */
 function Copy({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div className="absolute left-0 top-1/2 w-full max-w-[660px] -translate-y-1/2 px-6 sm:px-10 lg:px-16" style={style}>
+    <div className="absolute left-0 top-1/2 z-[4] w-full max-w-[660px] -translate-y-1/2 px-6 sm:px-10 lg:px-16" style={style}>
       {children}
     </div>
   )
@@ -312,7 +310,7 @@ function Copy({ children, style }: { children: React.ReactNode; style?: React.CS
 
 function Head({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[clamp(1.5rem,2.9vw,2.6rem)] font-light leading-[1.32] tracking-[-0.01em]">{children}</h2>
+    <h2 className="display text-[clamp(1.7rem,3.3vw,3rem)] leading-[1.28] tracking-[-0.01em]">{children}</h2>
   )
 }
 
@@ -397,11 +395,11 @@ function Bubble({
  *  **"무엇에 대한 고민인가"(방향·약점) 가 아니라 "언제 하는 고민인가"(시작할 때·다시 할 때)** 로
  *  기준도 바꿨다. 전자는 분류고 후자는 장면이다. 읽는 사람은 자기 장면에서 자기를 찾는다. */
 export const CONCERNS = [
-  { k: '시작할 때', d: '뭐부터 해야 할지 모를 때', items: ['뭐부터 하지', '오늘은 어디까지 하지', '지금 시작해도 될까', '또 계획부터 짜야 하나'] },
-  { k: '방향을 정할 때', d: '이 순서가 맞는지 모를 때', items: ['지금 이걸 공부하는 게 맞나', '다음에는 뭘 해야 하지', '이 순서가 맞을까', '내가 제대로 가고 있는 걸까'] },
-  { k: '자꾸 틀릴 때', d: '같은 자리에서 또 막힐 때', items: ['왜 여기서 계속 막히지', '또 같은 실수를 했네', '뭘 다시 봐야 하지', '내가 정확히 뭘 모르는 거지'] },
-  { k: '분량을 정할 때', d: '얼마나 해야 할지 모를 때', items: ['오늘은 얼마나 해야 하지', '너무 많이 하고 있나', '요즘 너무 밀렸는데', '지금 페이스로 괜찮을까'] },
-  { k: '다시 시작할 때', d: '멈췄다가 돌아왔을 때', items: ['어디까지 했더라', '며칠 쉬었는데 어디서 다시 시작하지', '어제 하던 건 다시 봐야 하나', '이번에도 중간에 멈추는 건 아닐까'] },
+  { k: '시작할 때', items: ['뭐부터 하지', '오늘은 어디까지 하지', '지금 시작해도 될까', '또 계획부터 짜야 하나'] },
+  { k: '방향을 정할 때', items: ['지금 이걸 공부하는 게 맞나', '다음에는 뭘 해야 하지', '이 순서가 맞을까', '내가 제대로 가고 있는 걸까'] },
+  { k: '자꾸 틀릴 때', items: ['왜 여기서 계속 막히지', '또 같은 실수를 했네', '뭘 다시 봐야 하지', '내가 정확히 뭘 모르는 거지'] },
+  { k: '분량을 정할 때', items: ['오늘은 얼마나 해야 하지', '너무 많이 하고 있나', '요즘 너무 밀렸는데', '지금 페이스로 괜찮을까'] },
+  { k: '다시 시작할 때', items: ['어디까지 했더라', '며칠 쉬었는데 어디서 다시 시작하지', '어제 하던 건 다시 봐야 하나', '이번에도 중간에 멈추는 건 아닐까'] },
 ]
 
 const FLAT = CONCERNS.flatMap((g, gi) => g.items.map((text, pi) => ({ text, gi, pi })))
@@ -433,7 +431,7 @@ function ScenePain({ t }: { t: number }) {
   const tNow = useRef(t)
   tNow.current = t
   useEffect(() => {
-    const id = setTimeout(() => setUnlock(Math.min(0.62, Math.max(0.3, tNow.current))), 1500)
+    const id = setTimeout(() => setUnlock(Math.min(0.38, Math.max(0.2, tNow.current))), 1500)
     return () => clearTimeout(id)
   }, [])
 
@@ -442,7 +440,6 @@ function ScenePain({ t }: { t: number }) {
   const distill = seg(t, s0, s0 + 0.3)
   const absorb = ease(seg(t, s0 + 0.46, s0 + 0.56)) // 다섯 가지가 선생님에게 넘어간다
   const closing = seg(t, s0 + 0.52, s0 + 0.62)
-  const headOut = seg(t, s0, s0 + 0.1)
 
   /* 묶음(gi)이 제 차례에 얼마나 빨려 들어갔나. 0 = 더미에 그대로, 1 = 다 들어감.
      ⭐ **네 블록이 자기 페인포인트 자리로 모여서 그게 된다.** 전에는 블록이 그냥 가라앉고
@@ -486,11 +483,11 @@ function ScenePain({ t }: { t: number }) {
 
   return (
     <>
-      <div className="absolute left-0 top-[11vh] z-10 px-6 sm:px-10 lg:px-16" style={{ opacity: 1 - headOut }}>
+      <div className="absolute left-0 top-[11vh] z-10 px-6 sm:px-10 lg:px-16" style={{ opacity: 1 - seg(t, s0 + 0.44, s0 + 0.5) }}>
         <Head>
           혼자 공부할 때
           <br />
-          <span className="font-medium">막히는 수많은 지점들</span>
+          <span className="em">막히는 수많은 지점들</span>
         </Head>
       </div>
 
@@ -518,25 +515,31 @@ function ScenePain({ t }: { t: number }) {
           const on = ease(seg(distill, i * 0.1 + 0.3, i * 0.1 + 0.52))
           // 마지막에는 다섯 가지가 통째로 선생님 쪽으로 건너간다
           const ax = lerp(0, 40, absorb)
-          const ay = lerp(0, (48 - (23 + i * 12.5)) * 0.9, absorb)
+          const top = 33 + i * 11 // 제목(11vh~24%) 아래부터
+          const ay = lerp(0, (48 - top) * 0.9, absorb)
           return (
+            /* 표처럼 칸을 맞춘다: 번호 | 언제 | 학습자의 말(말풍선). 칸이 맞아야 다섯 줄이 한눈에 읽힌다.
+               전에는 줄마다 [언제 · 흐린 설명 · “말”] 을 이어 붙여 말 시작점이 들쭉날쭉했고,
+               흐린 설명("뭐부터 해야 할지 모를 때")은 '언제' 와 '말' 을 한 번 더 풀어 쓴 것뿐이라 뺐다(사용자 지적). */
             <div
               key={g.k}
-              className="absolute left-[6%] flex items-baseline gap-6"
+              className="absolute left-[6%] grid w-[min(58%,760px)] grid-cols-[2.5rem_minmax(0,15rem)_1fr] items-center border-t border-white/10 py-4"
               style={{
-                top: `${23 + i * 12.5}%`,
+                top: `${top}%`,
+                borderBottom: i === CONCERNS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : undefined,
                 opacity: on * (1 - absorb),
                 transform: `translate(${ax}%, calc(-50% + ${lerp(44, 0, on)}px + ${ay}vh)) scale(${lerp(1, 0.72, absorb)})`,
                 filter: absorb > 0 ? `blur(${absorb * 5}px)` : '',
                 willChange: 'transform, opacity',
               }}
             >
-              <span className="w-[1.5rem] shrink-0 text-[13px] tabular-nums" style={{ color: BLUE }}>
+              <span className="text-[13px] tabular-nums" style={{ color: '#7fa6ff' }}>
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <span className="shrink-0 text-[clamp(1.15rem,1.8vw,1.5rem)] font-medium leading-[1.4]">{g.k}</span>
-              <span className="text-[14px] leading-[1.7] text-white/45">{g.d}</span>
-              <span className="text-[14px] leading-[1.7] text-white/70">“{g.items[0]}”</span>
+              <span className="display text-[clamp(1.2rem,1.9vw,1.6rem)] leading-[1.3]">{g.k}</span>
+              <span className="justify-self-start rounded-2xl rounded-bl-md border border-white/12 bg-white/[0.06] px-4 py-2 text-[14.5px] leading-[1.5] text-white/85">
+                “{g.items[0]}”
+              </span>
             </div>
           )
         })}
@@ -558,10 +561,6 @@ export const UTTERANCES = [
   { say: '이 부분은 이제 꽤 안정적이에요.\n다음 단계로 넘어가볼까요?', info: '다시 볼 부분' },
 ]
 
-/* 건네면서 하는 말. 줄바꿈이 들어가서 JSX 안에 직접 쓰기보다 여기 두는 게 읽기 낫다. */
-const HANDOVER_LINE = `“지난번에 어려워했던 부분부터
-다시 시작해볼까요?”`
-
 /* ══════════════════════════════════════════════════════════════════════════
    무대
    ══════════════════════════════════════════════════════════════════════════ */
@@ -572,7 +571,7 @@ export function Stage() {
   const pt = usePointer()
 
   return (
-    <div ref={ref} className="relative hidden lg:block lg:h-[750vh]" style={{ background: BASE }}>
+    <div ref={ref} data-nav="AI 선생님" className="relative hidden lg:block lg:h-[790vh]" style={{ background: BASE }}>
       <div className="sticky top-0 h-[100dvh] overflow-hidden break-keep">
         {/* 바닥에 깔리는 빛. 인물이 움직이는 쪽을 따라간다. */}
         <div
@@ -602,11 +601,6 @@ export function Stage() {
           {near(p, BEAT.powered) && (
             <Slot on={lit(p, BEAT.powered)}>
               <ScenePowered t={at(p, BEAT.powered)} />
-            </Slot>
-          )}
-          {near(p, BEAT.cont) && (
-            <Slot on={lit(p, BEAT.cont)}>
-              <SceneContinuous t={at(p, BEAT.cont)} />
             </Slot>
           )}
         </div>
@@ -773,10 +767,13 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
         {/* 등장은 `.stage-rise` 로 한다. `.reveal`(IntersectionObserver) 은 여기서 못 쓴다 -
             장면이 스크롤에 따라 붙었다 떨어지는데 관찰자는 한 번 쏘고 그만둬서,
             내려갔다 올라오면 글자가 영영 안 돌아온다(실측). */}
-        <h1 className="stage-rise break-keep text-[clamp(2rem,3.9vw,3.6rem)] font-light leading-[1.18] tracking-[-0.02em]">
-          나를 가장 잘 이해하는
+        <h1 className="stage-rise display break-keep text-[clamp(2.3rem,4.6vw,4.2rem)] leading-[1.14] tracking-[-0.02em]">
+          {/* 굵은 제목체라 세 줄로 쌓는다. 한 줄로 늘리면 인물이 든 패드·빛 궤적과 겹친다(1180 실측). */}
+          나를 가장 잘
           <br />
-          <span className="font-medium">AI 선생님</span>
+          이해하는
+          <br />
+          <span className="em">AI 선생님</span>
         </h1>
         <p className="stage-rise mt-9 text-[clamp(0.95rem,1.25vw,1.1rem)] leading-[2] text-white/70" style={{ animationDelay: '150ms' }}>
           내가 어디에서 자주 막히는지,
@@ -821,7 +818,7 @@ function SceneHuman({ t }: { t: number }) {
         <Head>
           나를 이해한 AI가
           <br />
-          <span className="font-medium">선생님의 모습으로 말을 겁니다</span>
+          <span className="em">선생님의 모습으로 말을 겁니다</span>
         </Head>
       </div>
 
@@ -889,9 +886,8 @@ function ScenePowered({ t }: { t: number }) {
   const scan = seg(t, 0.18, 0.3) // 격자를 왼쪽에서 오른쪽으로 훑는다
   const hit = ease(seg(t, 0.3, 0.34)) // 품사 자리 줄이 패턴으로 켜진다
   const shown = FIND_AT.filter((a) => t >= a).length // 지금까지 찍힌 줄 수
-  /* 나갈 때는 **화면이 먼저 비키고 그다음 선생님이 돌아온다**(AiHuman 의 away 와 맞물림).
-     같이 움직이면 돌아오는 인물이 패널 위에 겹쳐 두 장이 포개진다(실측). */
-  const out = seg(t, 0.8, 0.87)
+  /* 무대의 마지막 장면이라 비키지 않는다(06 을 뺀 뒤). 트랙이 끝나면 화면째 위로 올라간다. */
+  const out = 0
 
   return (
     <>
@@ -901,7 +897,7 @@ function ScenePowered({ t }: { t: number }) {
           <br />
           교재의 다음 페이지가 아니라
           <br />
-          <span className="font-medium">오늘의 나입니다</span>
+          <span className="em">오늘의 나입니다</span>
         </Head>
         <p className="mt-8 max-w-[380px] text-[14px] leading-[1.9] text-white/55">
           선생님은 매 수업의 기록을 보고, 무엇이 막혔는지와 그다음에 무엇을 할지를 다시 정합니다.
@@ -1028,71 +1024,6 @@ function ScenePowered({ t }: { t: number }) {
   )
 }
 
-/* ─── 06 CONTINUOUS LEARNING ──────────────────────────────────────────────
-   **05 가 '선생님이 본 것' 이면 06 은 '선생님이 건네는 것' 이다.**
-   분석 화면이 비킨 자리로 선생님이 돌아와, 05 에서 방금 바뀐 바로 그 카드(Day 12 · 품사 자리 다시 보기)를
-   손에서 내민다. 그래서 '다음 수업은 오늘 이미 시작된다' 가 말이 아니라 장면이 된다.
-
-   전에는 카드 한 장이 '이전 학습 → AI 분석 → 다음 학습' 으로 세 번 갈아입었다. 05 를 분석 화면으로
-   바꾸고 나니 **같은 이야기를 두 번** 하게 됐다(사용자 지적: "중복 아닌가"). 분석은 05 에 맡기고
-   여기서는 전달만 한다 - 09 의 이해 → 조정 → 전달 순서와도 맞물린다.
-
-   카드는 **선생님 손에서 나와 이쪽으로 온다**(오른쪽 → 왼쪽, 작게 → 크게). 반대로 움직이면
-   카드를 선생님께 드리는 모양이 된다. */
-const NEXT_CARD = { day: 'Day 12', title: '품사 자리 다시 보기', meta: '25분 · 12문항', why: '오늘 막힌 문제에서 시작합니다' }
-
-function SceneContinuous({ t }: { t: number }) {
-  const give = ease(seg(t, 0.06, 0.3)) // 손에서 나와 이쪽으로 온다
-  const say = seg(t, 0.26, 0.34)
-  const tail = seg(t, 0.44, 0.54)
-
-  return (
-    <>
-      <div className="absolute left-0 top-[13vh] px-6 sm:px-10 lg:px-16">
-        <Head>
-          다음 수업은
-          <br />
-          <span className="font-medium">오늘 이미 시작됩니다</span>
-        </Head>
-      </div>
-
-      <Bubble o={say} x={38} y={32}>
-        <Typed text={HANDOVER_LINE} p={seg(t, 0.3, 0.42)} />
-      </Bubble>
-
-      <div
-        className="absolute w-[min(26vw,340px)] rounded-3xl border p-7"
-        style={{
-          left: `${lerp(62, 30, give)}%`, // 62% = pose-2 의 내민 손 언저리
-          top: `${lerp(50, 64, give)}%`,
-          borderColor: BLUE,
-          background: 'rgba(16,31,60,0.92)',
-          boxShadow: `0 30px 90px -30px ${BLUE}`,
-          opacity: Math.min(1, give * 3),
-          transform: `translate(-50%, -50%) scale(${lerp(0.5, 1, give)}) rotate(${lerp(-6, 0, give)}deg)`,
-          willChange: 'transform, opacity, left, top',
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-semibold" style={{ color: BLUE }}>
-            다음 수업 · {NEXT_CARD.day}
-          </span>
-          <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-[11px] text-white/55">준비됨</span>
-        </div>
-        <p className="mt-4 text-[clamp(1.2rem,1.7vw,1.45rem)] font-medium leading-[1.4]">{NEXT_CARD.title}</p>
-        <p className="mt-2 text-[13px] text-white/55">{NEXT_CARD.meta}</p>
-        <p className="mt-5 border-t border-white/10 pt-4 text-[12.5px] leading-[1.6] text-white/50">{NEXT_CARD.why}</p>
-      </div>
-
-      <div className="absolute bottom-[10vh] left-0 px-6 sm:px-10 lg:px-16" style={{ opacity: tail }}>
-        <p className="text-[15px] leading-[1.9] text-white/60">
-          학습은 하루마다 끊기지 않습니다. 오늘의 학습이 다음 수업의 출발점이 됩니다.
-        </p>
-      </div>
-    </>
-  )
-}
-
 /* ══════════════════════════════════════════════════════════════════════════
    작은 화면용
    ══════════════════════════════════════════════════════════════════════════
@@ -1117,10 +1048,10 @@ export function StageFlow() {
             alt="AI 휴먼 선생님이 학습자에게 말을 거는 모습을 표현한 이미지"
             className="mx-auto mb-4 h-[300px] w-auto object-contain"
           />
-          <h1 className="text-[clamp(2rem,8vw,2.8rem)] font-light leading-[1.18] tracking-[-0.02em]">
+          <h1 className="display text-[clamp(2.2rem,9vw,3rem)] leading-[1.16] tracking-[-0.02em]">
             나를 가장 잘 이해하는
             <br />
-            <span className="font-medium">AI 선생님</span>
+            <span className="em">AI 선생님</span>
           </h1>
           <p className="mt-7 text-[15px] leading-[2] text-white/70">
             내가 어디에서 자주 막히는지, 어떤 방식으로 공부하고 있는지, 지금 무엇이 필요한지.
@@ -1145,10 +1076,10 @@ export function StageFlow() {
 
       {/* 02 고민 */}
       <section className="px-6 py-24 sm:px-10" style={{ background: INK }}>
-        <h2 className="text-[clamp(1.5rem,6vw,2rem)] font-light leading-[1.35]">
+        <h2 className="display text-[clamp(1.6rem,6.6vw,2.2rem)] leading-[1.3]">
           혼자 공부할 때
           <br />
-          <span className="font-medium">막히는 수많은 지점들</span>
+          <span className="em">막히는 수많은 지점들</span>
         </h2>
         <div className="mt-12 space-y-8">
           {CONCERNS.map((g) => (
@@ -1171,10 +1102,10 @@ export function StageFlow() {
 
       {/* 03 AI 휴먼의 말 */}
       <section className="px-6 py-24 sm:px-10" style={{ background: BASE }}>
-        <h2 className="text-[clamp(1.5rem,6vw,2rem)] font-light leading-[1.35]">
+        <h2 className="display text-[clamp(1.6rem,6.6vw,2.2rem)] leading-[1.3]">
           나를 이해한 AI가
           <br />
-          <span className="font-medium">선생님의 모습으로 말을 겁니다</span>
+          <span className="em">선생님의 모습으로 말을 겁니다</span>
         </h2>
         <div className="mt-10 space-y-4">
           {UTTERANCES.map((u) => (
@@ -1190,12 +1121,12 @@ export function StageFlow() {
 
       {/* 05 판단의 근거 */}
       <section className="px-6 py-24 sm:px-10" style={{ background: BASE }}>
-        <h2 className="text-[clamp(1.5rem,6vw,2rem)] font-light leading-[1.35]">
+        <h2 className="display text-[clamp(1.6rem,6.6vw,2.2rem)] leading-[1.3]">
           다음 수업을 정하는 건
           <br />
           교재의 다음 페이지가 아니라
           <br />
-          <span className="font-medium">오늘의 나입니다</span>
+          <span className="em">오늘의 나입니다</span>
         </h2>
         <div className="mt-10">
           {FINDINGS.map((h, i) => (
@@ -1215,34 +1146,6 @@ export function StageFlow() {
         </p>
       </section>
 
-      {/* 06 이어짐 */}
-      <section className="px-6 py-24 sm:px-10" style={{ background: INK }}>
-        <h2 className="text-[clamp(1.5rem,6vw,2rem)] font-light leading-[1.35]">
-          다음 수업은
-          <br />
-          <span className="font-medium">오늘 이미 시작됩니다</span>
-        </h2>
-        <div className="mt-10 rounded-3xl border p-7" style={{ borderColor: BLUE, background: 'rgba(16,31,60,0.92)' }}>
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold" style={{ color: BLUE }}>
-              다음 수업 · {NEXT_CARD.day}
-            </span>
-            <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-[11px] text-white/55">준비됨</span>
-          </div>
-          <p className="mt-4 text-[20px] font-medium leading-[1.4]">{NEXT_CARD.title}</p>
-          <p className="mt-2 text-[13px] text-white/55">{NEXT_CARD.meta}</p>
-          <p className="mt-5 border-t border-white/10 pt-4 text-[12.5px] leading-[1.6] text-white/50">{NEXT_CARD.why}</p>
-        </div>
-        <p
-          className="mt-8 rounded-2xl border px-6 py-6 text-[15px] font-light leading-[1.7]"
-          style={{ borderColor: 'rgba(46,107,255,0.45)', background: 'rgba(46,107,255,0.08)' }}
-        >
-          “지난번에 어려워했던 부분부터 다시 시작해볼까요?”
-        </p>
-        <p className="mt-8 text-[15px] leading-[1.9] text-white/60">
-          학습은 하루마다 끊기지 않습니다. 오늘의 학습이 다음 수업의 출발점이 됩니다.
-        </p>
-      </section>
     </div>
   )
 }
