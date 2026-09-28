@@ -433,17 +433,22 @@ function LearningFlow() {
 }
 
 /* ═══ 09. WHAT WE ARE TESTING ════════════════════════════════════════════════
-   레이아웃 계열: **엇갈린 편집형 목록.** 세 개를 균등 카드로 세우지 않는다.
-   숫자를 크게 쓰고 단마다 들여쓰기를 달리해서 눈이 한 번에 하나씩 읽게 한다. */
+   이 구간의 메시지: **이해하고, 조정하고, 선생님처럼 전달할 수 있는지 확인하는 R&D.**
+   즉 기능 소개가 아니라 **아직 답이 안 난 질문 세 개**다.
+   ⚠️ 한때 낱말을 "이해한다/바꾼다/함께 간다" 로 세웠다가 지적받았다 - 단정형이라 기능 목록으로
+   읽히고 "확인하는 중" 이라는 뜻이 사라졌다. 그래서 칸마다 **물음표로 끝나는 질문**이 주인공이고,
+   '확인 중' 표시가 붙는다.
+   레이아웃: 깊어지는 세 칸. 이해 → 조정 → 전달 은 앞 단계 위에 다음 단계가 서는 사슬이라
+   오른쪽으로 갈수록 레일이 밝아지고 칸이 파래진다.
+   그 전에는 엇갈린 들여쓰기 목록이었다(세 줄 무게가 같아 뭉개지고 영문 태그가 안 읽혔다). */
 const TESTING = [
-  ['01', '학습할수록\n더 깊이 이해할 수 있는가', '시간이 지나며 쌓이는 학습 정보를 통해 학습자의 패턴과 어려움을 더 깊이 이해할 수 있는가.', ['LEARN', 'KNOW']],
-  ['02', '이해한 만큼\n수업을 바꿀 수 있는가', '학습 상태가 달라질 때마다 다음 수업의 내용과 순서도 함께 달라질 수 있는가.', ['KNOW', 'ADJUST']],
-  ['03', '그 변화를\n선생님처럼 전달할 수 있는가', 'AI 휴먼이 학습자의 상황을 이해하고 자연스럽게 설명하고 제안하며 다음 학습으로 이어줄 수 있는가.', ['ADJUST', 'TEACH']],
+  ['이해', '학습할수록 나를\n더 깊이 이해할 수 있을까?', '쌓이는 학습 기록에서 패턴과 어려움을 읽어 낼 수 있는지 확인합니다.'],
+  ['조정', '이해한 만큼\n수업을 바꿀 수 있을까?', '학습 상태가 달라질 때 다음 수업의 내용과 순서도 함께 달라지는지 확인합니다.'],
+  ['전달', '그 변화를\n선생님처럼 전할 수 있을까?', 'AI 휴먼이 설명하고 제안하며 다음 학습으로 자연스럽게 이어 주는지 확인합니다.'],
 ] as const
 
-/** 단마다 들여쓰기를 한 칸씩 더 준다. **`md:` 부터만** 준다 (폰에서 들여쓰면 글상자만 좁아진다).
- *  Tailwind 는 클래스 이름을 빌드 때 훑어 가므로 `md:pl-${i*8}` 처럼 만들어 쓰면 안 나온다. */
-const INDENT = ['', 'md:pl-8', 'md:pl-16']
+/** 칸이 깊어질수록 진해지는 파랑. 셋뿐이라 식 대신 값으로 둔다. */
+const DEPTH = [0.04, 0.1, 0.2]
 
 function WhatWeAreTesting() {
   return (
@@ -454,38 +459,66 @@ function WhatWeAreTesting() {
           <br />
           <span className="font-medium">어디까지 나를 이해할 수 있을까요</span>
         </Title>
+        <p data-reveal className="reveal mt-7 max-w-xl text-[15px] leading-[1.9] text-white/60">
+          아직 정답이 나오지 않은 질문입니다. 이번 R&amp;D에서 세 가지를 직접 확인하고 있습니다.
+        </p>
 
-        <div className="mt-14">
-          {TESTING.map(([n, t, d, pair], i) => (
+        {/* 깊이 레일. 점 셋이 아래 세 칸 위에 하나씩 앉는다. 넓은 화면에서만. */}
+        <div className="relative mt-16 hidden h-3 md:block" aria-hidden>
+          <div
+            className="absolute inset-x-[16.6%] top-1/2 h-px -translate-y-1/2"
+            style={{ background: `linear-gradient(90deg, rgba(255,255,255,0.12), ${BLUE})` }}
+          />
+          {DEPTH.map((d, i) => (
+            <span
+              key={i}
+              className="absolute top-1/2 block -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                left: `${16.6 + i * 33.4}%`,
+                width: 8 + i * 3,
+                height: 8 + i * 3,
+                background: i === 2 ? '#CFE0FF' : BLUE,
+                opacity: 0.45 + i * 0.27,
+                boxShadow: `0 0 ${10 + i * 10}px ${BLUE}`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="mt-10 grid gap-4 md:mt-8 md:grid-cols-3 md:gap-5">
+          {TESTING.map(([k, q, d], i) => (
             <div
-              key={n}
+              key={k}
               data-reveal
-              className={`reveal grid gap-6 border-t border-white/10 py-11 md:grid-cols-[auto_1fr_auto] md:items-start md:gap-12 ${INDENT[i]}`}
-              style={{ transitionDelay: `${i * 120}ms` }}
+              className="reveal flex flex-col rounded-3xl border p-8 md:min-h-[340px] md:p-9"
+              style={{
+                transitionDelay: `${i * 140}ms`,
+                background: `rgba(46,107,255,${DEPTH[i]})`,
+                borderColor: `rgba(46,107,255,${0.15 + i * 0.25})`,
+              }}
             >
-              <span className="text-[clamp(2.2rem,4vw,3.4rem)] font-light leading-none text-white/20 tabular-nums">
-                {n}
-              </span>
-              <div>
-                <p className="whitespace-pre-line text-[clamp(1.1rem,1.9vw,1.5rem)] font-medium leading-[1.5]">{t}</p>
-                <p className="mt-5 max-w-xl text-[14px] leading-[1.9] text-white/60">{d}</p>
-              </div>
-              <div
-                className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.22em] md:pt-3"
-                style={{ color: BLUE }}
-              >
-                <span>{pair[0]}</span>
-                <span className="text-white/25" aria-hidden>
-                  →
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] tabular-nums text-white/40">0{i + 1}</span>
+                <span className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11.5px] text-white/65">
+                  <span className="block h-1.5 w-1.5 rounded-full motion-safe:animate-pulse" style={{ background: BLUE }} />
+                  확인 중
                 </span>
-                <span>{pair[1]}</span>
               </div>
+              <p className="mt-6 text-[15px] font-medium tracking-[0.02em]" style={{ color: i === 2 ? '#CFE0FF' : BLUE }}>
+                {k}
+              </p>
+              <p className="mt-3 whitespace-pre-line text-[clamp(1.35rem,2vw,1.7rem)] font-medium leading-[1.4] tracking-[-0.01em]">
+                {q}
+              </p>
+              <p className="mt-auto pt-8 text-[13.5px] leading-[1.8] text-white/55 md:min-h-[3.6em]">{d}</p>
             </div>
           ))}
         </div>
 
-        <p data-reveal className="reveal mt-16 text-[clamp(1.3rem,3vw,2.4rem)] font-light leading-[1.5] md:pl-24">
-          이해하고, 바꾸고, <span className="font-medium">함께 가는 것.</span>
+        <p data-reveal className="reveal mt-16 break-keep text-center text-[clamp(1.2rem,2.6vw,2.1rem)] font-light leading-[1.55]">
+          이해하고, 조정하고, 선생님처럼 전달할 수 있는지.
+          <br />
+          <span className="font-medium">그것을 확인하는 R&amp;D입니다.</span>
         </p>
       </div>
     </section>

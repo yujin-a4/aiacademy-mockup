@@ -252,7 +252,15 @@ function AiHuman({ p, pt }: { p: number; pt: { x: number; y: number } }) {
       {/* 다섯 장을 겹쳐 두고 가중치로 갈아탄다. 세 장이 같은 캔버스라 겹쳐도 어긋나지 않는다.
           **가중치가 0 인 장은 아예 안 그린다** - 다섯 장을 늘 깔아 두면 보이지도 않는 층을
           매 프레임 합성한다. 실제로 살아 있는 건 언제나 한두 장뿐이다. */}
-      <div className="relative h-full w-full">
+      {/* 양옆을 녹인다. 손에 든 빛 패널(pose-6)·뻗은 팔(pose-3·5)이 캔버스 끝까지 차 있어서
+          그대로 두면 **세로 직선으로 잘린 자리**가 보였다(사용자 지적). 홀로그램이라 녹는 게 자연스럽다. */}
+      <div
+        className="relative h-full w-full"
+        style={{
+          maskImage: 'linear-gradient(90deg, transparent 0%, #000 16%, #000 88%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(90deg, transparent 0%, #000 16%, #000 88%, transparent 100%)',
+        }}
+      >
         {w.map((weight, i) =>
           weight > 0.002 ? (
             <img
@@ -469,9 +477,9 @@ function ScenePain({ t }: { t: number }) {
     <>
       <div className="absolute left-0 top-[11vh] z-10 px-6 sm:px-10 lg:px-16" style={{ opacity: 1 - headOut }}>
         <Head>
-          사람마다
+          혼자 공부할 때
           <br />
-          <span className="font-medium">막히는 지점은 다릅니다</span>
+          <span className="font-medium">막히는 수많은 지점들</span>
         </Head>
       </div>
 
@@ -613,150 +621,147 @@ export function Stage() {
   )
 }
 
-/** 인물을 도는 고리. 토성 고리처럼 **기울어진 채** 돌고, 고리 위의 점이 같이 실려 간다.
+/** 인물을 감싸고 도는 **신경망.** 점(뉴런)이 인물 둘레를 천천히 공전하고, 가까운 점끼리
+ *  가는 선으로 이어지고, 가끔 한 점이 켜지면 그 점에 이어진 선들이 같이 밝아진다(신호가 흐른다).
  *
- *  ⭐ 이 효과의 요점은 고리가 **인물 뒤로 들어갔다 앞으로 나오는 것**이다. 전부 앞에 그리면
- *  인물에 두른 테두리로 보이고, 전부 뒤에 그리면 배경 무늬로 보인다. 감싸고 도는 것처럼
- *  보이려면 한 바퀴 도는 동안 앞뒤가 바뀌어야 한다.
+ *  전에는 CSS 원 세 개를 `rotateX` 로 눕혀 돌린 **토성 고리**였다. 지적받고 걷어냈다
+ *  ("허접해 보인다", "왼쪽이 잘린다"). 이유: 선 한 줄짜리 원은 기계 장치로 읽혔고,
+ *  고리 상자 끝에서 선이 잘렸다. 인물 옷에 이미 별자리 같은 점·선이 박혀 있어서,
+ *  **그 무늬가 몸 밖으로 번져 나온 것**처럼 보이는 쪽이 이 인물과 한 몸이다.
  *
- *  방법: **같은 고리를 두 번 그리고 화면 좌표로 반씩 자른다.** 위 반쪽은 인물보다 뒤(z-0),
- *  아래 반쪽은 앞(z-[3]). 기울여 놓으면 타원의 위쪽이 '먼 쪽' 이라 그게 뒤로 가는 게 맞다.
- *  두 벌은 애니메이션 설정이 같아서 저절로 맞물려 돈다(동기화 코드가 필요 없다).
+ *  ⭐ 고리 때의 요점은 그대로 지킨다: **인물 뒤로 들어갔다 앞으로 나온다.**
+ *  캔버스 두 장(인물 뒤 z-0 / 앞 z-[3])에 나눠 그리고, 점마다 공전각의 sin 으로 어느 쪽인지 정한다.
+ *  먼 쪽은 위로 조금 올라가고 작고 어둡다(기울어진 궤도 + 원근).
  *
- *  ponytail: 3D 도 캔버스도 아니다. `rotateX` 로 원을 눕히고 `rotate` 로 돌리는 게 전부다.
- *    고리를 진짜 3D 로 만들면 앞뒤 자르기가 공짜로 되지만, 그러려면 WebGL 을 띄워야 한다.
- */
-/*  r = 반지름(vh) · tilt = 눕힌 각도 · spin = 한 바퀴 도는 시간(초) · o = 선의 밝기.
- *  ⚠️ 처음엔 r 27~36, tilt 74~78, o 0.2~0.34 로 잡았다가 **거의 안 보였다.**
- *  이유 둘: 고리가 인물 몸 위에만 걸쳐서 밝은 인물에 1px 선이 묻혔고, 78도로 눕히니
- *  타원 높이가 지름의 20% 밖에 안 돼 선 두 개로 보였다.
- *  → **인물 바깥 어두운 데까지 나오게 키우고**, 덜 눕히고, 밝기를 올리고 빛무리를 줬다. */
-const ORBITS = [
-  { r: 38, tilt: 66, spin: 34, dots: [0, 140, 250], w: 1.5, o: 0.5 },
-  { r: 50, tilt: 71, spin: 54, dots: [60, 210], w: 1, o: 0.3 },
-  { r: 27, tilt: 60, spin: 22, dots: [200, 330], w: 2, o: 0.62 },
-]
+ *  · 캔버스는 **화면 폭 전체**를 덮는다. 컨테이너(max-w) 안에 두면 넓은 화면에서 가장자리가 잘린다.
+ *  · 앞쪽 점은 **얼굴 높이에서 녹인다.** 얼굴 위를 지나는 점은 먼지로 보인다.
+ *  · 글자 쪽(화면 왼쪽 40%)으로 가면 녹인다.
+ *  · 움직임 줄이기 설정이면 공전·발화를 멈추고 한 장만 그린다.
+ *
+ *  ponytail: 점 110개 × 쌍 비교 O(n²) = 프레임당 6천 번. 점을 수백 개로 늘릴 거면 격자 버킷으로. */
+const NODES = 110
 
-/** 고리 한 벌. `half` 로 위/아래 어느 쪽만 보일지 정한다. */
-function OrbitRing({ o: ring, half }: { o: (typeof ORBITS)[number]; half: 'back' | 'front' }) {
-  return (
-    <div
-      className="absolute left-1/2 top-1/2"
-      style={{
-        width: `${ring.r * 2}vh`,
-        height: `${ring.r * 2}vh`,
-        transform: 'translate(-50%, -50%)',
-        /* 화면 좌표로 자른다. 기울인 요소 안에서 자르면 잘리는 선도 같이 기울어진다. */
-        clipPath: half === 'back' ? 'inset(0 0 50% 0)' : 'inset(50% 0 0 0)',
-      }}
-    >
-      <div className="absolute inset-0" style={{ perspective: '900px' }}>
-        <div className="absolute inset-0" style={{ transform: `rotateX(${ring.tilt}deg)` }}>
-          <div
-            className="intro-orbit absolute inset-0"
-            style={{ animationDuration: `${ring.spin}s` }}
-          >
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                border: `${ring.w}px solid ${BLUE}`,
-                opacity: ring.o,
-                // 선 자체에 빛무리. 없으면 밝은 인물 위를 지날 때 선이 사라진다.
-                boxShadow: `0 0 14px ${BLUE}, inset 0 0 14px ${BLUE}`,
-              }}
-            />
-            {ring.dots.map((a) => (
-              <span
-                key={a}
-                className="absolute left-1/2 top-1/2 block h-[9px] w-[9px] rounded-full"
-                style={{
-                  background: '#CFE0FF',
-                  boxShadow: `0 0 16px 3px ${BLUE}`,
-                  transform: `rotate(${a}deg) translateX(${ring.r}vh) translate(-50%, -50%)`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** 고리 세 벌 + 떠다니는 점 몇 개. 인물의 가슴께를 중심으로 돈다. */
 function HeroField({ pt, o }: { pt: { x: number; y: number }; o: number }) {
-  const layer = (half: 'back' | 'front') => (
-    <div
-      className={`pointer-events-none absolute inset-0 hidden lg:block ${half === 'back' ? 'z-0' : 'z-[3]'}`}
+  const back = useRef<HTMLCanvasElement>(null)
+  const front = useRef<HTMLCanvasElement>(null)
+  const ptRef = useRef(pt)
+  ptRef.current = pt
+
+  useEffect(() => {
+    const cvs = [back.current!, front.current!]
+    const ctx = cvs.map((c) => c.getContext('2d')!)
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    let W = 0
+    let H = 0
+    const fit = () => {
+      const dpr = Math.min(2, devicePixelRatio || 1)
+      W = document.documentElement.clientWidth
+      H = cvs[0].parentElement!.clientHeight
+      for (const c of cvs) {
+        c.width = W * dpr
+        c.height = H * dpr
+        c.style.width = `${W}px`
+        c.getContext('2d')!.setTransform(dpr, 0, 0, dpr, 0, 0)
+      }
+    }
+    fit()
+    addEventListener('resize', fit)
+
+    // r·y 는 화면 높이 비율. 반지름을 여러 겹으로 흩어야 고리가 아니라 구름이 된다.
+    const nodes = Array.from({ length: NODES }, () => ({
+      a: Math.random() * Math.PI * 2, // 공전각
+      r: 0.2 + Math.random() * 0.36, // 공전 반지름
+      y: (Math.random() - 0.4) * 0.8, // 가슴 기준 높이
+      w: 0.04 + Math.random() * 0.06, // 각속도(rad/s). 방향은 다 같다 - 제각각이면 벌레 떼다
+      s: 0.7 + Math.random() * 1.5, // 점 크기(px)
+      f: 0, // 발화 밝기. 켜지면 1, 금방 꺼진다
+    }))
+
+    let raf = 0
+    let last = performance.now()
+    let nextFire = 0
+    const draw = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      if (!still && now > nextFire) {
+        nodes[(Math.random() * NODES) | 0].f = 1
+        nextFire = now + 180 + Math.random() * 420
+      }
+      const cx = W * 0.795 + ptRef.current.x * -16
+      const cy = H * 0.46 + ptRef.current.y * -12
+      const P = nodes.map((n) => {
+        if (!still) n.a += n.w * dt
+        n.f *= Math.exp(-dt * 2.4)
+        const z = Math.sin(n.a) // -1 = 인물 뒤 가장 먼 곳, 1 = 가장 가까운 곳
+        const k = 1 + z * 0.16 // 원근
+        const R = n.r * H
+        const x = cx + Math.cos(n.a) * R * k
+        const y = cy + n.y * H * k + z * R * 0.18 // 먼 쪽이 위로 = 기울어진 궤도
+        let m = (0.4 + 0.6 * (z + 1) * 0.5) * Math.min(1, Math.max(0, (x / W - 0.4) / 0.12))
+        if (z > 0) m *= Math.min(1, Math.max(0, (y / H - 0.34) / 0.12)) // 얼굴 앞은 비운다
+        return { x, y, k, m, side: z > 0 ? 1 : 0, n }
+      })
+
+      for (const c of ctx) {
+        c.clearRect(0, 0, W, H)
+        c.globalCompositeOperation = 'lighter'
+      }
+      const L = H * 0.16
+      for (let i = 0; i < NODES; i++) {
+        const A = P[i]
+        if (A.m <= 0.01) continue
+        for (let j = i + 1; j < NODES; j++) {
+          const B = P[j]
+          if (B.side !== A.side || B.m <= 0.01) continue
+          const d = Math.hypot(A.x - B.x, A.y - B.y)
+          if (d > L) continue
+          const hot = Math.max(A.n.f, B.n.f)
+          const c = ctx[A.side]
+          c.strokeStyle = `rgba(${hot > 0.05 ? '170,205,255' : '46,107,255'},${(1 - d / L) * Math.min(A.m, B.m) * (0.5 + hot * 0.9)})`
+          c.lineWidth = 0.6 + hot * 0.8
+          c.beginPath()
+          c.moveTo(A.x, A.y)
+          c.lineTo(B.x, B.y)
+          c.stroke()
+        }
+      }
+      for (const A of P) {
+        if (A.m <= 0.01) continue
+        const c = ctx[A.side]
+        const r = A.n.s * A.k * (1 + A.n.f * 0.8)
+        c.fillStyle = `rgba(46,107,255,${A.m * (0.18 + A.n.f * 0.35)})` // 번짐
+        c.beginPath()
+        c.arc(A.x, A.y, r * 4.5, 0, Math.PI * 2)
+        c.fill()
+        c.fillStyle = `rgba(207,224,255,${A.m * (0.8 + A.n.f * 0.2)})` // 심지
+        c.beginPath()
+        c.arc(A.x, A.y, r, 0, Math.PI * 2)
+        c.fill()
+      }
+      if (!still) raf = requestAnimationFrame(draw)
+    }
+    raf = requestAnimationFrame(draw)
+    return () => {
+      cancelAnimationFrame(raf)
+      removeEventListener('resize', fit)
+    }
+  }, [])
+
+  const layer = (ref: React.RefObject<HTMLCanvasElement>, z: string) => (
+    <canvas
+      ref={ref}
+      className={`pointer-events-none absolute left-1/2 top-0 hidden h-full -translate-x-1/2 lg:block ${z}`}
       style={{ opacity: o }}
       aria-hidden
-    >
-      <div
-        className="absolute"
-        style={{
-          left: '79%',
-          top: '46%',
-          width: 0,
-          height: 0,
-          transform: `translate3d(${pt.x * -16}px, ${pt.y * -12}px, 0)`,
-          willChange: 'transform',
-        }}
-      >
-        {ORBITS.map((ring) => (
-          <OrbitRing key={ring.r} o={ring} half={half} />
-        ))}
-      </div>
-    </div>
+    />
   )
-
   return (
     <>
-      {layer('back')}
-      {layer('front')}
-      {/* 고리와 별개로 떠다니는 점 몇 개. 고리만 있으면 기계 장치 같고, 흩어진 점이
-          몇 개 섞여야 '떠 있는 공간' 이 된다. 얼굴 위는 비운다 - 거기 점이 있으면 먼지로 보인다. */}
-      <div className="pointer-events-none absolute inset-0 z-[3] hidden lg:block" style={{ opacity: o }} aria-hidden>
-        {FIELD.map((f, i) => (
-          <span
-            key={i}
-            className="absolute block"
-            style={{
-              left: `${f.x}%`,
-              top: `${f.y}%`,
-              transform: `translate3d(${pt.x * -22 * f.d}px, ${pt.y * -16 * f.d}px, 0)`,
-              willChange: 'transform',
-            }}
-          >
-            <span
-              className="intro-float block rounded-full"
-              style={{
-                width: f.r * 2,
-                height: f.r * 2,
-                background: BLUE,
-                opacity: 0.18 + f.d * 0.32,
-                boxShadow: `0 0 ${f.r * 5}px ${BLUE}`,
-                animationDelay: `${f.t}s`,
-                animationDuration: `${7 + f.d * 4}s`,
-              }}
-            />
-          </span>
-        ))}
-      </div>
+      {layer(back, 'z-0')}
+      {layer(front, 'z-[3]')}
     </>
   )
 }
-
-/** 고리에 안 실린 점들. 인물 왼쪽(글자 쪽이 아닌 빈 자리)에만 둔다. */
-const FIELD = [
-  { x: 55, y: 20, r: 2, d: 1.2, t: 0 },
-  { x: 50, y: 52, r: 1.5, d: 0.6, t: 2.1 },
-  { x: 58, y: 78, r: 2.5, d: 1.1, t: 4.3 },
-  { x: 63, y: 12, r: 1.5, d: 0.5, t: 1.2 },
-  { x: 47, y: 34, r: 1, d: 0.4, t: 3.4 },
-  { x: 96, y: 26, r: 2, d: 0.9, t: 5.5 },
-  { x: 93, y: 66, r: 1.5, d: 0.6, t: 2.8 },
-  { x: 71, y: 90, r: 2, d: 1.15, t: 0.7 },
-]
 
 /* ─── 01 HERO ─────────────────────────────────────────────────────────────
    요소는 셋뿐이다: 제목 2줄 · 짧은 본문 · 버튼 2개.
@@ -1062,9 +1067,9 @@ export function StageFlow() {
       {/* 02 고민 */}
       <section className="px-6 py-24 sm:px-10" style={{ background: INK }}>
         <h2 className="text-[clamp(1.5rem,6vw,2rem)] font-light leading-[1.35]">
-          사람마다
+          혼자 공부할 때
           <br />
-          <span className="font-medium">막히는 지점은 다릅니다</span>
+          <span className="font-medium">막히는 수많은 지점들</span>
         </h2>
         <div className="mt-12 space-y-8">
           {CONCERNS.map((g) => (
