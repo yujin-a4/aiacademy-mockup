@@ -497,7 +497,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "optionRef": "A",
           "gate": "ifPicked",
           "path": "ifCorrect",
-          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠.사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
+          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠. 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
           "reveal": {
             "optionText": [
               {
@@ -517,11 +517,12 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 피드백 - A",
-          "tutor": "(적절한 답변/부적절한 답변/모름) 맞아요. paintbrush가 보여도 행동이 다르면 오답! 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기도 자주 나와요.",
+          "tutor": "맞아요. paintbrush가 보여도 행동이 다르면 오답! 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기도 자주 나와요.",
           "focusQ": 0,
           "optionRef": "A",
           "gate": "ifPicked",
           "path": "ifWrong",
+          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠. 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
           "reveal": {
             "optionText": [
               {
@@ -709,7 +710,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "optionRef": "A",
           "gate": "onDemand",
           "path": "ifCorrect",
-          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠.사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
+          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠. 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
           "reveal": {
             "optionText": [
               {
@@ -729,11 +730,12 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 1,
           "occurrence": 1,
           "stage": "S6 피드백 - A",
-          "tutor": "(적절한 답변/부적절한 답변/모름) 맞아요. paintbrush가 보여도 행동이 다르면 오답! 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기도 자주 나와요.",
+          "tutor": "맞아요. paintbrush가 보여도 행동이 다르면 오답! 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기도 자주 나와요.",
           "focusQ": 0,
           "optionRef": "A",
           "gate": "onDemand",
           "path": "ifWrong",
+          "tutorIfWrong": "rinse a paintbrush는 '붓을 헹구다'예요. 사진 속 여자는 붓을 헹구는 게 아니라 그림을 그리고 있죠. 사진에 sink, 싱크대 자체도 보이지 않아요. 이렇게 사진 속에 없는 명사가 등장하는 오답 보기가 자주 나와요.",
           "reveal": {
             "optionText": [
               {
@@ -1168,7 +1170,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 피드백 - C",
-          "tutor": "(적절한 답변 / 부적절한 답변/모름) 사진 가운데 있는 옷걸이에 걸려 있죠. 그래서 오답이에요.",
+          "tutor": "사진 가운데 있는 옷걸이에 걸려 있죠. 그래서 오답이에요.",
           "focusQ": 1,
           "optionRef": "C",
           "gate": "ifPicked",
@@ -1433,7 +1435,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 2,
           "occurrence": 2,
           "stage": "S6 피드백 - C",
-          "tutor": "(적절한 답변 / 부적절한 답변/모름) 사진 가운데 있는 옷걸이에 걸려 있죠. 그래서 오답이에요.",
+          "tutor": "사진 가운데 있는 옷걸이에 걸려 있죠. 그래서 오답이에요.",
           "focusQ": 1,
           "optionRef": "C",
           "gate": "onDemand",
@@ -5376,7 +5378,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 피드백 - B",
-          "tutor": "(적절한 답변/부적절한 답변/모름) 형태는 능동이라 적절하지만 과거 시제가 필요하니 현재 시제 B는 오답이에요.",
+          "tutor": "형태는 능동이라 적절하지만 과거 시제가 필요하니 현재 시제 B는 오답이에요.",
           "focusQ": 2,
           "optionRef": "B",
           "gate": "ifPicked",
@@ -5562,7 +5564,7 @@ export const FGI_SCENARIO: Record<string, Record<string, ScriptedLesson>> = {
           "itemSeq": 3,
           "occurrence": 3,
           "stage": "S6 피드백 - B",
-          "tutor": "(적절한 답변/부적절한 답변/모름) 형태는 능동이라 적절하지만 과거 시제가 필요하니 현재 시제 B는 오답이에요.",
+          "tutor": "형태는 능동이라 적절하지만 과거 시제가 필요하니 현재 시제 B는 오답이에요.",
           "focusQ": 2,
           "optionRef": "B",
           "gate": "onDemand",
