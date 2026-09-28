@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOnboardingStore } from '@/store/onboardingStore'
 
 const SCORE_OPTIONS = [
@@ -24,12 +24,12 @@ const TOEIC_DATES = [
   '2026-12-13', '2026-12-27',
 ]
 
-const SCORE_MIN = 10
+const SCORE_MIN = 0
 const SCORE_MAX = 990
 
-/** 토익 점수는 5점 단위 */
-function roundTo5(n: number) {
-  return Math.round(n / 5) * 5
+/** 토익 점수는 5점 단위 — 654 같은 점수는 없으므로 받지 않는다 */
+function isValidScore(n: number | null): n is number {
+  return n !== null && n >= SCORE_MIN && n <= SCORE_MAX && n % 5 === 0
 }
 
 /** 취약 파트 선택지 — 파트 이름은 InstructorSelect·DbLessonScreen 과 같은 말을 쓴다 */
@@ -61,6 +61,150 @@ function toDateStr(year: number, month: number, day: number) {
 function getTodayStr() {
   const t = new Date()
   return toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
+}
+
+/** 휠 한 칸 높이 — 다섯 칸이 보이고 가운데가 선택값 */
+const WHEEL_ITEM_H = 48
+
+/** 돌려서 고르는 세로 휠 — 손가락·마우스 드래그, 마우스 휠, 화살표 키, 항목 탭 모두 받는다.
+ *
+ *  브라우저 스크롤(scroll-snap)에 맡기지 않고 직접 굴린다. 기기마다 관성·스냅 느낌이 달라서
+ *  갤럭시탭·아이패드·PC 에서 같은 손맛을 내려면 이 편이 낫다(PC 는 마우스로 끌어 스크롤이 안 된다).
+ *  부드러움의 핵심은 **손을 뗀 순간의 속도에서 이어서 감속**하는 것 — easeOutCubic 의 시작 속도가
+ *  3·거리/시간 이므로, 시간을 그 식으로 맞추면 끊김 없이 넘어간다. */
+function WheelColumn({
+  items, value, format, onChange,
+}: {
+  items: string[]; value: string; format: (v: string) => string; onChange: (v: string) => void
+}) {
+  const H = WHEEL_ITEM_H
+  const idx = Math.max(0, items.indexOf(value))
+  const [offset, setOffset] = useState(-idx * H)
+  const off = useRef(offset)
+  const aim = useRef(idx)
+  const anim = useRef<number>()
+  const boxRef = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ startY: number; startOff: number; moved: boolean; samples: { t: number; y: number }[] } | null>(null)
+  const latest = useRef({ items, value, onChange })
+  latest.current = { items, value, onChange }
+
+  const set = (v: number) => { off.current = v; setOffset(v) }
+  const stop = () => { if (anim.current) cancelAnimationFrame(anim.current); anim.current = undefined }
+  const clampIdx = (i: number) => Math.min(latest.current.items.length - 1, Math.max(0, i))
+
+  const animateTo = (target: number, duration = 380) => {
+    stop()
+    const i = clampIdx(target)
+    aim.current = i
+    const from = off.current, to = -i * H
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration)
+      set(from + (to - from) * (1 - Math.pow(1 - p, 3)))    // easeOutCubic — 빠르게 출발해 천천히 멈춘다
+      if (p < 1) { anim.current = requestAnimationFrame(tick); return }
+      anim.current = undefined
+      const { items, value, onChange } = latest.current
+      if (items[i] && items[i] !== value) onChange(items[i])
+    }
+    anim.current = requestAnimationFrame(tick)
+  }
+
+  // 바깥에서 값이 바뀌면(연도를 바꿔 월 목록이 달라지는 등) 그 자리로 굴려 놓는다
+  useEffect(() => {
+    if (drag.current || anim.current) return
+    if (off.current !== -idx * H) animateTo(idx)
+    aim.current = idx
+  }, [idx, items.length])
+
+  // 마우스 휠 — 한 번 굴릴 때 한 칸. passive 로 붙으면 페이지 스크롤을 못 막아서 직접 붙인다
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    let acc = 0
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      acc += e.deltaY
+      if (Math.abs(acc) < 30) return
+      animateTo(aim.current + Math.sign(acc))
+      acc = 0
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  useEffect(() => stop, [])
+
+  const maxOff = 0, minOff = -(items.length - 1) * H
+  /** 끝을 넘겨 끌면 고무줄처럼 덜 따라온다 */
+  const rubber = (v: number) => v > maxOff ? maxOff + (v - maxOff) * 0.35 : v < minOff ? minOff + (v - minOff) * 0.35 : v
+
+  return (
+    <div
+      ref={boxRef}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowUp') { e.preventDefault(); animateTo(aim.current - 1) }
+        if (e.key === 'ArrowDown') { e.preventDefault(); animateTo(aim.current + 1) }
+      }}
+      onPointerDown={(e) => {
+        stop()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        drag.current = { startY: e.clientY, startOff: off.current, moved: false, samples: [{ t: performance.now(), y: e.clientY }] }
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current
+        if (!d) return
+        const dy = e.clientY - d.startY
+        if (Math.abs(dy) > 5) d.moved = true
+        set(rubber(d.startOff + dy))
+        const now = performance.now()
+        d.samples.push({ t: now, y: e.clientY })
+        while (d.samples.length > 2 && now - d.samples[0].t > 100) d.samples.shift()
+      }}
+      onPointerUp={(e) => {
+        const d = drag.current
+        drag.current = null
+        if (!d) return
+        if (!d.moved) {
+          // 탭 — 누른 칸으로 굴린다
+          const rect = e.currentTarget.getBoundingClientRect()
+          const rel = Math.round((e.clientY - (rect.top + H * 2.5)) / H)
+          animateTo(Math.round(-off.current / H) + rel)
+          return
+        }
+        const first = d.samples[0], last = d.samples[d.samples.length - 1]
+        const v = last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0   // px/ms
+        const target = clampIdx(Math.round(-(off.current + v * 250) / H))          // 관성으로 더 굴러갈 자리
+        const dist = Math.abs(-target * H - off.current)
+        const dur = Math.abs(v) > 0.05 ? (3 * dist) / Math.abs(v) : 320             // 손 뗀 속도 그대로 이어받기
+        animateTo(target, Math.min(1100, Math.max(260, dur)))
+      }}
+      onPointerCancel={() => { drag.current = null; animateTo(Math.round(-off.current / H)) }}
+      className="relative h-[240px] overflow-hidden select-none cursor-grab active:cursor-grabbing outline-none"
+      style={{ touchAction: 'none' }}
+    >
+      <div style={{ transform: `translate3d(0, ${offset + H * 2}px, 0)`, willChange: 'transform' }}>
+        {items.map((v, i) => {
+          const dist = Math.abs(i + offset / H)
+          return (
+            <div
+              key={v}
+              className="flex items-center justify-center text-[#0F172A] tabular-nums"
+              style={{
+                height: H,
+                fontSize: 26,
+                fontWeight: dist < 0.5 ? 600 : 400,
+                opacity: Math.max(0.12, 1 - dist * 0.38),
+                transform: `scale(${Math.max(0.72, 1 - dist * 0.1)})`,
+              }}
+            >
+              {format(v)}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function TwoColCard({
@@ -111,8 +255,11 @@ function TotalScoreField({
 }: {
   value: number | null; onChange: (v: number | null) => void
 }) {
+  const invalid = value !== null && !isValidScore(value)
   return (
-    <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl px-6 py-5 focus-within:border-primary/50 transition-colors">
+    <div className={`bg-white border-2 rounded-2xl px-6 py-5 transition-colors ${
+      invalid ? 'border-[#F87171]' : 'border-[#E5E7EB] focus-within:border-primary/50'
+    }`}>
       <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-2">총점</p>
       <div className="flex items-baseline justify-center gap-2">
         <input
@@ -120,17 +267,17 @@ function TotalScoreField({
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9]/g, '')
             if (raw === '') return onChange(null)
-            // 입력 중에는 상한만 막는다 — 하한까지 걸면 "9"를 치는 순간 10으로 튄다
             onChange(Math.min(SCORE_MAX, Number(raw)))
-          }}
-          onBlur={() => {
-            if (value === null) return
-            onChange(Math.max(SCORE_MIN, Math.min(SCORE_MAX, roundTo5(value))))
           }}
           className="w-[150px] text-center text-[#0F172A] font-bold text-[44px] leading-tight bg-transparent outline-none placeholder:text-[#CBD5E1] placeholder:font-normal"
         />
         <span className="text-[#94A3B8] text-[18px] font-semibold shrink-0">점</span>
       </div>
+      {invalid && (
+        <p className="text-center text-[12px] mt-2 text-[#EF4444] font-semibold">
+          토익 점수는 5점 단위예요 (예: 650, 655)
+        </p>
+      )}
     </div>
   )
 }
@@ -144,34 +291,24 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   const [score, setScore] = useState<number | null>(null)
   const [examDate, setExamDate] = useState(() => {
     const stored = store.examDate
-    return (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
+    return (stored && TOEIC_DATES.includes(stored) && stored >= getTodayStr()) ? stored : getDefaultExamDate()
   })
-  const [calendarOpen, setCalendarOpen] = useState(false)
-  const [viewDate, setViewDate] = useState(() => {
-    const stored = store.examDate
-    const ds = (stored && TOEIC_DATES.includes(stored)) ? stored : getDefaultExamDate()
-    return new Date(ds + 'T00:00:00')
-  })
-
-  const year = viewDate.getFullYear()
-  const month = viewDate.getMonth()
+  /* 지난 시험일은 고를 수 없다 — 다 지나 버렸으면 목록이 비지 않게 전부 보여준다 */
   const todayStr = getTodayStr()
+  const upcoming = TOEIC_DATES.filter(d => d >= todayStr)
+  const examDates = upcoming.length ? upcoming : TOEIC_DATES
+  const [selY, selM] = examDate.split('-')
+  const years = Array.from(new Set(examDates.map(d => d.slice(0, 4))))
+  const months = Array.from(new Set(examDates.filter(d => d.startsWith(selY)).map(d => d.slice(5, 7))))
+  const days = examDates.filter(d => d.startsWith(`${selY}-${selM}`))
 
-  const calendarDays: (number | null)[] = []
-  const startDay = new Date(year, month, 1).getDay()
-  const totalDays = new Date(year, month + 1, 0).getDate()
-  for (let i = 0; i < startDay; i++) calendarDays.push(null)
-  for (let i = 1; i <= totalDays; i++) calendarDays.push(i)
-
-  const handleSelectDate = (d: number) => {
-    const ds = toDateStr(year, month, d)
-    if (!TOEIC_DATES.includes(ds)) return
+  const pickDate = (ds: string | undefined) => {
+    if (!ds) return
     setExamDate(ds)
     store.setExamDate(ds)
     const diff = new Date(ds).getTime() - Date.now()
     const months = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24 * 30)))
     store.setStudyPeriod(`${months}개월`)
-    setCalendarOpen(false)
   }
 
   const handleComplete = () => {
@@ -187,7 +324,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
   }
 
   /* ─── 최근 시험 점수 ─── */
-  const currentValid = totalScore !== null && totalScore >= SCORE_MIN
+  const currentValid = isValidScore(totalScore)
 
   const handleCurrentNext = (skipped: boolean) => {
     if (skipped) {
@@ -204,7 +341,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     <TwoColCard
       step="STEP 5"
       title={'최근 토익 점수를\n알려주세요'}
-      subtitle="가장 최근에 치른 시험의 총점을 입력해 주세요. 지금 실력에 맞춰 커리큘럼을 짭니다"
+      subtitle="가장 최근에 응시하신 토익 시험 점수를 입력해 주세요."
     >
       <div className="animate-fade-in">
         <div className="mb-5">
@@ -244,7 +381,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     <TwoColCard
       step="STEP 6"
       title={'어느 파트가\n어려우신가요?'}
-      subtitle="여러 개 고르셔도 됩니다. 고르신 파트를 커리큘럼 앞쪽에 배치합니다"
+      subtitle="여러 개 고르셔도 됩니다"
     >
       <div className="animate-fade-in">
         <div className="grid grid-cols-2 gap-2.5 mb-5">
@@ -362,82 +499,28 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
       subtitle="오늘 기준 2개월 뒤 시험일이 선택되어 있어요"
     >
       <div className="animate-fade-in">
-        {/* 날짜 선택 버튼 */}
-        <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl overflow-hidden mb-4">
-          <button
-            onClick={() => setCalendarOpen(!calendarOpen)}
-            className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
-              calendarOpen ? 'border-b-2 border-primary/20' : ''
-            }`}
-          >
-            <div className="text-left">
-              <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-0.5">시험일</p>
-              <p className="text-[#0F172A] font-bold text-[16px]">{formatDisplayDate(examDate)}</p>
-            </div>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              calendarOpen ? 'bg-primary text-white' : 'bg-[#F1F5F9] text-[#64748B]'
-            }`}>
-              <svg className={`w-4 h-4 transition-transform ${calendarOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </button>
-
-          {calendarOpen && (
-            <div className="p-4 border-t border-[#F1F5F9] animate-fade-in">
-              <div className="flex items-center justify-between mb-3 px-1">
-                <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                  className="w-8 h-8 flex items-center justify-center text-[#64748B] hover:text-primary hover:bg-[#EEF2FF] rounded-lg transition-colors">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
-                </button>
-                <span className="text-[#0F172A] font-bold text-[14px]">{year}년 {month + 1}월</span>
-                <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                  className="w-8 h-8 flex items-center justify-center text-[#64748B] hover:text-primary hover:bg-[#EEF2FF] rounded-lg transition-colors">
-                  <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg>
-                </button>
-              </div>
-              <div className="grid grid-cols-7 text-center mb-1">
-                {DAY_NAMES.map(d => (
-                  <span key={d} className="text-[10px] font-semibold text-[#94A3B8] py-1">{d}</span>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-y-1">
-                {calendarDays.map((d, i) => {
-                  if (!d) return <div key={i} />
-                  const ds = toDateStr(year, month, d)
-                  const isExam = TOEIC_DATES.includes(ds)
-                  const selected = examDate === ds
-                  const isToday = ds === todayStr
-                  return (
-                    <div key={i} className="flex items-center justify-center h-9">
-                      <button
-                        onClick={() => handleSelectDate(d)}
-                        disabled={!isExam}
-                        className={`w-8 h-8 rounded-full text-[12px] font-semibold transition-all flex items-center justify-center relative ${
-                          selected ? 'bg-primary text-white shadow-md' :
-                          isExam ? 'text-primary bg-[#EEF2FF] hover:bg-primary/20' :
-                          'text-[#CBD5E1] cursor-default'
-                        }`}
-                      >
-                        {d}
-                        {isToday && !selected && (
-                          <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                        )}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-              <p className="text-[#94A3B8] text-[11px] text-center mt-3 pt-3 border-t border-[#F1F5F9]">
-                파란색 날짜만 정기 토익 시험일로 선택 가능해요
-              </p>
-            </div>
-          )}
+        {/* 시험일 — 달력은 빈 날이 대부분이라, 연·월·일을 실제 시험이 있는 값만 늘어놓는다 */}
+        <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl px-6 py-4 mb-4">
+          <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-0.5">시험일</p>
+          <p className="text-[#0F172A] font-bold text-[16px] mb-2">{formatDisplayDate(examDate)}</p>
+          {/* 시험이 있는 연·월·일만 휠에 올린다 — 빈 날짜를 늘어놓지 않는다 */}
+          <div className="relative grid grid-cols-3">
+            <div
+              className="absolute inset-x-0 border-y border-[#CBD5E1] pointer-events-none"
+              style={{ top: WHEEL_ITEM_H * 2, height: WHEEL_ITEM_H }}
+            />
+            <WheelColumn items={years} value={selY} format={(y) => y}
+              onChange={(y) => pickDate(examDates.find(d => d.startsWith(y)))} />
+            <WheelColumn items={months} value={selM} format={(m) => m}
+              onChange={(m) => pickDate(examDates.find(d => d.startsWith(`${selY}-${m}`)))} />
+            <WheelColumn items={days} value={examDate} format={(d) => d.slice(8)}
+              onChange={(d) => pickDate(d)} />
+          </div>
         </div>
 
         <div className="space-y-2.5">
           <button
-            onClick={() => { setCalendarOpen(false); handleComplete() }}
+            onClick={handleComplete}
             className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
           >
             진단 결과 보기
