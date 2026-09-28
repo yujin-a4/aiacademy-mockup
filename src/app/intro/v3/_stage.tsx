@@ -426,30 +426,31 @@ function ScenePain({ t }: { t: number }) {
      물리는 실제 시간으로 흐르고 스크롤은 위치로 흐른다 - 둘이 안 맞는다. 빨리 굴리면
      블록이 공중에 있는 채로 얼어붙어 끌려갔다(사용자 지적). 그래서 더미가 가라앉을 때까지
      잠가 두고, 풀리는 순간의 스크롤 위치에서 시작한다(이미 내려와 있었으면 거기서 바로 -
-     그래야 안 튄다). 0.72 상한은 아무리 빨리 지나가도 볼 자리를 남겨 두려는 것이다. */
+     그래야 안 튄다). 상한은 아무리 빨리 지나가도 볼 자리를 남겨 두려는 것이다. */
   const [unlock, setUnlock] = useState<number | null>(null)
   const tNow = useRef(t)
   tNow.current = t
   useEffect(() => {
-    const id = setTimeout(() => setUnlock(Math.min(0.38, Math.max(0.2, tNow.current))), 1500)
+    // 상한 0.28 = 문장이 걷히는 끝(s0+0.7)이 구간 안에 들어오는 한계
+    const id = setTimeout(() => setUnlock(Math.min(0.28, Math.max(0.2, tNow.current))), 1500)
     return () => clearTimeout(id)
   }, [])
 
   const s0 = unlock ?? 2 // 아직 안 가라앉았으면 어떤 값도 구간에 못 들어온다
-  /* 뽑아내기. 한 묶음씩 차례로 빨려 들어가므로 구간이 넉넉해야 한 바퀴가 다 보인다. */
-  const distill = seg(t, s0, s0 + 0.3)
-  const absorb = ease(seg(t, s0 + 0.46, s0 + 0.56)) // 다섯 가지가 선생님에게 넘어간다
-  const closing = seg(t, s0 + 0.52, s0 + 0.62)
+  /* **쏟아짐 → 한 문장.** 블록 스무 개는 읽으라고 있는 게 아니라 '와르르' 라는 느낌이다.
+     그다음 더미가 뒤로 물러나고 한 문장만 크게 남는다: "혼자서는 이 질문들에 답해 줄 사람이 없습니다."
+     그 문장이 다음 장면("…선생님의 모습으로 말을 겁니다")을 부른다.
 
-  /* 묶음(gi)이 제 차례에 얼마나 빨려 들어갔나. 0 = 더미에 그대로, 1 = 다 들어감.
-     ⭐ **네 블록이 자기 페인포인트 자리로 모여서 그게 된다.** 전에는 블록이 그냥 가라앉고
-     다섯 가지가 따로 떠올랐는데, 그러면 둘이 남남으로 보인다(사용자 지적).
-     한 묶음씩 차례로 들어가야 "이 넷이 저거였구나" 가 눈으로 읽힌다. */
-  const suck = (gi: number) => ease(seg(distill, gi * 0.1, gi * 0.1 + 0.45))
+     거쳐 온 것(같은 걸 또 하지 말 것): 다섯 가지를 줄(표)로 뽑기 → "PPT 같다" →
+     탑 다섯 개로 쌓고 이름표 → "이거 하나하나 누가 읽냐"(사용자). **분류해서 보여 주지 말 것.**
+     박자: 문장이 뜨고(~s0+0.1) → **오래 머물고**(약 220vh, "너무 빨리 사라진다" 로 늘림) → 더미가 선생님에게 빨려 간다(s0+0.58~0.68). */
+  const dim = ease(seg(t, s0, s0 + 0.08)) // 더미가 뒤로 물러난다
+  const line = ease(seg(t, s0 + 0.03, s0 + 0.1)) // 한 문장이 떠오른다
+  const absorb = ease(seg(t, s0 + 0.58, s0 + 0.68)) // 더미가 선생님에게 넘어간다
 
-  /* 뽑아내기가 시작되면 엔진을 멈추고, 멈춘 자리에서 블록을 가라앉힌다. */
+  /* 빨려 가기 시작하면 엔진을 멈추고 멈춘 자리에서 날린다. 되감으면 더미로 돌아가 다시 물리가 돈다. */
   useEffect(() => {
-    if (distill <= 0.001) {
+    if (absorb <= 0.001) {
       if (frozen.current) {
         frozen.current = null
         pile.current?.resume()
@@ -458,32 +459,26 @@ function ScenePain({ t }: { t: number }) {
     }
     if (!frozen.current) frozen.current = pile.current?.freeze() ?? null
     const from = frozen.current
-    if (!from) return
     const host = hostRef.current
-    if (!host) return
+    if (!from || !host) return
     const W = host.clientWidth
     const H = host.clientHeight
     for (let i = 0; i < FLAT.length; i++) {
       const el = itemRefs.current[i]
       if (!el) continue
-      const c = FLAT[i]
       const f = from[i]
-      const k = suck(c.gi)
-      /* 목적지 = 그 묶음의 페인포인트 줄. 넷이 한 점에 겹치지 않게 아주 조금만 벌린다
-         (완전히 같은 점으로 보내면 마지막 순간에 네 장이 한 장처럼 보여서 '넷이 모였다' 가 안 읽힌다). */
-      const tx = W * (0.09 + c.pi * 0.014)
-      const ty = H * ((23 + c.gi * 12.5) / 100)
-      const x = lerp(f.x, tx, k) - BLOCK_W / 2
-      const y = lerp(f.y, ty, k) - BLOCK_H / 2
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${lerp(f.a, 0, k)}rad) scale(${lerp(1, 0.3, k)})`
+      // 멀리 있는 블록일수록 조금 늦게 출발한다 - 한꺼번에 움직이면 판 하나를 미는 것처럼 보인다
+      const k = ease(seg(absorb, (1 - f.x / W) * 0.35, (1 - f.x / W) * 0.35 + 0.65))
+      const x = lerp(f.x, W * 0.84, k) - BLOCK_W / 2
+      const y = lerp(f.y, H * 0.5, k) - BLOCK_H / 2
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${lerp(f.a, 0, k)}rad) scale(${lerp(1, 0.2, k)})`
       el.style.opacity = String(1 - k)
-      el.style.zIndex = k > 0.05 ? '4' : '0' // 빨려 들어가는 동안에는 인물보다 앞
     }
-  }, [distill, pile])
+  }, [absorb, pile])
 
   return (
     <>
-      <div className="absolute left-0 top-[11vh] z-10 px-6 sm:px-10 lg:px-16" style={{ opacity: 1 - seg(t, s0 + 0.44, s0 + 0.5) }}>
+      <div className="absolute left-0 top-[11vh] z-10 px-6 sm:px-10 lg:px-16" style={{ opacity: 1 - dim }}>
         <Head>
           혼자 공부할 때
           <br />
@@ -491,8 +486,12 @@ function ScenePain({ t }: { t: number }) {
         </Head>
       </div>
 
-      {/* 블록이 사는 자리. 물리 엔진이 여기 크기로 벽을 세운다. */}
-      <div ref={hostRef} className="absolute inset-0">
+      {/* 블록이 사는 자리. 물리 엔진이 여기 크기로 벽을 세운다. 문장이 뜨면 흐려지며 뒤로 물러난다. */}
+      <div
+        ref={hostRef}
+        className="absolute inset-0"
+        style={{ opacity: lerp(1, 0.28, dim), filter: dim > 0.01 ? `blur(${dim * 2}px)` : undefined }}
+      >
         {FLAT.map((c, i) => (
           <span
             key={c.text}
@@ -507,47 +506,11 @@ function ScenePain({ t }: { t: number }) {
         ))}
       </div>
 
-      {/* 더미에서 뽑아낸 다섯 가지. 아래에서 차례로 떠오른다. */}
-      <div className="absolute inset-0 z-[3]" aria-hidden={distill < 0.4}>
-        {CONCERNS.map((g, i) => {
-          /* 줄은 자기 블록들이 거의 다 들어온 **다음에** 뜬다. 먼저 떠 있으면
-             블록이 이미 있는 것에 흡수되는 것처럼 보여서 인과가 뒤집힌다. */
-          const on = ease(seg(distill, i * 0.1 + 0.3, i * 0.1 + 0.52))
-          // 마지막에는 다섯 가지가 통째로 선생님 쪽으로 건너간다
-          const ax = lerp(0, 40, absorb)
-          const top = 33 + i * 11 // 제목(11vh~24%) 아래부터
-          const ay = lerp(0, (48 - top) * 0.9, absorb)
-          return (
-            /* 표처럼 칸을 맞춘다: 번호 | 언제 | 학습자의 말(말풍선). 칸이 맞아야 다섯 줄이 한눈에 읽힌다.
-               전에는 줄마다 [언제 · 흐린 설명 · “말”] 을 이어 붙여 말 시작점이 들쭉날쭉했고,
-               흐린 설명("뭐부터 해야 할지 모를 때")은 '언제' 와 '말' 을 한 번 더 풀어 쓴 것뿐이라 뺐다(사용자 지적). */
-            <div
-              key={g.k}
-              className="absolute left-[6%] grid w-[min(58%,760px)] grid-cols-[2.5rem_minmax(0,15rem)_1fr] items-center border-t border-white/10 py-4"
-              style={{
-                top: `${top}%`,
-                borderBottom: i === CONCERNS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : undefined,
-                opacity: on * (1 - absorb),
-                transform: `translate(${ax}%, calc(-50% + ${lerp(44, 0, on)}px + ${ay}vh)) scale(${lerp(1, 0.72, absorb)})`,
-                filter: absorb > 0 ? `blur(${absorb * 5}px)` : '',
-                willChange: 'transform, opacity',
-              }}
-            >
-              <span className="text-[13px] tabular-nums" style={{ color: '#7fa6ff' }}>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className="display text-[clamp(1.2rem,1.9vw,1.6rem)] leading-[1.3]">{g.k}</span>
-              <span className="justify-self-start rounded-2xl rounded-bl-md border border-white/12 bg-white/[0.06] px-4 py-2 text-[14.5px] leading-[1.5] text-white/85">
-                “{g.items[0]}”
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
-      <Copy style={{ opacity: closing, transform: `translateY(calc(-50% + ${lerp(16, 0, closing)}px))` }}>
-        <p className="text-[clamp(1.1rem,2vw,1.7rem)] font-light leading-[1.6]">
-          어려운 건 <strong className="font-medium">지금의 나에게 필요한 다음 행동을 계속 찾아가는 일</strong>입니다.
+      <Copy style={{ maxWidth: 900, opacity: line * (1 - seg(t, s0 + 0.62, s0 + 0.7)), transform: `translateY(calc(-50% + ${lerp(24, 0, line)}px))` }}>
+        <p className="display text-[clamp(1.9rem,3.6vw,3.3rem)] leading-[1.28]">
+          혼자서는 이 질문들에
+          <br />
+          <span className="em">답해 줄 사람이 없습니다.</span>
         </p>
       </Copy>
     </>
@@ -1095,8 +1058,10 @@ export function StageFlow() {
             </div>
           ))}
         </div>
-        <p className="mt-12 border-t border-white/10 pt-8 text-[clamp(1.05rem,4.5vw,1.35rem)] font-light leading-[1.65]">
-          어려운 건 <strong className="font-medium">지금의 나에게 필요한 다음 행동을 계속 찾아가는 일</strong>입니다.
+        <p className="display mt-12 border-t border-white/10 pt-8 text-[clamp(1.4rem,6vw,1.9rem)] leading-[1.35]">
+          혼자서는 이 질문들에
+          <br />
+          <span className="em">답해 줄 사람이 없습니다.</span>
         </p>
       </section>
 
