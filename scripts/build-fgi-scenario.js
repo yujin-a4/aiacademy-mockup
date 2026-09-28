@@ -918,6 +918,9 @@ const RE_LONE_NG = new RegExp(`^\\(\\s*(?:${NG_TAG})\\s*\\)`)
 const RE_LONE_OK = new RegExp(`^\\(\\s*(?:${OK_TAG})\\s*\\)`)
 const RE_ANY_NG = new RegExp(`\\(\\s*(?:${NG_TAG})\\s*\\)`)
 const RE_STRIP_NG = new RegExp(`^\\(\\s*(?:${NG_TAG})\\s*\\)\\s*`)
+/* "(적절한 답변/부적절한 답변/모름)" · "(적절한 답변 / 부적절한 답변/모름)" — **둘 다 같은 말**이라는 표기(09-28).
+   모르면 괄호째 화면에 찍히고 강사가 읽는다(실측). 떼고 한 줄로 쓴다. */
+const RE_BOTH = new RegExp(`^\\(\\s*(?:${OK_TAG})\\s*\\/\\s*(?:${NG_TAG})\\s*\\)\\s*([\\s\\S]+)$`)
 
 function branchOf(tutor) {
   const t = clean(tutor)
@@ -927,6 +930,8 @@ function branchOf(tutor) {
   /* ② 지금 표기 — "(정답) …" 줄바꿈 "(오답) …" 을 한 칸에 적는다.
      ⚠️ 이 갈래를 몰라서 오답 문구 21개가 통째로 버려지고 있었다(08-18 실측). 시트가 표기를
         바꾸면 여기가 조용히 새므로, 아래 출력의 '⑂ 정답/오답 갈래' 개수를 시트와 대조할 것. */
+  const both = RE_BOTH.exec(t)
+  if (both) return { ok: clean(both[1]), wrong: null }
   const cur = RE_PAIR.exec(t)
   if (cur) return { ok: clean(cur[1]), wrong: clean(cur[2]) }
   /* ③ 한쪽만 적힌 칸 — 표시만 떼고 그대로 쓴다. 그냥 두면 강사가 "정답" 을 소리내어 읽는다. */
