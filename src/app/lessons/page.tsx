@@ -9,7 +9,7 @@ import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
 import { takeJustCompleted, getReviewDoneDays, isReviewDoneToday, reviewMark } from '@/lib/todayPlan'
-import { FGI_SCHEDULE, REVIEW_LABEL, DEMO_DDAY, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
+import { FGI_SCHEDULE, FGI_DEMO_SEQ, REVIEW_LABEL, DEMO_DDAY, isReviewUnlocked, type ScheduleDay } from '@/data/curriculumSchedule'
 
 /* ── 타입 ── */
 type LessonStatus = 'done' | 'current' | 'upcoming' | 'locked'
@@ -886,7 +886,9 @@ function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
           </span>
         )}
       </div>
-      <p className={`text-[14px] font-bold mb-1 transition-colors ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'}`}>{t.title}</p>
+      <p className={`flex items-center gap-1.5 text-[14px] font-bold mb-1 transition-colors ${playable ? 'text-[#1C1B33] group-hover:text-[#2563EB]' : 'text-[#9CA3AF]'}`}>
+        {isFgiDemo(lecture) && <FgiStar />}{t.title}
+      </p>
       <p className="text-[12px] text-[#6B7280] leading-relaxed line-clamp-2 mb-3">{t.desc}</p>
       <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${playable ? 'text-[#2563EB]' : 'text-[#C4C9D4]'}`}>
         {playable
@@ -925,6 +927,23 @@ const PLAYABLE_PARTS = new Set([1, 2, 3, 4, 5, 6, 7])
 const MIN_PLAYABLE = 4
 
 const isPlayable = (l: DbLecture) => l.questionCount >= MIN_PLAYABLE && PLAYABLE_PARTS.has(l.part)
+
+/* ── FGI 시연 강의 = 노란 별 (09-28 사용자 요청: "찾아가기 힘들다") ──
+   42강 사이에 섞여 있어서 진행자가 매번 찾아 헤맨다. 시연 강의 목록은 시간표 쪽 정본(FGI_DEMO_SEQ)을 쓴다.
+   ⚠️ 그 정본 머리말은 "화면에는 드러내지 않는다" 였다(참가자에게 특별한 강의로 보일까 봐). 사용자가 09-28 에
+      별을 달라고 했다 — 참가자 화면에서 숨길지는 확인 중. */
+const isFgiDemo = (l?: DbLecture) => l?.seq != null && FGI_DEMO_SEQ.has(l.seq)
+
+/** 노란 별 하나 — 강의 이름 옆에 붙는다 */
+function FgiStar({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-label="FGI 시연 강의" role="img" className={`inline-block shrink-0 ${className}`}>
+      <title>FGI 시연 강의</title>
+      <path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9L12 2.8z"
+        fill="#FACC15" stroke="#EAB308" strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  )
+}
 
 /* DB 제목은 "LC1강 — 인물 중심 vs 사물·상태 중심 …" 꼴이다.
    한 줄짜리 타임라인에 통째로 넣으면 번호 때문에 제목이 잘린다 → 번호를 칩으로 떼어낸다. */
@@ -1043,7 +1062,9 @@ function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; o
         playable ? `${CARD} ${CARD_HOVER} cursor-pointer active:scale-[0.995] transition-transform` : ''} ${
         done ? 'bg-[#F2FCF6]' : playable ? 'bg-white' : 'bg-[#F4F6FA]'}`}>
       <div className="flex-1 min-w-0">
-        <p className={`text-[14px] font-bold leading-snug truncate ${playable ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{name}</p>
+        <p className={`flex items-center gap-1.5 text-[14px] font-bold leading-snug ${playable ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>
+          {isFgiDemo(lec) && <FgiStar />}<span className="truncate">{name}</span>
+        </p>
         <span className="mt-1 flex items-center gap-2.5">
           <PartMark lc={lc} part={lec.part} dim={!playable || !!done} />
           {/* 끝낸 줄엔 시간을 붙이지 않는다 — 남은 시간이 아니라 '완료'가 할 말이다 */}
@@ -1103,8 +1124,10 @@ function ReviewTile({ open, onOpen }: { open: boolean; onOpen?: () => void }) {
  *  ⚠️ **파트를 크게, 문항 수는 빼고**(09-21 사용자 지시). 회색 잔글씨로 'Part 5 · 문항 4개'
  *     를 붙여 뒀더니 정작 무슨 파트인지가 제일 안 보였다. 파트는 칩으로 올리고, 문항 수는
  *     지운다 — 그 숫자로 학생이 정하는 것이 없다(오늘 할 일은 이미 정해져 있다). */
-function TodayStep({ n, label, part, lc, sub, state, fresh, order = 0, wake, waitFor = 1, onOpen }: {
+function TodayStep({ n, label, part, lc, sub, state, fresh, order = 0, wake, waitFor = 1, onOpen, star }: {
   n: number; label: string; state: 'done' | 'now' | 'todo'
+  /** FGI 시연 강의 — 제목 앞에 노란 별 */
+  star?: boolean
   /** 방금 끝내고 돌아온 칸 — 체크가 튕기고 초록 파문이 한 번 인다 */
   fresh?: boolean
   /** 한 번에 여럿을 끝내고 온 길이면 **끝낸 차례대로** 0.14초씩 늦춰 튕긴다 */
@@ -1167,7 +1190,9 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, order = 0, wake, wai
       </div>
       <div className="min-w-0">
         <p className={`text-[12.5px] font-bold leading-snug ${
-          state === 'todo' ? 'text-[#94A3B8]' : state === 'done' ? 'text-[#64748B]' : 'text-[#1C1B33]'}`}>{label}</p>
+          state === 'todo' ? 'text-[#94A3B8]' : state === 'done' ? 'text-[#64748B]' : 'text-[#1C1B33]'}`}>
+          {star && <FgiStar className="w-3.5 h-3.5 mr-1 -mt-0.5 align-middle" />}{label}
+        </p>
         {fresh
           ? <p className="text-[11px] font-black text-[#2FA36B] mt-0.5">방금 완료!</p>
           : sub
@@ -1321,7 +1346,7 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext
         {items.map((i, n) => (
           <TodayStep key={i.seq} n={n + 1}
             label={i.lec ? splitTitle(i.lec.title).name : `${i.seq}강`}
-            part={i.lec?.part} lc={i.lec?.lcRc === 'LC'}
+            part={i.lec?.part} lc={i.lec?.lcRc === 'LC'} star={isFgiDemo(i.lec)}
             sub={i.lec ? undefined : '준비 중'}
             onOpen={i.lec && isPlayable(i.lec) ? () => router.push(`/lecture/${i.lec!.code}`) : undefined}
             fresh={freshSeqs.includes(i.seq) && i.done}
@@ -1468,6 +1493,8 @@ function AllDaysGrid({ bySeq, doneSeq, reviewDone, todayIdx, onPick }: {
                         done ? 'text-[#2FA36B]' : today ? 'text-[#2563EB]' : locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
                         DAY {d.day}
                       </span>
+                      {/* 시연 강의가 든 날 — 12칸 중 어디로 가야 하는지 날짜 머리에서 바로 보이게 */}
+                      {d.lectures.some((s) => isFgiDemo(bySeq.get(s))) && <FgiStar />}
                       {done && <span className="ml-auto text-[10px] font-black text-[#2FA36B] bg-[#E6FAEF] px-2 py-0.5 rounded-full">완료</span>}
                       {today && <span className="ml-auto text-[10px] font-black text-white bg-[#2563EB] px-2 py-0.5 rounded-full">오늘</span>}
                     </div>
@@ -1475,9 +1502,10 @@ function AllDaysGrid({ bySeq, doneSeq, reviewDone, todayIdx, onPick }: {
                       {d.lectures.map((seq) => {
                         const lec = bySeq.get(seq)
                         return (
-                          <p key={seq} className={`text-[11.5px] font-semibold leading-relaxed truncate ${
+                          <p key={seq} className={`flex items-center gap-1 text-[11.5px] font-semibold leading-relaxed ${
                             locked ? 'text-[#B4BCC8]' : 'text-[#475569]'}`}>
-                            {lec ? splitTitle(lec.title).name : `${seq}강`}
+                            {isFgiDemo(lec) && <FgiStar className="w-3 h-3" />}
+                            <span className="truncate">{lec ? splitTitle(lec.title).name : `${seq}강`}</span>
                           </p>
                         )
                       })}
