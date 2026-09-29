@@ -1876,13 +1876,18 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
   const [boardFlying, setBoardFlying] = useState(false)
   const wasBoardRef = useRef(false)
   useEffect(() => {
+    /* ── 수업 단계에서 **보고 있던 판만** 접혀 들어간다 (09-29) ──
+       실전으로 바로 들어오면(?stage=practice·단계 점프) turnIdx 가 0 — 개념 판 턴 — 에 머문 채
+       실전을 푼다. 판은 감춰져 있었는데 해설(review)로 넘어가며 턴이 바뀌는 순간, 본 적 없는
+       판이 TIP 버튼으로 빨려 들어갔다(사용자 지적). 아래 TIP 카드의 09-21 수정과 같은 규칙. */
+    if (phase !== 'lesson') { wasBoardRef.current = false; setBoardFlying(false); return }
     if (turn.board) { wasBoardRef.current = true; setBoardFlying(false); return }
     if (!wasBoardRef.current) return
     wasBoardRef.current = false
     setBoardFlying(true)
     const timer = setTimeout(() => setBoardFlying(false), 650)
     return () => clearTimeout(timer)
-  }, [turn.board])
+  }, [turn.board, phase])
 
   /** 날아가는 중인 카드 — 세는 시점과 그리는 시점이 **같은 값을 봐야** 해서 위에 둔다 */
   const [tipExit, setTipExit] = useState<LessonTip | null>(null)
@@ -4496,7 +4501,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           아래에서 올라오면 "이제 네 차례" 가 움직임만으로 전해진다.
           key 에 '말이 끝났는가' 를 함께 넣는다 — 턴이 열릴 때가 아니라 **보기가 실제로
           나타나는 순간**에 애니메이션이 돌아야 한다. */}
-      <div key={`act-${turnIdx}-${spokenTurn === turnIdx ? 1 : 0}`} className="animate-slide-up">
+      {/* 접기 모드(할 일 줄)에서는 **선택지만** 회색 상자로 감싼다 — 안내(TapHint)는 그 위 바깥.
+          누를 것이 없는 턴에는 InteractionDock 이 비므로 empty:hidden 으로 빈 상자가 안 남는다. */}
+      <div key={`act-${turnIdx}-${spokenTurn === turnIdx ? 1 : 0}`}
+        className={`animate-slide-up ${dockMode === 'mini' ? 'rounded-xl bg-[#F1F5F9] p-2 empty:hidden' : ''}`}>
       <InteractionDock
         key={turnIdx}
         turn={turn} lesson={lesson}

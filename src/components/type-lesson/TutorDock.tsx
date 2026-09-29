@@ -865,13 +865,23 @@ export function ActionTray({ hint, actions }: { hint?: ReactNode; actions?: Reac
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+  /* ── 액션 시트처럼 **아래에서 펼쳐진다** (09-29 사용자 지정) ──
+     예전에는 회색 띠가 한 번에 툭 생기며 문제 칸을 밀어 올렸다. 이제 줄의 높이가 0 에서 제 높이로
+     자라고(grid-rows 0fr→1fr) 속은 아래에서 올라온다 — 문제 칸도 같은 박자로 부드럽게 밀린다.
+     회색은 줄 전체가 아니라 **선택지 상자에만** 입힌다(부르는 쪽 dockActions). 안내는 그 위 바깥에 뜬다.
+     ⚠️ 재는 것은 잘리는 칸(clip) 안쪽의 innerRef 다 — 잘리는 칸이 0 이어도 속은 제 높이를 가진다. */
   return (
-    <div className={`shrink-0 max-h-[40%] overflow-y-auto ${filled
-      ? 'border-t border-[#E5E7EB] bg-[#F8FAFC] px-3 md:px-6 py-3' : ''}`}>
-      {/* 버튼이 화면 끝까지 늘어지면 눈이 좌우로 멀리 오간다 — 가운데 한 덩어리로 모은다 */}
-      <div ref={innerRef} className="w-full max-w-[560px] mx-auto space-y-2.5">
-        {hint}
-        {actions}
+    <div className="shrink-0 max-h-[40%] grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ gridTemplateRows: filled ? '1fr' : '0fr' }}>
+      <div className={`min-h-0 ${filled ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        <div className={`px-3 md:px-6 py-3 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          filled ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}>
+          {/* 버튼이 화면 끝까지 늘어지면 눈이 좌우로 멀리 오간다 — 가운데 한 덩어리로 모은다 */}
+          <div ref={innerRef} className="w-full max-w-[560px] mx-auto space-y-2.5">
+            {hint}
+            {actions}
+          </div>
+        </div>
       </div>
     </div>
   )
