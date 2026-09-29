@@ -4,7 +4,7 @@ import { INST_VOICE, INST_AUDIO_TAGS, INST_TTS_MODEL, INST_SENTENCE_PAUSE } from
    여기서만 고치면 미리 만들어 둔 소리와 실시간 소리가 갈린다. src/lib/ttsText.ts 참고. */
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
-  applyAudioTags, applyPronunciation, stripAudioTags, sanitizeForTts, sayableTerms, spaceSentences,
+  applyAudioTags, applyPronunciation, isV3Family, stripAudioTags, sanitizeForTts, sayableTerms, spaceSentences,
 } from '@/lib/ttsText'
 
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech'
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
        v3 은 speed 를 받지 않는다 — 넣으면 400 이 떨어져 통째로 브라우저 TTS 로 폴백한다.
        (stability 는 v3 에서 3단계로 취급된다: 0.0 Creative / 0.5 Natural / 1.0 Robust) */
     const modelId = (!isListening && instructor && INST_TTS_MODEL[instructor]) || DEFAULT_TTS_MODEL
-    const supportsSpeed = modelId !== 'eleven_v3'
+    const supportsSpeed = !isV3Family(modelId)
 
     /* 문장 사이를 한 박자 벌린다 — 이 강사에게 켜져 있을 때만(듣기 음원은 대상이 아니다).
        `text` 는 그대로 둔다 — 브라우저 TTS 폴백으로 돌려보내는 값이라 손대면 그쪽까지 바뀐다. */
@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
        듣기 음원은 시험 자료라 손대지 않는다. */
     if (!isListening) speech = sayableTerms(speech)
     /* 발음 교정은 강사 발화에만, 그리고 IPA 를 알아듣는 모델에만 건다 */
-    if (!isListening && modelId === 'eleven_v3') speech = applyPronunciation(speech)
+    if (!isListening && isV3Family(modelId)) speech = applyPronunciation(speech)
     /* v3 연기 지시(대괄호 태그) — 이 강사에게 켜져 있고 v3 일 때만.
        v2 는 태그를 모르고 **그대로 소리내어 읽는다**. 듣기 음원은 시험 자료라 손대지 않는다. */
-    if (!isListening && modelId === 'eleven_v3' && instructor && INST_AUDIO_TAGS[instructor]) {
+    if (!isListening && isV3Family(modelId) && instructor && INST_AUDIO_TAGS[instructor]) {
       speech = applyAudioTags(speech)
     } else {
       /* v3 가 아니거나 태그를 끈 강사면 **떼고 보낸다** — v2 는 태그를 모르고 그대로 읽는다.

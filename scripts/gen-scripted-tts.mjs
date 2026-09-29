@@ -39,7 +39,7 @@ import { INST_PERSONA, INST_VOICE, INST_TTS_MODEL, INST_SENTENCE_PAUSE, INST_AUD
 import { ACKS, ACKS_BY_INST, RETRY_BY_INST, RETRY_DEFAULT, MOVE_ON_BY_INST, OFF_TOPIC_BY_INST, OFF_TOPIC_DEFAULT, stripAck } from '../src/data/typeLearning/scriptedSpeech.ts'
 import {
   DEFAULT_TTS, DEFAULT_TTS_MODEL, TTS_PARAMS,
-  applyAudioTags, applyPronunciation, stripAudioTags, koLetters, sanitizeForTts, sayableTerms, spaceSentences, ttsCacheKey,
+  applyAudioTags, applyPronunciation, isV3Family, stripAudioTags, koLetters, sanitizeForTts, sayableTerms, spaceSentences, ttsCacheKey,
 } from '../src/lib/ttsText.ts'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -121,10 +121,10 @@ function requestFor(spoken, instructor) {
   const text = sanitizeForTts(spoken)
   let speech = INST_SENTENCE_PAUSE[instructor] ? spaceSentences(text) : text
   speech = sayableTerms(speech)
-  if (modelId === 'eleven_v3') speech = applyPronunciation(speech)
+  if (isV3Family(modelId)) speech = applyPronunciation(speech)
   /* v3 연기 지시 — 라우트와 **같은 함수**를 부른다. 한쪽만 걸면 미리 만든 소리와
      실시간 소리가 달라지는데, 대본 강의는 그 둘이 한 수업 안에서 섞여 나간다. */
-  speech = (modelId === 'eleven_v3' && INST_AUDIO_TAGS[instructor])
+  speech = (isV3Family(modelId) && INST_AUDIO_TAGS[instructor])
     ? applyAudioTags(speech)
     : stripAudioTags(speech)   // v2 는 태그를 그대로 읽는다 — 떼고 보낸다
 
@@ -137,7 +137,7 @@ function requestFor(spoken, instructor) {
       voice_settings: {
         stability,
         similarity_boost,
-        ...(modelId !== 'eleven_v3' ? { speed } : {}),
+        ...(!isV3Family(modelId) ? { speed } : {}),
       },
     },
   }

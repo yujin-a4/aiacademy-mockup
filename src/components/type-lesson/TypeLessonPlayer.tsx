@@ -4973,6 +4973,16 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
 }) {
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [graded, setGraded] = useState(false)
+  /* ── 채점 직후 1초는 다음 버튼이 안 눌린다 (09-29, FGI 참가자) ──
+     '채점하기' 와 '틀린 문제 같이 보기 →' 가 **같은 자리의 같은 버튼**이라, 두 번 누르면 두 번째 탭이
+     결과를 보기도 전에 해설로 넘겨 버렸다 — 해설에서는 결과 화면으로 돌아갈 길이 없다. */
+  const [nextLocked, setNextLocked] = useState(false)
+  useEffect(() => {
+    if (!graded) return
+    setNextLocked(true)
+    const t = setTimeout(() => setNextLocked(false), 1000)
+    return () => clearTimeout(t)
+  }, [graded])
   const [marks, setMarks] = useState<Set<string>>(new Set())
   /* 그어 지운 보기 `${qIdx}:${label}` — 시험지에 연필로 긋는 그 동작.
      채점에는 안 쓴다(답과 별개의 표시다). 문항을 넘겨도 남아 있어야 되돌아왔을 때 그대로다. */
@@ -5211,6 +5221,21 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
         const id = `opt:${u}:${o.label}`
         items.push({ id, text: `${o.label}. ${o.text}`, src: optionSrc(pLesson, id) })
       }
+    }
+    /* ── 문항 앞에 **"Number N."** (09-29 사용자 지정) ──
+       실제 시험은 문항마다 번호를 먼저 부른다. 그래야 음원이 도는 동안 다른 문항을 보다 와도
+       지금 몇 번인지 안다. 교재에서 문항을 골라 오며 그 번호를 잘라냈으므로(public/part1/fgi 등)
+       **화면 번호**를 교재 원본 내레이터 목소리로 붙인다 — 원본 1권 Test 01 의 1~31번 머리를
+       잘라 둔 public/lc/number/nNN.mp3. 원본처럼 한 박자(0.8초) 쉬고 문항으로 간다.
+       ⚠️ 자르지 않은 교재 원본(/mock/…, 서명 URL)은 자기 번호를 이미 말하므로 건너뛴다. */
+    const n = u + 1
+    const untrimmed = !!wholeSrc && /\/mock\/|\/object\/sign\//.test(wholeSrc)
+    if (n <= 31 && !untrimmed) {
+      const num = String(n).padStart(2, '0')
+      /* id 는 문항 음원과 같게 — 화면은 'qaudio:' 를 그 문항의 재생으로 읽는다(다른 이름이면 스크립트 재생으로 오인) */
+      if (!(await say(my, [{ id: whole, text: `Number ${n}.`, src: `/lc/number/n${num}.mp3` }]))) return false
+      await wait(800)
+      if (my !== runId.current) return false
     }
     if (!(await say(my, items))) return false
     return await countDown(my, gapSec)
@@ -5654,7 +5679,8 @@ export function PracticeStage({ lesson, onExit, onDone, onJumpPhase, nextLabel, 
               </span>
             )}
             {graded
-              ? <button onClick={() => onDone({ correct, total, results, answers })} className={PRIMARY_BTN}>
+              ? <button onClick={() => onDone({ correct, total, results, answers })} disabled={nextLocked}
+                  className={`${PRIMARY_BTN} transition-opacity ${nextLocked ? 'opacity-40 pointer-events-none' : ''}`}>
                   {nextLabel ?? (correct === total ? '핵심 요약으로 →' : '틀린 문제 같이 보기 →')}
                 </button>
               /* ── 아직 다 안 풀었으면 옅은 파랑 ──
