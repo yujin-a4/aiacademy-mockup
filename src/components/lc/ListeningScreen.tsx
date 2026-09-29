@@ -60,7 +60,7 @@ function ChoiceCard({ label, text, state, onClick, disabled, audioOnly, onReplay
   }[state]
   const badge = { idle: 'bg-gray-200 text-gray-500', correct: 'bg-green-500 text-white', wrong: 'bg-red-500 text-white', dimmed: 'bg-gray-200 text-gray-400' }[state]
   return (
-    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
+    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-lg border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
       {audioOnly
         ? (onReplay
@@ -96,7 +96,7 @@ function AudioBar({ media }: { media: Extract<LCPart['media'], { kind: 'audio' }
   }
   const stop = () => { stopCurrentAudio(); setPlaying(false); if (timerRef.current) clearInterval(timerRef.current) }
   return (
-    <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-4 md:p-5 flex items-center gap-3">
+    <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-xl p-4 md:p-5 flex items-center gap-3">
       <button onClick={playing ? stop : play} className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#2277F0] flex items-center justify-center shrink-0 shadow-md active:scale-95" aria-label={playing ? '정지' : '재생'}>
         {playing ? <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 md:w-6 md:h-6"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg> : <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 md:w-6 md:h-6 ml-0.5"><polygon points="6 4 20 12 6 20 6 4" /></svg>}
       </button>
@@ -234,7 +234,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
                 <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
-                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
+                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
               </div>
             ) : chatMode === 'text' ? (
               <>
@@ -242,7 +242,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                   {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                   {messages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                      <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                     </div>
                   ))}
                 </div>
@@ -258,7 +258,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                   <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
                 </div>
                 <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
-                {lastAi && <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
+                {lastAi && <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
                 <p className="text-gray-400 text-[11px] mt-1">{conversation.isSpeaking ? '강사가 말하는 중…' : '말하면 강사가 들어요'}</p>
                 <button onClick={() => { try { conversation.endSession() } catch { /* noop */ } }} className="mt-4 text-[12px] font-semibold text-gray-400">통화 종료</button>
               </div>
@@ -272,7 +272,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
           <div ref={mainRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
             <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
               {/* 음원 재생바 — 강사가 "들어보자" 할 때만 재생 (컨트롤 없음) */}
-              <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-4 md:p-5 flex items-center gap-3">
+              <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-xl p-4 md:p-5 flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-colors ${audioPlaying ? 'bg-[#2277F0]' : 'bg-[#BFD9FF]'}`}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M3 14v-3a9 9 0 0 1 18 0v3" /><path d="M21 15a2 2 0 0 1-2 2h-1v-5h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-5H5a2 2 0 0 0-2 2z" /></svg>
                 </div>
@@ -297,7 +297,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                   <div className="space-y-3">
                     {isPhoto && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={qq.imageUrl ?? photoFallback} alt="문제 사진" className="w-full rounded-2xl object-cover border border-gray-100" style={{ maxHeight: 280 }} />
+                      <img src={qq.imageUrl ?? photoFallback} alt="문제 사진" className="w-full rounded-xl object-cover border border-gray-100" style={{ maxHeight: 280 }} />
                     )}
                     <p className="text-[15px] md:text-lg font-semibold text-[#1A2B4B] leading-relaxed"><span className="text-[#2277F0] font-bold mr-1.5">{lessonQIndex + 1}.</span>{qq.prompt}</p>
                     <div className="flex flex-col gap-2 md:gap-2.5">
@@ -315,7 +315,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
           <button
             onClick={() => setPanelOpen(true)}
             aria-label="강사 패널 열기"
-            className="fixed bottom-5 right-4 z-30 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-lg pl-2.5 pr-4 py-2.5 max-w-[320px] text-left hover:shadow-xl transition-shadow"
+            className="fixed bottom-5 right-4 z-30 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-lg pl-2.5 pr-4 py-2.5 max-w-[320px] text-left hover:shadow-xl transition-shadow"
             style={{ boxShadow: '0 4px 24px rgba(34,119,240,0.14), 0 1px 4px rgba(0,0,0,0.08)' }}
           >
             <span className={`relative shrink-0 block w-12 h-12 rounded-full overflow-hidden border-2 transition-all ${connected && conversation.isSpeaking ? 'border-[#2277F0] shadow-[0_0_14px_rgba(34,119,240,0.5)]' : 'border-[#2277F0]/30'}`}>
@@ -366,7 +366,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
             {part.media.kind === 'photo' ? (
               <div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={q.imageUrl ?? photoFallback} alt="문제 사진" className="w-full rounded-2xl object-cover border border-gray-100" style={{ maxHeight: 300 }} />
+                <img src={q.imageUrl ?? photoFallback} alt="문제 사진" className="w-full rounded-xl object-cover border border-gray-100" style={{ maxHeight: 300 }} />
                 <button onClick={() => playAllOpts(q)} className="mt-3 flex items-center gap-1.5 text-xs font-bold text-white bg-[#2277F0] rounded-full px-3.5 py-2"><svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3"><polygon points="6 4 20 12 6 20 6 4" /></svg>보기 듣기 (A~D)</button>
               </div>
             ) : (
@@ -383,13 +383,13 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                 })}
               </div>
               {answered && (
-                <div className="mt-3 rounded-xl bg-[#F0F5FF] border border-[#BFD9FF] p-4">
+                <div className="mt-3 rounded-lg bg-[#F0F5FF] border border-[#BFD9FF] p-4">
                   <p className={`text-xs font-bold mb-1 ${selected === q.answer ? 'text-green-700' : 'text-red-600'}`}>{selected === q.answer ? '✓ 정답' : '✕ 오답'}</p>
                   <p className="text-[13px] md:text-sm text-[#374151] leading-relaxed">{q.explanation}</p>
                 </div>
               )}
             </div>
-            <button onClick={next} disabled={!answered} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 문제 →'}</button>
+            <button onClick={next} disabled={!answered} className={`w-full py-4 rounded-xl font-bold text-base md:text-lg transition-all ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 문제 →'}</button>
           </div>
         </div>
       </div>
@@ -405,7 +405,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
     <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
       <PhaseStepper active={3} onEnd={handleEnd} />
       <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
-        <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
@@ -422,7 +422,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
             {part.summary.map((c, i) => {
               const ok = results[i]
               return (
-                <div key={i} className={`rounded-2xl border p-4 transition-colors ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                <div key={i} className={`rounded-xl border p-4 transition-colors ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
                     <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
@@ -439,11 +439,11 @@ export default function ListeningScreen({ part, onEnd }: Props) {
             })}
           </div>
           {!summaryChecked ? (
-            <button onClick={() => { setSummaryChecked(true); void speakTTS(part.closing, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
+            <button onClick={() => { setSummaryChecked(true); void speakTTS(part.closing, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
           ) : (
             <>
               <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{part.summary.length} 정답!</p>
-              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+              <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={INSTRUCTOR_PHOTO} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
@@ -455,7 +455,7 @@ export default function ListeningScreen({ part, onEnd }: Props) {
                 </div>
                 <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{part.closing}</p>
               </div>
-              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
+              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
               <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs(part.summary.map(() => '')) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
             </>
           )}

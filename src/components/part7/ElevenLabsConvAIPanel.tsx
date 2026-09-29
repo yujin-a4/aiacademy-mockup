@@ -228,7 +228,7 @@ export default function ElevenLabsConvAIPanel() {
 
       {/* ── 대화 transcript ── */}
       <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
-        <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-ybm-border p-3 flex flex-col gap-2">
+        <div className="flex-1 overflow-y-auto bg-white rounded-lg border border-ybm-border p-3 flex flex-col gap-2">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-4">
               <p className="text-xs text-ybm-text-sub leading-relaxed">
@@ -241,7 +241,7 @@ export default function ElevenLabsConvAIPanel() {
           ) : (
             messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                <div className={`max-w-[85%] px-3 py-2 rounded-lg text-xs leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-cr-accent text-white rounded-br-sm'
                     : 'bg-ybm-bg text-ybm-text rounded-bl-sm'
@@ -265,19 +265,19 @@ export default function ElevenLabsConvAIPanel() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                 placeholder="메시지 입력 (음성 대화 중에도 가능)"
-                className="flex-1 text-xs px-3 py-2 rounded-xl border border-ybm-border focus:outline-none focus:border-cr-accent bg-white"
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-ybm-border focus:outline-none focus:border-cr-accent bg-white"
               />
               <button
                 onClick={sendMessage}
                 disabled={!input.trim()}
-                className="px-3 py-2 bg-cr-accent text-white rounded-xl text-xs font-semibold disabled:opacity-40 transition-opacity"
+                className="px-3 py-2 bg-cr-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition-opacity"
               >
                 전송
               </button>
             </div>
             <button
               onClick={endCall}
-              className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors"
+              className="w-full py-2 rounded-lg border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors"
             >
               대화 종료
             </button>
@@ -286,7 +286,7 @@ export default function ElevenLabsConvAIPanel() {
           <button
             onClick={startCall}
             disabled={connecting}
-            className="w-full py-3 rounded-xl bg-cr-accent text-white text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2 shrink-0"
+            className="w-full py-3 rounded-lg bg-cr-accent text-white text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2 shrink-0"
           >
             {connecting ? (
               '연결 중...'
@@ -298,7 +298,7 @@ export default function ElevenLabsConvAIPanel() {
       </div>
 
       {/* ── 테스트 정보: 이 엔진이 어떻게 동작하는지 ── */}
-      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-lg bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
         <p className="font-bold text-ybm-text mb-1">이 화면 구조: ElevenLabs ConvAI</p>
         <p>학생 발화 → ElevenLabs 자체 STT → <code className="px-1 bg-white rounded">/api/tutor</code>(DB 레일 엔진)가 채점·진행 결정
           → 그 지시를 <code className="px-1 bg-white rounded">sendContextualUpdate</code>로 에이전트에 주입 → ElevenLabs 자체 LLM이 문장을 만들어 자체 TTS로 발화.

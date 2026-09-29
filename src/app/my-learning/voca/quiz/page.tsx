@@ -78,7 +78,7 @@ export default function QuizPage() {
         </div>
         <p className="text-center text-[#6B7280] text-[12px] mt-2 font-medium">Question {currentIndex + 1} of {todayWords.length}</p>
 
-        <div className="mt-12 bg-white rounded-3xl p-10 shadow-lg border border-[#DBEAFE] flex flex-col items-center text-center">
+        <div className="mt-12 bg-white rounded-2xl p-10 shadow-lg border border-[#DBEAFE] flex flex-col items-center text-center">
           <span className="text-[#9CA3AF] text-[13px] font-bold uppercase tracking-widest mb-3">Choose the correct meaning</span>
           <h2 className="text-[40px] font-black text-[#1C1B33] break-all">{word.word}</h2>
         </div>
@@ -98,7 +98,7 @@ export default function QuizPage() {
               <button
                 key={opt.id}
                 onClick={() => handleSelect(opt.id)}
-                className={`w-full p-5 rounded-2xl border-2 text-[16px] font-bold transition-all active:scale-[0.98] text-left ${btnClass}`}
+                className={`w-full p-5 rounded-xl border-2 text-[16px] font-bold transition-all active:scale-[0.98] text-left ${btnClass}`}
               >
                 {opt.text}
               </button>

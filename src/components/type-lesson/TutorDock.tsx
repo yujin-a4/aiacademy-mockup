@@ -287,7 +287,7 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
         </div>
       ) : (
         <button onClick={connecting ? undefined : onStartAgent} disabled={connecting}
-          className="w-full rounded-2xl border border-dashed border-[#CBD5E1] bg-[#FAFAFA] px-3 py-2.5 text-[12px] font-semibold text-[#94A3B8] disabled:opacity-70">
+          className="w-full rounded-xl border border-dashed border-[#CBD5E1] bg-[#FAFAFA] px-3 py-2.5 text-[12px] font-semibold text-[#94A3B8] disabled:opacity-70">
           {connecting ? '강사와 연결 중…' : '연결이 끊겼어요 — 눌러서 다시 연결'}
         </button>
       )}
@@ -433,7 +433,7 @@ function TextComposer({ connected, connecting, inputText, setInputText, onSend, 
       {/* 입력칸 왼쪽 마이크는 뺐다(09-18) — 키보드 모드는 **글로 답하는 자리**다.
           말로 하고 싶으면 아래 [음성 모드] 한 번이면 되고, 버튼이 둘이면 어느 쪽이 지금
           쓰는 것인지 매번 판단해야 한다. */}
-      <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-2xl px-3.5 py-2">
+      <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3.5 py-2">
         <input ref={inputRef} className="flex-1 min-w-0 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
           placeholder={connected ? '메시지를 입력하세요' : connecting ? '연결 중…' : '대화를 시작하면 입력할 수 있어요'}
           value={inputText} disabled={!connected} maxLength={300}
@@ -631,11 +631,11 @@ function Bubble({ role, text, aside, plain }: ChatMsg) {
       <div className={`max-w-[85%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
         aside
           ? mine
-            ? 'bg-[#FDE68A] text-[#78350F] rounded-2xl rounded-br-sm'
-            : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] rounded-2xl rounded-bl-sm'
+            ? 'bg-[#FDE68A] text-[#78350F] rounded-xl rounded-br-sm'
+            : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] rounded-xl rounded-bl-sm'
           : mine
-            ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
-            : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
+            ? 'bg-[#2563EB] text-white rounded-xl rounded-br-sm'
+            : 'bg-[#F1F5F9] text-[#334155] rounded-xl rounded-bl-sm'
       }`}>{text ? (mine ? text : <TutorText text={text} plain={plain} />) : (mine ? null : <SpeechDots />)}</div>
     </div>
   )

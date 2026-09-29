@@ -54,7 +54,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
     <div className="flex flex-col min-h-screen bg-[#F3F4F6] animate-fade-in">
       <div className="px-4 py-10 max-w-[390px] mx-auto w-full flex-1 space-y-6 pb-36">
         <header className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary rounded-2xl animate-bounce-in">
+          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary rounded-xl animate-bounce-in">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <div className="space-y-1">
@@ -64,9 +64,9 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
         </header>
 
         {/* 강사 정보 카드 */}
-        <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5">
+        <div className="bg-white border border-[#D1D5DB] rounded-[10px] p-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
               <span className="text-primary font-bold text-base">{inst.name.slice(0, 1)}</span>
             </div>
             <div>
@@ -74,7 +74,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
               <p className="text-[#6B7280] text-xs font-medium mt-0.5">{studyPeriod} · {targetScore}점 목표</p>
             </div>
           </div>
-          <div className="bg-[#F3F4F6] rounded-xl p-4">
+          <div className="bg-[#F3F4F6] rounded-lg p-4">
             <p className="text-[#374151] text-sm leading-relaxed">
               "{inst.msg(userName, targetScore, studyPeriod)}"
             </p>
@@ -82,7 +82,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
         </div>
 
         {/* 타임라인 */}
-        <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5">
+        <div className="bg-white border border-[#D1D5DB] rounded-[10px] p-5">
           <p className="text-[#6B7280] text-[11px] font-semibold uppercase tracking-[0.15em] mb-5">주간 로드맵</p>
           <div className="space-y-5 relative">
             <div className="absolute left-[9px] top-2 bottom-2 w-px bg-[#D1D5DB]" />
@@ -109,7 +109,7 @@ export default function CurriculumConfirm({ onComplete }: { onComplete: () => vo
         <div className="max-w-[390px] mx-auto space-y-2">
           <button
             onClick={handleComplete}
-            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]"
+            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-lg h-11 font-semibold text-[15px] transition-colors active:scale-[0.98]"
           >
             확인하고 시작하기
           </button>

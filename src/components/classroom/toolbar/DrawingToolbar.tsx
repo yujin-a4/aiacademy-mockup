@@ -92,7 +92,7 @@ function StationeryBtn({ children, label, active, onClick }: {
     <button
       aria-label={label}
       onClick={onClick}
-      className="flex items-center justify-center rounded-xl transition-all focus:outline-none hover:scale-105 active:scale-95"
+      className="flex items-center justify-center rounded-lg transition-all focus:outline-none hover:scale-105 active:scale-95"
       style={{
         width: 42,
         height: 42,

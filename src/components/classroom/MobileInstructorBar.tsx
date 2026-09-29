@@ -95,7 +95,7 @@ export default function MobileInstructorBar({
         <div className="flex gap-3 md:gap-5 px-3 py-3 md:px-5 md:py-4">
 
           {/* 강사 영상 or 이미지 */}
-          <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-2xl overflow-hidden shrink-0 bg-cr-panel self-start">
+          <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-xl overflow-hidden shrink-0 bg-cr-panel self-start">
             {videoSrc && !videoError ? (
               <video
                 ref={videoRef}

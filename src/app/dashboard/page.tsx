@@ -67,7 +67,7 @@ function Sidebar({ open, setOpen }: {
       <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <div className="flex items-center gap-2.5 animate-fade-in">
-            <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
               <span className="text-white font-black text-[10px] tracking-tight">YBM</span>
             </div>
             <span className="text-[#1C1B33] font-bold text-[15px]">AI Course</span>
@@ -82,7 +82,7 @@ function Sidebar({ open, setOpen }: {
 
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item) => {
-          const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
+          const cls = `w-full flex items-center rounded-lg text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
           return (
             <Link key={item.label} href={item.href ?? '#'} className={cls}>
               <span className="shrink-0">{item.icon(item.active)}</span>
@@ -94,7 +94,7 @@ function Sidebar({ open, setOpen }: {
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
         <div className="mb-2"><div className="h-px bg-[#DBEAFE]" /></div>
-        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <Link href="/settings/account" className={`w-full flex items-center rounded-lg text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <span className="shrink-0">{SETTINGS_ICON(false)}</span>
           {open && <span className="animate-fade-in">설정</span>}
         </Link>
@@ -271,7 +271,7 @@ function RegularDashboard() {
 
               {/* ① 코칭 카드 (사진 35% + 말풍선·CTA 65%) */}
               <div
-                className="flex-1 rounded-3xl overflow-hidden shadow-lg relative h-auto md:h-[400px]"
+                className="flex-1 rounded-2xl overflow-hidden shadow-lg relative h-auto md:h-[400px]"
                 style={{
                   background: 'linear-gradient(135deg, #E8EFFF 0%, #DBEAFE 55%, #C7D7FD 100%)',
                 }}
@@ -305,7 +305,7 @@ function RegularDashboard() {
                       <span className="text-[12px] font-bold text-[#4B5494]">{instName} 선생님의 오늘 코칭</span>
                     </div>
 
-                    <div className="bg-white rounded-2xl px-5 py-4 shadow-md">
+                    <div className="bg-white rounded-xl px-5 py-4 shadow-md">
                       <p className="text-[15px] font-semibold text-[#1C1B33] leading-relaxed">
                         {typedMsg}
                         {!typingDone && (
@@ -316,7 +316,7 @@ function RegularDashboard() {
 
                     <a
                       href="/part5"
-                      className="self-end md:mt-auto inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white pl-2.5 pr-4 py-2 rounded-xl font-bold text-[13px] transition-all shadow-lg shadow-[#2563EB]/25"
+                      className="self-end md:mt-auto inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white pl-2.5 pr-4 py-2 rounded-lg font-bold text-[13px] transition-all shadow-lg shadow-[#2563EB]/25"
                     >
                       <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -332,7 +332,7 @@ function RegularDashboard() {
               {/* ② 오른쪽(모바일: 코칭 카드 아래) 스탯 카드 2개 */}
               <div className="grid grid-cols-2 gap-3 md:flex md:flex-col w-full md:w-[200px] shrink-0">
 
-                <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
+                <div className="flex-1 bg-white rounded-xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[11px] font-semibold text-[#6B7280]">연속 학습</p>
                     <Icon name="fire" className="w-[17px] h-[17px] text-[#F97316]" />
@@ -352,7 +352,7 @@ function RegularDashboard() {
                   </div>
                 </div>
 
-                <div className="flex-1 bg-white rounded-2xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
+                <div className="flex-1 bg-white rounded-xl px-5 py-5 shadow-sm border border-[#F3F4F6] flex flex-col justify-center">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Icon name="calendar" className="w-[15px] h-[15px] text-[#2563EB]" />
                     <p className="text-[11px] font-semibold text-[#6B7280]">토익 시험</p>

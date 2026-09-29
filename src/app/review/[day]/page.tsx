@@ -35,7 +35,7 @@ function Notice({ title, body, onBack }: { title: string; body: string; onBack: 
     <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-[#F5F8FE] px-6 text-center">
       <p className="text-[15px] font-bold text-[#0F172A]">{title}</p>
       <p className="text-sm text-gray-500 max-w-[380px] leading-relaxed">{body}</p>
-      <button onClick={onBack} className="mt-1 px-5 py-2.5 rounded-xl bg-[#2563EB] text-white text-sm font-bold">
+      <button onClick={onBack} className="mt-1 px-5 py-2.5 rounded-lg bg-[#2563EB] text-white text-sm font-bold">
         내 학습으로
       </button>
     </div>

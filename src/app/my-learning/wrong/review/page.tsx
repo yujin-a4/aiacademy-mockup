@@ -84,14 +84,14 @@ function ReviewInner() {
   if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-[#F8FAFF] flex flex-col items-center justify-center gap-4 font-sans text-[#6B7280] px-6">
-        <div className="w-16 h-16 rounded-2xl bg-[#EFF6FF] flex items-center justify-center">
+        <div className="w-16 h-16 rounded-xl bg-[#EFF6FF] flex items-center justify-center">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
         </div>
         <p className="text-[#1C1B33] font-bold text-[16px]">복습할 오답이 없어요</p>
         <p className="text-[13px] text-center">해당 유형의 오답이 없거나 이미 모두 삭제됐어요</p>
-        <Link href="/my-learning?tab=wrong" className="mt-2 bg-[#2563EB] text-white px-6 py-2.5 rounded-xl font-semibold text-[14px]">
+        <Link href="/my-learning?tab=wrong" className="mt-2 bg-[#2563EB] text-white px-6 py-2.5 rounded-lg font-semibold text-[14px]">
           오답노트로 돌아가기
         </Link>
       </div>
@@ -102,7 +102,7 @@ function ReviewInner() {
     const accuracy = Math.round((correctCount / questions.length) * 100)
     return (
       <div className="min-h-screen bg-[#F8FAFF] flex flex-col items-center justify-center gap-5 font-sans px-6">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#60A5FA] to-[#2563EB] flex items-center justify-center shadow-lg shadow-[#2563EB]/30">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#60A5FA] to-[#2563EB] flex items-center justify-center shadow-lg shadow-[#2563EB]/30">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
@@ -112,7 +112,7 @@ function ReviewInner() {
           <p className="text-[#6B7280] text-[14px]">{questions.length}문제 중 <span className="text-[#2563EB] font-bold">{correctCount}개</span> 정답</p>
         </div>
 
-        <div className="w-full max-w-[360px] bg-white border border-[#DBEAFE] rounded-2xl p-5 shadow-sm">
+        <div className="w-full max-w-[360px] bg-white border border-[#DBEAFE] rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[#1C1B33] font-bold text-[15px]">결과</p>
             <span className={`text-[13px] font-black ${accuracy >= 80 ? 'text-[#059669]' : accuracy >= 60 ? 'text-[#D97706]' : 'text-[#DC2626]'}`}>
@@ -140,13 +140,13 @@ function ReviewInner() {
         <div className="w-full max-w-[360px] space-y-2">
           <button
             onClick={() => { setIndex(0); setChosen(null); setCorrectCount(0); setDone(false) }}
-            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-2xl font-bold text-[15px] transition-colors"
+            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-xl font-bold text-[15px] transition-colors"
           >
             다시 복습하기
           </button>
           <Link
             href="/my-learning?tab=wrong"
-            className="block w-full text-center bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] hover:border-[#C7D2FE] transition-colors"
+            className="block w-full text-center bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-xl font-semibold text-[14px] hover:border-[#C7D2FE] transition-colors"
           >
             오답노트로 돌아가기
           </Link>
@@ -229,14 +229,14 @@ function ReviewInner() {
       <div className="px-5 max-w-[600px] mx-auto w-full space-y-3">
         {/* 지문 제목 */}
         {item.passageTitle && (
-          <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
+          <div className="bg-white border border-[#DBEAFE] rounded-xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
             <p className={`text-[#374151] whitespace-pre-wrap ${fontStyleClass} ${sizeClasses.body}`}>{item.passageTitle}</p>
           </div>
         )}
 
         {/* 문제 */}
-        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-md">{item.partLabel}</span>
             {item.category && (
@@ -270,7 +270,7 @@ function ReviewInner() {
                   setChosen(i)
                   if (i === item.correctAnswer) setCorrectCount(c => c + 1)
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${style} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all ${style} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
                   answered && isCorrectOpt ? 'bg-[#10B981] text-white' :
@@ -292,7 +292,7 @@ function ReviewInner() {
         {answered && (
           <div className="space-y-3 animate-fade-in">
             {/* 결과 배너 */}
-            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isCorrect ? 'bg-[#D1FAE5] border border-[#10B981]' : 'bg-[#FEE2E2] border border-[#EF4444]'}`}>
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isCorrect ? 'bg-[#D1FAE5] border border-[#10B981]' : 'bg-[#FEE2E2] border border-[#EF4444]'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? 'bg-[#10B981]' : 'bg-[#EF4444]'}`}>
                 {isCorrect
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -305,16 +305,16 @@ function ReviewInner() {
             </div>
 
             {/* 해설 */}
-            <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-2xl px-4 py-3">
+            <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-4 py-3">
               <p className="text-[12px] font-bold text-[#DC2626] mb-1.5">오답 해설</p>
               <p className="text-[#374151] text-[13px] leading-relaxed">{item.explanation}</p>
             </div>
 
             {/* AI 스캐폴딩 힌트 */}
             {scaffolding && (
-              <div className="rounded-2xl border-2 px-5 py-4" style={{ background: instColor.bg, borderColor: instColor.border }}>
+              <div className="rounded-xl border-2 px-5 py-4" style={{ background: instColor.bg, borderColor: instColor.border }}>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 rounded-xl flex items-center justify-center font-black text-[11px] text-white shrink-0"
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-[11px] text-white shrink-0"
                     style={{ background: instColor.tc }}>
                     {INST_NAME[inst]?.[0] ?? 'A'}
                   </div>
@@ -333,7 +333,7 @@ function ReviewInner() {
           <div className="max-w-[600px] mx-auto">
             <button
               onClick={handleNext}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
             >
               {index < questions.length - 1 ? '다음 문제' : '복습 완료'}
             </button>

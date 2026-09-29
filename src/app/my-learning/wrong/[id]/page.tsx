@@ -107,14 +107,14 @@ export default function WrongAnswerDetail() {
 
         {/* 지문 제목 (P6/P7) */}
         {item.passageTitle && (
-          <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
+          <div className="bg-white border border-[#DBEAFE] rounded-xl px-4 py-3">
             <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-1">지문</p>
             <p className={`text-[#374151] whitespace-pre-wrap ${fontStyleClass} ${sizeClasses.body}`}>{item.passageTitle}</p>
           </div>
         )}
 
         {/* 문제 */}
-        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 shadow-sm">
           <p className="text-[10px] text-[#9CA3AF] font-semibold uppercase tracking-wider mb-2">문제</p>
           <p className={`text-[#1C1B33] font-medium ${fontStyleClass} ${sizeClasses.body}`}>{item.questionText}</p>
         </div>
@@ -128,7 +128,7 @@ export default function WrongAnswerDetail() {
             return (
               <div
                 key={i}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-[14px] ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-[14px] ${
                   isCorrect ? 'bg-[#D1FAE5] border-[#10B981]' :
                   isWrong   ? 'bg-[#FEE2E2] border-[#EF4444]' :
                   'bg-white border-[#E5E7EB]'
@@ -160,16 +160,16 @@ export default function WrongAnswerDetail() {
         </div>
 
         {/* 해설 */}
-        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-2xl px-4 py-3">
+        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-4 py-3">
           <p className="text-[12px] font-bold text-[#DC2626] mb-1.5">오답 해설</p>
           <p className="text-[#374151] text-[13px] leading-relaxed">{item.explanation}</p>
         </div>
 
         {/* AI 강사 스캐폴딩 힌트 */}
         {scaffolding && (
-          <div className="rounded-2xl border-2 px-5 py-4" style={{ background: instColor.bg, borderColor: instColor.border }}>
+          <div className="rounded-xl border-2 px-5 py-4" style={{ background: instColor.bg, borderColor: instColor.border }}>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-[11px] text-white shrink-0"
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-[11px] text-white shrink-0"
                 style={{ background: instColor.tc }}>
                 {INST_NAME[inst]?.[0] ?? 'A'}
               </div>
@@ -194,7 +194,7 @@ export default function WrongAnswerDetail() {
         <div className="max-w-[600px] mx-auto">
           <Link
             href={`/my-learning/wrong/review?partId=${item.partId}`}
-            className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20 text-center"
+            className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20 text-center"
           >
             {item.partLabel} 오답만 복습하기
           </Link>

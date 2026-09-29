@@ -31,6 +31,7 @@
  *   · **글보다 화면.** 문단을 늘리지 말고 움직임으로 말한다(사용자 지시, 09-23).
  */
 
+import { Gowun_Batang } from 'next/font/google'
 import localFont from 'next/font/local'
 import { useEffect, useRef, useState } from 'react'
 
@@ -54,6 +55,8 @@ const displayFont = localFont({
   variable: '--font-display',
 })
 
+/** 선생님이 **말하는** 글(03 말풍선): 고운바탕. 제목체(각진 산세리프)와 결을 달리해 화면 글이 아니라 목소리로 읽히게. */
+const speechFont = Gowun_Batang({ weight: ['400', '700'], subsets: ['latin'], display: 'swap', variable: '--font-speech' })
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 
@@ -65,7 +68,7 @@ export default function IntroV3() {
      (실측: 섹션이 스크롤에 딸려 올라가 사라졌다). 조상에 overflow 가 있으면 그게
      스크롤 컨테이너가 되기 때문이다. `clip` 은 같은 일을 하면서 컨테이너를 만들지 않는다. */
   return (
-    <main className={`${displayFont.variable} break-keep bg-[#0B1830] text-white [overflow-x:clip]`}>
+    <main className={`${displayFont.variable} ${speechFont.variable} break-keep bg-[#0B1830] text-white [overflow-x:clip]`}>
       <div className="intro-grain" aria-hidden />
       <TopBar />
       <SectionNav />
@@ -229,14 +232,14 @@ function Trial() {
     const el = tilt.current
     if (!el) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return setStood(true)
+    // 화면 밖으로 완전히 나가면 다시 눕힌다 - 다시 들어올 때 또 일어선다(한 번만 서게 했더니 '사라졌다', 09-29)
     const io = new IntersectionObserver(
       (es) => {
-        if (es.some((e) => e.isIntersecting)) {
-          setStood(true)
-          io.disconnect()
-        }
+        const e = es[es.length - 1]
+        if (!e.isIntersecting) setStood(false)
+        else if (e.intersectionRatio >= 0.35) setStood(true)
       },
-      { threshold: 0.35 },
+      { threshold: [0, 0.35] },
     )
     io.observe(el)
     return () => io.disconnect()
@@ -482,12 +485,22 @@ function ParkHyeWon() {
    → 무엇이 이어지는지(막힌 곳 → 다음 수업)가 **글자로 보이게** 했다. 예시는 05·06 무대의 '품사 자리' 와 같은 이야기다.
 
    폰에서는 스크롤로 잠그지 않는다 - 전부 펼친 채 세로로 쌓는다(가로 네 칸이 설 자리가 없다). */
-const PLAIN_DAYS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4']
+/* 09-29: 카드 제목이 'Part 5 기본 문제' 같은 단원명이라 아무 뜻이 없었다(사용자).
+   이제 제목 자리에 **그날 일어난 일**을 쓴다: 오답 유형 발견 → 오답노트 → 선생님 설명 → 뒤 차시에 섞어 배정 → 졸업.
+   숫자는 한 이야기로 맞물린다: 품사 자리 10문항 중 6개 오답(60%) → 6문항 저장 → 새 문제 4/5 → 3/3. Day 도 1·2·5·9 로 벌려
+   '잊을 즈음 다시' 가 날짜에서 보이게 했다. 윗줄은 같은 날짜의 교재 순서 - 틀린 게 그대로 남는다. */
+const DAYS = ['Day 1', 'Day 2', 'Day 5', 'Day 9']
+const PLAIN_DAYS = [
+  { u: 'Unit 1', n: '6문항 틀림' },
+  { u: 'Unit 2', n: '틀린 문제는 그대로' },
+  { u: 'Unit 5', n: '품사 자리는 잊혀짐' },
+  { u: 'Unit 9', n: '같은 유형에서 또 틀림' },
+]
 const AI_DAYS = [
-  { title: 'Part 5 기본 문제', why: '첫 수업', result: '품사 자리 4/5 막힘' },
-  { title: '품사 자리 다시 보기', why: '어제 막힌 곳부터', result: '품사 자리 안정 ✓' },
-  { title: '시제로 넘어가기', why: '안정된 곳은 넘어가고', result: '시제 3/5 막힘' },
-  { title: '시제 + 품사 섞어 풀기', why: '약한 둘을 함께', result: '' },
+  { why: '첫 수업', title: '품사 자리 유형 오답률 60%', note: 'Part 5 30문항 중 품사 자리 10문항에서 6개를 틀렸어요', result: '오답노트에 6문항 저장' },
+  { why: '오답노트에서 시작', title: '틀린 이유를 선생님이 짚어 줘요', note: '6문항을 하나씩 해설하고, 같은 유형 새 문제 5개로 확인', result: '새 문제 4/5 정답' },
+  { why: '다른 단원 수업 중에', title: '잊을 즈음 다시 꺼내요', note: '시제 수업 사이에 품사 자리 3문항을 섞어 배정', result: '3/3 정답' },
+  { why: '완전 학습', title: '품사 자리, 오답노트 졸업 ✓', note: '이제 다음 약점인 시제로 넘어가요', result: '' },
 ]
 
 function LearningFlow() {
@@ -526,14 +539,15 @@ function LearningFlow() {
               <span className="text-[12.5px] text-white/40">어제 어디서 막혔든, 오늘은 다음 단원</span>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-[4%]">
-              {PLAIN_DAYS.map((u, i) => (
+              {PLAIN_DAYS.map(({ u, n }, i) => (
                 <div
                   key={u}
                   className="rounded-2xl border border-white/10 px-5 py-4"
                   style={{ opacity: plain, transform: `translateY(${lerp(10, 0, plain)}px)` }}
                 >
-                  <span className="text-[11.5px] text-white/35">Day {i + 1}</span>
+                  <span className="text-[11.5px] text-white/35">{DAYS[i]}</span>
                   <p className="mt-1 text-[15px] text-white/50">{u}</p>
+                  <p className="mt-0.5 text-[12.5px] text-white/35">{n}</p>
                 </div>
               ))}
             </div>
@@ -545,7 +559,7 @@ function LearningFlow() {
               <span className="text-[13px] font-semibold" style={{ color: '#7fa6ff' }}>
                 AI 선생님과
               </span>
-              <span className="text-[12.5px] text-white/70">어제 막힌 곳이 오늘의 수업이 됩니다</span>
+              <span className="text-[12.5px] text-white/70">틀린 유형이 오답노트가 되고, 다음 수업이 됩니다</span>
             </div>
             <div className="relative grid gap-3 md:grid-cols-4 md:gap-[4%]">
               {AI_DAYS.map((d, i) => {
@@ -564,11 +578,11 @@ function LearningFlow() {
                         transform: `translateY(${lerp(16, 0, on)}px)`,
                       }}
                     >
-                      <span className="text-[11.5px] text-white/45">Day {i + 1}</span>
-                      <p className="mt-1 text-[16px] font-semibold leading-[1.4]">{d.title}</p>
-                      <p className="mt-1 text-[12.5px]" style={{ color: '#7fa6ff', opacity: arrived }}>
-                        {d.why}
-                      </p>
+                      <span className="text-[11.5px]" style={{ color: '#7fa6ff', opacity: 0.45 + 0.55 * arrived }}>
+                        {DAYS[i]} · {d.why}
+                      </span>
+                      <p className="mt-1.5 text-[17px] font-semibold leading-[1.4]">{d.title}</p>
+                      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-white/60">{d.note}</p>
                       {d.result && (
                         <span
                           className="mt-4 inline-flex rounded-full px-2.5 py-1 text-[11.5px] font-medium"

@@ -195,7 +195,7 @@ export default function PartPracticePage() {
 
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[['푼 문항', `${today.solved}`], ['정답', `${today.correct}`], ['정답률', `${rate}%`]].map(([k, v]) => (
-              <div key={k} className="bg-white border border-[#DBEAFE] rounded-xl px-3 py-3.5 text-center">
+              <div key={k} className="bg-white border border-[#DBEAFE] rounded-lg px-3 py-3.5 text-center">
                 <div className="text-[11px] font-semibold text-[#9CA3AF]">{k}</div>
                 <div className="text-[19px] font-bold text-[#2563EB] mt-0.5">{v}</div>
               </div>
@@ -212,7 +212,7 @@ export default function PartPracticePage() {
           {wrongToday.length > 0 ? (
             <button
               onClick={() => router.push('/my-learning?tab=wrong')}
-              className="w-full text-left bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#DBEAFE] rounded-r-xl px-4 py-3.5 mb-3 hover:bg-[#F8FAFF] transition-colors"
+              className="w-full text-left bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#DBEAFE] rounded-r-lg px-4 py-3.5 mb-3 hover:bg-[#F8FAFF] transition-colors"
             >
               <p className="text-[13px] font-semibold text-[#1C1B33]">
                 오늘 틀린 {wrongToday.length}문제가 AI 오답노트에 담겼어요
@@ -226,13 +226,13 @@ export default function PartPracticePage() {
           <div className="flex gap-2 mt-5">
             <button
               onClick={() => { setShowResult(false); setRoundSeq((n) => n + 1) }}
-              className="flex-1 py-3 rounded-xl border border-[#DBEAFE] bg-white text-[#374151] font-bold text-[13px] hover:bg-[#F8FAFF] transition-colors"
+              className="flex-1 py-3 rounded-lg border border-[#DBEAFE] bg-white text-[#374151] font-bold text-[13px] hover:bg-[#F8FAFF] transition-colors"
             >
               이어서 풀기
             </button>
             <button
               onClick={() => router.push(BACK)}
-              className="flex-1 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[13px] transition-colors"
+              className="flex-1 py-3 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[13px] transition-colors"
             >
               연습 목록으로
             </button>

@@ -112,7 +112,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
       }
     >
       {/* 흰색 카드 전체 */}
-      <div className="flex flex-col h-full bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+      <div className="flex flex-col h-full bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
 
         {/* 헤더: 배지 + 제목 + 부제 */}
         <div className="px-5 pt-4 pb-3 shrink-0">
@@ -137,7 +137,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
                   <button
                     key={loc}
                     onClick={() => handleLocationSelect(loc)}
-                    className="px-4 py-2 rounded-xl border-2 border-[#2277F0]/30 bg-[#EFF6FF] text-[#2277F0] text-base font-semibold hover:border-[#2277F0] transition-colors"
+                    className="px-4 py-2 rounded-lg border-2 border-[#2277F0]/30 bg-[#EFF6FF] text-[#2277F0] text-base font-semibold hover:border-[#2277F0] transition-colors"
                   >
                     {loc}
                   </button>
@@ -152,7 +152,7 @@ export default function ScreenSP1({ onComplete, onEnd }: Props) {
     </ClassroomLayout>
     {warnMessage && (
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce-once">
-        <div className="bg-orange-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
+        <div className="bg-orange-500 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
             <path d="M9 2L16.5 15H1.5L9 2Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
             <path d="M9 7v4M9 12.5v.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>

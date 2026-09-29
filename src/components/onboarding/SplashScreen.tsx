@@ -18,7 +18,7 @@ export default function SplashScreen({ onComplete }: Props) {
       <div className="absolute bottom-[-60px] left-[-40px] w-52 h-52 rounded-full bg-ybm-blue/10 blur-2xl pointer-events-none" />
 
       <div className="text-center space-y-8 animate-fade-in z-10">
-        <div className="relative w-24 h-24 mx-auto flex items-center justify-center bg-white rounded-3xl shadow-2xl animate-float">
+        <div className="relative w-24 h-24 mx-auto flex items-center justify-center bg-white rounded-2xl shadow-2xl animate-float">
           <span className="text-slate-800 font-black text-2xl tracking-tighter">YBM</span>
         </div>
         <div className="space-y-2">
