@@ -309,7 +309,7 @@ function ToolBtn({ active, onClick, title, icon, children }: {
       title={title}
       aria-label={title}
       className={`flex items-center transition-colors ${
-        icon ? 'w-10 h-10 justify-center rounded-xl' : 'gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold'
+        icon ? 'w-10 h-10 justify-center rounded-lg' : 'gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold'
       } ${active ? 'bg-[#F97316] text-white' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}
     >
       {children}
@@ -362,7 +362,7 @@ function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row 
        조심하라는 신호는 누를 때 빨개지는 것으로 충분하다 — 흐린 색은 "못 누른다" 는 뜻이다. */
     <button onClick={clearCanvas} title="전체 지우기" aria-label="전체 지우기"
       className={`flex items-center justify-center text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors ${
-        minimal ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'}`}>
+        minimal ? 'w-10 h-10 rounded-lg' : 'w-8 h-8 rounded-lg'}`}>
       <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
     </button>
   )
@@ -539,7 +539,7 @@ export function PenFab({ drawMode, toggleDraw, attention, strokeCount, className
       className={`${anchor === 'pane' ? 'absolute' : 'fixed'} ${pos ? '' : `${bottomClass} left-4`} z-50 flex gap-2 ${
       open === 'right' ? 'flex-row-reverse items-center' : flipDown ? 'flex-col-reverse items-start' : 'flex-col items-start'} ${className ?? ''}`}>
       {/* 늘어나는 도구 판 — 접힘은 크기로만 준다(언마운트하면 늘어나는 맛이 없다) */}
-      <div className={`flex gap-0.5 rounded-2xl bg-white overflow-hidden whitespace-nowrap
+      <div className={`flex gap-0.5 rounded-xl bg-white overflow-hidden whitespace-nowrap
                        [&>*]:shrink-0 duration-200 ${
         open === 'right'
           ? `flex-row items-center transition-[max-width,opacity,padding] ${
@@ -675,7 +675,7 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
       />
       {drawMode && !hidePalette && (
         <div
-          className="z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
+          className="z-50 flex items-center gap-1.5 bg-white rounded-xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
           style={{ position: 'fixed', left: '50%', bottom: 32 }}
         >
           <PaletteButtons tool={tool} setTool={setTool} clearCanvas={clearCanvas} setDrawMode={setDrawMode} />

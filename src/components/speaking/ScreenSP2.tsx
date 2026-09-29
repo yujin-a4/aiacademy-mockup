@@ -90,7 +90,7 @@ export default function ScreenSP2({ onComplete, onEnd }: Props) {
       }
     >
       {/* 흰색 카드 전체 */}
-      <div className="flex flex-col h-full bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+      <div className="flex flex-col h-full bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
 
         {/* 헤더: 배지 + 제목 + 부제 */}
         <div className="px-5 pt-4 pb-3 shrink-0">
@@ -233,7 +233,7 @@ function PhraseContent({ turnId, canInput, onChoice }: {
             <button
               key={chip}
               onClick={onChoice}
-              className="flex-1 py-2 rounded-xl border-2 border-[#2277F0]/30 bg-[#EFF6FF] text-[#2277F0] text-base font-semibold hover:border-[#2277F0] transition-colors"
+              className="flex-1 py-2 rounded-lg border-2 border-[#2277F0]/30 bg-[#EFF6FF] text-[#2277F0] text-base font-semibold hover:border-[#2277F0] transition-colors"
             >
               {chip}
             </button>

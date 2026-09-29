@@ -57,7 +57,7 @@ export default function ScriptPanel({ title, lines, mode }: ScriptPanelProps) {
           return (
             <div
               key={i}
-              className={`flex items-start gap-3 rounded-2xl px-4 py-3.5
+              className={`flex items-start gap-3 rounded-xl px-4 py-3.5
                 ${isContinuation ? 'ml-10 bg-ybm-bg' : 'bg-white border border-ybm-border shadow-sm'}
               `}
             >

@@ -145,7 +145,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
               </div>
 
               {/* 우측 좁은 패널 */}
-              <div className="w-20 shrink-0 flex flex-col items-center justify-center gap-4 bg-white rounded-2xl border border-ybm-border shadow-sm py-4">
+              <div className="w-20 shrink-0 flex flex-col items-center justify-center gap-4 bg-white rounded-xl border border-ybm-border shadow-sm py-4">
                 <TimerRing seconds={45} running={timerRunning} size={48} onEnd={handleTimerEnd} />
 
                 <div className="w-px h-6 bg-ybm-border" />
@@ -174,7 +174,7 @@ export default function ScreenSP6({ onComplete, onEnd }: Props) {
             <div className="w-1/2 shrink-0">
               <PhotoCard src={PARK_PHOTO} className="h-full" />
             </div>
-            <div className="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-ybm-border overflow-y-auto">
+            <div className="flex-1 bg-white rounded-xl p-4 shadow-sm border border-ybm-border overflow-y-auto">
               <p className="text-sm leading-relaxed text-[#1A2B4B] whitespace-pre-line">{speech}</p>
             </div>
           </div>

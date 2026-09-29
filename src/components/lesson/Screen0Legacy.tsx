@@ -40,7 +40,7 @@ export default function Screen0Legacy({ onComplete, onEnd }: Screen0Props) {
       instructorInput={
         <button
           onClick={() => { stopCurrentAudio(); onComplete() }}
-          className="w-full py-4 rounded-2xl text-base font-bold transition-all bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.98] shadow-sm"
+          className="w-full py-4 rounded-xl text-base font-bold transition-all bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.98] shadow-sm"
         >
           수업 시작하기 →
         </button>
@@ -51,7 +51,7 @@ export default function Screen0Legacy({ onComplete, onEnd }: Screen0Props) {
 
         {/* 대형 썸네일 카드 */}
         <div className="w-full max-w-lg">
-          <div className="relative rounded-3xl overflow-hidden shadow-lg border border-ybm-border bg-white">
+          <div className="relative rounded-2xl overflow-hidden shadow-lg border border-ybm-border bg-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/part5-thumb.png"
@@ -63,9 +63,9 @@ export default function Screen0Legacy({ onComplete, onEnd }: Screen0Props) {
         </div>
 
         {/* 수업 정보 카드 */}
-        <div className="w-full max-w-lg bg-white rounded-2xl border border-ybm-border p-5 shadow-sm">
+        <div className="w-full max-w-lg bg-white rounded-xl border border-ybm-border p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#2277F0] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-[#2277F0] flex items-center justify-center shrink-0">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <rect x="3" y="2" width="14" height="16" rx="2.5" stroke="white" strokeWidth="1.5"/>
                 <path d="M7 7h6M7 10h6M7 13h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>

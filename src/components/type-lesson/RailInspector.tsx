@@ -67,7 +67,7 @@ export default function RailInspector({
               return (
                 <div
                   key={d.no}
-                  className={`rounded-xl border px-3 py-2.5 ${
+                  className={`rounded-lg border px-3 py-2.5 ${
                     active ? 'border-[#2563EB] bg-[#EFF6FF]'
                       : d.warnings.length ? 'border-[#FCA5A5] bg-[#FEF2F2]' : 'border-[#E2E8F0] bg-white'
                   }`}

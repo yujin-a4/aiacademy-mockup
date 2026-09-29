@@ -37,7 +37,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
       {/* 헤더 */}
       <header className="shrink-0 flex items-center justify-between px-5 py-3 bg-white border-b border-ybm-border">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-[#2277F0] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#2277F0] flex items-center justify-center">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <rect x="2" y="1" width="12" height="14" rx="2" stroke="white" strokeWidth="1.5"/>
               <path d="M5 5h6M5 8h6M5 11h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
@@ -55,7 +55,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
 
       {/* 강사 마무리 말풍선 */}
       {(isPlaying || !saved) && (
-        <div className="mx-4 mt-4 bg-white rounded-2xl border border-ybm-border p-4 flex items-start gap-3 shadow-sm">
+        <div className="mx-4 mt-4 bg-white rounded-xl border border-ybm-border p-4 flex items-start gap-3 shadow-sm">
           <div className="w-10 h-10 rounded-full bg-[#2277F0]/10 flex items-center justify-center shrink-0">
             <span className="text-lg"></span>
           </div>
@@ -72,7 +72,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
       <div className="flex-1 px-4 pb-6 pt-4 flex flex-col gap-4">
 
         {/* 제목 카드 */}
-        <div className="bg-[#2277F0] rounded-2xl p-5 text-white">
+        <div className="bg-[#2277F0] rounded-xl p-5 text-white">
           <p className="text-xs font-semibold opacity-80 mb-1">Part 5 문법</p>
           <h2 className="text-xl font-bold">수동태의 기본 형태</h2>
           <p className="mt-2 text-sm opacity-90 font-mono bg-white/20 inline-block px-3 py-1 rounded-lg">
@@ -81,7 +81,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
         </div>
 
         {/* 비교표 */}
-        <div className="bg-white rounded-2xl border border-ybm-border overflow-hidden shadow-sm">
+        <div className="bg-white rounded-xl border border-ybm-border overflow-hidden shadow-sm">
           <div className="grid grid-cols-2 divide-x divide-ybm-border">
             <div className="p-4 bg-gray-50">
               <p className="text-xs font-bold text-ybm-text-sub mb-2 uppercase tracking-wide">능동태 (Active)</p>
@@ -105,7 +105,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
         </div>
 
         {/* Check Point */}
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-xs font-bold text-amber-700 mb-1.5">✅ Check Point</p>
           <p className="text-sm text-amber-800 leading-relaxed">
             동사 뒤에 목적어(명사)가 사라지고, 전치사(by …)가 오거나 문장이 끝남.
@@ -113,7 +113,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
         </div>
 
         {/* 토익 빈출 포인트 */}
-        <div className="bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-ybm-border bg-[#2277F0]/5">
             <p className="font-bold text-sm text-[#2277F0]">토익 빈출 포인트</p>
           </div>
@@ -148,7 +148,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
         <div className="flex gap-3">
           <button
             onClick={handleDownload}
-            className={`flex-1 py-3.5 rounded-2xl text-sm font-semibold border-2 transition-all
+            className={`flex-1 py-3.5 rounded-xl text-sm font-semibold border-2 transition-all
               ${saved
                 ? 'border-green-400 text-green-600 bg-green-50'
                 : 'border-[#2277F0] text-[#2277F0] bg-white hover:bg-blue-50'}
@@ -158,7 +158,7 @@ export default function Screen5({ onComplete }: Screen5Props) {
           </button>
           <button
             onClick={() => { stopCurrentAudio(); onComplete() }}
-            className="flex-1 py-3.5 rounded-2xl text-sm font-semibold bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.98] transition-all shadow-sm"
+            className="flex-1 py-3.5 rounded-xl text-sm font-semibold bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.98] transition-all shadow-sm"
           >
             학습 완료 →
           </button>

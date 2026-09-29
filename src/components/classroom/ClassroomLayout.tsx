@@ -147,7 +147,7 @@ export default function ClassroomLayout({
           aria-label={panelOpen ? '강사 패널 접기' : '강사 패널 열기'}
           className={`hidden lg:flex absolute top-1/2 -translate-y-1/2 z-20
             items-center justify-center
-            w-5 h-14 rounded-l-xl
+            w-5 h-14 rounded-l-lg
             bg-white border border-ybm-border border-r-0
             shadow-sm hover:bg-ybm-bg transition-all duration-300
             ${panelOpen ? 'right-[320px] xl:right-[360px]' : 'right-0'}

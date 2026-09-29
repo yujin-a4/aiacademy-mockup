@@ -89,7 +89,7 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
               </div>
               <button
                 onClick={handleEnd}
-                className="px-5 py-2 rounded-xl bg-[#0EA5E9] hover:bg-[#0284C7] text-white font-bold text-sm transition-all active:scale-95"
+                className="px-5 py-2 rounded-lg bg-[#0EA5E9] hover:bg-[#0284C7] text-white font-bold text-sm transition-all active:scale-95"
               >
                 종료 →
               </button>
@@ -97,7 +97,7 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
           ) : (
             <button
               onClick={handleDone}
-              className="px-5 py-2 rounded-xl bg-[#2277F0] hover:bg-[#1a66d4] text-white font-bold text-sm transition-all active:scale-95 shrink-0"
+              className="px-5 py-2 rounded-lg bg-[#2277F0] hover:bg-[#1a66d4] text-white font-bold text-sm transition-all active:scale-95 shrink-0"
             >
               정답 확인
             </button>
@@ -113,7 +113,7 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
         />
 
         {/* 지시문 + 지문 */}
-        <div className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4">
+        <div className="bg-white rounded-xl border border-ybm-border shadow-sm px-5 py-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="bg-[#0EA5E9] text-white text-xs font-bold px-3 py-0.5 rounded-full">지시문</span>
           </div>
@@ -134,7 +134,7 @@ export default function Part7ConvAIScreen({ onEnd, engine = 'elevenlabs' }: Prop
         </div>
 
         {/* 문항 */}
-        <div className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4">
+        <div className="bg-white rounded-xl border border-ybm-border shadow-sm px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
             <span className="bg-[#0EA5E9] text-white text-xs font-bold px-3 py-0.5 rounded-full">문항</span>
           </div>
@@ -164,7 +164,7 @@ function QuestionCard({
   revealed: boolean
 }) {
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm p-5 transition-all
+    <div className={`bg-white rounded-xl border shadow-sm p-5 transition-all
       ${q.number === 148 ? 'border-[#0EA5E9]/50 ring-1 ring-[#0EA5E9]/20' : 'border-ybm-border'}
     `}>
       <p className="text-sm font-bold text-[#1A2B4B] mb-3 leading-snug">
@@ -194,7 +194,7 @@ function QuestionCard({
               key={choice.id}
               onClick={() => onSelect(choice.id)}
               disabled={revealed}
-              className={`flex items-center gap-3 w-full text-left rounded-xl px-4 py-2.5 transition-all active:scale-[0.98] ${cls}
+              className={`flex items-center gap-3 w-full text-left rounded-lg px-4 py-2.5 transition-all active:scale-[0.98] ${cls}
                 ${revealed ? 'cursor-default' : 'cursor-pointer'}
               `}
             >
@@ -213,7 +213,7 @@ function QuestionCard({
       </div>
 
       {revealed && (
-        <div className="mt-3 bg-[#F0F9FF] border border-[#0EA5E9]/30 rounded-xl px-4 py-3">
+        <div className="mt-3 bg-[#F0F9FF] border border-[#0EA5E9]/30 rounded-lg px-4 py-3">
           <p className="text-xs font-bold text-[#0EA5E9] mb-1">해설</p>
           <p className="text-xs text-[#1A2B4B] leading-relaxed">{q.explanation}</p>
         </div>

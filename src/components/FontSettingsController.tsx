@@ -19,7 +19,7 @@ export default function FontSettingsController() {
   ]
 
   return (
-    <div className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-sm space-y-3 font-sans">
+    <div className="bg-white border border-[#DBEAFE] rounded-xl p-4 shadow-sm space-y-3 font-sans">
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-bold text-[#1C1B33]">보기 설정</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0">

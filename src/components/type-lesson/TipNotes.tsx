@@ -224,13 +224,13 @@ export function TipCard({ tip, flying, onClose, nudge }: {
       <div
         ref={boxRef}
         style={fly ? { transform: `translate(${fly.x}px, ${fly.y}px) scale(0.06)`, opacity: 0 } : undefined}
-        className={`w-full max-w-[520px] max-h-full overflow-y-auto rounded-2xl bg-white border border-[#E3EBF6]
+        className={`w-full max-w-[520px] max-h-full overflow-y-auto rounded-xl bg-white border border-[#E3EBF6]
                     shadow-[0_12px_44px_rgba(37,99,235,0.13)]
                     ${flying ? 'transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
                       : `transition-all duration-300 ${shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}`}>
 
         {/* 노트 머리 — (09-28 왼쪽 빨간 세로줄은 뺐다, 사용자 지정) */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#EEF2F7] rounded-t-2xl bg-white">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#EEF2F7] rounded-t-xl bg-white">
           <CheckIcon className="w-[18px] h-[18px] text-[#2563EB] shrink-0" />
           <span className="text-[13px] font-black text-[#1C1B33] tracking-tight">토익 TIP</span>
           {onClose && (
@@ -394,7 +394,7 @@ export function ConceptBoard({ tip, open, flying }: {
                   ${flying
         /* 접히는 동안에는 **모서리를 둥글려** 판이 아니라 한 장의 카드로 보이게 한다.
            스크롤도 잠근다 — 줄어드는 중에 내용이 흔들리면 빨려 들어가는 느낌이 깨진다. */
-        ? 'rounded-3xl overflow-hidden pointer-events-none origin-center transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
+        ? 'rounded-2xl overflow-hidden pointer-events-none origin-center transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
         : ''}`}>
       <div className="min-h-full flex flex-col px-5 md:px-10 lg:px-14 py-6 md:py-9">
         {/* 슬라이드 머리 — 여기가 어디인지 한 줄 */}
@@ -415,7 +415,7 @@ export function ConceptBoard({ tip, open, flying }: {
         {/* 규칙 카드 — 세로로 쌓되 **한 장 안에 다 들어오게** 한다(스크롤은 최후의 수단) */}
         <div className="flex-1 flex flex-col justify-center gap-3 md:gap-4 pb-2">
           {steps.map((s, i) => (
-            <div key={i} className="flex items-start gap-3 md:gap-4 rounded-2xl bg-white border border-[#E3EBF6]
+            <div key={i} className="flex items-start gap-3 md:gap-4 rounded-xl bg-white border border-[#E3EBF6]
                                     shadow-[0_2px_16px_rgba(37,99,235,0.07)] px-4 md:px-6 py-4 md:py-5">
               <span className="shrink-0 w-7 h-7 md:w-9 md:h-9 rounded-full bg-[#2563EB] text-white
                                text-[13px] md:text-[15px] font-black flex items-center justify-center">{s.n}</span>
@@ -428,7 +428,7 @@ export function ConceptBoard({ tip, open, flying }: {
         </div>
 
         {tip.vocab.length > 0 && (
-          <div className="mt-5 rounded-2xl bg-[#FFFBF5] border border-[#F5E7D0] px-4 md:px-6 py-3.5">
+          <div className="mt-5 rounded-xl bg-[#FFFBF5] border border-[#F5E7D0] px-4 md:px-6 py-3.5">
             <p className="text-[11px] md:text-[12px] font-black text-[#B98B3E] mb-1.5">핵심 어휘</p>
             <VocabList items={tip.vocab} />
           </div>
@@ -573,7 +573,7 @@ export function TipSheet({ kind, tips, onClose }: {
         <HandFont />
         {kind === 'tip'
           ? ordered.map((s, i) => (
-            <div key={i} className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-2.5">
+            <div key={i} className="rounded-lg border border-[#EEF2F7] bg-white px-3 py-2.5">
               <p className="text-[10.5px] font-black text-[#94A3B8] mb-1">{s.qNo}번 문제</p>
               <div className="space-y-0.5">
                 {s.tip.body.map((line, j) => <TipLine key={j} text={line} />)}
@@ -581,7 +581,7 @@ export function TipSheet({ kind, tips, onClose }: {
             </div>
           ))
           : (
-            <div className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-2.5">
+            <div className="rounded-lg border border-[#EEF2F7] bg-white px-3 py-2.5">
               <VocabList items={vocab} />
             </div>
           )}

@@ -77,7 +77,7 @@ export function TutorChatModal({
   return (
     <aside
       ref={modalRef}
-      className="fixed z-40 w-[min(400px,92vw)] bg-white rounded-3xl border border-gray-200 overflow-hidden flex flex-col"
+      className="fixed z-40 w-[min(400px,92vw)] bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col"
       style={{
         height: 'min(600px, 80dvh)',
         boxShadow: '0 12px 48px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)',
@@ -114,7 +114,7 @@ export function TutorChatModal({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imgSrc} alt={name} className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
           <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : `${name} 강사와 대화를 시작해요`}</p>
-          <button onClick={onStartAgent} disabled={connecting} className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
+          <button onClick={onStartAgent} disabled={connecting} className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
         </div>
       ) : chatMode === 'text' ? (
         <>
@@ -122,7 +122,7 @@ export function TutorChatModal({
             {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
               </div>
             ))}
           </div>
@@ -143,7 +143,7 @@ export function TutorChatModal({
           </div>
           <p className="text-gray-500 text-[12px] font-semibold mb-1">{name} AI 강사</p>
           {lastAi && (
-            <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
+            <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
               <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
             </div>
           )}
@@ -168,7 +168,7 @@ export function TutorFloatingWidget({ imgSrc, name = '박혜원', connected, isS
   return (
     <button onClick={onOpen} aria-label="강사와 대화 열기" className="fixed bottom-5 right-4 z-30 flex items-end gap-2.5 text-left">
       {(lastAi || !connected || nudge) && (
-        <span className={`block max-w-[240px] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] leading-snug shadow-lg line-clamp-2 ${
+        <span className={`block max-w-[240px] rounded-xl rounded-br-sm px-3.5 py-2.5 text-[13px] leading-snug shadow-lg line-clamp-2 ${
           nudge ? 'bg-[#2563EB] text-white font-semibold animate-bounce-in' : 'bg-white border border-gray-200 text-gray-700'
         }`}
           style={{ boxShadow: '0 4px 20px rgba(34,119,240,0.12), 0 1px 4px rgba(0,0,0,0.08)' }}>

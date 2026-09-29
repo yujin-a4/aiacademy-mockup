@@ -17,7 +17,7 @@ interface AnswerFeedbackProps {
  */
 export default function AnswerFeedback({ correct, correctAnswer, explanation }: AnswerFeedbackProps) {
   return (
-    <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2
+    <div className={`rounded-lg px-4 py-3 text-sm flex items-start gap-2
       ${correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
     `}>
       {/* 정답이면 와옹이가 전구를 켠다. 오답은 이모지 그대로 — 틀린 걸 축하할 일은 아니다. */}

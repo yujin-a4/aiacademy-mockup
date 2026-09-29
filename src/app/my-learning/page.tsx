@@ -109,7 +109,7 @@ function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }
   return (
     <Link
       href={`/my-learning/wrong/${item.id}`}
-      className="flex bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-2xl px-4 py-3 items-center gap-3 hover:border-[#C7D2FE] transition-all"
+      className="flex bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-xl px-4 py-3 items-center gap-3 hover:border-[#C7D2FE] transition-all"
     >
       {showDate && (
         <div className="text-center shrink-0 w-8">
@@ -117,7 +117,7 @@ function WrongItem({ item, showDate }: { item: WrongAnswer; showDate?: boolean }
           <p className="text-[10px] text-[#9CA3AF] leading-snug">{item.partLabel}</p>
         </div>
       )}
-      <div className="w-8 h-8 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center shrink-0">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
         </svg>
@@ -159,7 +159,7 @@ function Sidebar() {
       <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
-            <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
               <span className="text-white font-black text-[10px] tracking-tight">YBM</span>
             </div>
             <span className="text-[#1C1B33] font-bold text-[15px]">AI Course</span>
@@ -172,7 +172,7 @@ function Sidebar() {
 
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item, i) => {
-          const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
+          const cls = `w-full flex items-center rounded-lg text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
           return (
             <Link key={item.label} href={item.href} className={cls}>
               <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
@@ -184,7 +184,7 @@ function Sidebar() {
 
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
         <div className="mb-2 h-px bg-[#DBEAFE]"/>
-        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <Link href="/settings/account" className={`w-full flex items-center rounded-lg text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           {open && <span className="animate-fade-in">설정</span>}
         </Link>
@@ -369,7 +369,7 @@ function MyLearningInner() {
 
             {/* AI 넛지 배너 */}
             {wrongAnswers.length > 0 && (
-              <div className="max-w-[680px] bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#DBEAFE] rounded-r-xl rounded-l-none flex items-center gap-3 px-4 py-3 mb-5 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+              <div className="max-w-[680px] bg-white border-l-4 border-[#06B6D4] border-y border-r border-[#DBEAFE] rounded-r-lg rounded-l-none flex items-center gap-3 px-4 py-3 mb-5 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
@@ -457,7 +457,7 @@ function MyLearningInner() {
                 </div>
                 
                 {/* Volume Selector */}
-                <div className="flex gap-2 p-1 bg-[#F3F4F6] rounded-xl w-fit">
+                <div className="flex gap-2 p-1 bg-[#F3F4F6] rounded-lg w-fit">
                   {([1, 2] as const).map((v) => (
                     <button
                       key={v}
@@ -605,7 +605,7 @@ function MyLearningInner() {
               <div className="animate-fade-in space-y-4">
                 {wrongAnswers.length === 0 ? (
                   <div className="text-center py-16">
-                    <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 rounded-xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
                       </svg>
@@ -616,8 +616,8 @@ function MyLearningInner() {
                 ) : (
                   <>
                     {/* 새 오답 알림 카드 */}
-                    <div className="bg-[#EFF6FF] border border-[#C7D2FE] rounded-2xl px-4 py-3 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shrink-0">
+                    <div className="bg-[#EFF6FF] border border-[#C7D2FE] rounded-xl px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -634,7 +634,7 @@ function MyLearningInner() {
 
                     {/* AI 분석 요약 카드 */}
                     {topCategories.length > 0 && (
-                      <div className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6] rounded-2xl p-4">
+                      <div className="bg-gradient-to-r from-[#2563EB] to-[#3B82F6] rounded-xl p-4">
                         <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1.5">AI 오답 분석 요약</p>
                         <p className="text-white font-bold text-[15px] leading-snug">
                           <span className="font-black">{topCategories[0][0]}</span> 유형이 가장 취약해요
@@ -654,15 +654,15 @@ function MyLearningInner() {
 
                     {/* 요약 지표 3개 */}
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-white border border-[#DBEAFE] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
+                      <div className="bg-white border border-[#DBEAFE] rounded-xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
                         <p className="text-[#2563EB] font-black text-[22px] leading-none">{wrongAnswers.length}</p>
                         <p className="text-[#9CA3AF] text-[11px] mt-1.5">누적 오답</p>
                       </div>
-                      <div className="bg-white border border-[#DBEAFE] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
+                      <div className="bg-white border border-[#DBEAFE] rounded-xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
                         <p className="text-[#2563EB] font-black text-[22px] leading-none">{categoryGroups.length}</p>
                         <p className="text-[#9CA3AF] text-[11px] mt-1.5">반복 유형</p>
                       </div>
-                      <div className="bg-white border border-[#DBEAFE] rounded-2xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
+                      <div className="bg-white border border-[#DBEAFE] rounded-xl p-3 text-center shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
                         <p className="text-[#059669] font-black text-[22px] leading-none">0</p>
                         <p className="text-[#9CA3AF] text-[11px] mt-1.5">복습 완료</p>
                       </div>
@@ -671,7 +671,7 @@ function MyLearningInner() {
                     {/* Primary CTA */}
                     <button
                       onClick={() => router.push('/my-learning/wrong/review')}
-                      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-xl font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3 rounded-lg font-bold text-[14px] transition-colors flex items-center justify-center gap-2"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -695,9 +695,9 @@ function MyLearningInner() {
                         {categoryGroups.length === 0 ? (
                           <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 없습니다</p>
                         ) : categoryGroups.map(([cat, items]) => (
-                          <div key={cat} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)] hover:border-[#C7D2FE] transition-all">
+                          <div key={cat} className="bg-white border border-[#DBEAFE] rounded-xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)] hover:border-[#C7D2FE] transition-all">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                              <div className="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center shrink-0">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                   <polyline points="14 2 14 8 20 8"/>
@@ -731,9 +731,9 @@ function MyLearningInner() {
                     {wrongSubTab === '파트별' && (
                       <div className="space-y-3">
                         {partGroups.map(([part, items]) => (
-                          <div key={part} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)] hover:border-[#C7D2FE] transition-all">
+                          <div key={part} className="bg-white border border-[#DBEAFE] rounded-xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)] hover:border-[#C7D2FE] transition-all">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center shrink-0">
+                              <div className="w-10 h-10 rounded-lg bg-[#EFF6FF] flex items-center justify-center shrink-0">
                                 <span className="text-[#2563EB] font-black text-[12px]">{part.replace('Part ', 'P')}</span>
                               </div>
                               <div className="flex-1 min-w-0">
@@ -763,7 +763,7 @@ function MyLearningInner() {
                         {topCategories.length === 0 ? (
                           <p className="text-center text-[#9CA3AF] text-[13px] py-8">분석할 오답 데이터가 부족합니다</p>
                         ) : topCategories.map(([cat, items], idx) => (
-                          <div key={cat} className="bg-white border border-[#DBEAFE] rounded-2xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
+                          <div key={cat} className="bg-white border border-[#DBEAFE] rounded-xl p-4 shadow-[0_1px_6px_rgba(37,99,235,0.05)]">
                             <div className="flex items-start gap-3 mb-2">
                               <span className="w-6 h-6 rounded-full bg-[#2563EB] text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
                               <div className="flex-1 min-w-0">
@@ -794,7 +794,7 @@ function MyLearningInner() {
             {/* ── 보카런 ── */}
             {tab === 'voca' && (
               <div className="max-w-[680px] animate-fade-in space-y-3">
-                <div className="bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-2xl p-5">
+                <div className="bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-xl p-5">
                   <div className="flex items-start gap-4">
                     <Ring current={18} total={50} />
                     <div className="flex-1 min-w-0">
@@ -808,7 +808,7 @@ function MyLearningInner() {
                         ].map((m) => (
                           <button key={m.label}
                             onClick={() => { initTodayWords(); router.push(m.href) }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EFF6FF] text-[#2563EB] hover:bg-[#E0E7FF]'}`}>
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors ${m.color === 'cyan' ? 'border-[#A5F3FC] bg-[#ECFEFF] text-[#0891B2] hover:bg-[#CFFAFE]' : 'border-[#C7D2FE] bg-[#EFF6FF] text-[#2563EB] hover:bg-[#E0E7FF]'}`}>
                             {m.label === '플래시카드' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>}
                             {m.label === '퀴즈' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
                             {m.label === '받아쓰기' && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>}
@@ -822,8 +822,8 @@ function MyLearningInner() {
 
                 <p className="text-[#374151] text-[13px] font-semibold px-1">단어장</p>
                 {VOCA_BOOKS_STATIC.map((book) => (
-                  <div key={book.name} className="bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: book.bg }}>
+                  <div key={book.name} className="bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-xl px-4 py-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: book.bg }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={book.tc} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                       </svg>
@@ -843,9 +843,9 @@ function MyLearningInner() {
 
                 <button
                   onClick={() => router.push('/my-learning/voca/saved')}
-                  className="w-full bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-2xl px-4 py-3.5 flex items-center gap-3 hover:border-[#FDE68A] hover:shadow-md transition-all text-left"
+                  className="w-full bg-white border border-[#DBEAFE] shadow-[0_1px_8px_rgba(37,99,235,0.06)] rounded-xl px-4 py-3.5 flex items-center gap-3 hover:border-[#FDE68A] hover:shadow-md transition-all text-left"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-[#FEF9C3] flex items-center justify-center shrink-0">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>

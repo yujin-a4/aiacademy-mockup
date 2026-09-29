@@ -279,7 +279,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
 
       {/* ── 대화 transcript ── */}
       <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
-        <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-ybm-border p-3 flex flex-col gap-2">
+        <div className="flex-1 overflow-y-auto bg-white rounded-lg border border-ybm-border p-3 flex flex-col gap-2">
           {messages.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-4">
               <p className="text-xs text-ybm-text-sub leading-relaxed">
@@ -292,7 +292,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
           ) : (
             messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
+                <div className={`max-w-[85%] px-3 py-2 rounded-lg text-xs leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-cr-accent text-white rounded-br-sm'
                     : 'bg-ybm-bg text-ybm-text rounded-bl-sm'
@@ -304,7 +304,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
           )}
           {transcribing && (
             <div className="flex justify-end">
-              <div className="max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed bg-cr-accent/40 text-white rounded-br-sm italic">
+              <div className="max-w-[85%] px-3 py-2 rounded-lg text-xs leading-relaxed bg-cr-accent/40 text-white rounded-br-sm italic">
                 (Scribe로 전사 중...)
               </div>
             </div>
@@ -346,12 +346,12 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendText()}
                 placeholder="메시지 입력 (음성 대화 중에도 가능)"
                 disabled={thinking}
-                className="flex-1 text-xs px-3 py-2 rounded-xl border border-ybm-border focus:outline-none focus:border-cr-accent bg-white disabled:opacity-50"
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-ybm-border focus:outline-none focus:border-cr-accent bg-white disabled:opacity-50"
               />
               <button
                 onClick={sendText}
                 disabled={!input.trim() || thinking}
-                className="px-3 py-2 bg-cr-accent text-white rounded-xl text-xs font-semibold disabled:opacity-40 transition-opacity"
+                className="px-3 py-2 bg-cr-accent text-white rounded-lg text-xs font-semibold disabled:opacity-40 transition-opacity"
               >
                 전송
               </button>
@@ -359,7 +359,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
 
             <button
               onClick={endCall}
-              className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors"
+              className="w-full py-2 rounded-lg border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors"
             >
               대화 종료
             </button>
@@ -367,7 +367,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
         ) : (
           <button
             onClick={startCall}
-            className="w-full py-3 rounded-xl bg-cr-accent text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shrink-0"
+            className="w-full py-3 rounded-lg bg-cr-accent text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shrink-0"
           >
             🎙 {INSTRUCTOR_NAME} 선생님과 대화 시작하기
           </button>
@@ -375,7 +375,7 @@ export default function VertexConvAIPanel({ questionCode, lessonType }: PanelPro
       </div>
 
       {/* ── 테스트 정보: 이 엔진이 어떻게 동작하는지 ── */}
-      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-lg bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
         <p className="font-bold text-ybm-text mb-1">이 화면 구조: ElevenLabs Scribe STT + Vertex AI(Gemini) + ElevenLabs TTS</p>
         <p>학생 발화(녹음) → <code className="px-1 bg-white rounded">/api/stt</code>(ElevenLabs Scribe, 배치 전사 — 실시간 스트리밍이 아니라서 녹음 종료 후에만 텍스트로 변환)
           → <code className="px-1 bg-white rounded">/api/tutor</code>(DB 레일 엔진, ElevenLabs 패널과 동일)가 채점·진행 결정

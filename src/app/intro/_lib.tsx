@@ -189,7 +189,9 @@ export function usePlayhead(scroll: number, stops: readonly number[], durs: read
       // 지금 놓인 칸의 속도로 간다(칸마다 걸리는 시간이 다르다)
       let i = 0
       while (i < n - 2 && (dir > 0 ? cur.current >= stops[i + 1] : cur.current > stops[i + 1])) i++
-      const rate = (stops[i + 1] - stops[i]) / durs[i]
+      // 재생 중에 또 내렸으면(목표가 여러 칸 앞) 남은 칸 수만큼 빨리 간다 - 입력이 재생에 막혀 답답하지 않게
+      const ahead = stops.filter((s) => s > cur.current && s <= goal).length
+      const rate = ((stops[i + 1] - stops[i]) / durs[i]) * Math.max(1, ahead)
       const next = cur.current + dir * rate * dt
       cur.current = dir > 0 ? Math.min(goal, next) : Math.max(goal, next)
       setP(cur.current)
@@ -211,7 +213,9 @@ export function usePlayhead(scroll: number, stops: readonly number[], durs: read
   return p
 }
 
-/** 보이면 한 번 재생(0 → 1, dur 초). 스크럽 대신 쓰는 짝. 한 번 끝나면 1 에 머문다.
+/** 보이면 재생(0 → 1, dur 초). 스크럽 대신 쓰는 짝. 끝나면 1 에 머물고,
+ *  **화면 밖으로 완전히 나가면 0 으로 되감아** 다음에 들어올 때 다시 돈다
+ *  (한 번만 돌게 했더니 위로 갔다 다시 내려오면 '애니메이션이 사라졌다', 09-29 사용자).
  *  threshold = 요소가 얼마나 보여야 시작하나. 움직임 줄이기 설정이면 바로 1. */
 export function usePlayOnView(ref: React.RefObject<HTMLElement>, dur: number, threshold = 0.35) {
   const [k, setK] = useState(0)
@@ -224,10 +228,19 @@ export function usePlayOnView(ref: React.RefObject<HTMLElement>, dur: number, th
     }
     let raf = 0
     let start = 0
+    let playing = false
     const io = new IntersectionObserver(
       (es) => {
-        if (!es.some((e) => e.isIntersecting)) return
-        io.disconnect()
+        const e = es[es.length - 1]
+        if (!e.isIntersecting) {
+          cancelAnimationFrame(raf)
+          playing = false
+          setK(0)
+          return
+        }
+        if (playing || e.intersectionRatio < threshold) return
+        playing = true
+        start = 0
         const tick = (t: number) => {
           if (!start) start = t
           const v = Math.min(1, (t - start) / 1000 / dur)
@@ -236,7 +249,7 @@ export function usePlayOnView(ref: React.RefObject<HTMLElement>, dur: number, th
         }
         raf = requestAnimationFrame(tick)
       },
-      { threshold },
+      { threshold: [0, threshold] },
     )
     io.observe(el)
     return () => {
@@ -260,13 +273,15 @@ const scrollToY = (y: number, immediate: boolean) => {
  *
  *  왜: 멈춤 자리를 스크롤 위에 깔아 두는 방식(40vh 간격)은 한 번 휙 굴리면 관성으로 서너 칸을 한꺼번에 지나갔다
  *  ("스크롤 한 번에 너무 많이 가버린다", 사용자). 기기마다 한 번 굴림의 거리가 달라서 간격으로는 못 막는다.
- *  - 트랙패드는 한 번 쓸어도 관성 휠 이벤트가 1초 가까이 이어진다 → **휠이 450ms 잠잠해져야** 새 제스처로 보고,
- *    걸음 사이는 **최소 0.9초** 벌린다(느린 기기·무거운 장면에서는 관성 이벤트 사이가 300ms 넘게 벌어졌다).
+ *  - 트랙패드는 한 번 쓸어도 관성 휠 이벤트가 1초 가까이 이어진다 → **휠이 250ms 잠잠해져야** 새 제스처로 보고,
+ *    걸음 사이는 **최소 0.45초** 벌린다(느린 기기·무거운 장면에서는 관성 이벤트 사이가 300ms 넘게 벌어졌다).
  *  - 트랙(`el`)은 화면 두 장 높이면 된다. 들어오면 윗끝(아래로 올 때)·아랫끝(위로 올 때)에 딱 붙인다.
  *  - 놓을 때는 잠깐(1.2초) 다시 붙잡지 않는다 - 빠져나가는 스크롤이 트랙을 지나가며 도로 잡혔다.
- *  - **올라갈 때는 한 걸음씩 되감지 않는다**("그냥 빠르게 올라가도 된다", 사용자). 위로 한 번 = 첫 화면(히어로)으로 곧장.
- *    아래 구간에서 올라와 무대에 들어와도 마찬가지로 첫 화면에서 시작한다(무대가 페이지 맨 위라 위에 다른 게 없다). */
-export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) {
+ *  - 올라갈 때도 **한 걸음씩** 되돌아간다(09-29 "순차적으로 올라가야 하는 거 아님?", 사용자 - 전에는 위로 한 번 = 히어로로 곧장).
+ *    되감기는 재생하지 않고 곧장 앞 멈춤 자리로 간다(usePlayhead). 아래 구간에서 올라와 들어오면 마지막 장면에서 시작한다. */
+export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number, canLeave: () => boolean = () => true) {
+  const canLeaveRef = useRef(canLeave)
+  canLeaveRef.current = canLeave
   const [step, setStep] = useState(0)
   const stepRef = useRef(0)
   stepRef.current = step
@@ -295,8 +310,8 @@ export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) 
       scrollToY(b.end + window.innerHeight, false) // 다음 섹션 윗끝에 정확히 선다
     }
     const move = (dir: 1 | -1) => {
-      if (dir < 0) return setStep(0) // 올라갈 때는 첫 화면으로 곧장(되감기 없음)
-      if (stepRef.current + 1 > count - 1) return release()
+      if (dir < 0) return setStep(Math.max(0, stepRef.current - 1)) // 올라갈 때도 한 걸음씩
+      if (stepRef.current + 1 > count - 1) return canLeaveRef.current() ? release() : undefined // 마지막 장면 재생 중이면 기다린다
       setStep(stepRef.current + 1)
     }
     let lastY = window.scrollY
@@ -309,8 +324,8 @@ export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) 
         engaged = true
         lenisRef.current?.stop()
         const b = bounds()
-        // 위에서 내려오면 윗끝에 붙인다. 아래에서 올라오면 첫 화면으로 곧장 돌려놓는다.
-        if (up) setStep(0)
+        // 위에서 내려오면 윗끝에 붙인다. 아래에서 올라오면 마지막 장면부터 한 걸음씩 되돌아간다.
+        if (up) setStep(count - 1)
         scrollToY(b.top, true)
         lastY = window.scrollY
       }
@@ -319,7 +334,7 @@ export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) 
     const onWheel = (e: WheelEvent) => {
       if (swallow) {
         const now = performance.now()
-        const still = now - lastWheel < 450
+        const still = now - lastWheel < 250
         lastWheel = now
         if (still) {
           e.preventDefault()
@@ -335,9 +350,10 @@ export function useStageSteps(ref: React.RefObject<HTMLElement>, count: number) 
       /* 두 겹으로 막는다. 무거운 장면(블록 물리)이 돌면 관성 휠 이벤트가 250ms 씩 벌어져 들어와
          '잠잠해지면 새 제스처' 규칙만으로는 한 번 쓸기가 여러 걸음이 됐다(실측: 한 번에 끝까지 가서 페이지로 빠짐). */
       const now = performance.now()
-      const fresh = now - lastWheel > 450
+      // 09-29: 450/900 → 250/450ms. 걸음 사이가 길어 입력이 먹히고 스크롤이 느리게 느껴졌다(사용자).
+      const fresh = now - lastWheel > 250
       lastWheel = now
-      if (fresh && now - lastStep > 900 && Math.abs(e.deltaY) > 2) {
+      if (fresh && now - lastStep > 450 && Math.abs(e.deltaY) > 2) {
         lastStep = now
         move(e.deltaY > 0 ? 1 : -1)
       }

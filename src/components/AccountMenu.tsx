@@ -40,11 +40,11 @@ export default function AccountMenu({ userName }: { userName: string }) {
 
       {/* 드롭다운 */}
       {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] w-[220px] bg-white border border-[#DBEAFE] rounded-2xl shadow-xl shadow-black/10 z-50 overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-[calc(100%+8px)] w-[220px] bg-white border border-[#DBEAFE] rounded-xl shadow-xl shadow-black/10 z-50 overflow-hidden animate-fade-in">
           {/* 유저 정보 */}
           <div className="px-4 py-3.5 border-b border-[#F3F4F6]">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#60A5FA] to-[#2563EB] flex items-center justify-center text-white font-black text-[13px] shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#60A5FA] to-[#2563EB] flex items-center justify-center text-white font-black text-[13px] shrink-0">
                 {userName ? userName[0].toUpperCase() : 'U'}
               </div>
               <div className="min-w-0">

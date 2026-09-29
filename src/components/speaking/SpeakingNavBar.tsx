@@ -19,7 +19,7 @@ export default function SpeakingNavBar({ onNext, highlighted = false }: Props) {
       <button
         onClick={() => { stopCurrentAudio(); prevScreen() }}
         disabled={currentScreen === 0}
-        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all
           ${currentScreen === 0
             ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
             : 'text-ybm-text hover:bg-ybm-bg active:scale-95'}
@@ -37,7 +37,7 @@ export default function SpeakingNavBar({ onNext, highlighted = false }: Props) {
 
       <button
         onClick={() => { stopCurrentAudio(); onNext() }}
-        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold active:scale-95 transition-all duration-300
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold active:scale-95 transition-all duration-300
           ${highlighted
             ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm'
             : 'text-ybm-text hover:bg-ybm-bg'}

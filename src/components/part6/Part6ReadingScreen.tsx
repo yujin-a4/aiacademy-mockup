@@ -153,7 +153,7 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
     idle: 'bg-gray-200 text-gray-500', 'selected-correct': 'bg-green-500 text-white', 'selected-wrong': 'bg-red-500 text-white', 'reveal-correct': 'bg-green-500 text-white', dimmed: 'bg-gray-200 text-gray-400',
   }[state]
   return (
-    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
+    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-lg border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
       <span className="font-medium leading-snug flex-1">{text}</span>
       {(state === 'selected-correct' || state === 'reveal-correct') && (
@@ -213,7 +213,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
           })}
         </div>
         {answered && (
-          <div className="mt-4 md:mt-5 rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+          <div className="mt-4 md:mt-5 rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
             <div className="flex items-center gap-2 mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
@@ -225,7 +225,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
         )}
       </div>
       <div className="px-4 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-white shrink-0">
-        <button onClick={onNext} disabled={!answered} className={`w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg font-bold transition-all ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 빈칸 →'}</button>
+        <button onClick={onNext} disabled={!answered} className={`w-full py-3.5 md:py-4 rounded-lg md:rounded-xl text-sm md:text-lg font-bold transition-all ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 빈칸 →'}</button>
       </div>
     </div>
   )
@@ -331,7 +331,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
             <div className="flex-1 flex flex-col min-h-0">
               {/* 강사 코치 배너 (단계별 멘트) */}
               <div className="px-5 md:px-8 pt-3 pb-1 shrink-0">
-                <div className="flex items-start gap-2.5 bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-3">
+                <div className="flex items-start gap-2.5 bg-[#F0F5FF] border border-[#BFD9FF] rounded-xl p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={TEACHER_IMG} alt="박혜원" className="w-8 h-8 rounded-full object-cover object-top border border-[#2277F0]/40 shrink-0" />
                   <div className="min-w-0">
@@ -344,7 +344,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
               {/* 단계별 뷰 */}
               <div className="flex-1 overflow-y-auto px-5 md:px-8 py-3 min-h-0">
                 {scaf.mode === 'observe' && (
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p className="text-sm font-bold text-[#1A2B4B] mb-2">빈칸 ({taught.blankNum}) 주변 읽기</p>
                     <ul className="text-[13px] text-[#475569] space-y-1.5 list-disc pl-4">
                       <li>빈칸 <b>바로 앞 문장</b>의 주어·동사를 확인해요.</li>
@@ -354,7 +354,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   </div>
                 )}
                 {scaf.mode === 'grammar' && (
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p className="text-sm font-bold text-[#1A2B4B] mb-2.5">이 빈칸은 어떤 자리일까요?</p>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {['동사', '명사', '형용사', '접속어'].map((t) => (
@@ -365,11 +365,11 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   </div>
                 )}
                 {scaf.mode === 'context' && (
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p className="text-sm font-bold text-[#1A2B4B] mb-2.5">앞뒤 관계 단서 — 접속어</p>
                     <div className="grid grid-cols-2 gap-2">
                       {[['however', '대조'], ['therefore', '인과'], ['in addition', '첨가'], ['for example', '예시']].map(([w, k]) => (
-                        <div key={w} className="bg-white border border-gray-200 rounded-xl px-3 py-2">
+                        <div key={w} className="bg-white border border-gray-200 rounded-lg px-3 py-2">
                           <p className="text-[13px] font-bold text-[#2277F0]">{w}</p>
                           <p className="text-[11px] text-gray-500">{k}</p>
                         </div>
@@ -392,7 +392,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                       })}
                     </div>
                     {scafPick !== null && (
-                      <div className="mt-4 rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4">
+                      <div className="mt-4 rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4">
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-xs font-bold text-[#1A2B4B]">박혜원 AI 강사 해설</span>
                           <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${scafPick === taught.answer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{scafPick === taught.answer ? '✓ 정답' : '✕ 오답'}</span>
@@ -403,7 +403,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   </>
                 )}
                 {scaf.mode === 'recap' && (
-                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                     <p className="text-sm font-bold text-[#1A2B4B] mb-2">빈칸 ({taught.blankNum}) 풀이 흐름</p>
                     <ol className="text-[13px] text-[#475569] space-y-1.5 list-decimal pl-4">
                       <li>빈칸 앞뒤 문맥을 먼저 읽는다.</li>
@@ -418,12 +418,12 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
               {/* 단계 이동 */}
               <div className="px-5 md:px-8 py-3 border-t border-gray-100 bg-white shrink-0 flex items-center gap-2">
                 <button onClick={() => goStep(-1)} disabled={lessonStep === 0}
-                  className="px-4 py-3 rounded-xl text-sm font-bold text-gray-500 border border-gray-200 disabled:opacity-40 hover:bg-gray-50">← 이전</button>
+                  className="px-4 py-3 rounded-lg text-sm font-bold text-gray-500 border border-gray-200 disabled:opacity-40 hover:bg-gray-50">← 이전</button>
                 {isLastStep ? (
-                  <button onClick={goReading} className="flex-1 py-3.5 rounded-xl text-sm md:text-base font-bold bg-[#2277F0] text-white hover:bg-[#1a66d4]">실전 문제 풀기 →</button>
+                  <button onClick={goReading} className="flex-1 py-3.5 rounded-lg text-sm md:text-base font-bold bg-[#2277F0] text-white hover:bg-[#1a66d4]">실전 문제 풀기 →</button>
                 ) : (
                   <button onClick={() => goStep(1)} disabled={scaf.mode === 'answer' && !scafAnswered}
-                    className={`flex-1 py-3.5 rounded-xl text-sm md:text-base font-bold transition-all ${scaf.mode === 'answer' && !scafAnswered ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#2277F0] text-white hover:bg-[#1a66d4]'}`}>다음 단계 →</button>
+                    className={`flex-1 py-3.5 rounded-lg text-sm md:text-base font-bold transition-all ${scaf.mode === 'answer' && !scafAnswered ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#2277F0] text-white hover:bg-[#1a66d4]'}`}>다음 단계 →</button>
                 )}
               </div>
             </div>
@@ -474,7 +474,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
                 <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
-                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
+                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
               </div>
             ) : chatMode === 'text' ? (
               <>
@@ -482,7 +482,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                   {messages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                      <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                     </div>
                   ))}
                 </div>
@@ -498,7 +498,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   <img src={TEACHER_IMG} alt="박혜원" className="w-full h-full object-cover object-top" />
                 </div>
                 <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
-                {lastAi && <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
+                {lastAi && <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto"><p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p></div>}
                 <p className="text-gray-400 text-[11px] mt-1">{conversation.isSpeaking ? '강사가 말하는 중…' : '말하면 강사가 들어요'}</p>
                 <button onClick={() => { try { conversation.endSession() } catch { /* noop */ } }} className="mt-4 text-[12px] font-semibold text-gray-400">통화 종료</button>
               </div>
@@ -570,7 +570,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
     <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
       <PhaseStepper active={3} onEnd={handleEnd} />
       <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
-        <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
@@ -584,7 +584,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
             {SUMMARY_CARDS.map((c, i) => {
               const ok = results[i]
               return (
-                <div key={i} className={`rounded-2xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                <div key={i} className={`rounded-xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
                     <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
@@ -601,11 +601,11 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
             })}
           </div>
           {!summaryChecked ? (
-            <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
+            <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
           ) : (
             <>
               <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SUMMARY_CARDS.length} 정답!</p>
-              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+              <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={INSTRUCTOR_PHOTO} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
@@ -614,7 +614,7 @@ export default function Part6ReadingScreen({ onEnd, variant = 'side' }: Props) {
                 </div>
                 <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{CLOSING_SUMMARY_SCRIPT}</p>
               </div>
-              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
+              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
               <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs(['', '', '']) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
             </>
           )}

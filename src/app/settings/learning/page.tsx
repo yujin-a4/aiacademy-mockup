@@ -31,7 +31,7 @@ export default function LearningSettings() {
 
       <div className="max-w-[600px] mx-auto px-5 py-6 space-y-2">
         {/* 강사 선택하기 */}
-        <div className="bg-white border border-[#DBEAFE] rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-[#DBEAFE] rounded-xl shadow-sm overflow-hidden">
           <button
             onClick={() => setOpen((v) => !v)}
             className="w-full px-5 py-4 flex items-center gap-4 hover:bg-[#FAFCFF] transition-colors text-left"
@@ -54,7 +54,7 @@ export default function LearningSettings() {
                   <button
                     key={inst.id}
                     onClick={() => pick(inst.id)}
-                    className={`w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left border transition-all ${
+                    className={`w-full rounded-lg px-4 py-3 flex items-center gap-3 text-left border transition-all ${
                       active ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]/30' : 'border-[#E5E7EB] bg-white hover:border-[#C7D2FE]'
                     }`}
                   >
@@ -95,7 +95,7 @@ export default function LearningSettings() {
         </div>
 
         {/* 푸시알림 설정 (미구현) */}
-        <button className="w-full bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm">
+        <button className="w-full bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm">
           <div className="flex-1 min-w-0">
             <p className="text-[#1C1B33] font-semibold text-[14px]">푸시알림 설정</p>
             <p className="text-[#9CA3AF] text-[12px] mt-0.5">학습 알림, 데일리 리마인더 시간을 설정해요</p>

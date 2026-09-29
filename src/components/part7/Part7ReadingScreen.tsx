@@ -128,7 +128,7 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
   }[state]
   return (
     <button onClick={onClick} disabled={disabled}
-      className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
+      className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-lg border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
       <span className="font-medium leading-snug flex-1">{text}</span>
       {(state === 'selected-correct' || state === 'reveal-correct') && (
@@ -197,7 +197,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
           })}
         </div>
         {answered && (
-          <div className="mt-4 md:mt-5 rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+          <div className="mt-4 md:mt-5 rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
             <div className="flex items-center gap-2 mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
@@ -213,7 +213,7 @@ function QuestionView({ passage, qIndex, setQIndex, answers, onSelect, onNext, i
 
       <div className="px-4 md:px-6 py-3 md:py-4 border-t border-gray-100 bg-white shrink-0">
         <button onClick={onNext} disabled={!answered}
-          className={`w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg font-bold transition-all ${
+          className={`w-full py-3.5 md:py-4 rounded-lg md:rounded-xl text-sm md:text-lg font-bold transition-all ${
             answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.99]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}>
           {isLast ? '완료하기 →' : '다음 문제 →'}
@@ -436,7 +436,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
                 <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
                 <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
                 <button onClick={startAgent} disabled={connecting}
-                  className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">
+                  className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">
                   {connecting ? '연결 중…' : '▶ 강사와 대화 시작'}
                 </button>
               </div>
@@ -447,7 +447,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                   {messages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                      <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                     </div>
                   ))}
                 </div>
@@ -469,7 +469,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
                 </div>
                 <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
                 {lastAi && (
-                  <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
+                  <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
                     <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
                   </div>
                 )}
@@ -544,7 +544,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
       <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
         <PhaseStepper active={3} onEnd={handleEnd} />
         <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
-          <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
             {/* 헤더 + 실전 결과 */}
             <div className="flex items-center gap-3 mb-5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -564,7 +564,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
               {SUMMARY_CARDS.map((c, i) => {
                 const ok = results[i]
                 return (
-                  <div key={i} className={`rounded-2xl border p-4 transition-colors ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                  <div key={i} className={`rounded-xl border p-4 transition-colors ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-start gap-3">
                       <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
                       <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
@@ -590,7 +590,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
 
             {!summaryChecked ? (
               <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled}
-                className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.99]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                className={`w-full py-4 rounded-xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4] active:scale-[0.99]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
                 채점하기
               </button>
             ) : (
@@ -598,7 +598,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
                 <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SUMMARY_CARDS.length} 정답!</p>
 
                 {/* AI 강사 마무리 코너 */}
-                <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+                <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                   <div className="flex items-center gap-3 mb-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={INSTRUCTOR_PHOTO} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
@@ -613,7 +613,7 @@ export default function Part7ReadingScreen({ onEnd, variant = 'side' }: Props) {
                   <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{CLOSING_SUMMARY_SCRIPT}</p>
                 </div>
 
-                <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4] active:scale-[0.99]">학습 마치기 →</button>
+                <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4] active:scale-[0.99]">학습 마치기 →</button>
                 <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs(['', '', '']) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
               </>
             )}

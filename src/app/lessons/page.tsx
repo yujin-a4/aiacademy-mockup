@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboardingStore'
 import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import AccountMenu from '@/components/AccountMenu'
+import GuestResetButton from '@/components/GuestResetButton'
 import { useStreakDay } from '@/hooks/useStreakDay'
 import { TYPE_LESSONS, type TypeLesson as TypeLessonData } from '@/data/typeLearning'
 import { useCurriculumLectures, useCompletedLectures, type DbLecture } from '@/data/db/questionStore'
@@ -329,7 +330,7 @@ function Sidebar() {
       <div className={`flex items-center min-h-[60px] pt-safe-0 shrink-0 ${open ? 'px-5 justify-between' : 'justify-center'}`}>
         {open && (
           <Link href="/dashboard" className="flex items-center gap-2.5 animate-fade-in">
-            <div className="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
               <span className="text-white font-black text-[10px] tracking-tight">YBM</span>
             </div>
             <span className="text-[#1C1B33] font-bold text-[15px]">AI Course</span>
@@ -341,7 +342,7 @@ function Sidebar() {
       </div>
       <nav className={`flex-1 space-y-0.5 ${open ? 'px-3' : 'px-2'}`}>
         {NAV.map((item, i) => {
-          const cls = `w-full flex items-center rounded-xl text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
+          const cls = `w-full flex items-center rounded-lg text-[13px] font-medium transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'} ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]'}`
           return (
             <Link key={item.label} href={item.href} className={cls}>
               <span className="shrink-0">{NAV_ICONS[i](item.active)}</span>
@@ -352,7 +353,7 @@ function Sidebar() {
       </nav>
       <div className={`${open ? 'px-3' : 'px-2'} mb-3`}>
         <div className="mb-2 h-px bg-[#DBEAFE]" />
-        <Link href="/settings/account" className={`w-full flex items-center rounded-xl text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
+        <Link href="/settings/account" className={`w-full flex items-center rounded-lg text-[13px] font-medium text-[#9CA3AF] hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-all ${open ? 'gap-3 px-3 py-2.5' : 'justify-center py-2.5'}`}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           {open && <span className="animate-fade-in">설정</span>}
         </Link>
@@ -381,10 +382,10 @@ function BottomNav() {
 /* ── 리치 학습 노트 카드 (Screen5 디자인) ── */
 function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partLabel: string; lessonTitle: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
       {/* 헤더 */}
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-[#EEF2F7] bg-[#F7FAFF]">
-        <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-[#2563EB] flex items-center justify-center shrink-0">
           <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="12" height="14" rx="2" stroke="white" strokeWidth="1.5"/><path d="M5 5h6M5 8h6M5 11h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
         <div className="min-w-0">
@@ -396,7 +397,7 @@ function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partL
       <div className="p-4 md:p-5 flex flex-col gap-4">
         {/* 공식 */}
         {note.formula && (
-          <div className="bg-[#EEF4FF] border border-[#DBEAFE] rounded-xl px-4 py-3 flex items-center gap-3">
+          <div className="bg-[#EEF4FF] border border-[#DBEAFE] rounded-lg px-4 py-3 flex items-center gap-3">
             <span className="text-[11px] font-bold text-white bg-[#2563EB] px-2 py-1 rounded-md shrink-0">공식</span>
             <span className="text-[15px] font-bold font-mono text-[#1C1B33]">{note.formula}</span>
           </div>
@@ -404,7 +405,7 @@ function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partL
 
         {/* 능동 / 수동 비교표 */}
         {note.compare && (
-          <div className="rounded-xl border border-[#E5E7EB] overflow-hidden">
+          <div className="rounded-lg border border-[#E5E7EB] overflow-hidden">
             <div className="grid grid-cols-2">
               <div className="p-3.5 bg-[#F4F6FB] border-r border-[#E5E7EB]">
                 <p className="text-[12px] font-bold text-[#475569] text-center mb-2">{note.compare.leftTitle}</p>
@@ -426,14 +427,14 @@ function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partL
 
         {/* Check Point */}
         {note.checkpoint && (
-          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 flex items-start gap-2.5">
+          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-lg p-4 flex items-start gap-2.5">
             <span className="text-[10px] font-bold text-white bg-[#16A34A] px-2 py-0.5 rounded-md shrink-0 mt-0.5 whitespace-nowrap">Check point</span>
             <p className="text-[13px] text-[#713F12] leading-relaxed flex-1">{note.checkpoint}</p>
           </div>
         )}
 
         {/* 토익 빈출 포인트 */}
-        <div className="rounded-xl border border-[#FDE68A] bg-[#FFFDF5] overflow-hidden">
+        <div className="rounded-lg border border-[#FDE68A] bg-[#FFFDF5] overflow-hidden">
           <div className="px-4 py-2.5 border-b border-[#FDE68A] flex items-center gap-2 flex-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.8 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
             <p className="text-[13px] font-bold text-[#B45309]">토익 빈출 포인트</p>
@@ -472,7 +473,7 @@ function RichNoteCard({ note, partLabel, lessonTitle }: { note: StudyNote; partL
 /* ── 비법 노트 카드 (AI 강사 프리미엄/스킬 톤) ── */
 function TipSkillCard({ tip, courseTitle }: { tip: TipNote; courseTitle: string }) {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-[#FDE68A] shadow-sm">
+    <div className="bg-white rounded-xl overflow-hidden border border-[#FDE68A] shadow-sm">
       {/* 헤더 — 라이트 앰버 */}
       <div className="bg-[#FFFBEB] border-b border-[#FDE68A] px-5 py-5 relative overflow-hidden">
         <div className="absolute -right-8 -top-10 w-36 h-36 bg-[#F59E0B]/10 rounded-full" />
@@ -483,7 +484,7 @@ function TipSkillCard({ tip, courseTitle }: { tip: TipNote; courseTitle: string 
         <h2 className="text-[20px] font-bold leading-snug text-[#1C1B33] relative z-10">{tip.category} 만점 공략</h2>
         <p className="text-[12px] text-[#6B7280] mt-2 leading-relaxed relative z-10">{tip.summary}</p>
         {tip.coach && (
-          <div className="mt-4 flex items-start gap-2.5 bg-white border border-[#FDE68A] rounded-xl p-3 relative z-10">
+          <div className="mt-4 flex items-start gap-2.5 bg-white border border-[#FDE68A] rounded-lg p-3 relative z-10">
             <div className="w-8 h-8 rounded-full bg-[#F59E0B] flex items-center justify-center shrink-0">
                       <Icon name="target" className="w-[17px] h-[17px] text-white" />
                     </div>
@@ -497,7 +498,7 @@ function TipSkillCard({ tip, courseTitle }: { tip: TipNote; courseTitle: string 
       {/* 섹션 — 스킬 카드 */}
       <div className="bg-white p-4 flex flex-col gap-3">
         {tip.sections.map((sec, si) => (
-          <div key={si} className="rounded-xl border border-[#E5E7EB] overflow-hidden">
+          <div key={si} className="rounded-lg border border-[#E5E7EB] overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-2.5 bg-[#F8FAFF] border-b border-[#EEF2F7]">
               <span className="w-5 h-5 rounded-md bg-[#F59E0B] text-white text-[11px] font-black flex items-center justify-center shrink-0">{si + 1}</span>
               <p className="text-[13px] font-bold text-[#1C1B33]">{sec.label}</p>
@@ -645,7 +646,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
 
   if (course.fullyLocked) {
     return (
-      <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
+      <div className="bg-white border border-[#E5E7EB] rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-bold text-[#C4C9D4]">{heading}</p>
@@ -653,7 +654,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {course.lockReason && <span className="text-[10px] text-[#D1D5DB]">0개</span>}
-            <div className="w-7 h-7 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] flex items-center justify-center">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
           </div>
@@ -669,7 +670,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
   const complete  = isCourseComplete(course)
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
+    <div className="bg-white rounded-xl overflow-hidden border border-[#E5E7EB] shadow-[0_1px_10px_rgba(0,0,0,0.06)]">
 
       {/* 코스 헤더 */}
       <Header
@@ -727,7 +728,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
           /* 오늘의 수업 */
           if (lesson.status === 'current') return (
             <div key={lesson.id} className="relative my-2.5 -mx-1">
-              <div className="rounded-2xl overflow-hidden border border-[#C7D2FE] shadow-[0_4px_20px_rgba(37,99,235,0.16)]">
+              <div className="rounded-xl overflow-hidden border border-[#C7D2FE] shadow-[0_4px_20px_rgba(37,99,235,0.16)]">
                 <div className="bg-white px-4 pt-4 pb-3">
                   <div className="flex items-center justify-between mb-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -786,7 +787,7 @@ function CourseSection({ course, onOpenStudy, onOpenTip, labelPrefix = 'Book', c
       {/* Book 비법 노트 — 전 레슨 완료 시 해제 */}
       {course.tipNote && open && (
         <div className="px-4 pb-4 pt-1">
-          <div className="rounded-xl border border-[#E5E7EB] bg-white p-3.5">
+          <div className="rounded-lg border border-[#E5E7EB] bg-white p-3.5">
             <div className="flex items-center gap-2 mb-2.5 flex-wrap">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" className="shrink-0">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -869,7 +870,7 @@ function TypeCard({ t, lecture }: { t: TypeLessonData; lecture?: DbLecture }) {
     <button
       disabled={!playable}
       onClick={() => playable && router.push(`/lecture/${lecture!.code}${viaPractice ? '?stage=practice' : ''}`)}
-      className={`group text-left bg-white rounded-2xl border p-4 transition-all ${
+      className={`group text-left bg-white rounded-xl border p-4 transition-all ${
         playable
           ? 'border-[#E5E7EB] hover:border-[#2563EB] hover:shadow-[0_4px_20px_rgba(37,99,235,0.12)] active:scale-[0.99]'
           : 'border-[#F1F3F7] opacity-60 cursor-default'
@@ -1051,7 +1052,7 @@ const dayDone = (day: ScheduleDay, doneSeq: Set<number>, reviewDone: ReadonlySet
  *  한 줄짜리 가로 카드로 쌓으면 제목이 한 줄에 다 들어가고 눈이 위에서 아래로만 움직인다. */
 function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; onOpen: (code: string) => void }) {
   if (!lec) return (
-    <div className="rounded-2xl bg-[#F4F6FA] px-4 py-3.5 flex items-center gap-3">
+    <div className="rounded-xl bg-[#F4F6FA] px-4 py-3.5 flex items-center gap-3">
       <p className="flex-1 text-[13px] font-bold text-[#B4BCC8]">콘텐츠 준비 중이에요</p>
       <span className="text-[10px] font-bold text-[#B4BCC8] bg-white/70 px-2 py-0.5 rounded-md shrink-0">준비 중</span>
     </div>
@@ -1063,7 +1064,7 @@ function LectureTile({ lec, done, onOpen }: { lec?: DbLecture; done?: boolean; o
   return (
     <Shape
       {...(playable ? { type: 'button' as const, onClick: () => onOpen(lec.code) } : {})}
-      className={`group w-full rounded-2xl px-4 py-3.5 min-h-[64px] flex items-center gap-3 text-left ${isFgiDemo(lec) ? FGI_RING : ''} ${
+      className={`group w-full rounded-xl px-4 py-3.5 min-h-[64px] flex items-center gap-3 text-left ${isFgiDemo(lec) ? FGI_RING : ''} ${
         playable ? `${CARD} ${CARD_HOVER} cursor-pointer active:scale-[0.995] transition-transform` : ''} ${
         done ? 'bg-[#F2FCF6]' : playable ? 'bg-white' : 'bg-[#F4F6FA]'}`}>
       <div className="flex-1 min-w-0">
@@ -1100,7 +1101,7 @@ function ReviewTile({ open, onOpen }: { open: boolean; onOpen?: () => void }) {
   const Shape = open && onOpen ? 'button' : 'div'
   return (
     <Shape {...(open && onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
-      className={`group w-full rounded-2xl px-4 py-3.5 min-h-[64px] flex items-center gap-3 text-left ${
+      className={`group w-full rounded-xl px-4 py-3.5 min-h-[64px] flex items-center gap-3 text-left ${
         open ? `bg-[#F5F6FF] ${CARD} ${CARD_HOVER} cursor-pointer` : 'bg-[#F4F6FA]'}`}>
       <div className="flex-1 min-w-0">
         <p className={`text-[14px] font-bold leading-snug truncate ${open ? 'text-[#1C1B33]' : 'text-[#B4BCC8]'}`}>{REVIEW_LABEL}</p>
@@ -1160,7 +1161,7 @@ function TodayStep({ n, label, part, lc, sub, state, fresh, order = 0, wake, wai
       {...(onOpen ? { type: 'button' as const, onClick: onOpen } : {})}
       style={fresh ? { animationDelay: `${order * 0.14}s` }
         : wake ? { animationDelay: `${0.45 + Math.max(0, waitFor - 1) * 0.14}s` } : undefined}
-      className={`flex-1 min-w-0 rounded-2xl border px-3 py-3 flex flex-col gap-2.5 text-left transition-colors ${star ? FGI_RING : ''} ${
+      className={`flex-1 min-w-0 rounded-xl border px-3 py-3 flex flex-col gap-2.5 text-left transition-colors ${star ? FGI_RING : ''} ${
         fresh ? 'animate-step-ring' : wake ? 'animate-step-wake' : ''} ${
         onOpen ? 'hover:border-[#93C5FD] cursor-pointer' : ''} ${
         state === 'done' ? 'border-[#CDF0DD] bg-[#F7FCF9]'
@@ -1218,7 +1219,7 @@ function DayClosedCard({ day, onNext }: { day: ScheduleDay; onNext?: () => void 
   const router = useRouter()
   return (
     <div id={`day-${day.day}`}
-      className="animate-card-morph rounded-3xl bg-[#F2FCF6] shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
+      className="animate-card-morph rounded-2xl bg-[#F2FCF6] shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
       <div className="flex items-center gap-3">
         <span className="w-11 h-11 rounded-full bg-[#E6FAEF] flex items-center justify-center shrink-0">
           <Icon name="check" className="w-5 h-5 text-[#2FA36B]" strokeWidth={3} />
@@ -1238,14 +1239,14 @@ function DayClosedCard({ day, onNext }: { day: ScheduleDay; onNext?: () => void 
 
       <div className="flex flex-wrap items-center gap-2.5 mt-4">
         <button onClick={() => router.push('/my-learning')}
-          className="min-h-[48px] px-6 rounded-2xl bg-[#2FA36B] hover:bg-[#268A5A] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
+          className="min-h-[48px] px-6 rounded-xl bg-[#2FA36B] hover:bg-[#268A5A] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
           <Icon name="pen" className="w-4 h-4" strokeWidth={2.4} />
           자율학습에서 더 풀기
         </button>
         {/* 마지막 Day 를 닫은 뒤에는 갈 다음 날이 없다 */}
         {onNext && (
           <button onClick={onNext}
-            className="min-h-[48px] px-4 rounded-2xl text-[13px] font-bold text-[#64748B] hover:text-[#1C1B33] transition-colors">
+            className="min-h-[48px] px-4 rounded-xl text-[13px] font-bold text-[#64748B] hover:text-[#1C1B33] transition-colors">
             다음 Day 미리 시작하기 ›
           </button>
         )}
@@ -1327,7 +1328,7 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext
   if (allClosed && holdOnClose && !celebrating) return <DayClosedCard day={day} onNext={onNext} />
 
   return (
-    <div id={`day-${day.day}`} className="rounded-3xl bg-white shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
+    <div id={`day-${day.day}`} className="rounded-2xl bg-white shadow-[0_2px_6px_rgba(16,24,40,0.05),0_16px_40px_rgba(16,24,40,0.10)] px-5 py-5">
       <div className="flex items-center gap-2.5 flex-wrap">
         <span className="text-[11px] font-black tracking-wide text-[#2563EB] bg-[#EFF6FF] px-2.5 py-1 rounded-full">
           오늘 · DAY {day.day}
@@ -1336,9 +1337,8 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext
       </div>
 
       {heads.length > 0 && (
-        <p className="text-[19px] md:text-[21px] font-black text-[#1C1B33] leading-snug mt-2.5 mb-3.5 tracking-tight">
-          오늘은 <span className="text-[#2563EB]">{heads[0]}</span>
-          {heads[1] && <> 와 <span className="text-[#2563EB]">{heads[1]}</span></>}를 끝냅니다
+        <p className="text-[19px] md:text-[21px] font-bold text-[#1C1B33] leading-snug mt-2.5 mb-3.5 tracking-tight">
+          {heads.slice(0, 2).join(' · ')}
         </p>
       )}
 
@@ -1373,8 +1373,8 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext
 
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[11.5px] font-bold text-[#94A3B8]">이어서 할 것</p>
-          <p className="text-[14.5px] font-black text-[#1C1B33] truncate">
+          <p className="text-[11.5px] font-medium text-[#94A3B8]">이어서 할 것</p>
+          <p className="text-[14.5px] font-semibold text-[#1C1B33] truncate">
             {next?.lec ? splitTitle(next.lec.title).name
               : reviewOpen && !reviewDone ? REVIEW_LABEL : '오늘 일정을 다 마쳤어요'}
           </p>
@@ -1382,7 +1382,7 @@ function TodayBoard({ day, bySeq, doneSeq, reviewDone, holdOnClose, demo, onNext
         {/* 강의가 남았으면 그 강의로, 다 들었으면 **복습으로** 보낸다 — 하루는 복습으로 닫힌다 */}
         {(next?.lec || (reviewOpen && !reviewDone)) && (
           <button onClick={() => router.push(next?.lec ? `/lecture/${next.lec.code}` : `/review/${day.day}`)}
-            className="shrink-0 min-h-[48px] px-6 rounded-2xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
+            className="shrink-0 min-h-[48px] px-6 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[14.5px] font-black flex items-center gap-2 transition-colors">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21" /></svg>
             {next?.lec ? '이어서 학습' : '복습 풀기'}
           </button>
@@ -1426,13 +1426,13 @@ function DayRow({ day, bySeq, doneSeq, tone = 'plain', defaultOpen = false, focu
     /* 펼치고 접히는 것이 **이어져 보이게** 한다(09-21 사용자 지적).
        높이는 grid-rows 0fr→1fr 로 민다 — max-height 를 크게 잡아 두는 흔한 수법은 내용이
        짧으면 끝에서 뚝 끊긴다. 판 색·여백·그림자도 같은 박자(240ms)로 함께 간다. */
-    <div id={`day-${day.day}`} className={`rounded-[22px] transition-[background-color,padding] duration-[240ms] ease-out ${
+    <div id={`day-${day.day}`} className={`rounded-2xl transition-[background-color,padding] duration-[240ms] ease-out ${
       open ? `p-2 ${tone === 'done' ? 'bg-[#E9F6EF]' : 'bg-[#EDF1F8]'}` : 'p-0 bg-transparent'}`}>
       <button onClick={() => setOpen((v) => !v)}
-        className={`w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left transition-[box-shadow,background-color] duration-[240ms] ${
+        className={`w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left transition-[box-shadow,background-color] duration-[240ms] ${
           open ? 'bg-transparent' : `${CARD} ${CARD_HOVER} ${tone === 'done' ? 'bg-[#F2FCF6]' : 'bg-white'}`} ${
           !open && isFgiDay(day) ? FGI_RING : ''}`}>
-        <span className={`w-[38px] h-[38px] rounded-xl flex flex-col items-center justify-center shrink-0 ${
+        <span className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-center shrink-0 ${
           tone === 'done' ? 'bg-[#E6FAEF]' : open ? 'bg-white' : 'bg-[#F1F3F9]'}`}>
           <span className={`text-[8.5px] font-bold leading-none ${tone === 'done' ? 'text-[#8FC9A9]' : 'text-[#A3AEBE]'}`}>DAY</span>
           <span className={`text-[14px] font-black leading-none mt-0.5 ${tone === 'done' ? 'text-[#2FA36B]' : 'text-[#64748B]'}`}>{day.day}</span>
@@ -1494,7 +1494,7 @@ function AllDaysGrid({ bySeq, doneSeq, reviewDone, todayIdx, onPick }: {
                 const locked = idx > todayIdx + 1
                 return (
                   <button key={d.day} type="button" onClick={() => onPick(d.day)}
-                    className={`text-left rounded-2xl px-3.5 py-3 flex flex-col gap-2 ${locked ? '' : `${CARD} ${CARD_HOVER}`} ${
+                    className={`text-left rounded-xl px-3.5 py-3 flex flex-col gap-2 ${locked ? '' : `${CARD} ${CARD_HOVER}`} ${
                     done ? 'bg-[#F2FCF6]' : today ? 'bg-[#EFF4FF]' : locked ? 'bg-[#F4F6FA]' : 'bg-white'}`}>
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[13.5px] font-black ${
@@ -1627,7 +1627,7 @@ function CurriculumGrid({ view, onView }: {
           {past.length > 0 && (
             <div className="space-y-2">
               <button onClick={() => setPastOpen((v) => !v)}
-                className={`w-full rounded-2xl bg-[#F2FCF6] px-4 py-3 flex items-center gap-3 text-left ${CARD} ${CARD_HOVER}`}>
+                className={`w-full rounded-xl bg-[#F2FCF6] px-4 py-3 flex items-center gap-3 text-left ${CARD} ${CARD_HOVER}`}>
                 <span className="w-[26px] h-[26px] rounded-full bg-[#E6FAEF] flex items-center justify-center shrink-0">
                   <Icon name="check" className="w-3.5 h-3.5 text-[#2FA36B]" strokeWidth={3} />
                 </span>
@@ -1691,7 +1691,7 @@ function TypeGrid() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white border border-[#BFDBFE] rounded-2xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
+      <div className="bg-white border border-[#BFDBFE] rounded-xl px-4 py-3 shadow-[0_1px_8px_rgba(37,99,235,0.06)]">
         <p className="text-[13px] font-bold text-[#1C1B33]">
           문항 유형별 화면 <span className="text-[#2563EB]">{TYPE_LESSONS.length}</span>
           <span className="text-[11px] font-semibold text-[#9CA3AF] ml-1.5">· 지금 볼 수 있는 유형 {ready}</span>
@@ -1954,7 +1954,7 @@ export default function LessonsPage() {
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {allNotes.map((n) => n.locked ? (
-                        <div key={n.id} className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 opacity-80">
+                        <div key={n.id} className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 opacity-80">
                           <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center mb-2.5">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                           </div>
@@ -1963,7 +1963,7 @@ export default function LessonsPage() {
                           <p className="text-[11px] text-[#C4C9D4] mt-2">완료 시 열려요</p>
                         </div>
                       ) : (
-                        <button key={n.id} onClick={() => openStudy(n.id)} className="text-left rounded-2xl border border-[#BFDBFE] bg-[#F8FAFF] p-4 hover:border-[#2563EB] hover:shadow-md transition-all">
+                        <button key={n.id} onClick={() => openStudy(n.id)} className="text-left rounded-xl border border-[#BFDBFE] bg-[#F8FAFF] p-4 hover:border-[#2563EB] hover:shadow-md transition-all">
                           <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center mb-2.5">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                           </div>
@@ -1977,6 +1977,7 @@ export default function LessonsPage() {
                 </div>
               )}
 
+              <GuestResetButton />
             </div>
           </main>
         </div>

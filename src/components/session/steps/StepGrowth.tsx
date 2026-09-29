@@ -91,7 +91,7 @@ export default function StepGrowth({ score, previousScore, totalCompletions, onN
 
       {/* 누적 완료 횟수 */}
       <div className="text-center animate-fade-in-up" style={{ animationDelay: '1.4s' }}>
-        <div className="inline-flex items-baseline gap-1 px-5 py-2.5 bg-slate-50 rounded-2xl">
+        <div className="inline-flex items-baseline gap-1 px-5 py-2.5 bg-slate-50 rounded-xl">
           <span className="text-slate-400 text-xs">누적 수업 완료</span>
           <span className="text-slate-900 font-black text-2xl tabular-nums transition-all duration-500 mx-1">{displayedCount}</span>
           <span className="text-slate-400 text-xs">회</span>

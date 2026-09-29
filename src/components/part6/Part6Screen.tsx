@@ -213,7 +213,7 @@ export default function Part6Screen({ onEnd }: Props) {
             <div className="max-w-2xl mx-auto flex flex-col gap-4">
 
               {/* 지시문 */}
-              <div className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4">
+              <div className="bg-white rounded-xl border border-ybm-border shadow-sm px-5 py-4">
                 <span className="bg-[#6366F1] text-white text-xs font-bold px-3 py-0.5 rounded-full">지시문</span>
                 <p className="text-xs text-ybm-text-sub mt-2 leading-relaxed">
                   In this part you will read a set of texts. Each text is followed by several questions. Select the best answer for each question and mark the letter (A), (B), (C), or (D).
@@ -224,7 +224,7 @@ export default function Part6Screen({ onEnd }: Props) {
               {/* 지문 카드 */}
               <div
                 ref={passageRef}
-                className="bg-white rounded-2xl border border-ybm-border shadow-sm px-5 py-4 relative overflow-hidden"
+                className="bg-white rounded-xl border border-ybm-border shadow-sm px-5 py-4 relative overflow-hidden"
               >
                 <div className="text-xs text-ybm-text-sub mb-3 flex flex-col gap-0.5 select-none">
                   <span><b>From:</b> {set.meta.from}</span>
@@ -329,7 +329,7 @@ export default function Part6Screen({ onEnd }: Props) {
                 <button
                   onClick={() => setSubmitted(true)}
                   disabled={!allAnswered}
-                  className={`w-full py-3 rounded-2xl font-bold text-base transition-all active:scale-95
+                  className={`w-full py-3 rounded-xl font-bold text-base transition-all active:scale-95
                     ${allAnswered
                       ? 'bg-[#6366F1] hover:bg-[#4F46E5] text-white shadow-sm'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'}
@@ -338,7 +338,7 @@ export default function Part6Screen({ onEnd }: Props) {
                   정답 확인
                 </button>
               ) : (
-                <div className="bg-white rounded-2xl border border-ybm-border p-4 text-center">
+                <div className="bg-white rounded-xl border border-ybm-border p-4 text-center">
                   <p className="text-sm text-ybm-text-sub">
                     {correctCount === set.questions.length
                       ? `완벽해요! ${set.questions.length}문제 모두 정답입니다.`
@@ -432,7 +432,7 @@ function QuestionCard({
   submitted: boolean
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-ybm-border shadow-sm p-4">
+    <div className="bg-white rounded-xl border border-ybm-border shadow-sm p-4">
       <p className="text-sm font-bold text-[#1A2B4B] mb-3">
         <span className="text-[#6366F1] mr-1">{q.number}.</span>
       </p>
@@ -458,7 +458,7 @@ function QuestionCard({
               key={choice.id}
               onClick={() => onSelect(choice.id)}
               disabled={submitted}
-              className={`flex items-center gap-2.5 text-left rounded-xl px-3 py-2.5 transition-all active:scale-[0.98] ${cls}
+              className={`flex items-center gap-2.5 text-left rounded-lg px-3 py-2.5 transition-all active:scale-[0.98] ${cls}
                 ${submitted ? 'cursor-default' : 'cursor-pointer'}
               `}
             >
@@ -471,7 +471,7 @@ function QuestionCard({
         })}
       </div>
       {submitted && (
-        <div className="mt-3 bg-[#F5F3FF] border border-violet-200 rounded-xl px-3 py-2.5">
+        <div className="mt-3 bg-[#F5F3FF] border border-violet-200 rounded-lg px-3 py-2.5">
           <p className="text-xs font-bold text-[#6366F1] mb-0.5">해설</p>
           <p className="text-xs text-[#1A2B4B] leading-relaxed">{q.grammarPoint}</p>
         </div>

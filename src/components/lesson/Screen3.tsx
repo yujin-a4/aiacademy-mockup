@@ -124,7 +124,7 @@ export default function Screen3({ onComplete, onEnd, onPrev }: Screen3Props) {
 
         {/* 헤더 + Q 탭 */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#2277F0]">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#2277F0]">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <rect x="3" y="2" width="12" height="14" rx="2" stroke="white" strokeWidth="1.5"/>
               <path d="M6 6h6M6 9h6M6 12h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
@@ -197,7 +197,7 @@ export default function Screen3({ onComplete, onEnd, onPrev }: Screen3Props) {
                 key={id}
                 onClick={() => !selected && handleChoiceSelect(id)}
                 disabled={!!selected}
-                className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all
                   ${!selected
                     ? 'border-ybm-border bg-white hover:border-[#2277F0]/50 cursor-pointer active:scale-[0.98]'
                     : isSel && isCorr      ? 'border-green-400 bg-green-50'
@@ -225,7 +225,7 @@ export default function Screen3({ onComplete, onEnd, onPrev }: Screen3Props) {
 
         {/* 해설 */}
         {selected && (
-          <div className={`rounded-xl px-4 py-3 text-sm flex items-start gap-2
+          <div className={`rounded-lg px-4 py-3 text-sm flex items-start gap-2
             ${results[problemIdx] ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
           `}>
             <span className="shrink-0 text-base">{results[problemIdx] ? '✅' : '❌'}</span>
@@ -243,7 +243,7 @@ export default function Screen3({ onComplete, onEnd, onPrev }: Screen3Props) {
           <button
             onClick={() => setProblemIdx((i) => Math.max(0, i - 1))}
             disabled={problemIdx === 0}
-            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-colors
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-colors
               ${problemIdx === 0
                 ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
                 : 'text-[#2277F0] hover:bg-[#D6EAFF]'}`}
@@ -253,7 +253,7 @@ export default function Screen3({ onComplete, onEnd, onPrev }: Screen3Props) {
           <button
             onClick={() => setProblemIdx((i) => Math.min(SCREEN3_PROBLEMS.length - 1, i + 1))}
             disabled={problemIdx === SCREEN3_PROBLEMS.length - 1}
-            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold transition-colors
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-colors
               ${problemIdx === SCREEN3_PROBLEMS.length - 1
                 ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
                 : 'text-[#2277F0] hover:bg-[#D6EAFF]'}`}

@@ -16,7 +16,7 @@ export default function TutorMiniCard({ imgSrc, name = '박혜원 AI 강사', co
     <button
       onClick={onOpen}
       aria-label="강사 패널 열기"
-      className="fixed bottom-5 right-4 z-30 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-lg pl-2.5 pr-4 py-2.5 max-w-[320px] text-left hover:shadow-xl transition-shadow"
+      className="fixed bottom-5 right-4 z-30 flex items-center gap-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-lg pl-2.5 pr-4 py-2.5 max-w-[320px] text-left hover:shadow-xl transition-shadow"
       style={{ boxShadow: '0 4px 24px rgba(34,119,240,0.14), 0 1px 4px rgba(0,0,0,0.08)' }}
     >
       <span className={`relative shrink-0 block w-12 h-12 rounded-full overflow-hidden border-2 transition-all ${connected && isSpeaking ? 'border-[#2277F0] shadow-[0_0_14px_rgba(34,119,240,0.5)]' : 'border-[#2277F0]/30'}`}>

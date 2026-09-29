@@ -89,7 +89,7 @@ export default function ScreenSP3({ onComplete, onEnd }: Props) {
       }
     >
       {/* 흰색 카드 전체 */}
-      <div className="flex flex-col h-full bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+      <div className="flex flex-col h-full bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
 
         {/* 헤더: 배지 + 제목 + 부제 */}
         <div className="px-5 pt-4 pb-3 shrink-0">
