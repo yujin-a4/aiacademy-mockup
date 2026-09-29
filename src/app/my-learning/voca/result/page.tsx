@@ -42,7 +42,7 @@ export default function ResultPage() {
       </div>
 
       <div className="max-w-[600px] mx-auto px-6 -mt-10 relative z-10">
-        <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#DBEAFE]">
+        <div className="bg-white rounded-2xl p-6 shadow-xl border border-[#DBEAFE]">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-[18px] font-bold text-[#1C1B33]">오답 복습 노트</h2>
             <span className="bg-[#FEE2E2] text-[#DC2626] font-bold text-[12px] px-3 py-1 rounded-full border border-[#FECACA]">
@@ -59,7 +59,7 @@ export default function ResultPage() {
           ) : (
             <div className="space-y-3">
               {reviewWords.map(w => (
-                <div key={w.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[#FAFAFA] border border-[#DBEAFE] hover:border-[#2563EB] transition-colors">
+                <div key={w.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-[#FAFAFA] border border-[#DBEAFE] hover:border-[#2563EB] transition-colors">
                   <div>
                     <p className="text-[16px] font-bold text-[#1C1B33]">{w.word}</p>
                     <p className="text-[#6B7280] text-[13px] mt-0.5">{w.meaning}</p>
@@ -84,7 +84,7 @@ export default function ResultPage() {
         <div className="max-w-[600px] mx-auto">
           <button 
             onClick={handleFinish}
-            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/30"
+            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[16px] transition-colors shadow-lg shadow-[#2563EB]/30"
           >
             홈으로 돌아가기
           </button>

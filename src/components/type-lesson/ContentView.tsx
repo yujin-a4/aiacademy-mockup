@@ -519,7 +519,7 @@ function QuestionCard({ q, qIdx, lesson, st }: { q: QuestionItem; qIdx: number; 
             그 두 강의에서는 해설이 통째로 안 보였다. 보기별 근거가 있으면 그것대로 위에 붙고,
             이 덩어리는 그 아래 따로 깔린다 — 둘은 다른 글이다. */}
         {st.showWhy && graded && !st.hideVerdict && q.explanation && (
-          <div className="mt-2 rounded-xl border border-[#E3EBF6] bg-[#F8FAFC] px-3.5 py-2.5">
+          <div className="mt-2 rounded-lg border border-[#E3EBF6] bg-[#F8FAFC] px-3.5 py-2.5">
             <p className="text-[11px] font-black text-[#2563EB] mb-1">해설</p>
             <p className="text-[12px] leading-[1.75] text-[#334155] whitespace-pre-line">{q.explanation}</p>
           </div>
@@ -1008,16 +1008,16 @@ function ExamWeb({ doc, st, url }: { doc: PassageDoc; st: ContentState; url: str
 function ExamPhone({ doc, st }: { doc: PassageDoc; st: ContentState }) {
   const first = doc.chat?.[0]?.speaker
   return (
-    <div className="mx-auto max-w-[520px] rounded-[26px] border-[3px] border-[#111] bg-white p-3">
+    <div className="mx-auto max-w-[520px] rounded-[20px] border-[3px] border-[#111] bg-white p-3">
       {/* 상단 장식 — 실물의 봉투/말풍선 탭과 점 두 개 */}
       <div className="flex items-center gap-2 px-1 pb-2">
         <span className="w-9 h-6 border-[1.5px] border-[#111] rounded-t-[4px] flex items-center justify-center text-[10px] leading-none">✉</span>
-        <span className="w-9 h-6 border-[1.5px] border-b-0 border-[#111] rounded-t-[10px] bg-[#D6D6D6]" />
+        <span className="w-9 h-6 border-[1.5px] border-b-0 border-[#111] rounded-t-lg bg-[#D6D6D6]" />
         <span className="flex-1" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#111]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#111]" />
       </div>
-      <div className="rounded-[10px] bg-[#C9C9C9] p-2.5 md:p-3 space-y-2">
+      <div className="rounded-lg bg-[#C9C9C9] p-2.5 md:p-3 space-y-2">
         {doc.chat?.map((c) => {
           const right = !!first && c.speaker !== first
           const matched = st.matchState?.matchedTargets.has(`${doc.id}:${c.id}`)

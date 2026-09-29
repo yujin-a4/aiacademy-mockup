@@ -114,7 +114,9 @@ export default function LoginPage() {
       if (profile.studyPeriod) store.setStudyPeriod(profile.studyPeriod)
       if (profile.examDate) store.setExamDate(profile.examDate)
       if (profile.dailyTime) store.setDailyTime(profile.dailyTime)
-      if (profile.selectedInstructor) store.setSelectedInstructor(profile.selectedInstructor)
+      // 공용 guest00 은 DB 에 뭐가 저장돼 있든 늘 이도윤으로 시작한다
+      if (email === 'guest00@ybm.co.kr') store.setSelectedInstructor('lee_doyun')
+      else if (profile.selectedInstructor) store.setSelectedInstructor(profile.selectedInstructor)
       if (profile.studyRange) store.setStudyRange(profile.studyRange)
       setWelcomeProgress(100)
       setTimeout(() => router.replace('/dashboard'), 700)
@@ -153,7 +155,7 @@ export default function LoginPage() {
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-[#3B82F6] to-[#2563EB] font-sans">
       <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
       <div className="relative flex flex-col items-center gap-8 px-8 text-center">
-        <div className="w-20 h-20 bg-white/15 rounded-3xl flex items-center justify-center border border-white/25 shadow-xl backdrop-blur-sm">
+        <div className="w-20 h-20 bg-white/15 rounded-2xl flex items-center justify-center border border-white/25 shadow-xl backdrop-blur-sm">
           <img src="/logo.svg" alt="YBM" className="w-10 h-10 object-contain brightness-0 invert"
             onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
         </div>
@@ -172,7 +174,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-[#F0F4FF] flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-[1032px] min-h-[648px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] min-h-[648px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
 
         {/* ── 좌측: 비주얼 영역 ── */}
         <div className="relative md:w-[55%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-between overflow-hidden">
@@ -184,7 +186,7 @@ export default function LoginPage() {
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/30">
                   <img src="/logo.svg" alt="YBM" className="w-5 h-5 object-contain brightness-0 invert"
                     onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
                 </div>
@@ -205,7 +207,7 @@ export default function LoginPage() {
           {/* 피처 리스트 */}
           <div className="relative z-10 flex flex-col gap-3 mt-8">
             {FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+              <div key={f.title} className="flex items-start gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
                 <div className="text-white/80 mt-0.5 shrink-0">{f.icon}</div>
                 <div>
                   <p className="text-white text-[13px] font-bold">{f.title}</p>
@@ -227,14 +229,14 @@ export default function LoginPage() {
             {/* 아이디 입력 */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[#374151] text-[12px] font-semibold">아이디</label>
-              <div className={`flex items-center h-12 rounded-xl border bg-white transition-all overflow-hidden ${id ? 'border-[#2563EB] ring-2 ring-[#2563EB]/15' : 'border-[#E5E7EB]'}`}>
+              <div className={`flex items-center h-12 rounded-lg border bg-white transition-all overflow-hidden ${id ? 'border-[#2563EB] ring-2 ring-[#2563EB]/15' : 'border-[#E5E7EB]'}`}>
                 <input
                   type="text"
                   value={id}
                   onChange={e => setId(e.target.value.replace(/\s/g, ''))}
                   placeholder="ID를 입력하세요.."
                   required
-                  className="flex-1 min-w-0 h-full px-4 text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none bg-transparent rounded-l-xl"
+                  className="flex-1 min-w-0 h-full px-4 text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none bg-transparent rounded-l-lg"
                 />
                 <span className="text-[#9CA3AF] text-[13px] pr-4 select-none whitespace-nowrap shrink-0">@ybm.co.kr</span>
               </div>
@@ -249,7 +251,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 transition-all"
+                className="w-full h-12 px-4 rounded-lg border border-[#E5E7EB] text-[14px] text-[#111318] placeholder:text-[#D1D5DB] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 transition-all"
               />
             </div>
 
@@ -260,7 +262,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 w-full h-12 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#93C5FD] text-white font-bold text-[15px] rounded-xl transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
+              className="mt-1 w-full h-12 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#93C5FD] text-white font-bold text-[15px] rounded-lg transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
             >
               {loading ? (
                 <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -277,7 +279,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGuestLogin}
               disabled={loading}
-              className="w-full h-10 rounded-xl border border-dashed border-[#E5E7EB] text-[#9CA3AF] text-[12px] font-medium hover:bg-[#F9FAFB] hover:text-[#6B7280] transition-colors disabled:opacity-50"
+              className="w-full h-10 rounded-lg border border-dashed border-[#E5E7EB] text-[#9CA3AF] text-[12px] font-medium hover:bg-[#F9FAFB] hover:text-[#6B7280] transition-colors disabled:opacity-50"
             >
               guest00 (마스터) 로그인
             </button>

@@ -32,7 +32,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { BLOCK_H, BLOCK_W, usePile } from './_pile'
 
-import { ease, lerp, seg, usePointer, useTrackProgress } from '../_lib'
+import { ease, lerp, seg, usePlayhead, usePointer, useStageSteps } from '../_lib'
 
 /** 떨어지고 튕기는 곡선. 0 = 떨어지기 직전, 1 = 바닥에 붙어 멈춤.
  *
@@ -69,18 +69,6 @@ function squash(u: number) {
  *  들어오는 문턱을 짧게 잡고, **마지막 단계는 걷어내지 않는다** - 걷으면 장면 끝이 빈 화면이 된다. */
 const fadeStep = (inner: number, isLast: boolean) =>
   Math.max(0, Math.min(1, inner / 0.06, isLast ? 1 : (1 - inner) / 0.06))
-
-/** 진행률을 n 단계로 쪼갠다. 지금 몇 번째이고 그 안에서 얼마나 왔는지.
- *
- *  ⚠️ 여기 함정이 있다. `inner = prog % 1` 로 쓰면 **마지막 단계가 영영 안 뜬다.**
- *  구간 끝에서 prog 가 정확히 n 이 되고, `n % 1 === 0` 이라 마지막 걸음은 진행률 0 에
- *  붙박인다. 그리고 그 위에 걸린 fade 가 0 이라 화면이 빈다(실측: 세 장면 전부 그랬다).
- *  마지막 단계에서는 나머지를 자르지 말고 **0 에서 1 까지 끝까지 가게** 둬야 한다. */
-function stepAt(t: number, a: number, b: number, n: number) {
-  const prog = seg(t, a, b) * n
-  const step = Math.min(n - 1, Math.floor(prog))
-  return { step, inner: Math.min(1, prog - step), isLast: step === n - 1 }
-}
 
 export const INK = '#0A1526'
 export const BASE = '#0B1830'
@@ -528,13 +516,28 @@ export const UTTERANCES = [
    무대
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* 무대가 **멈춰 서는 자리**(재생 위치, BEAT 와 같은 눈금). 스크롤 한 칸 = 다음 멈춤까지 스스로 재생.
+   히어로 → 더미가 떨어짐 → "혼자서는…" 문장 → 선생님의 네 마디(하나씩) → 분석 화면 다 뜸 → 무대 끝.
+   DURS = 칸마다 걸리는 초. 읽을 것이 생기는 칸(장면이 바뀌며 첫 마디가 찍히는 칸, 분석 네 줄이 찍히는 칸)은 길게.
+   트랙은 200vh 면 된다 - 걸음은 스크롤 거리가 아니라 제스처 수로 넘긴다(스크롤 위에 깔면 한 번 휙 굴림에 서너 칸이 넘어갔다).
+   고칠 때: 멈춤 자리는 **그 장면에서 다 보인 순간**(글자가 다 찍힌 뒤)에 둔다. 중간에 두면 반쯤 뜬 채로 선다. */
+/* 09-29: 재생 시간을 절반으로("스크롤이 너무 느려졌다", 사용자). 그리고 03 의 네 마디를 스크롤 칸에서 뺐다 -
+   말풍선은 이제 **시간이 알아서 넘긴다**(SceneHuman). 03 은 멈춤 한 칸이고, 다음 한 번이면 05 까지 재생된다. */
+const STOPS = [0, 0.1684, 0.3545, 0.6649, 0.9589] as const
+const DURS = [0.7, 0.8, 1.4, 2.6] as const
+
 export function Stage() {
   const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
+  /* 제스처 한 번 = 한 걸음(useStageSteps). 분석 화면이 마지막 걸음이고, 거기서 한 번 더 내리면 페이지로 넘어간다. */
+  const pRef = useRef(0)
+  /* 분석 화면이 **다 재생되기 전에는** 무대를 놓지 않는다. 재생 중에 한 번 더 내리면 05 를 못 보고 페이지로 빠졌다(09-29 사용자). */
+  const step = useStageSteps(ref, STOPS.length, () => pRef.current >= STOPS[STOPS.length - 1] - 1e-3)
+  const p = usePlayhead(step / (STOPS.length - 1), STOPS, DURS)
+  pRef.current = p
   const pt = usePointer()
 
   return (
-    <div ref={ref} data-nav="AI 선생님" className="relative hidden lg:block lg:h-[790vh]" style={{ background: BASE }}>
+    <div ref={ref} data-nav="AI 선생님" className="relative hidden lg:block lg:h-[200vh]" style={{ background: BASE }}>
       <div className="sticky top-0 h-[100dvh] overflow-hidden break-keep">
         {/* 바닥에 깔리는 빛. 인물이 움직이는 쪽을 따라간다. */}
         <div
@@ -730,6 +733,12 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
         {/* 등장은 `.stage-rise` 로 한다. `.reveal`(IntersectionObserver) 은 여기서 못 쓴다 -
             장면이 스크롤에 따라 붙었다 떨어지는데 관찰자는 한 번 쏘고 그만둬서,
             내려갔다 올라오면 글자가 영영 안 돌아온다(실측). */}
+        {/* 이 페이지가 **YBM R&D 가운데 한 프로젝트** 라는 걸 제목보다 먼저 한 줄로 밝힌다(사용자 요청).
+            참고 페이지의 '— RULE 02' 처럼 짧은 선 + 이름. 장식이 아니라 소속 표시라 둔다. */}
+        <p className="stage-rise mb-6 flex items-center gap-3 text-[13px] font-semibold tracking-[0.02em] text-white/75">
+          <span className="block h-px w-8" style={{ background: '#7fa6ff' }} aria-hidden />
+          YBM R&amp;D · AI 어학원 프로젝트
+        </p>
         <h1 className="stage-rise display break-keep text-[clamp(2.3rem,4.6vw,4.2rem)] leading-[1.14] tracking-[-0.02em]">
           {/* 굵은 제목체라 세 줄로 쌓는다. 한 줄로 늘리면 인물이 든 패드·빛 궤적과 겹친다(1180 실측). */}
           나를 가장 잘
@@ -738,12 +747,12 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
           <br />
           <span className="em">AI 선생님</span>
         </h1>
-        <p className="stage-rise mt-9 text-[clamp(0.95rem,1.25vw,1.1rem)] leading-[2] text-white/70" style={{ animationDelay: '150ms' }}>
-          내가 어디에서 자주 막히는지,
+        {/* 전에는 "내가 어디에서 자주 막히는지, …" 세 줄이었다 - 뒤 장면들이 그대로 보여 주는 말이라 빼고,
+            대신 YBM 이 무엇을 연구하고 이 프로젝트가 그중 무엇인지를 말한다. */}
+        <p className="stage-rise mt-9 max-w-[560px] break-keep text-[clamp(0.95rem,1.25vw,1.1rem)] leading-[1.9] text-white/75" style={{ animationDelay: '150ms' }}>
+          YBM은 AI 휴먼을 활용한 학습 서비스의 <strong className="font-semibold text-white">‘가르치는 방식’</strong>을 연구합니다.
           <br />
-          어떤 방식으로 공부하고 있는지,
-          <br />
-          지금 무엇이 필요한지.
+          AI 어학원은 그 연구를 담은 R&amp;D 프로젝트 중 하나입니다.
         </p>
         <div className="stage-rise mt-11 flex flex-wrap gap-3" style={{ animationDelay: '300ms' }}>
           <a
@@ -769,11 +778,35 @@ function SceneHero({ t, pt }: { t: number; pt: { x: number; y: number } }) {
    선생님이 방금 삼킨 고민을 읽고 말을 건다. 네 마디가 차례로 갈아탄다.
    대시보드를 안 그린다 - 기획서가 "숫자나 대시보드 대신 선생님의 말" 이라고 못 박았다.
    주변에는 지금 무엇을 보고 하는 말인지 한 조각만 띄운다. */
+/** 한 마디가 머무는 초. 찍히는 데 ~0.8초, 나머지는 읽는 시간. */
+const SAY_SEC = 3.6
+
+/** 장면이 뜬 뒤 흐른 초. 움직임 줄이기 설정이면 멈춘 채 0. */
+function useElapsed() {
+  const [s, setS] = useState(0)
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let raf = 0
+    const t0 = performance.now()
+    const tick = (now: number) => {
+      setS((now - t0) / 1000)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return s
+}
+
 function SceneHuman({ t }: { t: number }) {
   const head = 1 - seg(t, 0.62, 0.8)
-  // 갈아타는 순간에만 잠깐 흐려진다. 늘 서서히 변하면 읽는 중에 흔들려서 거슬린다.
-  const { step, inner, isLast } = stepAt(t, 0.1, 0.96, UTTERANCES.length)
-  const o = fadeStep(inner, isLast)
+  /* 09-29: 네 마디는 **스크롤이 아니라 시간으로** 넘어간다("스크롤에 너무 의존하지 말고", 사용자).
+     장면이 뜨고 0.5초 뒤 첫 마디, 이후 SAY_SEC 마다 다음 마디 - 끝나면 처음부터 다시 돈다.
+     갈아타는 순간에만 잠깐 흐려진다. 늘 서서히 변하면 읽는 중에 흔들려서 거슬린다. */
+  const clock = Math.max(0, useElapsed() - 0.5) / SAY_SEC
+  const step = Math.floor(clock) % UTTERANCES.length
+  const inner = clock % 1
+  const o = fadeStep(inner, false) * (clock > 0 ? 1 : 0)
 
   return (
     <>
@@ -792,7 +825,10 @@ function SceneHuman({ t }: { t: number }) {
           {UTTERANCES[step].info}
         </span>
         {/* 빨리 찍히고 **오래 남는다.** 찍히는 동안은 못 읽으니 그 구간은 짧을수록 좋다. */}
-        <Typed text={`“${UTTERANCES[step].say}”`} p={seg(inner, 0.03, 0.28)} />
+        {/* 선생님의 말은 제목체와 다른 글꼴(--font-speech, page.tsx) - 화면의 글이 아니라 '목소리' 로 읽히게 */}
+        <span className="block [font-family:var(--font-speech),serif]">
+          <Typed text={`“${UTTERANCES[step].say}”`} p={seg(inner, 0.03, 0.25)} />
+        </span>
       </Bubble>
 
       {/* 네 마디 중 몇 번째인지. 숫자를 안 쓰고 선의 길이로만 말한다. */}
@@ -1011,13 +1047,18 @@ export function StageFlow() {
             alt="AI 휴먼 선생님이 학습자에게 말을 거는 모습을 표현한 이미지"
             className="mx-auto mb-4 h-[300px] w-auto object-contain"
           />
+          <p className="mb-4 flex items-center gap-3 text-[12.5px] font-semibold text-white/75">
+            <span className="block h-px w-6" style={{ background: '#7fa6ff' }} aria-hidden />
+            YBM R&amp;D · AI 어학원 프로젝트
+          </p>
           <h1 className="display text-[clamp(2.2rem,9vw,3rem)] leading-[1.16] tracking-[-0.02em]">
             나를 가장 잘 이해하는
             <br />
             <span className="em">AI 선생님</span>
           </h1>
-          <p className="mt-7 text-[15px] leading-[2] text-white/70">
-            내가 어디에서 자주 막히는지, 어떤 방식으로 공부하고 있는지, 지금 무엇이 필요한지.
+          <p className="mt-7 break-keep text-[15px] leading-[1.9] text-white/75">
+            YBM은 AI 휴먼을 활용한 학습 서비스의 <strong className="font-semibold text-white">‘가르치는 방식’</strong>을
+            연구합니다. AI 어학원은 그 연구를 담은 R&amp;D 프로젝트 중 하나입니다.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <a

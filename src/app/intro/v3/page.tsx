@@ -31,10 +31,11 @@
  *   · **글보다 화면.** 문단을 늘리지 말고 움직임으로 말한다(사용자 지시, 09-23).
  */
 
+import { Gowun_Batang } from 'next/font/google'
 import localFont from 'next/font/local'
 import { useEffect, useRef, useState } from 'react'
 
-import { ease, lerp, seg, useReveal, useSmoothScroll, useTrackProgress } from '../_lib'
+import { ease, lerp, seg, usePlayOnView, useReveal, useSmoothScroll } from '../_lib'
 import { BASE, BLUE, INK, Stage, StageFlow } from './_stage'
 
 /** 색면으로 뒤집는 구간의 파랑. 강조색 BLUE(#2E6BFF) 위에 흰 글자는 대비가 모자라(≈4.2:1) 한 톤 내렸다(≈5.3:1). */
@@ -54,6 +55,8 @@ const displayFont = localFont({
   variable: '--font-display',
 })
 
+/** 선생님이 **말하는** 글(03 말풍선): 고운바탕. 제목체(각진 산세리프)와 결을 달리해 화면 글이 아니라 목소리로 읽히게. */
+const speechFont = Gowun_Batang({ weight: ['400', '700'], subsets: ['latin'], display: 'swap', variable: '--font-speech' })
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 
@@ -65,7 +68,7 @@ export default function IntroV3() {
      (실측: 섹션이 스크롤에 딸려 올라가 사라졌다). 조상에 overflow 가 있으면 그게
      스크롤 컨테이너가 되기 때문이다. `clip` 은 같은 일을 하면서 컨테이너를 만들지 않는다. */
   return (
-    <main className={`${displayFont.variable} break-keep bg-[#0B1830] text-white [overflow-x:clip]`}>
+    <main className={`${displayFont.variable} ${speechFont.variable} break-keep bg-[#0B1830] text-white [overflow-x:clip]`}>
       <div className="intro-grain" aria-hidden />
       <TopBar />
       <SectionNav />
@@ -221,30 +224,25 @@ function Trial() {
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState({ scale: 0, rotate: false })
 
-  /* 태블릿이 **살짝 뒤로 누운 채** 들어오다가 화면 가운데쯤 오면 똑바로 선다(사용자 요청 "약간만").
-     스크롤마다 리렌더하지 않게 스타일을 직접 쓴다. 움직임 줄이기 설정이면 처음부터 똑바로. */
+  /* 태블릿이 **살짝 뒤로 누운 채** 있다가, 보이면 한 번에 똑바로 선다(사용자 요청 "약간만").
+     스크롤에 물리지 않고 보이는 순간 CSS 전환으로 선다 - 스크롤 한 칸 한 칸에 각도가 걸리면 어색하다. */
   const tilt = useRef<HTMLDivElement>(null)
+  const [stood, setStood] = useState(false)
   useEffect(() => {
     const el = tilt.current
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let raf = 0
-    const draw = () => {
-      raf = 0
-      const r = el.getBoundingClientRect()
-      const vh = window.innerHeight
-      // 윗변이 화면 바닥에 닿을 때 0 → 화면 35% 높이까지 올라오면 1
-      const k = ease(seg(vh - r.top, 0, vh * 0.65))
-      el.style.transform = `perspective(1600px) rotateX(${lerp(14, 0, k)}deg) scale(${lerp(0.94, 1, k)})`
-    }
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(draw)
-    }
-    draw()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
+    if (!el) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return setStood(true)
+    // 화면 밖으로 완전히 나가면 다시 눕힌다 - 다시 들어올 때 또 일어선다(한 번만 서게 했더니 '사라졌다', 09-29)
+    const io = new IntersectionObserver(
+      (es) => {
+        const e = es[es.length - 1]
+        if (!e.isIntersecting) setStood(false)
+        else if (e.intersectionRatio >= 0.35) setStood(true)
+      },
+      { threshold: [0, 0.35] },
+    )
+    io.observe(el)
+    return () => io.disconnect()
   }, [])
 
   useEffect(() => {
@@ -315,7 +313,8 @@ function Trial() {
             className="relative overflow-hidden rounded-[24px] border border-white/25 bg-[#0A1526] p-2"
             style={{
               transformOrigin: '50% 100%',
-              willChange: 'transform',
+              transform: stood ? 'perspective(1600px) rotateX(0deg) scale(1)' : 'perspective(1600px) rotateX(14deg) scale(0.94)',
+              transition: 'transform 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
               width: inline ? TRIAL_W * inline + 16 : '100%',
               height: inline ? TRIAL_H * inline + 16 : undefined,
               boxShadow: '0 60px 120px -40px rgba(3,10,30,0.7)', // 파란 면 위라 파란 빛무리 대신 그림자
@@ -392,12 +391,13 @@ function Trial() {
    전환 자체가 이 섹션이 하는 말이라 글로 "구현했습니다" 를 반복하지 않는다. */
 function ParkHyeWon() {
   const ref = useRef<HTMLDivElement>(null)
-  const p = useTrackProgress(ref)
+  // 보이면 실제 강사 → AI 휴먼 전환과 네 줄이 한 번에 재생된다(전에는 150vh 트랙에 스크롤로 물려 있었다)
+  const p = usePlayOnView(ref, 3.2, 0.5)
   const toAi = ease(seg(p, 0.2, 0.5))
 
   return (
-    <section id="park" data-nav="AI 휴먼" ref={ref} className="relative md:h-[150vh]" style={{ background: BASE }}>
-      <div className="px-6 py-24 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:items-center md:overflow-hidden md:px-16 md:py-0">
+    <section id="park" data-nav="AI 휴먼" ref={ref} className="relative" style={{ background: BASE }}>
+      <div className="px-6 py-24 sm:px-10 md:px-16 md:py-36">
         <div className="mx-auto grid w-full max-w-[1240px] items-center gap-12 md:grid-cols-2 md:gap-16">
           <div>
             <Title>
@@ -476,7 +476,8 @@ function ParkHyeWon() {
    **나흘치 수업 카드로 보여 준다.** 추상 도형 말고 실물로.
    윗줄(흐리게) = 교재 순서대로: Unit 1·2·3·4, 서로 모른다.
    아랫줄(밝게) = AI 선생님과: 그날의 결과 칩이 **빛줄기를 타고 다음 날 카드로 건너가** 그 카드를 만든다.
-   스크롤로 하루씩 이어진다(`md:h-[240vh]` + sticky, 박혜원 섹션과 같은 방식).
+   보이면 나흘이 한 번에 이어진다(`usePlayOnView`). 전에는 240vh 트랙에 스크롤로 물려 있었다 -
+   "스크롤 하나하나에 움직임이 걸려 어색하다" 는 지적으로 바꿨다.
 
    거쳐 온 것(같은 걸 또 하지 말 것):
    1. START·LEARN·ANALYZE·ADJUST·CONTINUE 다섯 칸 + 되돌아오는 화살표 → "너무 PPT 같다".
@@ -484,17 +485,27 @@ function ParkHyeWon() {
    → 무엇이 이어지는지(막힌 곳 → 다음 수업)가 **글자로 보이게** 했다. 예시는 05·06 무대의 '품사 자리' 와 같은 이야기다.
 
    폰에서는 스크롤로 잠그지 않는다 - 전부 펼친 채 세로로 쌓는다(가로 네 칸이 설 자리가 없다). */
-const PLAIN_DAYS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4']
+/* 09-29: 카드 제목이 'Part 5 기본 문제' 같은 단원명이라 아무 뜻이 없었다(사용자).
+   이제 제목 자리에 **그날 일어난 일**을 쓴다: 오답 유형 발견 → 오답노트 → 선생님 설명 → 뒤 차시에 섞어 배정 → 졸업.
+   숫자는 한 이야기로 맞물린다: 품사 자리 10문항 중 6개 오답(60%) → 6문항 저장 → 새 문제 4/5 → 3/3. Day 도 1·2·5·9 로 벌려
+   '잊을 즈음 다시' 가 날짜에서 보이게 했다. 윗줄은 같은 날짜의 교재 순서 - 틀린 게 그대로 남는다. */
+const DAYS = ['Day 1', 'Day 2', 'Day 5', 'Day 9']
+const PLAIN_DAYS = [
+  { u: 'Unit 1', n: '6문항 틀림' },
+  { u: 'Unit 2', n: '틀린 문제는 그대로' },
+  { u: 'Unit 5', n: '품사 자리는 잊혀짐' },
+  { u: 'Unit 9', n: '같은 유형에서 또 틀림' },
+]
 const AI_DAYS = [
-  { title: 'Part 5 기본 문제', why: '첫 수업', result: '품사 자리 4/5 막힘' },
-  { title: '품사 자리 다시 보기', why: '어제 막힌 곳부터', result: '품사 자리 안정 ✓' },
-  { title: '시제로 넘어가기', why: '안정된 곳은 넘어가고', result: '시제 3/5 막힘' },
-  { title: '시제 + 품사 섞어 풀기', why: '약한 둘을 함께', result: '' },
+  { why: '첫 수업', title: '품사 자리 유형 오답률 60%', note: 'Part 5 30문항 중 품사 자리 10문항에서 6개를 틀렸어요', result: '오답노트에 6문항 저장' },
+  { why: '오답노트에서 시작', title: '틀린 이유를 선생님이 짚어 줘요', note: '6문항을 하나씩 해설하고, 같은 유형 새 문제 5개로 확인', result: '새 문제 4/5 정답' },
+  { why: '다른 단원 수업 중에', title: '잊을 즈음 다시 꺼내요', note: '시제 수업 사이에 품사 자리 3문항을 섞어 배정', result: '3/3 정답' },
+  { why: '완전 학습', title: '품사 자리, 오답노트 졸업 ✓', note: '이제 다음 약점인 시제로 넘어가요', result: '' },
 ]
 
 function LearningFlow() {
   const ref = useRef<HTMLElement>(null)
-  const p = useTrackProgress(ref)
+  const p = usePlayOnView(ref, 4.2, 0.45) // 보이면 나흘이 한 번에 이어진다(스크롤에 물리지 않는다)
   const [wide, setWide] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
@@ -512,8 +523,8 @@ function LearningFlow() {
   const travel = (i: number) => ease(seg(k, 0.25 + i * 0.2, 0.37 + i * 0.2)) // i 번째 칩이 i+1 로 건너간다
 
   return (
-    <section ref={ref} data-nav="학습 흐름" className="relative md:h-[240vh]" style={{ background: INK }}>
-      <div className="px-6 py-28 sm:px-10 md:sticky md:top-0 md:flex md:h-[100dvh] md:flex-col md:justify-center md:overflow-hidden md:px-16 md:py-0">
+    <section ref={ref} data-nav="학습 흐름" className="relative" style={{ background: INK }}>
+      <div className="px-6 py-28 sm:px-10 md:px-16 md:py-36">
         <div className="mx-auto w-full max-w-[1240px]">
           <Title className="max-w-4xl">
             한 번의 수업보다
@@ -528,14 +539,15 @@ function LearningFlow() {
               <span className="text-[12.5px] text-white/40">어제 어디서 막혔든, 오늘은 다음 단원</span>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-[4%]">
-              {PLAIN_DAYS.map((u, i) => (
+              {PLAIN_DAYS.map(({ u, n }, i) => (
                 <div
                   key={u}
                   className="rounded-2xl border border-white/10 px-5 py-4"
                   style={{ opacity: plain, transform: `translateY(${lerp(10, 0, plain)}px)` }}
                 >
-                  <span className="text-[11.5px] text-white/35">Day {i + 1}</span>
+                  <span className="text-[11.5px] text-white/35">{DAYS[i]}</span>
                   <p className="mt-1 text-[15px] text-white/50">{u}</p>
+                  <p className="mt-0.5 text-[12.5px] text-white/35">{n}</p>
                 </div>
               ))}
             </div>
@@ -547,7 +559,7 @@ function LearningFlow() {
               <span className="text-[13px] font-semibold" style={{ color: '#7fa6ff' }}>
                 AI 선생님과
               </span>
-              <span className="text-[12.5px] text-white/70">어제 막힌 곳이 오늘의 수업이 됩니다</span>
+              <span className="text-[12.5px] text-white/70">틀린 유형이 오답노트가 되고, 다음 수업이 됩니다</span>
             </div>
             <div className="relative grid gap-3 md:grid-cols-4 md:gap-[4%]">
               {AI_DAYS.map((d, i) => {
@@ -566,11 +578,11 @@ function LearningFlow() {
                         transform: `translateY(${lerp(16, 0, on)}px)`,
                       }}
                     >
-                      <span className="text-[11.5px] text-white/45">Day {i + 1}</span>
-                      <p className="mt-1 text-[16px] font-semibold leading-[1.4]">{d.title}</p>
-                      <p className="mt-1 text-[12.5px]" style={{ color: '#7fa6ff', opacity: arrived }}>
-                        {d.why}
-                      </p>
+                      <span className="text-[11.5px]" style={{ color: '#7fa6ff', opacity: 0.45 + 0.55 * arrived }}>
+                        {DAYS[i]} · {d.why}
+                      </span>
+                      <p className="mt-1.5 text-[17px] font-semibold leading-[1.4]">{d.title}</p>
+                      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-white/60">{d.note}</p>
                       {d.result && (
                         <span
                           className="mt-4 inline-flex rounded-full px-2.5 py-1 text-[11.5px] font-medium"

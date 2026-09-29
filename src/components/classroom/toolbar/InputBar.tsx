@@ -227,7 +227,7 @@ export default function InputBar({
     <div className="flex flex-col gap-2 w-full">
 
       {/* 음성 입력 영역 — 액션 버튼(button 타입 턴)일 때는 숨김 */}
-      {actions.length === 0 && <div className={`bg-white border-2 rounded-2xl overflow-hidden transition-colors
+      {actions.length === 0 && <div className={`bg-white border-2 rounded-xl overflow-hidden transition-colors
         ${isListening ? 'border-cr-accent' : value ? 'border-cr-accent/60' : 'border-ybm-border focus-within:border-cr-accent'}
       `}>
 
@@ -294,7 +294,7 @@ export default function InputBar({
             <button
               aria-label="음성 입력 시작"
               onClick={handleMic}
-              className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors
+              className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors
                 ${sttSupported
                   ? 'bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent'
                   : 'bg-ybm-bg text-ybm-text-sub cursor-not-allowed opacity-50'}
@@ -314,7 +314,7 @@ export default function InputBar({
               key={i}
               disabled={action.disabled}
               onClick={() => action.onClick(value)}
-              className={`flex-1 h-12 rounded-xl font-semibold text-base transition-all whitespace-nowrap flex items-center justify-center gap-1.5
+              className={`flex-1 h-12 rounded-lg font-semibold text-base transition-all whitespace-nowrap flex items-center justify-center gap-1.5
                 ${action.disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}
                 ${action.variant === 'secondary'
                   ? 'bg-ybm-bg text-ybm-text border border-ybm-border hover:bg-ybm-border'

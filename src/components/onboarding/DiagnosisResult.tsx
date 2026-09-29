@@ -110,7 +110,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
   return (
     <div className="min-h-screen bg-[#F0F4FF] flex items-center justify-center p-4 animate-fade-in">
-      <div className="w-full max-w-[1032px] min-h-[648px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] min-h-[648px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
 
         {/* ── 좌측: 비주얼 영역 ── */}
         <div
@@ -123,7 +123,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
           {/* 상단: 로고 + 결과 */}
           <div className="relative z-10">
             <div className="flex items-center gap-2.5 mb-8">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+              <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/30">
                 <img src="/logo.svg" alt="YBM" className="w-5 h-5 object-contain brightness-0 invert"
                   onError={e => { (e.target as HTMLImageElement).src = '/logo.png' }} />
               </div>
@@ -148,19 +148,19 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
 
             <div className="flex flex-wrap items-center gap-2">
               {dday && (
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
                   <span className="text-white/65 text-[11px] font-semibold">시험까지</span>
                   <span className="text-white font-bold text-[16px] leading-none">{dday}</span>
                 </div>
               )}
               {targetScore && (
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
                   <span className="text-white/65 text-[11px] font-semibold">목표</span>
                   <span className="text-white font-bold text-[16px] leading-none">{targetScore}점</span>
                 </div>
               )}
               {studyPeriod && (
-                <div className="flex items-center gap-1.5 bg-white/15 rounded-xl px-3 py-1.5">
+                <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
                   <span className="text-white font-bold text-[16px] leading-none">{studyPeriod}</span>
                 </div>
               )}
@@ -228,8 +228,8 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
             {/* 4글자 배지 — 2x2 그리드 */}
             <div className="grid grid-cols-2 gap-2">
               {letterDetails.map((d, i) => (
-                <div key={i} className="bg-[#F8FAFF] rounded-2xl py-3 px-4 flex items-center gap-3 border border-[#E5E7EB]">
-                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shadow-sm shrink-0`}>
+                <div key={i} className="bg-[#F8FAFF] rounded-xl py-3 px-4 flex items-center gap-3 border border-[#E5E7EB]">
+                  <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${LETTER_COLORS[i]} flex items-center justify-center shadow-sm shrink-0`}>
                     <span className="text-white text-[17px] font-bold">{d.letter}</span>
                   </div>
                   <p className="text-[#374151] text-[12px] font-semibold leading-tight">{d.label}</p>
@@ -238,7 +238,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
             </div>
 
             {/* 타이핑 메시지 */}
-            <div className="bg-[#F8FAFF] border border-[#E5E7EB] rounded-2xl px-5 py-4">
+            <div className="bg-[#F8FAFF] border border-[#E5E7EB] rounded-xl px-5 py-4">
               <p className="text-[#0F172A] text-[13px] md:text-[14px] leading-relaxed">
                 {renderTypedText()}
                 {!typingDone && (
@@ -250,7 +250,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
             {/* 목표 & 학습 계획 */}
             <div className="grid grid-cols-3 gap-2">
               {goalItems.map((item) => (
-                <div key={item.label} className="bg-[#F8FAFF] border border-[#E5E7EB] rounded-xl px-3 py-3 flex flex-col gap-1">
+                <div key={item.label} className="bg-[#F8FAFF] border border-[#E5E7EB] rounded-lg px-3 py-3 flex flex-col gap-1">
                   <p className="text-[#94A3B8] text-[10px] font-semibold uppercase tracking-wide">{item.label}</p>
                   <p className="text-[#0F172A] text-[12px] md:text-[13px] font-bold leading-tight">{item.value}</p>
                 </div>
@@ -261,7 +261,7 @@ export default function DiagnosisResult({ onNext, onBack }: { onNext: () => void
             <div className="flex flex-col gap-2">
               <button
                 onClick={onNext}
-                className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white rounded-xl font-bold text-[15px] transition-all active:scale-[0.98] shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
+                className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white rounded-lg font-bold text-[15px] transition-all active:scale-[0.98] shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
               >
                 프로그램 제안받기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

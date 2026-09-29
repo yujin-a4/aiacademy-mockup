@@ -44,7 +44,7 @@ export default function ScreenSP0({ onComplete, onEnd }: Props) {
     >
       {/* 도입 화면 — 제목 카드 */}
       <div className="flex flex-col items-center justify-center h-full gap-8 px-6">
-        <div className="w-24 h-24 rounded-3xl bg-[#EFF6FF] flex items-center justify-center">
+        <div className="w-24 h-24 rounded-2xl bg-[#EFF6FF] flex items-center justify-center">
           <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
             <rect x="4" y="6" width="24" height="20" rx="3" stroke="#2277F0" strokeWidth="2"/>
             <path d="M10 14h12M10 18h8" stroke="#2277F0" strokeWidth="2" strokeLinecap="round"/>
@@ -61,7 +61,7 @@ export default function ScreenSP0({ onComplete, onEnd }: Props) {
 
         <div className="flex flex-col gap-3 w-full max-w-sm">
           {['장소 말하기', '주요 인물 설명', '주변 설명', '전체 분위기 설명'].map((step, i) => (
-            <div key={i} className="flex items-center gap-4 bg-white rounded-2xl px-5 py-4 shadow-sm border border-ybm-border/50">
+            <div key={i} className="flex items-center gap-4 bg-white rounded-xl px-5 py-4 shadow-sm border border-ybm-border/50">
               <span className="w-9 h-9 rounded-full bg-[#2277F0] text-white text-sm font-bold flex items-center justify-center shrink-0">
                 {i + 1}
               </span>
@@ -72,7 +72,7 @@ export default function ScreenSP0({ onComplete, onEnd }: Props) {
 
         <button
           onClick={onComplete}
-          className="w-full max-w-sm py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-lg hover:bg-[#1a66d4] active:scale-95 transition-all shadow-sm"
+          className="w-full max-w-sm py-4 rounded-xl bg-[#2277F0] text-white font-bold text-lg hover:bg-[#1a66d4] active:scale-95 transition-all shadow-sm"
         >
           시작하기 →
         </button>

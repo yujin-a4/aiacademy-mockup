@@ -39,7 +39,7 @@ export default function NameInput({ onNext }: { onNext: () => void }) {
         <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
       </div>
 
-      <div className="w-full max-w-[1032px] min-h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-row">
+      <div className="w-full max-w-[1032px] min-h-[600px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-row">
 
         {/* ── 좌측: 슬라이드 패널 ── */}
         <div
@@ -67,7 +67,7 @@ export default function NameInput({ onNext }: { onNext: () => void }) {
 
               <div className="space-y-3">
                 {STEPS_PREVIEW.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2.5">
+                  <div key={i} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/15 rounded-lg px-4 py-2.5">
                     <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center shrink-0">
                       <span className="text-white text-[10px] font-semibold">{i + 1}</span>
                     </div>
@@ -93,12 +93,12 @@ export default function NameInput({ onNext }: { onNext: () => void }) {
                   onKeyDown={e => e.key === 'Enter' && handleConfirm()}
                   placeholder="이름 입력"
                   autoFocus
-                  className="w-full h-14 px-5 rounded-xl border-2 border-[#E5E7EB] focus:border-primary text-[#0F172A] placeholder-[#CBD5E1] outline-none transition-colors text-center text-[20px] font-bold"
+                  className="w-full h-14 px-5 rounded-lg border-2 border-[#E5E7EB] focus:border-primary text-[#0F172A] placeholder-[#CBD5E1] outline-none transition-colors text-center text-[20px] font-bold"
                 />
                 <button
                   onClick={handleConfirm}
                   disabled={!input.trim()}
-                  className="w-full h-12 bg-primary hover:bg-[#1D4ED8] disabled:opacity-35 text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
+                  className="w-full h-12 bg-primary hover:bg-[#1D4ED8] disabled:opacity-35 text-white font-bold text-[15px] rounded-lg transition-all active:scale-[0.98]"
                 >
                   확인
                 </button>
@@ -107,7 +107,7 @@ export default function NameInput({ onNext }: { onNext: () => void }) {
           ) : (
             /* greeting / revealing — 항상 가운데 정렬 */
             <div className="animate-fade-in text-center space-y-6 max-w-[360px]">
-              <div className="w-20 h-20 mx-auto bg-primary/10 rounded-3xl flex items-center justify-center text-4xl">
+              <div className="w-20 h-20 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center text-4xl">
                 👋
               </div>
               <div>
@@ -121,7 +121,7 @@ export default function NameInput({ onNext }: { onNext: () => void }) {
               </div>
               <button
                 onClick={onNext}
-                className="w-full flex items-center justify-center h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98] gap-2"
+                className="w-full flex items-center justify-center h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-lg transition-all active:scale-[0.98] gap-2"
               >
                 시작하기
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -63,7 +63,7 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
           {RULES.map((rule) => (
             <div
               key={rule.num}
-              className="bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-ybm-border flex items-center gap-3"
+              className="bg-white rounded-xl px-4 py-3.5 shadow-sm border border-ybm-border flex items-center gap-3"
             >
               <span className="w-8 h-8 rounded-full bg-[#2277F0] text-white text-xs font-bold flex items-center justify-center shrink-0">
                 {rule.num}
@@ -84,7 +84,7 @@ export default function ScreenSP7({ onComplete, onEnd }: Props) {
         <button
           disabled={!canInput}
           onClick={onComplete}
-          className={`w-full py-3 rounded-2xl font-bold text-sm text-white transition-all
+          className={`w-full py-3 rounded-xl font-bold text-sm text-white transition-all
             ${canInput ? 'bg-[#2277F0] hover:bg-[#1a66d4] active:scale-95 shadow-sm' : 'bg-[#D1D5DB] cursor-not-allowed'}
           `}
         >

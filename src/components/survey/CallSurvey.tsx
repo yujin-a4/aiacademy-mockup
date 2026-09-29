@@ -57,7 +57,7 @@ export default function CallSurvey({ onClose, instructorName, instructorThumb }:
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* 시트 */}
-      <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
+      <div className="relative w-full max-w-[480px] bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
 
         {/* 핸들 */}
         <div className="flex justify-center pt-3 pb-1 md:hidden">
@@ -98,7 +98,7 @@ export default function CallSurvey({ onClose, instructorName, instructorThumb }:
                   key={opt.value}
                   onClick={() => handleSelect(opt.value)}
                   disabled={!!selected}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all active:scale-[0.98] ${
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all active:scale-[0.98] ${
                     isSelected
                       ? 'border-[#2563EB] bg-[#EFF6FF]'
                       : selected
@@ -132,7 +132,7 @@ export default function CallSurvey({ onClose, instructorName, instructorThumb }:
             <button
               onClick={handleSubmit}
               disabled={!selected || saving}
-              className="w-full py-3.5 rounded-xl font-bold text-[15px] transition-all active:scale-[0.98] disabled:opacity-30 bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+              className="w-full py-3.5 rounded-lg font-bold text-[15px] transition-all active:scale-[0.98] disabled:opacity-30 bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
             >
               {saving ? '저장 중...' : '응답 제출하기'}
             </button>

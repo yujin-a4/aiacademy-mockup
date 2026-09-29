@@ -210,7 +210,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
             <button
               onClick={onPrev}
               disabled={!onPrev}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all
                 ${!onPrev ? 'opacity-30 cursor-not-allowed text-ybm-text-sub' : 'text-ybm-text hover:bg-ybm-bg active:scale-95'}`}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -220,7 +220,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
             </button>
             <button
               onClick={() => { stopCurrentAudio(); allDone || showAnswers ? onComplete() : onEnd() }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm active:scale-95 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm active:scale-95 transition-all"
             >
               {allDone || showAnswers ? '요약 노트 보기' : '종료'}
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -235,7 +235,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
 
         {/* 헤더 */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#2277F0]">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#2277F0]">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M9 2v4M9 12v4M2 9h4M12 9h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
               <circle cx="9" cy="9" r="3" stroke="white" strokeWidth="1.5"/>
@@ -273,7 +273,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
               return (
                 <div
                   key={c.id}
-                  className={`rounded-2xl border-2 p-4 flex flex-col gap-3 transition-all bg-white
+                  className={`rounded-xl border-2 p-4 flex flex-col gap-3 transition-all bg-white
                     ${isCurrent ? 'border-[#2277F0]' : isDone ? 'border-green-300' : 'border-ybm-border'}
                   `}
                 >
@@ -328,7 +328,7 @@ export default function Screen4({ onComplete, onEnd, onPrev }: Screen4Props) {
           </div>
 
           {showAnswers && (
-            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center shrink-0">
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-center shrink-0">
               <p className="text-green-700 font-semibold text-sm">정답을 모두 확인했어요! 요약 노트로 이동하세요.</p>
             </div>
           )}

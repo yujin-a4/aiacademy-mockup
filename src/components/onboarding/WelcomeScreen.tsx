@@ -17,7 +17,7 @@ export default function WelcomeScreen({ onNext }: { onNext: () => void }) {
       <div className="absolute bottom-1/4 right-1/4 w-56 h-56 bg-[#1D4ED8]/50 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative flex flex-col items-center gap-8 px-8 text-center">
-        <div className="w-20 h-20 bg-white/15 rounded-3xl flex items-center justify-center border border-white/25 shadow-xl backdrop-blur-sm">
+        <div className="w-20 h-20 bg-white/15 rounded-2xl flex items-center justify-center border border-white/25 shadow-xl backdrop-blur-sm">
           <img
             src="/logo.svg"
             alt="YBM"

@@ -190,8 +190,20 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 .band-l.c{background:var(--clay-soft);color:var(--clay)}
 .band-l.s{background:var(--sage-soft);color:var(--sage)}
 .band-l.g{background:var(--gold-soft);color:var(--gold)}
+.band-l.x{background:repeating-linear-gradient(135deg,var(--wash2) 0 5px,transparent 5px 10px);
+  color:var(--ink3);border:1px dashed var(--line2)}
+.cl.gap{background:repeating-linear-gradient(135deg,rgba(0,0,0,.018) 0 6px,transparent 6px 12px);
+  border-radius:4px;color:var(--ink3)}
+.cl.hd.gap{background:none;color:var(--ink3)}
+.cl.hd.gap .n{color:var(--clay)}
 .curve{margin-left:calc(4.3em + .45em)}
 .curve svg{display:block;width:100%;height:3.3em}
+.cvlab{display:grid;gap:0 .45em;margin-top:.12em}
+.cvlab span{font-size:.575em;font-weight:800;text-align:center;color:var(--ink3);
+  letter-spacing:.01em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cvlab span.hi{color:var(--gold)}
+.cvlab span.lo{color:var(--clay)}
+.cvlab span.mu{color:var(--line2)}
 .jg{display:grid;min-height:0;gap:0 .45em}
 .rl{font-size:.63em;letter-spacing:.01em;font-weight:800;color:var(--ink3);
   padding:.55em .2em .5em .5em;display:flex;align-items:flex-start;
@@ -217,7 +229,8 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 .rl.meas{background:var(--sage-soft);color:var(--sage);border-radius:4px}
 
 /* ══════════ SLIDE 3 ══════════ */
-.cols{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25em;min-height:0}
+.cols{display:grid;grid-template-columns:repeat(5,1fr);gap:1em;min-height:0}
+.colh code{font-family:var(--mono);font-size:.72em;font-weight:600;color:var(--ink3);letter-spacing:-.02em}
 .col{display:flex;flex-direction:column;gap:.46em;min-height:0}
 .colh{display:flex;align-items:baseline;gap:.5em;padding-bottom:.3em;border-bottom:2px solid var(--blue)}
 .colh .n{font-family:var(--mono);font-size:.6em;font-weight:700;color:var(--blue2);letter-spacing:.1em}
@@ -560,24 +573,28 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="tag">#방법을_모름</span>
         <span class="tag">#시켜줘야_함</span>
         <span class="tag warn">#지루하면_이탈</span>
-        <span class="tag warn">#뒤늦은_자기진단</span>
+        <span class="tag warn">#불안해도_안_움직임</span>
       </div>
       <div class="narr">
         <p><b>지민</b>은 졸업요건 <b>750점</b>을 채우려고 토익을 한다. 본인이 정한 숫자가 아니라 학교가 정한
         커트라인이고, 넘기 위해서만 공부한다.</p>
         <p>지난 학기에 한 번 실패했다. <b>혼자 하기엔 막막하고 방법도 잘 몰라서</b> 인강을 신청했는데,
-        <strong>듣고만 있는 게 지루했고</strong> 무엇보다 <strong>과제도 없고 시키는 사람도 없어서</strong>
-        꾸준히 듣질 못했다. 의지만으로 버티는 건 어려웠다.</p>
-        <p>이번엔 인강을 사지 않았다. 두 달 전에 시험을 먼저 접수하고 교재를 샀지만
-        <strong>한 달을 방치했다.</strong> 앞부분만 조금 풀다 덮었다. 한 달 전부터 겨우 꾸준히 해보려 하지만
-        하루 LC 1챕터 + RC 1챕터를 <b>앞에서부터</b> 풀 뿐, 개념서도 안 보고 물어본 적도 없다.</p>
-        <p>공부는 <b>평일 낮에만</b> 한다. 주 3일은 수업 2시간을 듣고 <strong>도서관</strong>으로,
-        수업이 없는 날은 집이나 카페로 간다. <strong>평일 저녁은 알바</strong>라 시간이 없고,
-        <strong>주말은 보통 논다.</strong> 밀려도 몰아서 할 요일이 없다 — 다만 이건 지민의 시간표일 뿐이고, 가능한 요일은 사람마다 다르다.</p>
-        <p><strong>시험 일주일 전</strong>, 불안해서 처음으로 모의고사를 풀었다. <strong>600점대.</strong>
-        어디를 어떻게 고쳐야 할지 몰라 유튜브에서 공부법 숏폼을 몇 개 봤지만
-        <b>다 일반론이라 내 얘기 같지 않았다.</b> 남은 일주일도 결국 하던 대로 진도만 조금 더 나갔고,
-        하루 전 모의고사도 여전히 600대였다. <strong>운에 맡기자는 마음으로 시험장에 갔다.</strong></p>
+        <strong>절반쯤 듣다 접었다.</strong> <b>듣고만 있는 게 지루했고</b> 무엇보다
+        <b>과제도 확인도 없어서</b> <strong>어느 날 안 켠 뒤로 그대로 끝났다.</strong>
+        의지만으로 버티는 건 어려웠다.</p>
+        <p>이번엔 인강을 사지 않았다. 시험을 먼저 접수하고 <b>750+ 교재</b>를 샀다. 책 페이지의
+        <b>AI 레벨테스트</b>도 해봤는데 <b>600점 예상</b>이 떴다 — 긴 글은 안 읽었고 광고라 껐다.
+        이틀 계획을 세우고는 <strong>"20일 완성이니 널널하다"</strong>며 한 달을 덮어뒀다.</p>
+        <p>한 달 만에 열어보니 <strong>1챕터에서 절반이 틀렸다.</strong> 막막했지만
+        <b>"꾸준히 하면 되겠지"</b>로 덮고 앞에서부터 푼다. 막히는 게 있어도
+        <strong>강의는 귀찮아서 안 듣고</strong> 물어볼 사람도 없다.
+        점점 불안해지지만 <strong>그렇다고 더 하고 싶어지지도 않는다.</strong>
+        <b>4일씩 아예 안 열기도</b> 하고, 그러다 다시 편다.</p>
+        <p><strong>시험 일주일 전</strong>, 불안해서 모의고사를 풀었다. <strong>600점 — 750엔 택도 없다.</strong>
+        여기서 처음으로 <b>"이대로 진도 따라간다고 되는 게 맞나"</b>를 의심한다. 유튜브를 검색해보니
+        <b>공감은 되는데 그래서 뭘 바꿔야 할지가 없었다</b> — 문제 풀고 단어 외우라는 건
+        이미 하고 있는 일이니까. 남은 일주일도 하던 대로 진도만 나갔고,
+        <strong>운에 맡기자는 마음으로 시험장에 간다.</strong></p>
       </div>
     </div>
 
@@ -590,6 +607,8 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <div class="grow"><span class="k">현재</span><span class="v"><b>600점대</b> (D-7 모의고사) · 남은 <em>150점</em></span></div>
           <div class="grow"><span class="k">기간</span><span class="v"><b>2개월</b> — 그중 <em>첫 한 달은 방치</em></span></div>
           <div class="grow"><span class="k">학습 동기</span><span class="v">졸업 하나. <em>넘으면 즉시 그만둔다</em></span></div>
+          <div class="grow"><span class="k">지불 의사</span><span class="v"><b>있음</b> — 방법을 돈으로 산다(교재·인강·독서실). <em>금액대 미확인</em></span></div>
+          <div class="grow"><span class="k">획득 경로</span><span class="v"><b>미정</b> — 인강을 사러 가던 사람. <em>우리를 어디서 만나는지 안 정해짐</em></span></div>
         </div>
       </div>
 
@@ -610,12 +629,12 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
             <span class="d">계획 없음. 교재 목차가 곧 계획</span></div>
           <div class="gg"><span class="k">자기 진단</span>
             <span class="sq"><i class="on"></i><i></i><i></i><i></i><i></i></span>
-            <span class="d">D-7에야 처음 실력을 확인</span></div>
+            <span class="d">D-60에 레벨테스트를 했다 — 결과를 안 읽었을 뿐</span></div>
         </div>
         <ul class="cl2">
           <li><span class="kk">매체</span>교재 위주 · 유튜브는 급할 때만 · AI 미사용</li>
           <li><span class="kk">정리</span>오답 노트 없음 · 틀린 문항은 그냥 지나감</li>
-          <li><span class="kk">장소</span>수업 후 도서관 3일 · 집·카페 2일 — <b>둘 다 무음</b></li>
+          <li><span class="kk">장소</span>도서관 3일 <b>무음</b> · 집·카페 2일 — <b>카페는 무음, 집은 음성 가능</b></li>
         </ul>
       </div>
 
@@ -641,7 +660,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <span><u style="background:var(--clay-soft)"></u>비어 있음</span>
         </div>
         <ul class="cl2">
-          <li><b>도서관·카페 — 둘 다 소리를 못 내는 곳.</b> 듣기는 되고 <b>말하기는 안 된다</b></li>
+          <li><b>주 3~4일은 소리를 못 낸다</b>(도서관·카페). 집에 있는 날만 음성이 되는데, <b>가족이 있으면 그날도 안 된다</b> — 음성 가능 여부는 장소가 아니라 <b>그날의 상황</b>이다</li>
           <li><b>주말에 안 한다.</b> 밀려도 몰아서 할 버퍼가 없다 — 단 <b>이건 지민의 경우</b>일 뿐, 누구에게나 <b>안 되는 시간이 따로 있다</b></li>
           <li>저녁은 알바 — <b>알림 시각도 사람마다 달라야</b> 한다</li>
         </ul>
@@ -709,7 +728,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           </div>
         </div>
         <ul class="cl2">
-          <li>자각한 건 <b>"어휘를 몰라서 틀린다"</b> 하나뿐 — P3·4·7은 모른다</li>
+          <li><b>어디가 약한지는 센다</b> — 채점하면 나오니까. 모르는 건 <b>왜 틀렸는지</b>와 <b>그래서 뭘 할지</b>다. 그마저도 <b>한 번 세어보고 덮었다</b></li>
         </ul>
       </div>
 
@@ -717,12 +736,13 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="ch"><i>☹</i>Pain Points</div>
         <ul class="cl2 pain">
           <li><b>강제성이 없으면 안 한다</b> — 인강엔 과제도 확인도 없었다</li>
-          <li><b>듣고만 있는 형식</b>을 못 견딘다 — 1차 실패의 직접 원인</li>
-          <li>사놓고 <b>한 달을 안 연다.</b> 시작 자체가 장벽</li>
-          <li>공부 장소가 <b>도서관·카페</b> — 소리 내어 답할 수 없다</li>
-          <li><b>주말에 안 한다.</b> 밀린 걸 회복할 요일이 없다</li>
-          <li>D-7에 <b>600점만 알고 어디를 고칠지는 모른다</b></li>
-          <li>급할 때 유튜브로 새지만 <b>일반론이라 내 얘기 같지 않다</b></li>
+          <li><b>듣고만 있는 형식</b>을 못 견딘다 — 1차 실패의 직접 원인. <b>막혀도 강의는 안 듣는다</b></li>
+          <li>사놓고 <b>한 달을 안 연다.</b> 교재의 <b>"20일 완성"</b>이 안심으로 읽힌다</li>
+          <li><b>첫 시도에서 절반이 틀린다.</b> 난이도를 조절할 방법이 없다</li>
+          <li><b>해설을 봐도 모르겠고, 알았다 싶어도 또 틀린다</b> — "배웠다"는 확신이 안 생긴다</li>
+          <li><b>불안이 행동으로 안 이어진다</b> — 불안한데 더 하고 싶어지진 않는다</li>
+          <li>진단은 <b>D-60에 이미 받았다.</b> 숫자만 있고 <b>다음 행동이 없어</b> 그대로 껐다</li>
+          <li>공부법을 찾아봐도 <b>지금 하는 것과 구별이 안 된다</b> — 공감은 되는데 바꿀 게 없다</li>
           <li>밀리면 회복 경로가 없고, <b>포기 상태로 시험을 본다</b></li>
         </ul>
       </div>
@@ -733,7 +753,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <li><b>과제와 확인</b> — 오늘 할 것을 주고, 했는지 물어봐 주는 것</li>
           <li><b>듣게 두지 않는 수업</b> — 계속 뭔가 시키는 진행</li>
           <li><b>시험일 역산 · 가능 요일 기준</b> — 못 하는 날을 계획에 넣지 않는 것</li>
-          <li><b>점수가 아니라 처방</b> — "P7 34%, 여기부터 3강"</li>
+          <li><b>약점이 아니라 할 일</b> — "P7이 약하다"가 아니라 "여기부터 3강"</li>
           <li><b>일반론이 아닌 내 할 일</b> — 공부법을 오늘 과제로 번역</li>
           <li><b>소리 없이 되는 수업</b> — 답을 손으로 낼 수 있어야 한다</li>
           <li><b>밀려도 돌아올 자리</b> — 밀린 분량을 쌓아두지 않는 것</li>
@@ -748,96 +768,107 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 <section class="sheet"><article class="slide">
   <header class="bar">
     <span class="no">03</span><h2>유저 저니 — 지금 (As-Is)</h2>
-    <span class="note">2개월 중 첫 달은 방치. D-7에야 실력을 처음 알고, 알고 나서도 행동은 바뀌지 않는다</span>
-    <span class="sub">6행 · 8단계 · 2차 회차</span>
+    <span class="note"><b>지난 학기 인강 실패 이후의 2차 회차.</b> 첫 달은 방치, 열어보니 <b>절반이 틀리고 해설을 봐도 안 남는다</b> — <b>기회 행은 아이디어</b>이고 확정은 4장</span>
+    <span class="sub">6행 · 9단계 · 2차 회차</span>
   </header>
   <div class="body">
     <div class="jw">
 
-      <div class="bands" style="grid-template-columns:repeat(8,1fr)">
-        <div class="band-l c" style="grid-column:1/span 1">1차 실패가 조건</div>
-        <div class="band-l g" style="grid-column:2/span 2">방치 · D-60~31</div>
-        <div class="band-l n" style="grid-column:4/span 2">시도 · D-30~8</div>
-        <div class="band-l c" style="grid-column:6/span 2">붕괴 · D-7~1</div>
-        <div class="band-l s" style="grid-column:8/span 1">응시</div>
+      <div class="bands" style="grid-template-columns:repeat(9,1fr)">
+        <div class="band-l n" style="grid-column:1/span 2">준비 · D-60</div>
+        <div class="band-l c" style="grid-column:3/span 1">방치 · D-60~31</div>
+        <div class="band-l n" style="grid-column:4/span 3">시도 · D-30~8</div>
+        <div class="band-l c" style="grid-column:7/span 2">붕괴 · D-7~1</div>
+        <div class="band-l s" style="grid-column:9/span 1">응시 · D-DAY</div>
       </div>
 
       <div class="curve">
         <svg viewBox="0 0 800 56" preserveAspectRatio="none" aria-label="감정 곡선">
           <line x1="0" y1="28" x2="800" y2="28" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5"/>
-          <polyline points="50,24 150,30 250,36 350,19 450,33 550,49 650,44 750,52"
+          <polyline points="44,26 133,21 222,14 311,33 400,38 489,42 578,51 667,49 756,53"
             fill="none" stroke="var(--blue2)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
-          <circle cx="50" cy="24" r="3.2" fill="var(--blue2)"/>
-          <circle cx="150" cy="30" r="3.2" fill="var(--gold)"/>
-          <circle cx="250" cy="36" r="3.2" fill="var(--gold)"/>
-          <circle cx="350" cy="19" r="3.2" fill="var(--blue2)"/>
-          <circle cx="450" cy="33" r="3.2" fill="var(--blue2)"/>
-          <circle cx="550" cy="49" r="5.6" fill="var(--clay)"/>
-          <circle cx="650" cy="44" r="3.2" fill="var(--clay)"/>
-          <circle cx="750" cy="52" r="3.2" fill="var(--clay)"/>
+          <circle cx="44" cy="26" r="3.2" fill="var(--blue2)"/>
+          <circle cx="133" cy="21" r="3.2" fill="var(--blue2)"/>
+          <circle cx="222" cy="14" r="3.2" fill="var(--blue2)"/>
+          <circle cx="311" cy="33" r="3.2" fill="var(--blue2)"/>
+          <circle cx="400" cy="38" r="5.6" fill="var(--gold)"/>
+          <circle cx="489" cy="42" r="3.2" fill="var(--blue2)"/>
+          <circle cx="578" cy="51" r="5.6" fill="var(--clay)"/>
+          <circle cx="667" cy="49" r="3.2" fill="var(--clay)"/>
+          <circle cx="756" cy="53" r="3.2" fill="var(--clay)"/>
         </svg>
+        <div class="cvlab" style="grid-template-columns:repeat(9,1fr)">
+          <span>결심</span><span>기대</span><span>널널함</span><span>막막함</span>
+          <span class="hi">답답함</span><span>불안</span><span class="lo">의심</span><span>허탕</span><span class="lo">체념</span>
+        </div>
       </div>
 
-      <div class="jg" style="grid-template-columns:4.3em repeat(8,1fr);grid-template-rows:auto minmax(0,1.15fr) minmax(0,.68fr) minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.15fr)">
+      <div class="jg" style="grid-template-columns:4.3em repeat(9,1fr);grid-template-rows:auto minmax(0,1.15fr) minmax(0,.68fr) minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.15fr)">
         <div class="rl" style="border-top:0"></div>
         <div class="cl hd"><span class="n">01</span>접수부터 하고 본다</div>
-        <div class="cl hd"><span class="n">02</span>교재를 고른다 — 근거 없이</div>
-        <div class="cl hd pv"><span class="n">03</span>사놓고 한 달을 방치</div>
-        <div class="cl hd"><span class="n">04</span>D-30, 이제 진짜 시작</div>
-        <div class="cl hd"><span class="n">05</span>밀린다</div>
-        <div class="cl hd pv"><span class="n">06 · 전환점</span>D-7, 모의고사 600</div>
-        <div class="cl hd"><span class="n">07</span>유튜브로 샜다 돌아온다</div>
-        <div class="cl hd"><span class="n">08</span>운에 맡기고 응시</div>
+        <div class="cl hd"><span class="n">02</span>교재를 고른다 · 레벨테스트를 해본다</div>
+        <div class="cl hd"><span class="n">03</span>이틀 계획하고 한 달 방치</div>
+        <div class="cl hd"><span class="n">04</span>D-30, 열어보니 절반이 틀린다</div>
+        <div class="cl hd"><span class="n">05 · 우리 자리</span>해설을 봐도 모르겠고, 알아도 안 남는다</div>
+        <div class="cl hd"><span class="n">06</span>며칠씩 비었다가 돌아온다</div>
+        <div class="cl hd"><span class="n">07 · 전환점</span>D-7, 모의고사 600</div>
+        <div class="cl hd"><span class="n">08</span>유튜브로 샜다 돌아온다</div>
+        <div class="cl hd"><span class="n">09</span>운에 맡기고 응시</div>
 
         <div class="rl">하는 일</div>
         <div class="cl">지난 학기 인강 실패를 기억한 채 <b>시험을 먼저 접수</b>하고 교재를 산다</div>
-        <div class="cl">기출 수록 여부는 안 본다. <b>구성이 예뻐 보이는 책</b>을 고른다</div>
-        <div class="cl pvcell">앞부분만 조금 풀고 덮는다. <b>한 달간 거의 안 편다</b></div>
-        <div class="cl">하루 LC 1챕터 + RC 1챕터를 <b>앞에서부터.</b> 개념서·질문 없음</div>
-        <div class="cl">"내일 몰아서 하지"가 반복된다. 진도가 뒤로 처진다</div>
-        <div class="cl pvcell">불안해서 <b>처음으로</b> 모의고사 1회. <b>600점대</b></div>
-        <div class="cl">"1주 벼락치기" 검색 → <b>공부법 숏폼</b> 몇 개 → 결국 하던 진도. D-1 재응시도 600대</div>
+        <div class="cl">에브리타임에 <b>'토익' 검색</b> → 추천글. 서점에서 <b>빨강이·파랑이</b>를 찾아보니 <b>수준별</b>로 있어 <b>750+ 책</b>을 산다. 그 페이지의 <b>"AI 레벨테스트 15분"</b> QR도 찍어 해본다</div>
+        <div class="cl"><b>이틀 동안 계획을 세운다.</b> 목차가 <b>분류별</b>로 잘 돼 있고 단어도 <b>데이별</b>이라 이대로면 될 것 같다. <b>"20일 완성"</b>이라 여유가 있다고 보고 <b>덮는다</b></div>
+        <div class="cl">한 달 만에 책을 연다. <b>1챕터를 푸니 절반이 틀린다.</b> 그래도 <b>앞에서부터</b> 진도를 나가기로 한다</div>
+        <div class="cl">틀린 문제의 <b>해설을 읽는다.</b> 너무 짧아서 <b>왜 그게 답인지 모르겠다.</b> 교재 강의를 찾아볼까 하다가 <b>하기 싫어서 포기</b>한다. 이해한 것 같던 문제도 <b>지나면 또 틀린다</b></div>
+        <div class="cl"><b>내일로 미루기가 반복</b>된다. <b>4일씩 아예 안 열기도</b> 하고, 그러다 다시 편다. 막히는 게 있어도 <b>강의는 귀찮아서 안 듣고</b> 물어볼 사람도 없다</div>
+        <div class="cl">불안해서 모의고사 1회. <b>600점 — 750엔 택도 없다.</b> 유튜브를 검색한다</div>
+        <div class="cl">검색해도 <b>소득이 없다.</b> 별다른 방법이 없어 <b>그냥 하던 대로</b> 계속한다</div>
         <div class="cl">거의 포기한 채 시험장에 간다</div>
 
-        <div class="rl">접점</div>
+        <div class="rl">사용 도구</div>
         <div class="cl">토익 접수 사이트 · 인터넷 서점</div>
-        <div class="cl">해커스 교재 · 서점 리뷰</div>
-        <div class="cl pvcell">책상 위의 교재</div>
-        <div class="cl">교재 · 앱(병행)</div>
-        <div class="cl">교재</div>
-        <div class="cl pvcell">교재 부록 모의고사 · OMR</div>
-        <div class="cl">유튜브 · 숏폼</div>
+        <div class="cl">에브리타임 · 온라인 서점 · <b>QR 레벨테스트</b></div>
+        <div class="cl">교재 목차 · 단어 데이 구성</div>
+        <div class="cl">교재 1챕터</div>
+        <div class="cl">교재 <b>해설</b> — 강의는 <b>안 봄</b></div>
+        <div class="cl">교재 — <b>강의·질문 창구는 안 씀</b></div>
+        <div class="cl">교재 부록 모의고사 · OMR</div>
+        <div class="cl">유튜브 검색</div>
         <div class="cl">시험장</div>
 
         <div class="rl">생각</div>
         <div class="cl think">일단 질러야 하지</div>
-        <div class="cl think">다들 이거 사던데 · 잘 되어 있어 보이네</div>
-        <div class="cl think pvcell">아직 두 달이나 남았으니까</div>
-        <div class="cl think">이제 진짜 해야지</div>
-        <div class="cl think">내일 몰아서 하지</div>
-        <div class="cl think pvcell">이거밖에 안 되나… <b>뭘 어디서부터 하지</b></div>
-        <div class="cl think">다 맞는 말인데 <b>내 얘기 같진 않네</b></div>
+        <div class="cl think">이대로만 하면 될 것 같은데 · <b>책 추천이라도 받을 줄 알았더니</b></div>
+        <div class="cl think"><b>20일이면 되네, 아직 널널하네?</b></div>
+        <div class="cl think">생각보다 어렵네 · <b>그래도 꾸준히 하면 되겠지</b></div>
+        <div class="cl think"><b>이게 왜 답이지?</b> · <b>분명 봤는데 왜 또 틀리지</b></div>
+        <div class="cl think">불안한데 <b>막상 하고 싶진 않네</b></div>
+        <div class="cl think"><b>이대로 진도 따라간다고 되는 게 맞나?</b></div>
+        <div class="cl think">공감은 되는데 <b>그래서 뭘 해야 하지?</b> 나도 문제 풀고 단어 외우는데</div>
         <div class="cl think">운에 맡기자</div>
 
-        <div class="rl pain">통증</div>
-        <div class="cl pain">기간이 <b>이미 정해진 채</b> 들어온다. 250점이 무리인 걸 모른다</div>
-        <div class="cl pain">판단 근거가 없어 <b>심미로 대체</b>. 내 약점과 무관하게 고른다</div>
-        <div class="cl pain"><b>결제와 시작 사이가 한 달.</b> 시작을 시키는 사람이 없다</div>
-        <div class="cl pain">순서가 <b>교재 목차</b>다. 점수 기여도가 반영되지 않는다</div>
-        <div class="cl pain"><b>과제도 확인도 없다.</b> 그리고 <b>못 하는 날까지 계획에 들어가</b> 처음부터 안 지켜진다</div>
-        <div class="cl pain"><b>진단이 D-7에 온다.</b> 600이라는 숫자만 알 뿐 <b>어디를 고칠지 모른다</b></div>
-        <div class="cl pain">외부 정보는 <b>일반론에서 끝난다.</b> 내 할 일로 번역되지 않는다</div>
+        <div class="rl pain">페인포인트</div>
+        <div class="cl pain">기간이 <b>이미 정해져 있고</b> 현재 실력에서 <b>250점 정도를 올려야</b> 하지만, <b>현재 실력도 제대로 모르고</b> 어디서부터 계획을 세워서 해야 할지 <b>아무 생각이 없다</b></div>
+        <div class="cl pain"><b>현재 실력이 아니라 목표 점수</b>로 고른다. 그리고 <b>D-60에 이미 600점 예상을 받았는데</b> — 긴 글은 안 읽고 광고라 껐다. <b>숫자만 있고 다음 행동이 없다</b></div>
+        <div class="cl pain">계획을 <b>세우긴 한다</b> — 그게 <b>목차 그대로</b>다. 그리고 교재의 <b>"20일 완성"이 40일의 여유</b>로 읽혀 <b>시작일을 아무도 안 정해준다</b></div>
+        <div class="cl pain"><b>첫 시도에서 절반이 틀린다.</b> 난이도를 조절할 방법이 없고, 순서는 여전히 <b>교재 목차</b>다</div>
+        <div class="cl pain"><b>해설이 없어서가 아니라 봐도 모른다</b> — 답을 아는 사람의 언어라 중간 단계가 없다. 그리고 <b>알았다 싶어도 지나면 또 틀린다</b> — <b>"배웠다"는 확신이 안 생긴다.</b> 대안인 강의는 형식 때문에 거부 — <b>읽기만 해선 안 남는다</b></div>
+        <div class="cl pain"><b>불안이 행동으로 안 이어진다.</b> 며칠 비고 돌아와도 <b>뒤처진 만큼이 그대로</b>고, 막혀도 <b>강의는 귀찮아 안 듣는다.</b> 밀려도 <b>아무 일이 안 일어난다</b></div>
+        <div class="cl pain"><b>처음으로 방법을 의심하지만 대안이 없다.</b> D-60에 본 600을 다시 볼 뿐 — 달라진 건 <b>시간이 없다는 것</b></div>
+        <div class="cl pain">조언이 <b>지금 하는 것과 구별이 안 된다.</b> "문제 풀고 단어 외워라"는 <b>이미 하고 있는 일</b>이라 <b>바꿀 게 안 보인다</b></div>
         <div class="cl pain">포기 상태의 응시 → 나쁜 결과 → <b>다음 회차에 같은 실패 반복</b></div>
 
         <div class="rl opp">기회</div>
-        <div class="cl opp"><b>시험일부터 역산</b>해 분량을 정한다. 목표 점수보다 먼저 물을 것</div>
-        <div class="cl opp"><b>고르게 하지 않는다.</b> "오늘은 이거" 하나만</div>
-        <div class="cl opp"><b>1일차를 만들어 준다.</b> 등록 직후 첫 세션까지 끌고 간다</div>
-        <div class="cl opp">순서를 <b>점수 기여도</b>로 다시 짠다 — 목차 순서가 아니라</div>
-        <div class="cl opp"><b>과제와 확인</b> + 계획을 <b>본인이 가능한 요일</b>에만 배분</div>
-        <div class="cl opp"><b>진단을 1일차로 당기고</b> 점수가 아니라 <b>처방</b>을 준다</div>
-        <div class="cl opp">일반론을 <b>오늘 과제로 번역</b>한다 — 숏폼이 못 하는 일</div>
-        <div class="cl opp">회차를 넘겨 <b>자산을 남긴다</b> — "다음엔 여기서부터"</div>
+        <div class="cl opp"><b>목표 시험일, 현재 실력</b>을 파악하고 <b>시험일부터 역산</b>해 분량을 정한다</div>
+        <div class="cl opp">진단 후 <b>수치 점수보다 "그래서 무엇을 해야 하는지"</b>를 명확히 알려주고, <b>개인화된 커리큘럼</b>까지 제공해 <b>신뢰를 높인다</b></div>
+        <div class="cl opp"><b>마음먹은 순간부터 시험 목표일까지</b> 로드맵을 짠다. 강도가 세져도 <b>꾸준히 가도록 유도.</b> + 처음에 <b>"다 하면 보상"</b>을 알려주는 것도</div>
+        <div class="cl opp"><b>성공 경험</b>을 준다 — 첫 시도에서 절반을 틀리게 두지 않는다. 그리고 <b>보상</b></div>
+        <div class="cl opp"><b>해설보다 자세하고 강의보다 안 지루한 것</b> = 스캐폴딩. 논리를 <b>단계로 쪼개 본인이 밟게</b> 하고, <b>정답 전에 반드시 수행</b>시켜 "알았다"를 <b>착각이 아니라 확인</b>으로 만든다</div>
+        <div class="cl opp"><b>밀린 진도를 압축</b>해 커리큘럼 재구성. 막히면 <b>바로 질문할 수 있는 창구</b></div>
+        <div class="cl opp">진행 중에 <b>성취도·정답률로 "잘 하고 있다"는 확신</b>을 준다. 많이 떨어지면 <b>그에 맞는 문제를 추가 제공</b>하는 등의 조치</div>
+        <div class="cl opp"><b>오답 기반</b>으로 맞춤형 전략 추천</div>
+        <div class="cl opp" style="opacity:.35">—</div>
       </div>
 
     </div>
@@ -848,133 +879,137 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 <section class="sheet"><article class="slide">
   <header class="bar">
     <span class="no">04</span><h2>페인포인트 → 기능 · MVP 판정</h2>
-    <span class="note"><b>P0 = 이것이 없으면 스캐폴딩 효과를 볼 수 없다.</b> 커리큘럼은 고정하고 개인화는 파트 복습에만 둔다는 결정 기준</span>
-    <span class="sub">P0 8개 · P1 5개 · 이후 5개</span>
+    <span class="note"><b>P0 = 이것이 없으면 스캐폴딩 효과를 볼 수 없다</b> — 그중 <b>스캐폴딩 본체는 B1·B3·D1 셋뿐</b>이고 나머지 다섯은 <b>관찰 조건</b>이다. 화면 순서는 6장과 같다</span>
+    <span class="sub">화면 기준 · P0 8 · P1 5 · 이후 5</span>
   </header>
   <div class="body">
     <div class="cols">
 
       <div class="col">
-        <div class="colh"><span class="n">A</span><h3>시작할 때</h3></div>
+        <div class="colh"><span class="n">01</span><h3>온보딩 <code>/onboarding</code></h3></div>
         <div class="pf">
           <div class="p"><em>01</em> 기간이 이미 정해진 채 들어온다. 42강이 남은 기간에 안 들어간다</div>
           <div class="f"><b><span class="fid">A1</span>시험일 역산 커리큘럼</b>
             <span>온보딩 첫 질문 = "시험이 언제예요". 순서는 고정, 분량은 D-day로 조절</span>
-            <div class="tgs"><span class="tg2 p2">P2</span><span class="tg2 p2">MVP 이후</span></div><span class="why">커리큘럼을 고정하기로 했으므로 <b>동적 생성은 MVP 이후.</b> 남은 기간에 맞춘 <b>배치(하루 몇 강)</b>만 A4로</span></div>
+            <div class="tgs"><span class="tg2 p2">P2</span></div><span class="why">커리큘럼을 고정하기로 했으므로 <b>동적 생성은 MVP 이후.</b> 남은 기간에 맞춘 <b>배치(하루 몇 강)</b>만 A4로</span></div>
         </div>
         <div class="pf">
-          <div class="p"><em>02</em> 판단 근거가 없어 심미로 고른다</div>
-          <div class="f"><b><span class="fid">A2</span>오늘 할 것 1개 · 고르게 하지 않음</b>
-            <span>선택 화면 자체를 만들지 않는다</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 hv">있음</span></div><span class="why">이게 없으면 <b>수업에 들어가질 않는다</b> — 스캐폴딩을 체험할 진입로</span></div>
+          <div class="p"><em>07</em> 자기 실력을 <b>D-7에야</b> 처음 안다. 세면 나오는데 <b>안 센다</b></div>
+          <div class="f"><b><span class="fid">A5</span>1일차 짧은 진단</b>
+            <span>10분 안에 끝나야 한다. 길면 그 자체가 1일차 이탈 사유. <b>가치는 정확도가 아니라 시점</b>(D-7이 아니라 1일차)<b>과 대행</b>(대신 세어주고 대신 해석한다)</span>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why">효과를 보려면 <b>시작점이 있어야 한다.</b> 사전값 없이는 "나아졌나"를 말할 수 없다</span></div>
         </div>
         <div class="pf">
           <div class="p"><em>03</em> 사놓고 한 달을 안 연다. 결제와 시작 사이가 최대 공백</div>
           <div class="f"><b><span class="fid">A3</span>1일차를 끝까지 끌고 가기</b>
             <span>가입 직후 첫 세션 완료까지가 한 흐름. 앱에서도 이 구간이 최대 이탈 지점</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">신규</span></div><span class="why">첫 세션을 못 하면 스캐폴딩을 <b>한 번도 겪지 않는다.</b> 관찰 표본이 0이 된다</span></div>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why">첫 세션을 못 하면 스캐폴딩을 <b>한 번도 겪지 않는다.</b> 관찰 표본이 0이 된다</span></div>
         </div>
         <div class="pf">
           <div class="p">지민은 주말에 안 한다. 그런데 <b>가능한 요일은 사람마다 다르다</b></div>
           <div class="f"><b><span class="fid">A4</span>가능 요일을 받아 거기에만 분배</b>
             <span>60일을 60등분하지 않는다. 온보딩에서 <b>"며칠, 무슨 요일에 할 수 있나"</b>를 묻고 그 요일에만 배분. 지민 개인의 시간표를 기본값으로 굳히지 않으면서 <b>안 지켜지는 계획</b>은 막는다</span>
-            <div class="tgs"><span class="tg2 p1">P1</span><span class="tg2 nw">신규</span></div><span class="why">고정 커리큘럼에선 <b>배치 문제</b>다. 없어도 체험은 되지만 밀림이 빨라진다</span></div>
-        </div>
-        <div class="pf">
-          <div class="p"><em>06</em> 자기 실력을 D-7에야 처음 안다</div>
-          <div class="f"><b><span class="fid">A5</span>1일차 짧은 진단</b>
-            <span>10분 안에 끝나야 한다. 길면 그 자체가 1일차 이탈 사유</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">신규</span></div><span class="why">효과를 보려면 <b>시작점이 있어야 한다.</b> 사전값 없이는 "나아졌나"를 말할 수 없다</span></div>
+            <div class="tgs"><span class="tg2 p1">P1</span></div><span class="why">고정 커리큘럼에선 <b>배치 문제</b>다. 없어도 체험은 되지만 밀림이 빨라진다</span></div>
         </div>
       </div>
 
       <div class="col">
-        <div class="colh"><span class="n">B</span><h3>하는 동안</h3></div>
+        <div class="colh"><span class="n">02</span><h3>홈 <code>/dashboard</code></h3></div>
         <div class="pf">
-          <div class="p"><em>1차</em> 듣고만 있는 형식을 못 견딘다</div>
-          <div class="f"><b><span class="fid">B1</span>S1~S7 단계 진행 · 중간 수행 강제</b>
-            <span>정답 전에 반드시 뭔가를 시킨다. 강사 발화에 길이 상한</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 hv">있음</span></div><span class="why"><b>실험의 본체.</b> 이것이 곧 검증 대상</span></div>
+          <div class="p"><em>02</em> 판단 근거가 없어 심미로 고른다</div>
+          <div class="f"><b><span class="fid">A2</span>오늘 할 것 1개 · 고르게 하지 않음</b>
+            <span>선택 화면 자체를 만들지 않는다</span>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why">이게 없으면 <b>수업에 들어가질 않는다</b> — 스캐폴딩을 체험할 진입로</span></div>
         </div>
         <div class="pf">
-          <div class="p"><em>1차·05</em> <b>과제도 확인도 없어서</b> 꾸준히 못 했다. 밀려도 아무 일이 안 일어난다</div>
+          <div class="p"><em>1차·06</em> <b>과제도 확인도 없어서</b> 꾸준히 못 했다. 밀려도 아무 일이 안 일어난다</div>
           <div class="f"><b><span class="fid">B2</span>과제와 확인 — "진행 강제"</b>
-            <span>오늘 할 것을 주고, 했는지 물어본다. 인강에 없던 것이자 <b>학원의 출석 강제와는 다른 종류</b></span>
-            <div class="tgs"><span class="tg2 p1">P1</span><span class="tg2 cf">교란 주의</span></div><span class="why">⚠ 지민이 원한 기능이지만 <b>스캐폴딩과 별개의 변수</b>다. 넣으면 결과가 "스캐폴딩 효과"가 아니라 <b>"스캐폴딩+과제 패키지의 효과"</b>가 된다 — 넣되 보고서에 그렇게 쓸 것</span></div>
+            <span>오늘 할 것을 주고, 했는지 물어본다. 확인은 심문이 아니라 <b>재출제</b> — 목적은 "했나"가 아니라 <b>"남았나"</b></span>
+            <div class="tgs"><span class="tg2 p1">P1</span></div><span class="why">⚠ <b>스캐폴딩과 별개의 변수</b>다. 넣되 <b>A/B 양쪽에 똑같이</b> 넣어 변수가 아니라 배경으로 만들 것</span></div>
+        </div>
+        <div class="pf">
+          <div class="p"><em>06</em> 한 번 밀리면 회복 경로가 없다. <b>3~4일 비는 게 정상</b></div>
+          <div class="f"><b><span class="fid">C4</span>압축 모드 + 밀린 것 지우기</b>
+            <span>밀린 분량을 쌓아두지 않는다. <b>돌아왔을 때 밀린 목록이 보이면 그 자리에서 닫는다</b></span>
+            <div class="tgs"><span class="tg2 p1">P1</span></div><span class="why">밀려서 이탈하면 표본이 죽는다. FGI엔 무의미하고 <b>파일럿엔 필요</b></span></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="colh"><span class="n">03</span><h3>수업 화면 <code>승부처</code></h3></div>
+        <div class="pf">
+          <div class="p"><em>05</em> <b>해설은 봐도 모르고, 알아도 안 남는다.</b> 대안인 강의는 형식 때문에 거부 — <b>그 사이가 비어 있다</b></div>
+          <div class="f"><b><span class="fid">B1</span>S1~S7 단계 진행 · 중간 수행 강제</b>
+            <span><b>해설보다 자세하고 강의보다 안 지루한 것.</b> 논리를 단계로 쪼개 밟게 하고, <b>정답 전에 반드시 수행</b>시켜 "알았다"를 확인으로 만든다. 강사 발화에 길이 상한</span>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why"><b>실험의 본체.</b> 이것이 곧 검증 대상</span></div>
         </div>
         <div class="pf">
           <div class="p">아는 문제까지 쪼개면 <b>새로운 지루함</b>이 생긴다</div>
           <div class="f"><b><span class="fid">B3</span>Fading — 수행을 남기고 설명을 걷는다</b>
             <span>방향을 틀리면 "짧아진 인강"이 되어 1차 실패를 재현한다</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">미실효</span></div><span class="why">스캐폴딩의 일부. <b>없으면 아는 문제까지 쪼개져</b> 지루함으로 이탈한다</span></div>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why">스캐폴딩의 일부. <b>없으면 아는 문제까지 쪼개져</b> 지루함으로 이탈한다</span></div>
         </div>
         <div class="pf">
-          <div class="p">공부 장소가 <b>도서관·카페</b>다. 소리 내어 답할 수 없다</div>
+          <div class="p"><b>주 3~4일은</b> 소리를 못 낸다(도서관·카페). 집에 있는 날은 되고 — <b>요일마다 갈린다</b></div>
           <div class="f"><b><span class="fid">B4</span>무음 모드 — 손으로 답하는 수업</b>
-            <span>음성 응답이 기본이면 <b>주 학습 장소에서 못 쓴다.</b> 선택·필기 응답이 기본, 음성은 옵션</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">확인필요</span></div><span class="why">없으면 도서관·카페에서 <b>세션 자체가 일어나지 않는다.</b> 체험 못 하면 관찰도 없다</span></div>
+            <span>선택·필기 응답이 <b>기본</b>, 음성은 옵션. 별도 모드가 아니라 <b>세션 시작마다 갈리는 설정</b>이어야 한다 — 같은 사람이 요일마다 바꾼다</span>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why">없으면 <b>학습 가능일의 3/4이 막힌다.</b> 그리고 <b>모드를 세션 단위로 로깅</b>해야 단계별 시간·이탈을 비교할 수 있다</span></div>
         </div>
         <div class="pf">
           <div class="p">물어본 적이 없다. 부끄러움이 아니라 <b>물을 줄 몰라서</b></div>
           <div class="f"><b><span class="fid">B5</span>선제형 질문 — AI가 먼저 연다</b>
             <span>틀린 직후 "이거 왜 틀렸는지 볼까?". 익명 버튼이 아니다</span>
-            <div class="tgs"><span class="tg2 p1">P1</span><span class="tg2 nw">신규</span></div><span class="why">요청형이라 <b>푸시 스캐폴딩과 축이 다르다.</b> 관찰 항목으로는 가치 있음</span></div>
+            <div class="tgs"><span class="tg2 p1">P1</span></div><span class="why">요청형이라 <b>푸시 스캐폴딩과 축이 다르다.</b> 관찰 항목으로는 가치 있음</span></div>
         </div>
       </div>
 
       <div class="col">
-        <div class="colh"><span class="n">C</span><h3>무너질 때</h3></div>
+        <div class="colh"><span class="n">04</span><h3>내 학습 · 현황</h3></div>
         <div class="pf">
-          <div class="p"><em>06</em> 600이라는 숫자만 알고 <b>어디를 고칠지는 모른다</b></div>
-          <div class="f"><b><span class="fid">C1</span>진단이 점수가 아니라 처방을 준다</b>
-            <span>"600점"이 아니라 "P7 34% — 여기부터 3강". 약점을 행동으로 번역</span>
-            <div class="tgs"><span class="tg2 p1">P1</span><span class="tg2 nw">신규</span></div><span class="why">A5의 출력. <b>측정에는 진단만 있으면 되고</b> 처방은 제품 가치 쪽</span></div>
-        </div>
-        <div class="pf">
-          <div class="p"><em>07</em> 유튜브 공부법은 <b>일반론에서 끝난다.</b> 내 얘기 같지 않다</div>
-          <div class="f"><b><span class="fid">C2</span>공부법을 "오늘 과제"로 번역</b>
-            <span>"어휘를 외워라"가 아니라 "네 오답에서 나온 이 40개". 숏폼이 구조적으로 못 하는 일</span>
-            <div class="tgs"><span class="tg2 p2">P2</span><span class="tg2 p2">MVP 이후</span></div><span class="why">MVP 범위 밖</span></div>
-        </div>
-        <div class="pf">
-          <div class="p"><em>07</em> 위기를 알고도 행동이 안 바뀐다. 남은 1주에도 앞에서부터</div>
-          <div class="f"><b><span class="fid">C3</span>D-day 모드 — 경로 재편성</b>
-            <span>남은 기간이 짧아지면 커리큘럼을 갈아끼운다. 벼락치기를 우리가 흡수</span>
-            <div class="tgs"><span class="tg2 p2">P2</span><span class="tg2 p2">MVP 이후</span></div><span class="why">커리큘럼을 고정하므로 <b>경로 재편성을 하지 않는다</b></span></div>
-        </div>
-        <div class="pf">
-          <div class="p"><em>05</em> 한 번 밀리면 회복 경로가 없다</div>
-          <div class="f"><b><span class="fid">C4</span>압축 모드 + 밀린 것 지우기</b>
-            <span>밀린 분량을 쌓아두지 않는다</span>
-            <div class="tgs"><span class="tg2 p1">P1</span><span class="tg2 nw">신규</span></div><span class="why">밀려서 이탈하면 표본이 죽는다. FGI엔 무의미하고 <b>파일럿엔 필요</b></span></div>
-        </div>
-      </div>
-
-      <div class="col">
-        <div class="colh"><span class="n">D</span><h3>끝난 뒤</h3></div>
-        <div class="pf">
-          <div class="p">복습 조건이 "다 풀고 나서"라 루프가 발동하지 않는다</div>
+          <div class="p"><em>05</em> <b>한 번 이해해도 지나면 또 틀린다.</b> 그런데 복습 조건이 "다 풀고 나서"라 루프가 발동하지 않는다</div>
           <div class="f"><b><span class="fid">D1</span>파트 복습 자동 구성</b>
             <span>완주와 무관하게 오답 기반으로 자동 편성. <b>복습도 단계로</b></span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">신규</span></div><span class="why"><b>MVP 구조로 확정.</b> 정규 수업은 고정, 개인화는 여기에만 — 약점 기반 구성</span></div>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why"><b>MVP 구조로 확정.</b> 정규 수업은 고정, 개인화는 여기에만 — 약점 기반 구성</span></div>
         </div>
         <div class="pf">
-          <div class="p"><em>08</em> 포기 상태로 응시 → 나쁜 결과 → 다음 회차에 같은 실패 반복</div>
+          <div class="p"><em>07</em> <b>파트별 숫자까지는 안다.</b> 모르는 건 <b>왜 틀렸는지</b>와 <b>그래서 뭘 할지</b></div>
+          <div class="f"><b><span class="fid">C1</span>약점을 행동으로 — 숫자는 이미 아는 것</b>
+            <span>⚠ <b>"P7 34%"는 본인이 이미 아는 정보다.</b> 가치는 전부 <b>"여기부터 3강"</b> 쪽에 있다. <b>온보딩 진단 직후와 현황 처방전이 같은 변환</b></span>
+            <div class="tgs"><span class="tg2 p1">P1</span></div><span class="why">A5의 출력. <b>측정에는 진단만 있으면 되고</b> 처방은 제품 가치 쪽</span></div>
+        </div>
+        <div class="pf">
+          <div class="p"><em>09</em> 포기 상태로 응시 → 나쁜 결과 → 다음 회차에 같은 실패 반복</div>
           <div class="f"><b><span class="fid">D2</span>오답 자산 보존 · 이어받기</b>
             <span>돌아왔을 때 "다음엔 여기서부터". 교재가 못 하는 일이자 종이 대비 진짜 우위</span>
-            <div class="tgs"><span class="tg2 p2">P2</span><span class="tg2 p2">MVP 이후</span></div><span class="why">MVP 범위 밖</span></div>
+            <div class="tgs"><span class="tg2 p2">P2</span></div><span class="why">MVP 범위 밖</span></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="colh"><span class="n">05</span><h3>자율학습 · 측정</h3></div>
+        <div class="pf">
+          <div class="p"><em>08</em> 유튜브 공부법이 <b>지금 하는 것과 구별이 안 된다.</b> 공감은 되는데 바꿀 게 없다</div>
+          <div class="f"><b><span class="fid">C2</span>공부법을 "오늘 과제"로 번역</b>
+            <span>"어휘를 외워라"가 아니라 "네 오답에서 나온 이 40개". 숏폼이 구조적으로 못 하는 일</span>
+            <div class="tgs"><span class="tg2 p2">P2</span></div><span class="why">MVP 범위 밖</span></div>
+        </div>
+        <div class="pf">
+          <div class="p"><em>08</em> 위기를 알고도 행동이 안 바뀐다. 남은 1주에도 앞에서부터</div>
+          <div class="f"><b><span class="fid">C3</span>D-day 모드 — 경로 재편성</b>
+            <span>남은 기간이 짧아지면 커리큘럼을 갈아끼운다. 벼락치기를 우리가 흡수</span>
+            <div class="tgs"><span class="tg2 p2">P2</span></div><span class="why">커리큘럼을 고정하므로 <b>경로 재편성을 하지 않는다</b></span></div>
         </div>
         <div class="pf">
           <div class="p">밀려도 신호가 없다. 그리고 마감이 오면 스스로 돌아온다</div>
           <div class="f"><b><span class="fid">D3</span>이탈 선행지표 로깅</b>
             <span>세션 완료율 · 문항당 시간 · 단계 건너뛰기 · 접속 간격</span>
-            <div class="tgs"><span class="tg2 p0">P0</span><span class="tg2 nw">선행필수</span></div><span class="why"><b>스캐폴딩 효과를 보는 유일한 수단.</b> 단계별 시간·이탈 지점이 없으면 끝나도 아무것도 못 본다</span></div>
+            <div class="tgs"><span class="tg2 p0">P0</span></div><span class="why"><b>스캐폴딩 효과를 보는 유일한 수단.</b> 단계별 시간·이탈 지점이 없으면 끝나도 아무것도 못 본다</span></div>
         </div>
         <div class="pf">
           <div class="p">커트를 넘으면 즉시 이탈한다 — <b>지표가 이를 실패로 읽는다</b></div>
           <div class="f"><b><span class="fid">D4</span>리텐션 지표 재정의</b>
             <span>D28만 보면 성공한 사용자를 잃은 것으로 계산한다</span>
-            <div class="tgs"><span class="tg2 p2">P2</span><span class="tg2 p2">MVP 이후</span></div><span class="why">MVP 범위 밖</span></div>
+            <div class="tgs"><span class="tg2 p2">P2</span></div><span class="why">MVP 범위 밖</span></div>
         </div>
       </div>
 
@@ -992,29 +1027,39 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   <div class="body">
     <div class="jw">
 
-      <div class="bands" style="grid-template-columns:repeat(8,1fr)">
-        <div class="band-l n" style="grid-column:1/span 3">진입 — 1일차 안에 끝나야 하는 구간</div>
-        <div class="band-l s" style="grid-column:4/span 2">반복 루프</div>
-        <div class="band-l c" style="grid-column:6/span 2">D-7 이후</div>
-        <div class="band-l g" style="grid-column:8/span 1">다음 회차</div>
+      <div class="bands" style="grid-template-columns:repeat(9,1fr)">
+        <div class="band-l x" style="grid-column:1/span 1">화면 밖 — 미설계</div>
+        <div class="band-l n" style="grid-column:2/span 3">진입 — 1일차 안에 끝나야 하는 구간</div>
+        <div class="band-l s" style="grid-column:5/span 2">반복 루프</div>
+        <div class="band-l c" style="grid-column:7/span 2">D-7 이후</div>
+        <div class="band-l g" style="grid-column:9/span 1">다음 회차</div>
       </div>
 
       <div class="curve">
         <svg viewBox="0 0 800 56" preserveAspectRatio="none" aria-label="예상 감정 곡선">
           <line x1="0" y1="28" x2="800" y2="28" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5"/>
-          <polyline points="50,24 150,20 250,16 350,18 450,26 550,22 650,20 750,17"
-            fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
-          <g fill="var(--sage)"><circle cx="50" cy="24" r="3.2"/><circle cx="150" cy="20" r="3.2"/>
-            <circle cx="350" cy="18" r="3.2"/><circle cx="450" cy="26" r="3.2"/><circle cx="550" cy="22" r="3.2"/>
-            <circle cx="650" cy="20" r="3.2"/><circle cx="750" cy="17" r="3.2"/></g>
-          <circle cx="250" cy="16" r="5.6" fill="var(--gold)"/>
+          <polyline points="44,30 133,24 222,20 311,16 400,18 489,26 578,22 667,20 756,17"
+            fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"
+            stroke-dasharray="0 0"/>
+          <line x1="44" y1="30" x2="133" y2="24" stroke="var(--ground)" stroke-width="3.4"/>
+          <line x1="44" y1="30" x2="133" y2="24" stroke="var(--ink3)" stroke-width="2" stroke-dasharray="4 4"/>
+          <g fill="var(--sage)"><circle cx="133" cy="24" r="3.2"/><circle cx="222" cy="20" r="3.2"/>
+            <circle cx="400" cy="18" r="3.2"/><circle cx="489" cy="26" r="3.2"/><circle cx="578" cy="22" r="3.2"/>
+            <circle cx="667" cy="20" r="3.2"/><circle cx="756" cy="17" r="3.2"/></g>
+          <circle cx="44" cy="30" r="3.2" fill="none" stroke="var(--ink3)" stroke-width="1.6"/>
+          <circle cx="311" cy="16" r="5.6" fill="var(--gold)"/>
         </svg>
+        <div class="cvlab" style="grid-template-columns:repeat(9,1fr)">
+          <span class="mu">공백</span><span>가벼움</span><span>납득</span><span class="hi">이해</span>
+          <span>성취</span><span>안심</span><span>집중</span><span>확인</span><span>재개</span>
+        </div>
       </div>
 
-      <div class="jg" style="grid-template-columns:4.3em repeat(8,1fr);grid-template-rows:auto minmax(0,1.15fr) minmax(0,.68fr) minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.15fr)">
+      <div class="jg" style="grid-template-columns:4.3em repeat(9,1fr);grid-template-rows:auto minmax(0,1.15fr) minmax(0,.68fr) minmax(0,.72fr) minmax(0,1.2fr) minmax(0,1.15fr)">
         <div class="rl" style="border-top:0"></div>
+        <div class="cl hd gap"><span class="n">00 · 공백</span>우리를 알고 · 깐다</div>
         <div class="cl hd"><span class="n">01</span>시험일을 넣고 10분 진단</div>
-        <div class="cl hd"><span class="n">02</span>점수가 아니라 처방을 받는다</div>
+        <div class="cl hd"><span class="n">02</span>숫자가 아니라 할 일을 받는다</div>
         <div class="cl hd pv"><span class="n">03 · 승부처</span>첫 강을 단계로 함께 푼다</div>
         <div class="cl hd"><span class="n">04</span>오늘 과제가 온다</div>
         <div class="cl hd"><span class="n">05</span>며칠 밀린다</div>
@@ -1023,16 +1068,18 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="cl hd"><span class="n">08</span>다음 회차에 돌아온다</div>
 
         <div class="rl">화면에서</div>
+        <div class="cl gap"><b>화면이 없다.</b> 인지 → 설치 → 첫 실행 셋 다 미정</div>
         <div class="cl">시험 날짜와 목표만 입력. 10분짜리 진단</div>
-        <div class="cl">"P7 34% — 여기부터" + 남은 기간에 맞춘 분량</div>
-        <div class="cl pvcell">등록 직후 첫 강까지 <b>끊기지 않고</b> 이어진다</div>
+        <div class="cl">숫자가 아니라 <b>"여기부터 3강"</b> + 남은 기간에 맞춘 분량</div>
+        <div class="cl pvcell">등록 직후 첫 강까지 끊기지 않고 이어진다. 그리고 <b>틀려도 답을 안 준다</b> — 단서 → 유형 → 근거 → 오답 제거를 하나씩 시켜 <b>내가 답에 도달한다</b></div>
         <div class="cl">오늘 할 것 1개 + 어제 것을 했는지 물어본다</div>
         <div class="cl">돌아오면 밀린 게 없다. 압축된 오늘치가 있다</div>
-        <div class="cl">순서가 재편성되고, 외울 목록이 확정된다</div>
+        <div class="cl">순서가 재편성되고, <b>지금까지와 뭐가 다른지</b>가 같이 온다. 외울 목록도 확정</div>
         <div class="cl">"지금 보면 몇 점"을 확인하고 나간다</div>
         <div class="cl">이전 오답과 진도가 남아 있다</div>
 
         <div class="rl">우리 기능</div>
+        <div class="cl gap">없음 — <b>유료/무료가 여기서 갈리고</b> 그게 진단 길이(A5)를 정한다</div>
         <div class="cl">시험일 역산 커리큘럼 · 1일차 진단</div>
         <div class="cl">진단 → 처방 변환 · 점수 기여도 순 배열</div>
         <div class="cl pvcell">S1~S7 레일 · 중간 수행 강제 · 발화 길이 상한</div>
@@ -1043,31 +1090,34 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="cl">오답 자산 보존 · 이어받기</div>
 
         <div class="rl">생각</div>
-        <div class="cl think">고를 게 없네 — 부담이 없다</div>
-        <div class="cl think">아, 내가 여기가 약했구나</div>
-        <div class="cl think pvcell">어? 나한테 계속 뭘 시키네</div>
-        <div class="cl think">누가 시켜주니까 하게 되네</div>
+        <div class="cl think gap">인강 대신 이걸 해도 되나</div>
+        <div class="cl think"><b>또 레벨테스트인가</b> 했는데 · 고를 게 없어 부담은 없네</div>
+        <div class="cl think"><b>이번엔 뭘 하라는 게 있네</b></div>
+        <div class="cl think pvcell">어? 계속 뭘 시키네 · <b>아, 이래서 답이구나</b></div>
+        <div class="cl think">시켜주니까 하게 되네 · <b>어제 틀린 게 오늘 나왔는데 맞혔네</b></div>
         <div class="cl think">밀린 게 없어졌네</div>
         <div class="cl think">이것만 하면 되는구나</div>
         <div class="cl think">이만큼 올랐구나 / 안 올랐구나</div>
         <div class="cl think">저번에 하던 게 남아 있네</div>
 
         <div class="rl pain">이탈 위험</div>
-        <div class="cl pain">진단이 길면 <b>1일차에 끝난다.</b> 10분도 길 수 있다</div>
-        <div class="cl pain">처방이 <b>"P7부터"</b>인데 P7이 제일 어렵다. 첫날부터 좌절</div>
-        <div class="cl pain"><b>아는 문제까지 쪼개면</b> 인강과 종류만 다른 지루함</div>
-        <div class="cl pain">확인이 <b>잔소리로 느껴지면</b> 알림을 끈다. <b>가능 시간대를 안 받으면</b> 알림이 늘 엇나간다</div>
-        <div class="cl pain">압축해도 무거우면 안 온다. <b>버퍼 요일이 없는 사람은 두 번을 못 밀린다</b></div>
+        <div class="cl pain"><b>FGI에선 안 보인다</b> — 우리가 앉혀놓으니까. MVP1 300명에서 최대 깔때기</div>
+        <div class="cl pain">진단이 길면 <b>1일차에 끝난다.</b> 그리고 <b>결과가 길면 안 읽는다</b> — 레벨테스트에서 이미 그랬다</div>
+        <div class="cl pain"><b>가장 약한 파트부터</b> 시키면 첫날부터 좌절. 순서는 <b>점수 기여도</b>지 정답률 최저가 아니다</div>
+        <div class="cl pain"><b>아는 문제까지 쪼개면</b> 지루하고, <b>모르는 문제에서 단계가 빠르면</b> 그냥 <b>어려운 해설</b>이 된다 — 양쪽 다 실패</div>
+        <div class="cl pain">확인이 <b>잔소리로 느껴지면</b> 알림을 끈다. 그리고 <b>불안을 자극하는 문구는 무효</b> — 이미 불안한 사람이다</div>
+        <div class="cl pain"><b>3~4일 비는 게 정상</b>이다. 압축해도 무거우면 안 오고, <b>밀린 목록을 보면 그 자리에서 닫는다</b></div>
         <div class="cl pain">경로가 바뀌면 <b>지금까지 한 게 헛수고로 보인다</b></div>
         <div class="cl pain">점수가 안 올라 보이면 <b>제품 탓</b>으로 귀결</div>
         <div class="cl pain">그냥 안 온다. 재방문 이유가 <b>자산 하나뿐</b></div>
 
         <div class="rl meas">관찰 지표</div>
+        <div class="cl meas">설치 → <b>온보딩 착수율</b> · 유입 경로별 <span style="opacity:.7">(MVP1)</span></div>
         <div class="cl meas">온보딩 <b>이탈률</b> · 진단 소요 시간</div>
         <div class="cl meas">처방 <b>수용률</b> · 첫 강 착수율</div>
-        <div class="cl meas">★ <b>1일차 첫 강 완주율</b> · 단계별 이탈 지점 · <b>음성/무음 응답 비율</b></div>
-        <div class="cl meas">과제 <b>수행률</b> · 알림 해제율 · <b>시간대별 접속 분포</b></div>
-        <div class="cl meas">밀린 뒤 <b>복귀율</b> · 복귀까지 일수</div>
+        <div class="cl meas">★ <b>1일차 첫 강 완주율</b> · <b>단계별 정답률·이탈 지점</b> · 음성/무음 <b>세션 태그</b></div>
+        <div class="cl meas">과제 <b>수행률</b> · <b>재출제 정답 전환율</b>(틀린 게 남았나) · 알림 해제율</div>
+        <div class="cl meas"><b>공백 길이 분포</b> · 밀린 뒤 복귀율 · 복귀까지 일수</div>
         <div class="cl meas">재편성 <b>수용률</b> · 목록 완료율</div>
         <div class="cl meas">점수 확인 <b>빈도</b> · 실제 응시 여부</div>
         <div class="cl meas"><b>재방문 간격</b> (3~6개월)</div>
@@ -1080,6 +1130,11 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <span>과제·확인은 지민이 원한 것이지만, <b>과하면 알림부터 꺼진다</b></span></div>
         <div class="op"><span class="k">미결 03</span><b>리텐션을 메인 지표로 쓸 것인가</b>
           <span>커트를 넘어도, 회차 사이에도 안 온다 — <b>둘 다 성공인데 실패로 읽는다</b></span></div>
+        <div class="op"><span class="k">미결 04</span><b>00단계 — 어디서 만나고, 돈을 받는가</b>
+          <span>FGI엔 영향 없지만 <b>MVP1 300명은 여기를 스스로 통과한 사람만</b> 남는다</span></div>
+        <div class="op"><span class="k">미결 05</span><b>보상 — 먼 것은 뺐는데 가까운 것도 뺄 것인가</b>
+          <span>6장에서 뺀 건 <b>완주 조건부</b>(트로피·비법노트). <b>오늘 끝내면 지금 오는 보상</b>은 다른 물건이고,
+          온보딩 <b>R축(칭찬·보상형)</b>의 빈칸이기도 하다</span></div>
       </div>
 
     </div>
@@ -1091,7 +1146,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 <section class="sheet"><article class="slide">
   <header class="bar">
     <span class="no">06</span><h2>메뉴별로 무엇이 있어야 하나</h2>
-    <span class="note">코드(A1·B2…)는 3장의 기능 번호 · <b>지금 화면에 있는 것</b>과 대조해 판정했다</span>
+    <span class="note">코드(A1·B2…)는 4장의 기능 번호 · <b>지금 화면에 있는 것</b>과 대조해 판정했다 · <b>수업 화면(승부처)은 8장</b></span>
     <span class="sub">유지 · 바꿈 · 이탈</span>
   </header>
   <div class="body">
@@ -1103,16 +1158,18 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="mblk"><span class="mlab keep">있어야 할 것</span>
           <div class="mitem"><span class="ok">✓</span> <span class="fid">A1</span><b>시험일을 먼저</b> — 이미 있음(GoalSetting)</div>
           <div class="mitem"><span class="ok">✓</span> <span class="fid">A5</span><b>10분 진단</b> — 있음. <b>길이가 관건</b></div>
-          <div class="mitem"><span class="fid">C1</span>결과를 <b>처방으로</b> — "P7 34%, 여기부터 3강"</div>
+          <div class="mitem"><span class="fid">C1</span>결과를 <b>할 일로</b> — 숫자 말고 "여기부터 3강". <b>한 줄로</b> — 길면 안 읽는다(레벨테스트에서 이미 그랬다)</div>
           <div class="mitem"><span class="fid">A4</span><b>"며칠·무슨 요일에 할 수 있나"</b>를 묻고 그 요일에만 배분</div>
           <div class="mitem"><span class="fid">A3</span>끝을 <b>커리큘럼 확인이 아니라 첫 세션 완료</b>로</div>
         </div>
         <div class="mblk"><span class="mlab chg">빼거나 바꿀 것</span>
-          <div class="mitem chg"><b>학습 유형 라벨</b>(기초 저금러 등 20종) — 재미는 있지만 <b>행동이 안 나온다.</b> 자리를 처방에 내줄 것</div>
+          <div class="mitem chg"><b>학습 유형 라벨</b>(기초 저금러 등 16종) — 재미는 있지만 <b>행동이 안 나온다.</b> 자리를 처방에 내줄 것</div>
+          <div class="mitem risk"><b>"총 42강" 같은 전체 분량</b> — 교재의 <b>"20일 완성"이 널널함을 만들어</b> 한 달 방치를 낳았다. <b>총량 말고 오늘치</b>를 보여줄 것</div>
           <div class="mitem chg"><b>강사 선택</b> — 실험 기간엔 1명 고정(레일이 강사별로 다 안 깔림)</div>
         </div>
         <div class="mblk"><span class="mlab risk">이탈 지점</span>
           <div class="mitem risk">진단이 길면 <b>여기서 끝.</b> 커리큘럼 확인에서 멈추면 <b>한 달 방치가 그대로 재현</b></div>
+          <div class="mitem risk"><b>첫 강이 어려우면 그날로 끝.</b> 교재는 1챕터에서 <b>절반을 틀리게</b> 했다</div>
         </div>
       </div>
 
@@ -1122,16 +1179,18 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="mblk"><span class="mlab keep">있어야 할 것</span>
           <div class="mitem"><span class="fid">A2</span><b>오늘 할 것 1개</b> + 예상 소요 시간</div>
           <div class="mitem"><span class="ok">✓</span> <b>D-day</b> — 있음. 여기에 <b>남은 점수</b>를 붙일 것</div>
-          <div class="mitem"><span class="fid">B2</span><b>어제 과제 확인</b> — 물어보지 말고 <b>재출제</b>로</div>
+          <div class="mitem"><span class="fid">B2</span><b>어제 과제 확인</b> — 물어보지 말고 <b>재출제</b>로. 목적은 "했나"가 아니라 <b>"남았나"</b></div>
           <div class="mitem"><span class="fid">C4</span>밀렸으면 <b>압축된 오늘치.</b> 밀린 목록은 안 보여준다</div>
         </div>
         <div class="mblk"><span class="mlab chg">빼거나 바꿀 것</span>
           <div class="mitem risk"><b>연속 학습(스트릭)</b> — 지민은 밀리는 사람이다. 끊긴 스트릭은 이탈 신호가 아니라 <b>이탈 원인</b>이 된다</div>
-          <div class="mitem risk"><b>달성 미션 · 트로피</b> — 완주 못 하는 사람에게 <b>도달 불가 보상</b></div>
+          <div class="mitem risk"><b>달성 미션 · 트로피</b> — <b>완주 조건부</b>는 도달 불가라 뺀다. <b>오늘 끝내면 지금 오는 보상</b>은 별개 → 미결 05</div>
+          <div class="mitem risk"><b>"D-7! 서두르세요" 류 문구</b> — <b>불안을 자극해도 안 움직인다.</b> 이미 불안한 사람이다</div>
           <div class="mitem chg"><b>학습 시간 → 정답률</b>로 지표 교체</div>
         </div>
         <div class="mblk"><span class="mlab risk">이탈 지점</span>
           <div class="mitem risk">카드가 많으면 <b>오늘 할 것이 묻힌다.</b> 그리고 스트릭이 끊긴 날 안 들어온다</div>
+          <div class="mitem risk"><b>3~4일 비고 돌아오는 게 정상.</b> 그때 밀린 목록이 보이면 <b>그 자리에서 닫는다</b></div>
         </div>
       </div>
 
@@ -1140,12 +1199,12 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <p>얼마나 남았나 확인하러. <b>고르러 오는 게 아니다</b></p></div>
         <div class="mblk"><span class="mlab keep">있어야 할 것</span>
           <div class="mitem">진도를 <b>정답률 기반</b>으로 — 완료 개수가 아니라</div>
-          <div class="mitem"><span class="fid">D1</span>파트 끝 <b>복습 자동 구성</b></div>
+          <div class="mitem"><span class="fid">D1</span>파트 끝 <b>복습 자동 구성</b> — <b>한 번 이해해도 지나면 또 틀리니까</b></div>
           <div class="mitem"><b>오답 회수함</b> — 지금의 노트함 자리에</div>
         </div>
         <div class="mblk"><span class="mlab chg">빼거나 바꿀 것</span>
-          <div class="mitem chg"><b>학습 노트(읽는 것)</b> → <b>되돌려주는 노트</b>로. 지민은 개념서를 한 번도 안 봤고, 노트는 <b>인강의 텍스트 버전</b>이다</div>
-          <div class="mitem risk"><b>비법 노트(코스 완주 시 해제)</b> — 완주가 병목인데 보상을 완주에 걸었다. <b>로스터 완주자 0명.</b> 조건을 파트 단위로 낮출 것</div>
+          <div class="mitem chg"><b>학습 노트(읽는 것)</b> → <b>되돌려주는 노트</b>로. 개념서를 안 봤을 뿐 아니라 <b>막혀서 강의를 찾다가도 귀찮아서 포기</b>했다 — <b>읽고 듣는 보조물은 전부 무효</b></div>
+          <div class="mitem risk"><b>비법 노트(코스 완주 시 해제)</b> — 완주가 병목인데 보상을 완주에 걸었다. <b>로스터 완주자 0명.</b> 조건을 파트 단위로 낮출 것 → 미결 05</div>
           <div class="mitem chg">코스 목록 = 고르는 목록이 아니라 <b>진행 상황의 시각화</b></div>
         </div>
         <div class="mblk"><span class="mlab risk">이탈 지점</span>
@@ -1158,11 +1217,12 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <p>지금 보면 몇 점인지 보러. 그게 이 탭의 존재 이유다</p></div>
         <div class="mblk"><span class="mlab keep">있어야 할 것</span>
           <div class="mitem"><b>"지금 보면 몇 점"</b> — D-7의 충격을 미리 나눠 받게</div>
-          <div class="mitem"><span class="ok">✓</span> <b>약점 저격 레이더</b> — 이미 있음</div>
+          <div class="mitem">파트별 정답률의 <b>변화</b> — 절대값이 아니라</div>
+          <div class="mitem"><b>틀렸던 걸 이제 맞힌다</b> — 재출제 정답 전환. <b>"배웠다"는 확신이 이 사람에게 없다</b></div>
           <div class="mitem"><span class="ok">✓</span> <span class="fid">C1</span><b>강사 처방전</b> — 이름은 있다. <b>실제로 다음 할 일까지 이어지는지 확인 필요</b></div>
-          <div class="mitem">파트별 정답률의 <b>변화</b></div>
         </div>
         <div class="mblk"><span class="mlab chg">빼거나 바꿀 것</span>
+          <div class="mitem risk"><b>약점 저격 레이더</b> — 지민은 파트별 강약을 <b>이미 안다</b>(채점하면 나옴). 예쁘지만 새 정보가 아니라 행동이 안 나온다 — <b>학습 유형 라벨과 같은 종류.</b> 자리를 처방에 내줄 것</div>
           <div class="mitem risk"><b>전체 순위</b> — 600점대는 하위권이다. 순위는 동기가 아니라 <b>이탈 사유</b></div>
           <div class="mitem risk"><b>학습일수</b> — 스트릭과 같은 문제</div>
         </div>
@@ -1183,10 +1243,11 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <div class="mblk"><span class="mlab chg">빼거나 바꿀 것</span>
           <div class="mitem risk"><b>"내가 저장한 단어"</b> — 지민은 저장을 안 한다. 오답 노트가 없는 사람</div>
           <div class="mitem chg"><b>"오늘의 단어 목표 50개"</b> — 범위가 임의다. <b>내 오답에서 나온 40개</b>여야</div>
-          <div class="mitem chg">평소엔 이 탭 콘텐츠를 <b>과제로 밀어서 준다</b> → 6장</div>
+          <div class="mitem chg">평소엔 이 탭 콘텐츠를 <b>과제로 밀어서 준다</b> → 7장</div>
         </div>
         <div class="mblk"><span class="mlab risk">이탈 지점</span>
           <div class="mitem risk">자유 선택 화면이면 <b>애초에 안 들어온다.</b> 들어와도 뭘 고를지 모른다</div>
+          <div class="mitem risk">여기 콘텐츠가 <b>"지금 하는 것과 구별이 안 되면"</b> 유튜브와 같아진다 — <b>범위가 확정</b>돼야 다르다</div>
         </div>
       </div>
 
@@ -1216,7 +1277,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
           <tbody>
             <tr><td>오답 회수</td><td>어제 틀린 문항</td><td>복습이 <b>"다 풀면"</b>에 묶여 발동을 안 함</td><td>홈 → 자율학습</td></tr>
             <tr><td>어휘</td><td>내 오답의 단어</td><td><b>"어디서부터 외워야 할지"</b> 모름</td><td>자율학습 단어장</td></tr>
-            <tr><td>파트 집중</td><td>진단 약점 파트</td><td>600점만 알고 <b>어딜 고칠지</b> 모름</td><td>내 학습</td></tr>
+            <tr><td>파트 집중</td><td>진단 약점 파트</td><td>약한 파트를 알아도 <b>뭘 할지</b> 모름</td><td>내 학습</td></tr>
             <tr><td>실전 감각</td><td>시간 재고 풀기</td><td>모의고사 0 → <b>D-7의 충격</b></td><td>현황</td></tr>
           </tbody>
         </table>
@@ -1440,8 +1501,8 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 
 <div class="foot">
   <span><b>근거</b> 실측 2인 합성 · 점수·기간·파트별 정답률은 <b>설정값</b></span>
-  <span><b>미확인</b> 1차에 몇 강까지 들었나 · 무엇이 지루했나</span>
-  <span><b>사진 교체</b> .photo 의 style 에 background-image:url('파일명') 추가</span>
+  <span><b>확인됨 08-03</b> 인강은 <b>절반까지</b> 들었다 · 이탈 사유 = <b>강제성 없음 + 듣고만 있는 지루함</b> — 강사가 아니라 형식</span>
+  <span><b>함의</b> 절반까지 갔다 = 세션 <b>안</b>이 아니라 세션 <b>사이</b>에서 죽었다</span>
 </div>
 
 </div>

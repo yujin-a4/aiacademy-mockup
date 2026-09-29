@@ -145,7 +145,7 @@ export default function LecturePage() {
             ? `이 강의(${code})는 듣기 유형이라 아직 화면이 준비 중이에요.`
             : `강의를 찾을 수 없어요. (${code})`}
         </p>
-        <button onClick={() => router.push('/lessons')} className="px-5 py-2.5 rounded-xl bg-[#2563EB] text-white text-sm font-bold">내 학습으로</button>
+        <button onClick={() => router.push('/lessons')} className="px-5 py-2.5 rounded-lg bg-[#2563EB] text-white text-sm font-bold">내 학습으로</button>
       </div>
     )
   }
@@ -159,8 +159,8 @@ export default function LecturePage() {
           드래프트는 유형 단위로 복사돼요. {code} 가 쓰는 유형이 이 드래프트에 안 들어 있으면 비어 보입니다.
         </p>
         <div className="flex gap-2 mt-1">
-          <button onClick={() => router.push(`/lecture/${code}`)} className="px-5 py-2.5 rounded-xl bg-[#2563EB] text-white text-sm font-bold">정본으로 열기</button>
-          <button onClick={() => router.push('/lessons')} className="px-5 py-2.5 rounded-xl bg-white border border-[#E5E7EB] text-[#334155] text-sm font-bold">내 학습으로</button>
+          <button onClick={() => router.push(`/lecture/${code}`)} className="px-5 py-2.5 rounded-lg bg-[#2563EB] text-white text-sm font-bold">정본으로 열기</button>
+          <button onClick={() => router.push('/lessons')} className="px-5 py-2.5 rounded-lg bg-white border border-[#E5E7EB] text-[#334155] text-sm font-bold">내 학습으로</button>
         </div>
       </div>
     )

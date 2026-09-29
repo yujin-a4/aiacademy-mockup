@@ -79,7 +79,7 @@ export default function QuizCard({ onComplete, onBack }: { onComplete: () => voi
         <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
       </div>
 
-      <div className="w-full max-w-[1032px] min-h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] min-h-[600px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
         {/* ── 좌측: 질문 영역 ── */}
         <div className="relative md:w-[45%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-center overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -147,7 +147,7 @@ export default function QuizCard({ onComplete, onBack }: { onComplete: () => voi
                   key={opt.value}
                   onClick={() => handlePick(opt.value)}
                   disabled={!!picked}
-                  className={`relative flex items-start gap-4 p-6 md:p-7 h-[152px] rounded-2xl border-2 text-left transition-all duration-200 ${
+                  className={`relative flex items-start gap-4 p-6 md:p-7 h-[152px] rounded-xl border-2 text-left transition-all duration-200 ${
                     isSelected
                       ? 'bg-primary border-primary shadow-xl shadow-primary/25 scale-[1.02]'
                       : isDimmed
@@ -156,7 +156,7 @@ export default function QuizCard({ onComplete, onBack }: { onComplete: () => voi
                   }`}
                 >
                   {/* 이모지 박스 */}
-                  <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-[22px] ${
+                  <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-[22px] ${
                     isSelected ? 'bg-white/20' : 'bg-[#EEF2FF]'
                   }`}>
                     {opt.emoji}

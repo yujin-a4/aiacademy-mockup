@@ -10,7 +10,7 @@ interface PhotoCardProps {
 
 export default function PhotoCard({ src, annotations = [], className = '' }: PhotoCardProps) {
   return (
-    <div className={`relative w-full rounded-2xl overflow-hidden select-none ${className}`}>
+    <div className={`relative w-full rounded-xl overflow-hidden select-none ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt="TOEIC photo" className="w-full h-full object-cover block" />
 

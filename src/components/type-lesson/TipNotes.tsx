@@ -46,6 +46,16 @@ function BulbIcon({ className }: { className?: string }) {
   )
 }
 
+/** 동그라미 체크 — TIP 카드 머리 (09-28 사용자 지정, 빨간 세로줄 자리) */
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <LineIcon className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.2 12.3l2.6 2.6 5-5.4" />
+    </LineIcon>
+  )
+}
+
 /** 펼친 책 — 핵심 어휘 */
 function BookIcon({ className }: { className?: string }) {
   return (
@@ -59,36 +69,68 @@ function BookIcon({ className }: { className?: string }) {
 
 export type TipSheetKind = 'tip' | 'vocab'
 
-/* ── 핵심어에 **펜을 긋는다** ──
-   강사가 노트에 손으로 밑줄 친 것처럼 보이게 하는 것이 목적이다. 무엇에 긋는가는 셋:
-     ① `**…**` — **사람이 찍은 것이 언제나 우선한다.** 시트 대본에는 이미 이 관습이 있고
-        (sanitizeForTts 가 소리에서 이 표시를 떼어낸다), TIP 칸에는 아직 안 쓴다(실측 15칸 중 0).
-        먼저 지원해 두면 콘텐츠팀이 찍는 순간 그대로 먹는다.
-     ② 영어 덩어리 — 토익 수업에서 핵심어는 대개 영어 형태 그 자체다(`be being p.p.`, `is hanging`).
-     ③ 작은따옴표 안 — 뜻풀이(`'~을 조립하다'`)다. 굵게만 하고 밑줄은 긋지 않는다:
-        한 줄에 빨간 줄이 두 겹 이상 그이면 노트가 아니라 낙서로 보인다.
-   ⚠️ 자동 규칙이라 **과하게 그일 수 있다.** 그래도 밑줄이 정보를 지우지는 않으므로,
-      못 긋고 넘어가는 쪽보다 낫다고 보고 이렇게 뒀다. */
-const PEN = 'linear-gradient(transparent 58%, rgba(239,68,68,0.42) 58%, rgba(239,68,68,0.42) 82%, transparent 82%)'
+/* ── TIP 본문 글씨 = **교보손글씨 2019** (09-28 사용자 지정) ──
+   강사가 노트에 적어 준 것처럼 보이게 한다. 손글씨 후보 8개 중 **영문이 가장 반듯한** 것이라 골랐다
+   — TIP 절반이 영어 표현이라 영문이 흐리거나 삐뚤면 못 쓴다(2024 박서우는 소문자 s 가 대문자로 나온다).
+   본문 줄에만 입힌다. 머리('토익 TIP')와 어휘 칸은 또렷해야 외우므로 기본 글씨 그대로.
+   선언은 여기 둔다 — TIP 에서만 쓰는 글씨라 전역 CSS 에 올릴 까닭이 없다. 눈누 안내대로 jsdelivr 에서 받는다. */
+const HAND = 'KyoboHand'
+const HAND_CSS = `@font-face{font-family:'${HAND}';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.0/KyoboHand.woff') format('woff');font-weight:normal;font-display:swap}`
+function HandFont() { return <style dangerouslySetInnerHTML={{ __html: HAND_CSS }} /> }
+const HAND_STYLE = { fontFamily: `'${HAND}', 'Pretendard', sans-serif` }
+/** 본문과 어휘를 가르는 물결선 — 한 주기(16×8)를 가로로 되풀이한다 */
+const WAVE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8'%3E%3Cpath d='M0 4 Q4 0 8 4 T16 4' fill='none' stroke='%23CBD5E1' stroke-width='1.4'/%3E%3C/svg%3E")`
 
-function Pen({ children }: { children: React.ReactNode }) {
-  return <strong className="font-black text-[#1C1B33]" style={{ backgroundImage: PEN, paddingBottom: '0.05em' }}>{children}</strong>
+/* ── 형광펜은 **사람이 고른 핵심어에만** (09-28) ──
+   예전에는 영어 덩어리마다 자동으로 빨간 줄을 그었다. 영어가 절반인 TIP 에서는 거의 모든 줄이
+   빨개져 아무것도 안 가리켰다(사용자 지적). 이제 규칙은 이렇다:
+     · "영어 → 뜻" 짝 줄(`is/are being p.p. → ~되고 있는 중`, `appoint A as B: …`)과
+       예문 줄(`예)`·`-`)에는 **칠하지 않는다** — 그 줄은 짝 자체가 내용이다
+     · **한글로 풀어 쓴 줄**에서 그 팁이 결국 말하려는 **판단 기준 한 곳**만 칠한다
+   고른 말은 아래 목록이다. 대본(fgiScenario.ts)은 시트에서 자동 생성돼 손표시가 다음 생성 때
+   지워지므로 여기 적는다(ConceptBoard 의 MARKER 와 같은 방식). 시트 문구가 바뀌면 **칠만 조용히
+   빠질 뿐** 카드는 그대로 뜬다. 시트에 `**…**` 로 찍어 두면 그것도 칠한다. */
+const TIP_MARKER = [
+  /* 윤다은 LC */
+  '인물의 행동', '관련된 사물', '위치와 상태', '실제로 진행 중인 행동', '‘입고 있는 상태’와 ‘입는 동작’',
+  '실제로 ~하는 모습이 보이는지', '한 명씩', '누가 + 무엇을 + 어디에서', '위치와 배치',
+  /* 윤다은 RC */
+  '주어가 행동하는지', '목적어가 보이면', '시제 단서', '넣으면 진행 중', '주어의 수 확인하기', '핵심 주어의 수',
+  '미래의 일도 현재형', '가리키는 명사',
+  /* 이도윤 LC */
+  '동작과 상태를 혼동하지', '인물의 행동을 묘사하는 동사', '사진에 없는 사물이나 장소', '사람이 나오는지',
+  '발음이 헷갈리는', '그 순간의 동작', '걸려 있는 상태', '신체 부위 + 전치사', '동사 뒤의 전치사구',
+  /* 이도윤 RC */
+  '동사 자리인지', '목적어가 있는지', '직접 하는 주체인지', '직접 변화하는지', '목적어 유무 + 주어 의미',
+  '주체인지 대상인지',
+]
+/* 긴 것부터 — '핵심 주어의 수' 가 '주어의 수…' 보다 먼저 걸려야 한다. 특수문자(+ ~ ‘)는 이스케이프 */
+const MARK_RE = new RegExp(`\\*\\*(.+?)\\*\\*|(${[...TIP_MARKER].sort((a, b) => b.length - a.length)
+  .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g')
+
+/** 형광펜 — 이도윤 개념학습 판(accent)과 같은 연한 버터 노랑·크레파스 결 */
+function Marker({ children }: { children: React.ReactNode }) {
+  return (
+    <mark className="text-inherit px-0.5 rounded-[3px]"
+      style={{
+        /* <mark> 의 UA 기본 배경(샛노랑)을 먼저 끈다 — 안 끄면 그 위에 얹은 연한 색이 안 보인다(09-21 실측) */
+        backgroundColor: 'transparent',
+        backgroundImage: 'linear-gradient(rgba(250,229,141,0.8), rgba(250,229,141,0.8))',
+        backgroundSize: '100% 78%', backgroundRepeat: 'no-repeat', backgroundPosition: '0 88%',
+        mixBlendMode: 'multiply',
+      }}>{children}</mark>
+  )
 }
 
-/** 한 줄을 조각으로 갈라 표시한다. 정규식 하나로 세 규칙을 한 번에 훑는다 —
- *  따로 훑으면 이미 감싼 조각을 또 감싸서 태그가 겹친다. */
+/** 한 줄을 조각으로 갈라 핵심어에만 형광펜을 칠한다. 예문 줄(`예)`·`-`)은 손대지 않는다 */
 function marked(text: string): React.ReactNode[] {
-  const re = /\*\*(.+?)\*\*|([A-Za-z][A-Za-z0-9'’.+\-]*(?:\s+[A-Za-z0-9'’.+\-]+)*)|['‘]([^'’]+)['’]/g
+  if (/^\s*(예\)|-)/.test(text)) return [text]
   const out: React.ReactNode[] = []
   let at = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text))) {
-    if (m.index > at) out.push(text.slice(at, m.index))
-    const [full, bold, eng, quoted] = m
-    if (bold) out.push(<Pen key={m.index}>{bold}</Pen>)
-    else if (eng) out.push(<Pen key={m.index}>{eng}</Pen>)
-    else out.push(<strong key={m.index} className="font-black text-[#1C1B33]">‘{quoted}’</strong>)
-    at = m.index + full.length
+  for (const m of Array.from(text.matchAll(MARK_RE))) {
+    if (m.index! > at) out.push(text.slice(at, m.index))
+    out.push(<Marker key={m.index}>{m[1] ?? m[2]}</Marker>)
+    at = m.index! + m[0].length
   }
   if (at < text.length) out.push(text.slice(at))
   return out
@@ -97,22 +139,24 @@ function marked(text: string): React.ReactNode[] {
 /* ── 줄머리로 모양을 가른다 ──
    시트가 자유롭게 쓰므로(소제목 `*…` · 번호 `1. …` · 보조 설명 `→ …`) 틀을 씌우지 않고
    줄머리만 보고 들여쓰기와 색을 준다. 모르는 꼴은 그냥 본문으로 나간다 — 내용이 잘리는 것보다 낫다. */
+/* 손글씨는 같은 px 에서 기본 글씨보다 작게 보여서 한 단씩 키운다 */
 function TipLine({ text }: { text: string }) {
+  const hand = HAND_STYLE
   if (text.startsWith('*')) {
     const t = text.replace(/^\*\s*/, '')
     return (
-      <p className="mt-3 mb-1 flex items-center gap-1.5 text-[12px] font-black text-[#2563EB]">
+      <p className="mt-3 mb-1 flex items-center gap-1.5 text-[13px] font-black text-[#2563EB]">
         <span className="w-1 h-3 rounded-sm bg-[#93C5FD]" />{marked(t)}
       </p>
     )
   }
   if (text.startsWith('→')) {
-    return <p className="pl-4 text-[12px] leading-relaxed text-[#64748B]">{marked(text)}</p>
+    return <p className="pl-4 text-[14px] leading-relaxed text-[#64748B]" style={hand}>{marked(text)}</p>
   }
   if (/^\d+\s*[.)]/.test(text)) {
-    return <p className="pl-1 text-[13px] leading-relaxed text-[#334155]">{marked(text)}</p>
+    return <p className="pl-1 text-[15px] leading-relaxed text-[#334155]" style={hand}>{marked(text)}</p>
   }
-  return <p className="text-[13.5px] leading-[1.75] text-[#1C1B33]">{marked(text)}</p>
+  return <p className="text-[15.5px] leading-[1.7] text-[#1C1B33]" style={hand}>{marked(text)}</p>
 }
 
 /* ── 어휘는 **표로 읽는다** ──
@@ -129,8 +173,9 @@ function VocabList({ items }: { items: { en: string; ko: string }[] }) {
         <Fragment key={i}>
           {/* 어휘에는 **펜을 긋지 않는다** — 줄마다 영어가 오므로 목록 전체가 빨개진다.
               펜은 본문에서 '여기가 핵심' 을 가리키는 표시라, 다 그으면 아무것도 안 가리킨다. */}
-          <span className="text-[13px] font-black text-[#1C1B33]">{v.en}</span>
-          <span className="text-[12.5px] text-[#475569]">{v.ko}</span>
+          {/* 어휘도 손글씨 (09-28 사용자 지정) — 본문과 한 사람이 적은 노트로 보이게 */}
+          <span className="text-[15px] font-bold text-[#1C1B33]" style={HAND_STYLE}>{v.en}</span>
+          <span className="text-[14.5px] text-[#475569]" style={HAND_STYLE}>{v.ko}</span>
         </Fragment>
       ))}
     </div>
@@ -141,10 +186,15 @@ function VocabList({ items }: { items: { en: string; ko: string }[] }) {
    `#zoom-host`(왼쪽 수업 칸) 안에 **덮어서** 띄운다. 이 턴은 사진을 다시 볼 자리가 아니라
    강사가 정리를 말하는 자리다. 뒤가 살짝 비치게 두는 이유는 하나 — 학생이 방금 보던 문제에서
    튕겨 나온 느낌을 받지 않게 하려는 것이다. */
-export function TipCard({ tip, flying }: {
+export function TipCard({ tip, flying, onClose, nudge }: {
   tip: LessonTip
   /** 이 턴이 끝나 **버튼으로 빨려 들어가는 중**인가. 부르는 쪽이 잠깐 더 띄워 두고 이걸 켠다 */
   flying?: boolean
+  /** 학생이 다 읽고 닫는다(X). 있으면 머리 오른쪽에 X 가 선다 — 카드는 이걸 눌러야 들어간다(09-28) */
+  onClose?: () => void
+  /** 강사 말이 끝났다 — 이제 X 를 눌러야 수업이 이어지므로 **X 로 눈을 끈다**(09-28).
+   *  말하는 중에는 끄지 않는다: 강사 말을 듣다 말고 닫으라는 신호가 되면 안 된다. */
+  nudge?: boolean
 }) {
   /* 들어올 때만 한 번 부드럽게. 매 렌더 애니메이션을 걸면 강사가 말하는 동안 덜컹인다 */
   const [shown, setShown] = useState(false)
@@ -174,31 +224,53 @@ export function TipCard({ tip, flying }: {
       <div
         ref={boxRef}
         style={fly ? { transform: `translate(${fly.x}px, ${fly.y}px) scale(0.06)`, opacity: 0 } : undefined}
-        className={`w-full max-w-[520px] max-h-full overflow-y-auto rounded-2xl bg-white border border-[#E3EBF6]
+        className={`w-full max-w-[520px] max-h-full overflow-y-auto rounded-xl bg-white border border-[#E3EBF6]
                     shadow-[0_12px_44px_rgba(37,99,235,0.13)]
                     ${flying ? 'transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
                       : `transition-all duration-300 ${shown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}`}>
 
-        {/* 노트 머리 — 왼쪽에 굵은 빨간 세로줄 하나. 손으로 접어 둔 노트의 가장자리다 */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#EEF2F7] rounded-t-2xl bg-white">
-          <span className="w-[3px] h-3.5 rounded-full bg-[#EF4444]" />
+        {/* 노트 머리 — (09-28 왼쪽 빨간 세로줄은 뺐다, 사용자 지정) */}
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#EEF2F7] rounded-t-xl bg-white">
+          <CheckIcon className="w-[18px] h-[18px] text-[#2563EB] shrink-0" />
           <span className="text-[13px] font-black text-[#1C1B33] tracking-tight">토익 TIP</span>
+          {onClose && (
+            <>
+              {/* ── 말이 끝나면 **X 로 눈을 끈다** ──
+                  안내 한 줄이 옆에서 스르르 나오고, X 가 파랗게 차며 은은하게 맥박친다.
+                  이 카드는 X 를 눌러야 수업이 이어지므로(TypeLessonPlayer closeTip) 여기서 멈춘 줄
+                  모르면 학생이 화면 앞에서 기다리기만 한다. */}
+              <span className={`ml-auto text-[12px] font-bold text-[#2563EB] transition-all duration-500 ${
+                nudge ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'}`}>
+                다 읽었으면 닫아요 →
+              </span>
+              {/* 보이는 동그라미는 작게, **누르는 자리는 44px** — 손가락으로 치는 태블릿이 기준이다 */}
+              <button onClick={onClose} aria-label="TIP 닫기 — 버튼에 저장돼요"
+                className={`-my-2 -mr-2 w-11 h-11 flex items-center justify-center group relative`}>
+                {nudge && <span className="absolute w-7 h-7 rounded-full bg-[#2563EB]/35 animate-ping" />}
+                <span className={`relative w-7 h-7 rounded-full flex items-center justify-center text-[15px] font-black leading-none
+                                  transition-colors duration-300 ${nudge
+                                    ? 'bg-[#2563EB] text-white group-active:bg-[#1D4ED8]'
+                                    : 'bg-[#F1F5F9] text-[#64748B] group-active:bg-[#E2E8F0]'}`}>✕</span>
+              </button>
+            </>
+          )}
         </div>
 
-        {/* 본문 — 아주 옅은 괘선을 깔아 공책처럼 보이게 한다.
-            줄 간격(1.75)과 괘선 간격을 맞추지는 않는다 — 맞추려 들면 글자 크기가 조금만 달라져도
-            글이 줄 위에 떠 보인다. 여기서는 '종이' 느낌만 내면 된다. */}
-        <div className="px-4 py-3.5 space-y-1"
-          style={{ backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 27px, #F1F5FB 27px, #F1F5FB 28px)' }}>
+        {/* 본문 — 09-28 까지 옅은 괘선을 깔았는데, 줄 간격과 안 맞아 글 사이를 가로지르는 선으로만
+            보였다(사용자 지적). 뺐다. */}
+        <div className="px-4 py-3.5 space-y-1">
+          <HandFont />
           {tip.body.map((line, i) => <TipLine key={i} text={line} />)}
         </div>
 
+        {/* ── 어휘는 **물결선 아래** (09-28 사용자 지정) ──
+            노란 박스로 따로 가두면 노트 한 장이 두 장처럼 보였다. 손으로 쓴 노트에서 칸을 나눌 때처럼
+            물결선 하나로만 가른다. */}
         {tip.vocab.length > 0 && (
-          <div className="px-4 pb-4 pt-1">
-            <div className="rounded-xl bg-[#FFFBF5] border border-[#F5E7D0] px-3 py-2">
-              <p className="text-[11px] font-black text-[#B98B3E] mb-1">핵심 어휘</p>
-              <VocabList items={tip.vocab} />
-            </div>
+          <div className="px-4 pb-4">
+            <div aria-hidden className="h-2 mb-2.5" style={{ backgroundImage: WAVE, backgroundRepeat: 'repeat-x', backgroundSize: '16px 8px' }} />
+            <p className="text-[11.5px] font-black text-[#94A3B8] mb-1">핵심 어휘</p>
+            <VocabList items={tip.vocab} />
           </div>
         )}
       </div>
@@ -322,7 +394,7 @@ export function ConceptBoard({ tip, open, flying }: {
                   ${flying
         /* 접히는 동안에는 **모서리를 둥글려** 판이 아니라 한 장의 카드로 보이게 한다.
            스크롤도 잠근다 — 줄어드는 중에 내용이 흔들리면 빨려 들어가는 느낌이 깨진다. */
-        ? 'rounded-3xl overflow-hidden pointer-events-none origin-center transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
+        ? 'rounded-2xl overflow-hidden pointer-events-none origin-center transition-all duration-[600ms] ease-[cubic-bezier(0.55,0,0.85,0.35)]'
         : ''}`}>
       <div className="min-h-full flex flex-col px-5 md:px-10 lg:px-14 py-6 md:py-9">
         {/* 슬라이드 머리 — 여기가 어디인지 한 줄 */}
@@ -343,7 +415,7 @@ export function ConceptBoard({ tip, open, flying }: {
         {/* 규칙 카드 — 세로로 쌓되 **한 장 안에 다 들어오게** 한다(스크롤은 최후의 수단) */}
         <div className="flex-1 flex flex-col justify-center gap-3 md:gap-4 pb-2">
           {steps.map((s, i) => (
-            <div key={i} className="flex items-start gap-3 md:gap-4 rounded-2xl bg-white border border-[#E3EBF6]
+            <div key={i} className="flex items-start gap-3 md:gap-4 rounded-xl bg-white border border-[#E3EBF6]
                                     shadow-[0_2px_16px_rgba(37,99,235,0.07)] px-4 md:px-6 py-4 md:py-5">
               <span className="shrink-0 w-7 h-7 md:w-9 md:h-9 rounded-full bg-[#2563EB] text-white
                                text-[13px] md:text-[15px] font-black flex items-center justify-center">{s.n}</span>
@@ -356,7 +428,7 @@ export function ConceptBoard({ tip, open, flying }: {
         </div>
 
         {tip.vocab.length > 0 && (
-          <div className="mt-5 rounded-2xl bg-[#FFFBF5] border border-[#F5E7D0] px-4 md:px-6 py-3.5">
+          <div className="mt-5 rounded-xl bg-[#FFFBF5] border border-[#F5E7D0] px-4 md:px-6 py-3.5">
             <p className="text-[11px] md:text-[12px] font-black text-[#B98B3E] mb-1.5">핵심 어휘</p>
             <VocabList items={tip.vocab} />
           </div>
@@ -498,9 +570,10 @@ export function TipSheet({ kind, tips, onClose }: {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3 space-y-3">
+        <HandFont />
         {kind === 'tip'
           ? ordered.map((s, i) => (
-            <div key={i} className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-2.5">
+            <div key={i} className="rounded-lg border border-[#EEF2F7] bg-white px-3 py-2.5">
               <p className="text-[10.5px] font-black text-[#94A3B8] mb-1">{s.qNo}번 문제</p>
               <div className="space-y-0.5">
                 {s.tip.body.map((line, j) => <TipLine key={j} text={line} />)}
@@ -508,7 +581,7 @@ export function TipSheet({ kind, tips, onClose }: {
             </div>
           ))
           : (
-            <div className="rounded-xl border border-[#EEF2F7] bg-white px-3 py-2.5">
+            <div className="rounded-lg border border-[#EEF2F7] bg-white px-3 py-2.5">
               <VocabList items={vocab} />
             </div>
           )}

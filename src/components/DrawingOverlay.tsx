@@ -9,7 +9,31 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 
 const ORANGE = '#F97316'
 type Tool = 'pen' | 'highlighter' | 'eraseStroke' | 'erasePixel' | 'cursor'
-export interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: number; y: number }[] }
+/* ── 획은 **무엇 위에 그었는지** 기준으로 적는다 (09-28) ──
+   예전에는 캔버스 픽셀 그대로 적었다. 그런데 캔버스는 수업 칸에 **덮인 판**이고 내용은 그 밑에서
+   움직인다 — 강사 창 폭을 바꾸면 가운데 정렬된 사진이 옆으로 옮겨 가고, 스크롤하면 지문이 올라간다.
+   획만 제자리에 남아 엉뚱한 데를 가리켰다(사용자 보고).
+     · img  — 사진 위에 그은 획. **실제 그림 영역**(object-contain 여백을 뺀) 안의 비율(0~1).
+              사진이 옮겨 가도 커져도 그 자리를 따라간다.
+     · root — 그 밖(글자 위). 시험지 열(bounds 의 첫 자식)의 왼쪽 위에서 잰 **픽셀 거리**.
+              글자는 칸 폭이 바뀌어도 크기가 그대로라 비율로 늘리지 않는다. 칸이 옆으로 옮겨 가고
+              스크롤되는 것은 따라가지만, 줄바꿈이 달라질 만큼 폭을 줄이면 조금 어긋난다(알고 둔 한계).
+   anchor 가 없는 획은 예전처럼 캔버스 픽셀이다(bounds 없이 쓰는 화면). */
+type InkAnchor = { kind: 'img'; src: string } | { kind: 'root' }
+export interface Stroke { tool: 'pen' | 'highlighter' | 'erasePixel'; points: { x: number; y: number }[]; anchor?: InkAnchor }
+type Box = { left: number; top: number; width: number; height: number }
+
+/** 사진이 **실제로 그려진** 자리 — object-contain 이면 칸 안에 여백이 생기므로 그림만 잰다 */
+function pictureBox(img: HTMLImageElement): Box {
+  const r = img.getBoundingClientRect()
+  const nw = img.naturalWidth
+  const nh = img.naturalHeight
+  if (!nw || !nh || getComputedStyle(img).objectFit !== 'contain') return r
+  const s = Math.min(r.width / nw, r.height / nh)
+  const w = nw * s
+  const h = nh * s
+  return { left: r.left + (r.width - w) / 2, top: r.top + (r.height - h) / 2, width: w, height: h }
+}
 
 const HL_WIDTH = 18
 
@@ -50,9 +74,60 @@ export function useDrawingTool(opts?: {
   const isDrawing = useRef(false)
   /* 누르기 시작한 자리와 시각 — 끝날 때 '끈 것'인지 '툭 누른 것'인지 가른다 */
   const downRef = useRef<{ x: number; y: number; cx: number; cy: number; t: number } | null>(null)
+  /** 필기 영역(수업 칸) — DrawingOverlay 가 채운다. 획의 기준(anchor)을 찾는 데 쓴다 */
+  const boundsRef = useRef<HTMLElement | null>(null)
 
-  const drawStroke = (ctx: CanvasRenderingContext2D, s: Stroke) => {
-    if (!s.points.length) return
+  /** anchor 가 지금 화면 어디에 있나 (viewport 좌표). 못 찾으면 null — 그 획은 이번엔 안 그린다 */
+  const anchorBox = (a: InkAnchor): Box | null => {
+    const root = boundsRef.current
+    if (!root) return null
+    if (a.kind === 'img') {
+      const img = Array.from(root.querySelectorAll('img')).find((i) => i.getAttribute('src') === a.src)
+      return img ? pictureBox(img) : null
+    }
+    return (root.firstElementChild ?? root).getBoundingClientRect()
+  }
+
+  /** 저장된 획 → 지금 캔버스 픽셀. 기준이 화면에 없으면 null */
+  const onCanvas = (s: Stroke): { x: number; y: number }[] | null => {
+    if (!s.anchor) return s.points
+    const c = canvasRef.current
+    const b = anchorBox(s.anchor)
+    if (!c || !b) return null
+    const cr = c.getBoundingClientRect()
+    return s.anchor.kind === 'img'
+      ? s.points.map((p) => ({ x: b.left - cr.left + p.x * b.width, y: b.top - cr.top + p.y * b.height }))
+      : s.points.map((p) => ({ x: b.left - cr.left + p.x, y: b.top - cr.top + p.y }))
+  }
+
+  /** 다 그은 획(캔버스 픽셀) → 기준 좌표로. 시작점 밑에 사진이 있으면 사진, 아니면 시험지 열 */
+  const anchored = (s: Stroke): Stroke => {
+    const c = canvasRef.current
+    const root = boundsRef.current
+    if (!c || !root || !s.points.length) return s
+    const cr = c.getBoundingClientRect()
+    const p0 = s.points[0]
+    const under = document.elementsFromPoint(cr.left + p0.x, cr.top + p0.y)
+    const img = under.find((el): el is HTMLImageElement => el instanceof HTMLImageElement && root.contains(el))
+    const src = img?.getAttribute('src')
+    if (img && src) {
+      const b = pictureBox(img)
+      const inside = cr.left + p0.x >= b.left && cr.left + p0.x <= b.left + b.width
+        && cr.top + p0.y >= b.top && cr.top + p0.y <= b.top + b.height
+      if (inside && b.width && b.height) {
+        return { ...s, anchor: { kind: 'img', src },
+          points: s.points.map((p) => ({ x: (cr.left + p.x - b.left) / b.width, y: (cr.top + p.y - b.top) / b.height })) }
+      }
+    }
+    const b = (root.firstElementChild ?? root).getBoundingClientRect()
+    return { ...s, anchor: { kind: 'root' },
+      points: s.points.map((p) => ({ x: cr.left + p.x - b.left, y: cr.top + p.y - b.top })) }
+  }
+
+  const drawStroke = (ctx: CanvasRenderingContext2D, s0: Stroke) => {
+    const pts = onCanvas(s0)
+    if (!pts?.length) return
+    const s = { ...s0, points: pts }
     ctx.save()
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
@@ -103,12 +178,15 @@ export function useDrawingTool(opts?: {
     const before = strokesRef.current.length
     strokesRef.current = strokesRef.current.filter((s) => {
       if (s.tool === 'erasePixel') return true
+      /* 지금 화면에 그려진 자리로 잰다 — 저장된 좌표는 사진 비율이거나 시험지 열 기준이다 */
+      const pts = onCanvas(s)
+      if (!pts?.length) return true
       // 형광펜은 점이 둘뿐이라 점 거리로 재면 띠 한가운데를 문질러도 안 지워진다
       if (s.tool === 'highlighter') {
-        const r = hlRect(s.points)
+        const r = hlRect(pts)
         return !(pos.x >= r.x - 4 && pos.x <= r.x + r.w + 4 && pos.y >= r.y - 4 && pos.y <= r.y + r.h + 4)
       }
-      return !s.points.some((p) => Math.hypot(p.x - pos.x, p.y - pos.y) < 14)
+      return !pts.some((p) => Math.hypot(p.x - pos.x, p.y - pos.y) < 14)
     })
     if (strokesRef.current.length !== before) redraw()
   }
@@ -178,7 +256,7 @@ export function useDrawingTool(opts?: {
     }
 
     if (currentRef.current) {
-      strokesRef.current.push(currentRef.current)
+      strokesRef.current.push(anchored(currentRef.current))
       currentRef.current = null
       setStrokeCount((n) => n + 1)
     }
@@ -212,7 +290,7 @@ export function useDrawingTool(opts?: {
     drawMode, setDrawMode, toggleDraw,
     tool, setTool,
     canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw,
-    exportStrokes, loadStrokes,
+    exportStrokes, loadStrokes, boundsRef,
     strokeCount,
   }
 }
@@ -231,7 +309,7 @@ function ToolBtn({ active, onClick, title, icon, children }: {
       title={title}
       aria-label={title}
       className={`flex items-center transition-colors ${
-        icon ? 'w-10 h-10 justify-center rounded-xl' : 'gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold'
+        icon ? 'w-10 h-10 justify-center rounded-lg' : 'gap-1 px-2.5 h-8 rounded-lg text-[11px] font-bold'
       } ${active ? 'bg-[#F97316] text-white' : 'text-[#6B7280] hover:bg-[#F3F4F6]'}`}
     >
       {children}
@@ -250,14 +328,17 @@ type PaletteProps = Pick<DrawingOverlayProps, 'tool' | 'setTool' | 'clearCanvas'
      · 닫기(X) — 연필 버튼이 그 일을 한다. */
 function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row }: PaletteProps & { minimal?: boolean; row?: boolean }) {
   const sz = minimal ? 17 : 14
+  /* ── 켜진 연필·형광펜을 **한 번 더 누르면 필기가 꺼진다** (09-28 사용자 요청) ──
+     손은 방금 누른 버튼 위에 있다. 끄려고 팔레트 밖 연필 버튼까지 가지 않아도 된다. */
+  const pick = (t: 'pen' | 'highlighter') => () => (tool === t ? setDrawMode(false) : setTool(t))
   const pen = (
-    <ToolBtn active={tool === 'pen'} onClick={() => setTool('pen')} title="연필" icon={minimal}>
+    <ToolBtn active={tool === 'pen'} onClick={pick('pen')} title="연필" icon={minimal}>
       <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
       {!minimal && '연필'}
     </ToolBtn>
   )
   const highlighter = (
-    <ToolBtn active={tool === 'highlighter'} onClick={() => setTool('highlighter')} title="형광펜" icon={minimal}>
+    <ToolBtn active={tool === 'highlighter'} onClick={pick('highlighter')} title="형광펜" icon={minimal}>
       {/* ── 연필과 갈리는 지점은 **밑줄의 두께**다 ──
           예전 아이콘(꺾인 촉 모양)은 작게 그리면 무엇인지 알아볼 수 없었다(콘텐츠 파트 09-01).
           연필과 같은 자세로 세우고, 뒤에 남는 자국만 굵게 그어 둔다 — 연필은 가는 선, 형광펜은 굵은 띠. */}
@@ -281,7 +362,7 @@ function PaletteButtons({ tool, setTool, clearCanvas, setDrawMode, minimal, row 
        조심하라는 신호는 누를 때 빨개지는 것으로 충분하다 — 흐린 색은 "못 누른다" 는 뜻이다. */
     <button onClick={clearCanvas} title="전체 지우기" aria-label="전체 지우기"
       className={`flex items-center justify-center text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors ${
-        minimal ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'}`}>
+        minimal ? 'w-10 h-10 rounded-lg' : 'w-8 h-8 rounded-lg'}`}>
       <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>
     </button>
   )
@@ -401,15 +482,64 @@ export function PenFab({ drawMode, toggleDraw, attention, strokeCount, className
    *  끌 일이 없다 — 끄기는 드물고, 지우개를 다시 꺼내는 쪽이 잦다. */
   const showTools = drawMode && expanded
 
+  /* ── 끌어서 옮긴다 (09-28 사용자 요청) ──
+     강사 얼굴처럼 이 버튼도 학생이 원하는 자리에 둔다 — 늘 왼쪽 아래라 사진·보기 모서리를 가렸다.
+     **조금이라도 끌면 이동, 제자리에서 떼면 지금처럼 누르기**(켜기·판 열기). 끈 뒤에 오는 click 은 삼킨다.
+     좌표는 앉는 자리의 기준(fixed=화면, pane=가장 가까운 relative 칸) 안에서 잡고, 그 밖으로는 못 나간다. */
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const dragRef = useRef<{ dx: number; dy: number; moved: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
+  const frame = () => {
+    const parent = anchor === 'pane' ? (wrapRef.current?.offsetParent as HTMLElement | null) : null
+    return parent ? parent.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+  }
+  const onDragStart = (e: React.PointerEvent) => {
+    const r = wrapRef.current?.getBoundingClientRect()
+    if (!r) return
+    dragRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false }
+    /* 누르는 순간 붙잡는다 — 손가락이 빨리 움직이면 첫 이동이 이미 버튼 밖이라, 끈 뒤에 잡으면 놓친다(실측) */
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+  const onDragMove = (e: React.PointerEvent) => {
+    const d = dragRef.current
+    const r = wrapRef.current?.getBoundingClientRect()
+    if (!d || !r) return
+    if (!d.moved && Math.hypot(e.clientX - (r.left + d.dx), e.clientY - (r.top + d.dy)) < 6) return
+    d.moved = true
+    const f = frame()
+    /* 판이 펼쳐져 있으면 그만큼 커진 상자를 옮기게 된다 — 자리는 **버튼** 기준으로 잡으려고 먼저 접는다 */
+    setExpanded(false)
+    const bw = 48
+    setPos({
+      x: Math.min(Math.max(8, e.clientX - d.dx - f.left), f.width - bw - 8),
+      y: Math.min(Math.max(8, e.clientY - d.dy - f.top), f.height - bw - 8),
+    })
+  }
+  const onDragEnd = () => {
+    const d = dragRef.current
+    dragRef.current = null
+    if (d?.moved) suppressClickRef.current = true
+  }
+  /* 위로 펼치는 판이 **화면 위로 넘치면** 아래로 편다 — 판 높이(최대 240) + 여유 */
+  const flipDown = open === 'up' && !!pos && pos.y < 260
+
   return (
     /* ── 도구는 **위로 쌓는다** ──
        옆으로 늘어나던 때는 도구 바가 문제 영역을 가로질러 **보기 D 를 덮었다**(실측 09-01,
        아이패드 가로). 화면 왼쪽 여백은 어느 파트에서든 비어 있으므로(사진·보기·지문은 가운데로
        모인다) 그 좁은 칸에 세로로 세운다. 연필 버튼 자리는 그대로다. */
-    <div className={`${anchor === 'pane' ? 'absolute' : 'fixed'} ${bottomClass} left-4 z-50 flex gap-2 ${
-      open === 'right' ? 'flex-row-reverse items-center' : 'flex-col items-start'} ${className ?? ''}`}>
+    <div ref={wrapRef}
+      /* 옮긴 뒤에는 **버튼의 왼쪽 위**가 pos 에 온다 — 위로 펴는 판은 버튼 위에 붙으므로 그만큼 올려
+         세우고(bottom 기준), 아래로 펴는 판(flipDown)은 top 기준으로 둔다. 그래야 판이 열리고 닫혀도
+         **버튼이 제자리에 있다.** */
+      style={!pos ? undefined
+        : open === 'up' && !flipDown ? { left: pos.x, bottom: `calc(100% - ${pos.y + 48}px)` }
+        : { left: pos.x, top: pos.y }}
+      className={`${anchor === 'pane' ? 'absolute' : 'fixed'} ${pos ? '' : `${bottomClass} left-4`} z-50 flex gap-2 ${
+      open === 'right' ? 'flex-row-reverse items-center' : flipDown ? 'flex-col-reverse items-start' : 'flex-col items-start'} ${className ?? ''}`}>
       {/* 늘어나는 도구 판 — 접힘은 크기로만 준다(언마운트하면 늘어나는 맛이 없다) */}
-      <div className={`flex gap-0.5 rounded-2xl bg-white overflow-hidden whitespace-nowrap
+      <div className={`flex gap-0.5 rounded-xl bg-white overflow-hidden whitespace-nowrap
                        [&>*]:shrink-0 duration-200 ${
         open === 'right'
           ? `flex-row items-center transition-[max-width,opacity,padding] ${
@@ -429,10 +559,14 @@ export function PenFab({ drawMode, toggleDraw, attention, strokeCount, className
         <button
           /* 접혀 있을 때는 **판을 다시 편다** — 잘못 그어 지우개를 꺼내는 자리다.
              껐다 켜게 하면(그것도 두 번 탭이다) 도구가 연필로 되돌아가 지우개를 또 골라야 한다. */
-          onClick={() => (drawMode && !expanded ? setExpanded(true) : toggleDraw())}
+          onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} onPointerCancel={onDragEnd}
+          onClick={() => {
+            if (suppressClickRef.current) { suppressClickRef.current = false; return }   // 방금 끌어서 옮겼다 — 누른 게 아니다
+            if (drawMode && !expanded) setExpanded(true); else toggleDraw()
+          }}
           title={showTools ? '필기 끄기' : drawMode ? '필기 도구' : '필기'}
           aria-label={showTools ? '필기 도구 닫기' : '필기 도구'}
-          className={`relative w-12 h-12 rounded-full flex items-center justify-center border shadow-lg transition-colors ${
+          className={`relative w-12 h-12 touch-none rounded-full flex items-center justify-center border shadow-lg transition-colors ${
             drawMode ? 'bg-[#F97316] border-[#F97316] text-white'
               : nudge ? 'bg-[#FFF7ED] border-[#F97316] text-[#F97316] ring-4 ring-[#F97316]/20'
                 : 'bg-white border-[#E5E7EB] text-[#F97316] hover:bg-[#FFF7ED]'
@@ -460,8 +594,28 @@ export function PenFab({ drawMode, toggleDraw, attention, strokeCount, className
 }
 
 export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlayProps & { bounds?: React.RefObject<HTMLElement>; hidePalette?: boolean }) {
-  const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw } = props
+  const { drawMode, setDrawMode, tool, setTool, canvasRef, startDraw, doDraw, endDraw, clearCanvas, redraw, boundsRef } = props
   const [rect, setRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+
+  /* ── 내용이 움직이면 **다시 그린다** (09-28) ──
+     획은 사진·시험지 열을 기준으로 적혀 있어서(Stroke.anchor), 그 기준이 움직일 때마다 새 자리에
+     그려야 따라간다. 움직이는 경우는 셋: 스크롤 · 칸 크기 변화(아래 rect 효과가 맡는다) ·
+     칸은 그대로인데 안의 열이 옮겨 가거나 사진이 늦게 뜨는 경우(열에 ResizeObserver, 사진 load). */
+  useEffect(() => {
+    const el = bounds?.current ?? null
+    boundsRef.current = el
+    if (!el) return
+    let raf = 0
+    const again = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => redraw()) }
+    el.addEventListener('scroll', again, { passive: true })
+    el.addEventListener('load', again, true)          // 사진이 늦게 뜨면 그 크기로 다시
+    let ro: ResizeObserver | undefined
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(again)
+      if (el.firstElementChild) ro.observe(el.firstElementChild)
+    }
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', again); el.removeEventListener('load', again, true); ro?.disconnect() }
+  }, [bounds, boundsRef, redraw])
 
   /* 필기 영역 계산 (bounds 지정 시 그 영역만, 아니면 전체 화면)
      ⚠️ **필기 도구를 껐다고 멈추면 안 된다** — 아래 머리말대로 꺼도 그린 것은 계속 보여야 한다. */
@@ -521,7 +675,7 @@ export function DrawingOverlay({ bounds, hidePalette, ...props }: DrawingOverlay
       />
       {drawMode && !hidePalette && (
         <div
-          className="z-50 flex items-center gap-1.5 bg-white rounded-2xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
+          className="z-50 flex items-center gap-1.5 bg-white rounded-xl shadow-xl border border-[#E5E7EB] px-3 py-2 -translate-x-1/2"
           style={{ position: 'fixed', left: '50%', bottom: 32 }}
         >
           <PaletteButtons tool={tool} setTool={setTool} clearCanvas={clearCanvas} setDrawMode={setDrawMode} />

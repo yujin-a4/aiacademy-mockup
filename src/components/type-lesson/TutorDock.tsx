@@ -21,7 +21,7 @@
  * (좁은 화면의 BottomDock 이 원래 이 꼴이었다 — 우측 패널을 거기에 맞춘 것이다)
  */
 
-import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
 import { stripAudioTags } from '@/lib/ttsText'
 
 /** 강사 창 배치
@@ -81,7 +81,9 @@ function CCToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
     /* 얼굴 칸에 **살짝 올라타게** 둔다(-mt) — 얼굴과 말 칸 사이에 낀 작은 손잡이로 보여야지,
        한 줄을 따로 차지하면 그만큼 아래 말 칸이 좁아진다. */
-    <div className="shrink-0 flex justify-center px-3 md:px-4 -mt-4 pb-0.5">
+    /* ⚠️ relative z-10 — 얼굴 칸이 relative 가 되자(접기 버튼 자리, 09-28) 그 칸이 이 버튼 위에
+       그려져 CC 가 **가려졌다**(사용자 지적). 올라타는 쪽이 늘 위에 오게 층을 준다. */
+    <div className="relative z-10 shrink-0 flex justify-center px-3 md:px-4 -mt-4 pb-0.5">
       <button onClick={onToggle} role="switch" aria-checked={on}
         aria-label={on ? '자막 끄기' : '자막 켜기'} title={on ? '자막 끄기' : '자막 켜기'}
         className={`inline-flex items-center justify-center h-[22px] w-9 rounded-md border text-[10px] font-black
@@ -285,7 +287,7 @@ function VoiceListener({ connected, connecting, isSpeaking, getFreq, onStartAgen
         </div>
       ) : (
         <button onClick={connecting ? undefined : onStartAgent} disabled={connecting}
-          className="w-full rounded-2xl border border-dashed border-[#CBD5E1] bg-[#FAFAFA] px-3 py-2.5 text-[12px] font-semibold text-[#94A3B8] disabled:opacity-70">
+          className="w-full rounded-xl border border-dashed border-[#CBD5E1] bg-[#FAFAFA] px-3 py-2.5 text-[12px] font-semibold text-[#94A3B8] disabled:opacity-70">
           {connecting ? '강사와 연결 중…' : '연결이 끊겼어요 — 눌러서 다시 연결'}
         </button>
       )}
@@ -431,7 +433,7 @@ function TextComposer({ connected, connecting, inputText, setInputText, onSend, 
       {/* 입력칸 왼쪽 마이크는 뺐다(09-18) — 키보드 모드는 **글로 답하는 자리**다.
           말로 하고 싶으면 아래 [음성 모드] 한 번이면 되고, 버튼이 둘이면 어느 쪽이 지금
           쓰는 것인지 매번 판단해야 한다. */}
-      <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-2xl px-3.5 py-2">
+      <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3.5 py-2">
         <input ref={inputRef} className="flex-1 min-w-0 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
           placeholder={connected ? '메시지를 입력하세요' : connecting ? '연결 중…' : '대화를 시작하면 입력할 수 있어요'}
           value={inputText} disabled={!connected} maxLength={300}
@@ -534,8 +536,11 @@ function ClipStack({ clips, pool, name }: { clips: string[]; pool: string[]; nam
   )
 }
 
-export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120 }: {
+export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120, faceClass }: {
   src: string; name: string; speaking: boolean; getFreq?: () => Uint8Array | undefined; size?: number
+  /** 얼굴 동그라미에 **바로** 두를 것(예: 듣는 중 초록 고리). 바깥 칸은 파동 자리까지 1.4배라
+   *  거기에 두르면 얼굴보다 큰 동그라미가 한 겹 더 뜬다(09-28 접힌 창) */
+  faceClass?: string
   /** 지금 상황에 맞는 영상 클립. 없으면 사진(src)을 그대로 쓴다 */
   clipSrc?: string[] | null
   /** 이 강사가 가진 클립 전부 — 겹쳐 깔아두고 크로스페이드하기 위해 */
@@ -578,7 +583,7 @@ export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, s
             transition: 'transform 90ms linear, opacity 120ms linear',
           }} />
       ))}
-      <div className="relative rounded-full overflow-hidden border-[3px] border-white bg-gradient-to-b from-[#EAF1FF] to-white"
+      <div className={`relative rounded-full overflow-hidden border-[3px] border-white bg-gradient-to-b from-[#EAF1FF] to-white ${faceClass ?? ''}`}
         style={{ width: size, height: size, boxShadow: speaking ? `0 0 ${12 + level * 20}px rgba(37,99,235,${0.16 + level * 0.24})` : '0 4px 16px rgba(0,0,0,0.12)' }}>
         {clipSrc ? (
           <ClipStack clips={allClips?.length ? allClips : clipSrc} pool={clipSrc} name={name} />
@@ -690,11 +695,11 @@ function Bubble({ role, text, aside, plain }: ChatMsg) {
       <div className={`max-w-[85%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
         aside
           ? mine
-            ? 'bg-[#FDE68A] text-[#78350F] rounded-2xl rounded-br-sm'
-            : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] rounded-2xl rounded-bl-sm'
+            ? 'bg-[#FDE68A] text-[#78350F] rounded-xl rounded-br-sm'
+            : 'bg-[#FFFBEB] text-[#92400E] border border-[#FDE68A] rounded-xl rounded-bl-sm'
           : mine
-            ? 'bg-[#2563EB] text-white rounded-2xl rounded-br-sm'
-            : 'bg-[#F1F5F9] text-[#334155] rounded-2xl rounded-bl-sm'
+            ? 'bg-[#2563EB] text-white rounded-xl rounded-br-sm'
+            : 'bg-[#F1F5F9] text-[#334155] rounded-xl rounded-bl-sm'
       }`}>{text ? (mine ? text : <TutorText text={text} plain={plain} />) : (mine ? null : <SpeechDots />)}</div>
     </div>
   )
@@ -808,28 +813,46 @@ export default function TutorDock({
     return (
       <MiniDock
         faceSrc={faceSrc} clipSrc={clipSrc} allClips={allClips}
-        name={name} connected={connected} connecting={connecting} isSpeaking={isSpeaking} preparing={preparing}
-        getTutorFreq={getTutorFreq} lastLine={lastLine} lastLinePlain={lastLinePlain}
-        chatMode={chatMode} setChatMode={setChatMode}
-        inputText={inputText} setInputText={setInputText} onSend={onSend} onStartAgent={onStartAgent}
-        actions={actions} hint={hint}
+        name={name} isSpeaking={isSpeaking} preparing={preparing}
+        getTutorFreq={getTutorFreq} micActive={micActive}
         onRestore={canSidebar ? () => setMode('sidebar') : undefined} />
     )
   }
+
+  /* ── 접기 (09-28) — 얼굴 동그라미만 남기고 수업 칸을 넓게 쓴다 ──
+     **음성 모드에서만** 뜬다. 접힌 창에는 입력칸이 없어서 키보드로 답하는 학생이 접으면
+     답할 길이 없다(사용자 결정). 누르는 자리는 44px — 태블릿이 기준이다. */
+  const collapseBtn = voiceMode ? (
+    <button onClick={() => setMode('mini')} aria-label="강사 창 접기 — 얼굴만 남겨요"
+      className="h-11 px-2 flex items-center gap-1 text-[11.5px] font-bold text-[#64748B] active:text-[#2563EB]">
+      접기
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
+  ) : null
 
   /* ── 우측 패널(기본) — 화면 오른쪽 기둥 ── */
   return (
     /* data-shot 은 **캡처 도구가 잡는 손잡이**다(scripts/shots.mjs). 화면에는 아무 영향이 없고,
        비포/애프터를 같은 자리로 잘라 내려면 이 창을 이름으로 부를 수 있어야 한다. */
     <div data-shot="dock" className="flex-1 flex flex-col min-h-0 relative">
-      {topBar}
+      {/* 접기는 **TIP·어휘 버튼과 같은 줄** 오른쪽 끝에 앉는다(09-28 사용자 지정) — 창을 다루는 버튼이
+          한 줄에 모인다. 그 줄이 없는 화면(실전 등)에서는 얼굴 오른쪽 위로 간다(아래). */}
+      {topBar && (
+        <div className="relative shrink-0">
+          {topBar}
+          {collapseBtn && <div className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2">{collapseBtn}</div>}
+        </div>
+      )}
 
       {/* ── ① 누가 말하는가 — 모드와 무관하게 늘 같다 ──
           크기는 **자막을 켜든 끄든 그대로다**(사용자 지시 09-18). 자막이 빠진 자리는 아래
           파형 칸이 받는다 — 얼굴이 커졌다 작아졌다 하면 그 움직임 자체가 화면을 흔든다. */}
-      <div className="shrink-0 flex flex-col items-center pt-1.5 pb-1.5 bg-gradient-to-b from-[#F5F8FF] to-white">
+      <div className="relative shrink-0 flex flex-col items-center pt-1.5 pb-1.5 bg-gradient-to-b from-[#F5F8FF] to-white">
         <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq}
-          size={118} />
+          size={MINI_FACE} />
+        {!topBar && collapseBtn && <div className="absolute top-1 right-1">{collapseBtn}</div>}
       </div>
 
       {/* ── ② CC + 강사 말 칸 ──
@@ -884,20 +907,64 @@ export default function TutorDock({
   )
 }
 
+/* ── 접었을 때의 **할 일 줄** (09-28 사용자 지정) ──
+   강사 창을 접으면 선택지·O/X·오답 해설 고르기·행동 지시가 **수업 칸 맨 아래 한 줄**에 나온다.
+   떠 있는 말풍선은 사진 모서리나 보기 D 를 덮었다(사용자 걱정). 이 줄은 **자리를 차지해서**
+   문제를 위로 밀어 올리고, 누를 것이 없으면 닫힌다. 얼굴은 여기 없다 — 따로 떠서 학생이 옮긴다.
+
+   ⚠️ '없으면 닫힌다' 는 **높이를 재서** 정한다. 부르는 쪽이 선택지를 늘 감싼 div 로 넘겨서(애니메이션용)
+      누를 것이 없는 턴에도 속이 '비어 있지 않다'. 겉을 display:none 으로 숨기면 속도 0 이 되어 다시 못
+      재므로, 비었을 때는 테두리·여백만 걷는다(높이 0 인 칸이 된다). */
+export function ActionTray({ hint, actions }: { hint?: ReactNode; actions?: ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [filled, setFilled] = useState(false)
+  /* 두 번 잰다: 부모가 다시 그릴 때마다(턴이 바뀌어 선택지가 들고 나는 대부분의 경우) +
+     속이 스스로 커지고 줄 때(보기가 강사 말 뒤에 올라오는 애니메이션 등). ResizeObserver 하나만 믿으면
+     탭이 가려진 동안 알림이 밀려 줄이 안 닫혔다(실측 09-28). 같은 값이면 React 가 다시 안 그린다. */
+  useLayoutEffect(() => { setFilled((innerRef.current?.offsetHeight ?? 0) > 0) })
+  useEffect(() => {
+    const el = innerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setFilled(el.offsetHeight > 0))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  /* ── 액션 시트처럼 **아래에서 펼쳐진다** (09-29 사용자 지정) ──
+     예전에는 회색 띠가 한 번에 툭 생기며 문제 칸을 밀어 올렸다. 이제 줄의 높이가 0 에서 제 높이로
+     자라고(grid-rows 0fr→1fr) 속은 아래에서 올라온다 — 문제 칸도 같은 박자로 부드럽게 밀린다.
+     회색은 줄 전체가 아니라 **선택지 상자에만** 입힌다(부르는 쪽 dockActions). 안내는 그 위 바깥에 뜬다.
+     ⚠️ 재는 것은 잘리는 칸(clip) 안쪽의 innerRef 다 — 잘리는 칸이 0 이어도 속은 제 높이를 가진다. */
+  return (
+    <div className="shrink-0 max-h-[40%] grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ gridTemplateRows: filled ? '1fr' : '0fr' }}>
+      <div className={`min-h-0 ${filled ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        <div className={`px-3 md:px-6 py-3 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          filled ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'}`}>
+          {/* 버튼이 화면 끝까지 늘어지면 눈이 좌우로 멀리 오간다 — 가운데 한 덩어리로 모은다 */}
+          <div ref={innerRef} className="w-full max-w-[560px] mx-auto space-y-2.5">
+            {hint}
+            {actions}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** 강사 얼굴 크기 — 우측 패널과 접힌 창이 **같이 쓴다**(09-28 사용자 지정: 접어도 같은 크기) */
+const MINI_FACE = 118
+
 /* ── 최소화 창 ──
    · 얼굴을 끌면 창이 통째로 따라온다(끌지 않고 탭하면 원래 패널로 복원)
    · 말풍선은 **자르지 않는다** — 발화가 길면 박스가 커지고, 아주 길면 그 안에서 스크롤한다
    · 선택지·행동 지시도 이 안에서 작은 UI로 보인다 */
-function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq, lastLine, lastLinePlain, chatMode, setChatMode,
-  inputText, setInputText, onSend, onStartAgent, actions, hint, onRestore }: {
+function MiniDock({ faceSrc, clipSrc, allClips, name, isSpeaking, preparing, getTutorFreq, micActive,
+  onRestore }: {
   faceSrc: string; clipSrc?: string[] | null; allClips?: string[]
-  name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
+  name: string; isSpeaking: boolean; preparing?: boolean
   getTutorFreq?: () => Uint8Array | undefined
-  lastLine: string
-  lastLinePlain?: boolean
-  chatMode: 'voice' | 'text'; setChatMode: (m: 'voice' | 'text') => void
-  inputText: string; setInputText: (s: string) => void; onSend: () => void; onStartAgent: () => void
-  actions?: ReactNode; hint?: ReactNode
+  /** 학생 차례라 마이크가 열려 있는가 — 얼굴에 '듣고 있어요' 를 단다 */
+  micActive?: boolean
   /** 없으면 = 펼 수 없는 폭. 탭해도 안 열리고 '강사 창 열기'도 숨긴다 */
   onRestore?: () => void
 }) {
@@ -933,67 +1000,46 @@ function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isS
 
   const style: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y }
-    : { right: 16, bottom: 20 }
+    : { right: 16, top: 72 }       // 처음엔 오른쪽 위 — 아래는 할 일 줄·'다음 문제' 줄이 있다
+
+  /* ── 접힌 창은 **얼굴 하나**다 (09-28 사용자 지정) ──
+     예전 작은 창은 강사 말 전체·입력줄·모드 토글까지 담아서 '작은 패널' 이었다. 이제 접는 목적은
+     수업 칸을 넓게 쓰는 것이라, 남기는 것은 셋뿐이다:
+       · 얼굴 — 말할 때 파동(누가 말하는가), 탭하면 펼침, 끌면 옮김
+       · (누를 것·행동 지시는 여기 없다 — 수업 칸 아래 **할 일 줄**(ActionTray)로 간다. 문제를 덮지 않게)
+       · 학생 차례에 마이크가 열리면 얼굴에 초록 테두리 + 마이크 — 말로 답하는 턴엔 누를 것이 없어서,
+         이게 없으면 "지금 말하라는 건가" 를 알 길이 없다
+     강사 말 글자는 보이지 않는다(소리로 듣는다). 접기는 **음성 모드에서만** 된다(입력칸이 없으므로) —
+     그래서 여기엔 모드 토글도 없다. */
+  const listening = !!micActive && !isSpeaking && !preparing
 
   return (
-    <div ref={wrapRef} className="fixed z-40 flex flex-col items-end gap-2 w-[min(320px,80vw)]" style={style}>
-      {/* 하얀 네모 — 발화 전체 + 선택지/지시 */}
-      {/* 말을 준비하는 중(isSpeaking 인데 글자가 아직 없다)에도 창을 띄워 둔다 —
-          조건에서 빼면 음원을 기다리는 몇 초 동안 창이 사라졌다가 다시 나타난다 */}
-      {(lastLine || isSpeaking || preparing || hint || actions) && (
-        <div className="w-full rounded-2xl bg-white border border-gray-200 overflow-hidden"
-          style={{ boxShadow: '0 6px 24px rgba(37,99,235,0.16), 0 1px 4px rgba(0,0,0,0.08)' }}>
-          <div className="max-h-[46vh] overflow-y-auto px-3.5 py-2.5 space-y-2">
-            {lastLine ? (
-              <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-wrap"><TutorText text={lastLine} plain={lastLinePlain} /></p>
-            ) : (isSpeaking || preparing) ? <SpeechDots /> : null}
-            {/* 선택지·행동 지시 — 작은 창 안에서는 글자를 한 단계 줄여 보여준다 */}
-            <div className="pt-2 border-t border-dashed border-[#E5E7EB] space-y-2 empty:hidden empty:border-0 empty:pt-0
-                            [&_button]:text-[12px] [&_p]:text-[12px]">
-              {hint}
-              {actions}
-            </div>
-          </div>
-          {/* 텍스트 모드는 마이크가 꺼져 있다 — 작은 창에도 입력줄이 없으면 학생이 답할 길이 없다 */}
-          {chatMode === 'text' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-t border-gray-100">
-              <input className="flex-1 min-w-0 bg-transparent text-[12.5px] text-gray-800 placeholder-gray-400 outline-none"
-                placeholder={connected ? '메시지를 입력하세요' : connecting ? '연결 중…' : '연결이 끊겼어요'}
-                value={inputText} disabled={!connected} maxLength={300}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') onSend() }} />
-              <button onClick={connected ? onSend : onStartAgent} disabled={connected ? !inputText.trim() : connecting}
-                aria-label={connected ? '전송' : '대화 시작'}
-                className="w-7 h-7 bg-[#2563EB] rounded-full flex items-center justify-center shrink-0 disabled:opacity-40">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                </svg>
-              </button>
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-t border-gray-100 bg-[#FAFBFF]">
-            <ChatModeToggle chatMode={chatMode} setChatMode={setChatMode} compact />
-            {onRestore && (
-              <button onClick={onRestore} className="text-[10.5px] font-bold text-[#94A3B8] hover:text-[#475569] px-1.5">
-                강사 창 열기
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+    /* z-[45] — 필기 캔버스(z-40, DrawingOverlay)보다 **위**. 같은 층이면 캔버스가 나중에 그려져 얼굴을
+       덮고, 필기 중에 얼굴을 잡아 옮기면 선이 그어졌다(사용자 지적 09-28). 필기 도구 판(z-50)보다는 아래. */
+    <div ref={wrapRef} className="fixed z-[45] flex flex-col items-end gap-2" style={style}>
       {/* 얼굴 — 끌면 창이 따라오고, 탭하면 복원 */}
-      <button
-        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-        aria-label={onRestore ? '강사 창 — 끌어서 이동, 탭하면 열기' : '강사 창 — 끌어서 이동'}
-        className={`relative shrink-0 touch-none cursor-grab active:cursor-grabbing rounded-full transition-all ${
-          isSpeaking ? 'shadow-[0_0_18px_rgba(37,99,235,0.55)]' : 'shadow-lg'
-        }`}>
-        <span className="pointer-events-none block">
-          <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={56} />
-        </span>
-        <span className={`absolute bottom-2 right-2 w-3 h-3 rounded-full border-2 border-white ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
-      </button>
+      <div className="relative shrink-0">
+        {/* '듣고 있어요' 는 **자리를 차지하지 않는다**(absolute, 얼굴 아래) — 옆에 끼워 넣었더니 마이크가
+            열리고 닫힐 때마다 줄이 넓어졌다 줄어 **얼굴이 옆으로 밀렸다**(사용자 지적 09-28). */}
+        {listening && (
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-2 z-10
+                           rounded-full bg-[#16A34A] px-2.5 py-1 text-[11px] font-bold text-white shadow-md whitespace-nowrap">
+            듣고 있어요
+          </span>
+        )}
+        <button
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+          aria-label={onRestore ? `${name} 강사 — 끌어서 이동, 탭하면 펼치기` : `${name} 강사 — 끌어서 이동`}
+          /* 버튼 자체엔 그림자·고리를 두르지 않는다 — 버튼은 파동 자리까지 얼굴의 1.4배라, 거기 두르면
+             **얼굴 밖에 큰 동그라미가 한 겹 더** 떴다(사용자 지적 09-28). 얼굴은 제 그림자를 이미 갖고 있다. */
+          className="relative shrink-0 touch-none cursor-grab active:cursor-grabbing rounded-full">
+          <span className="pointer-events-none block">
+            <PulseAvatar src={faceSrc} clipSrc={clipSrc} allClips={allClips} name={name} speaking={isSpeaking} getFreq={getTutorFreq} size={MINI_FACE}
+              faceClass={listening ? 'ring-4 ring-[#22C55E]/70' : undefined} />
+          </span>
+        </button>
+      </div>
     </div>
   )
 }
