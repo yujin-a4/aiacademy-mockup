@@ -17,6 +17,12 @@
 /** 강사를 안 알려줬을 때 쓰는 모델 */
 export const DEFAULT_TTS_MODEL = 'eleven_multilingual_v2'
 
+/** ── v3 계열(v3·v4) — 대괄호 연기 태그·인라인 IPA 를 알아듣고, speed 는 받지 않는다 ──
+ *  09-29 이도윤을 v4 로 옮기며 `=== 'eleven_v3'` 로 흩어져 있던 갈래를 여기 모았다.
+ *  v4 도 같은 요청(태그·IPA 넣고 speed 뺌)을 받아 태그를 소리내 읽지 않는 것을 STT 로 확인했다.
+ *  (v4 는 SSML 을 막았다 — `<break>` 는 원래 v2 에서만 쓴다) */
+export const isV3Family = (modelId: string): boolean => modelId === 'eleven_v3' || modelId === 'eleven_v4'
+
 /** 강사 페르소나별 ElevenLabs 파라미터 */
 export const TTS_PARAMS: Record<string, { speed: number; stability: number; similarity_boost: number }> = {
   park:    { speed: 1.2, stability: 0.30, similarity_boost: 0.80 },

@@ -225,8 +225,11 @@ export const INST_VOICE: Record<string, string> = {
    코드스위칭이 나은 v3 을 쓴다. 적어두지 않은 강사는 api/tts 의 기본(multilingual v2).
    ⚠️ v3 은 voice_settings.speed 를 받지 않는다(에러) — api/tts 가 v3 일 때 speed 를 빼고 보낸다.
       대신 v3 은 응답이 느리고 한 번에 보낼 수 있는 글자도 절반(5,000자)이다. */
+/* 09-29 이도윤 → v4. 같은 대본 줄을 비교하니 v3 가 뭉개던 발음("인물이"→"이 물이")이 또렷해졌다.
+   대신 15~30% 느리다(몰아치던 설명에는 오히려 맞다). 목소리가 Voice Design(generated)이라 재학습은
+   필요 없다 — 복제 목소리(IVC·PVC)였다면 v4 로 다시 학습시켜야 한다. 처리 갈래는 ttsText.isV3Family. */
 export const INST_TTS_MODEL: Record<string, string> = {
-  lee_doyun: 'eleven_v3',
+  lee_doyun: 'eleven_v4',
   yun_daeun: 'eleven_v3',
 }
 
