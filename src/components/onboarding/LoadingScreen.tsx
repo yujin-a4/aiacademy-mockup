@@ -28,7 +28,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#F3F4F6] px-4">
       <div className="w-full max-w-[390px] space-y-6">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary rounded-2xl animate-bounce-in">
+          <div className="w-16 h-16 mx-auto flex items-center justify-center bg-primary rounded-xl animate-bounce-in">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M18.4 9.4L11 16.8l-3.5-3.5L4 16.8"/></svg>
           </div>
           <div className="space-y-1">
@@ -37,7 +37,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
           </div>
         </div>
 
-        <div className="bg-white border border-[#D1D5DB] rounded-[14px] p-5 space-y-3">
+        <div className="bg-white border border-[#D1D5DB] rounded-[10px] p-5 space-y-3">
           {visible >= 1 && (
             <div className="flex items-center gap-2.5 animate-fade-in">
               <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
@@ -68,7 +68,7 @@ export default function LoadingScreen({ onNext }: { onNext: () => void }) {
         {showCTA && (
           <button
             onClick={onNext}
-            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-[10px] h-11 font-semibold text-[15px] animate-fade-in transition-colors active:scale-[0.98]"
+            className="w-full bg-primary-500 hover:bg-primary-400 text-white rounded-lg h-11 font-semibold text-[15px] animate-fade-in transition-colors active:scale-[0.98]"
           >
             Study Plan 확인하기
           </button>

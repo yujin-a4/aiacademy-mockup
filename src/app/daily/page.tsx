@@ -244,7 +244,7 @@ export default function DailyPage() {
           </div>
 
           {/* 문제별 결과 */}
-          <div className="w-full max-w-[400px] bg-white border border-[#DBEAFE] rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="w-full max-w-[400px] bg-white border border-[#DBEAFE] rounded-xl p-4 space-y-3 shadow-sm">
             <p className="text-[#1C1B33] font-bold text-[13px] mb-1">문제별 결과</p>
             {questions.map((q, i) => {
               const a = i < answers.length ? answers[i] : null
@@ -272,10 +272,10 @@ export default function DailyPage() {
           </div>
 
           <div className="w-full max-w-[400px] space-y-2">
-            <Link href="/dashboard" className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-2xl font-bold text-[15px] text-center transition-colors">
+            <Link href="/dashboard" className="block w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-3.5 rounded-xl font-bold text-[15px] text-center transition-colors">
               대시보드로 돌아가기
             </Link>
-            <Link href="/my-learning?tab=part" className="block w-full bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-2xl font-semibold text-[14px] text-center hover:border-[#C7D2FE] transition-colors">
+            <Link href="/my-learning?tab=part" className="block w-full bg-white border border-[#DBEAFE] text-[#374151] py-3.5 rounded-xl font-semibold text-[14px] text-center hover:border-[#C7D2FE] transition-colors">
               파트별 연습 더 하기
             </Link>
           </div>
@@ -325,7 +325,7 @@ export default function DailyPage() {
         </div>
 
         {/* 문제 카드 */}
-        <div className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-5 shadow-sm">
+        <div className="bg-white border border-[#DBEAFE] rounded-xl px-5 py-5 shadow-sm">
           <p className="text-[#1C1B33] text-[15px] leading-relaxed font-medium">
             {q.sentence.split('___').map((part, i, arr) => (
               <span key={i}>
@@ -359,7 +359,7 @@ export default function DailyPage() {
                 key={i}
                 disabled={answered}
                 onClick={() => handleSelect(i)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${cls} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all ${cls} ${!answered ? 'hover:border-[#2563EB] hover:bg-[#EFF6FF] active:scale-[0.99]' : ''}`}
               >
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-black shrink-0 ${
                   answered && isCorrectOpt ? 'bg-[#10B981] text-white' :
@@ -379,7 +379,7 @@ export default function DailyPage() {
         {answered && (
           <div className="space-y-3 animate-fade-in">
             {/* 결과 + 정답률 */}
-            <div className={`rounded-xl px-4 py-3 flex items-center gap-3 ${isCorrect ? 'bg-[#D1FAE5] border border-[#10B981]' : 'bg-[#FEE2E2] border border-[#EF4444]'}`}>
+            <div className={`rounded-lg px-4 py-3 flex items-center gap-3 ${isCorrect ? 'bg-[#D1FAE5] border border-[#10B981]' : 'bg-[#FEE2E2] border border-[#EF4444]'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? 'bg-[#10B981]' : 'bg-[#EF4444]'}`}>
                 {isCorrect
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -404,7 +404,7 @@ export default function DailyPage() {
             </div>
 
             {/* 해설 */}
-            <div className="bg-white border border-[#DBEAFE] rounded-2xl px-4 py-3">
+            <div className="bg-white border border-[#DBEAFE] rounded-xl px-4 py-3">
               <p className="text-[11px] font-bold text-[#2563EB] uppercase tracking-wider mb-1.5">해설</p>
               <p className="text-[#374151] text-[13px] leading-relaxed">{q.explanation}</p>
             </div>
@@ -418,7 +418,7 @@ export default function DailyPage() {
           <div className="max-w-[600px] mx-auto">
             <button
               onClick={handleNext}
-              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-2xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-colors shadow-lg shadow-[#2563EB]/20"
             >
               {index < questions.length - 1 ? '다음 문제' : '결과 보기'}
             </button>

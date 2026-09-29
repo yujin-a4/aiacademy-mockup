@@ -32,7 +32,7 @@ export default function StepAction({
       {!!expressions?.length && (
         <div className="w-full max-w-xs animate-fade-in-up" style={{ animationDelay: '0.05s' }}>
           <p className="text-[11px] font-bold text-slate-400 mb-1.5">오늘 배운 표현 {expressions.length}개</p>
-          <div className="max-h-40 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 divide-y divide-slate-200">
+          <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-200">
             {expressions.map((e) => (
               <div key={e.en} className="flex items-baseline gap-2 px-3 py-2">
                 <span className="text-[12.5px] font-bold text-slate-700">{e.en}</span>
@@ -47,7 +47,7 @@ export default function StepAction({
         {onNextLesson && (
           <button
             onClick={onNextLesson}
-            className="w-full py-4 rounded-2xl bg-indigo-500 text-white font-bold text-base active:scale-95 transition-all animate-fade-in-up shadow-lg shadow-indigo-100 hover:bg-indigo-600"
+            className="w-full py-4 rounded-xl bg-indigo-500 text-white font-bold text-base active:scale-95 transition-all animate-fade-in-up shadow-lg shadow-indigo-100 hover:bg-indigo-600"
             style={{ animationDelay: '0.1s' }}
           >
             {nextLessonLabel ?? '다음 강의 가기'} →
@@ -57,7 +57,7 @@ export default function StepAction({
         {onReport && (
           <button
             onClick={onReport}
-            className="w-full py-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-base active:scale-95 transition-all animate-fade-in-up hover:bg-slate-100"
+            className="w-full py-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-base active:scale-95 transition-all animate-fade-in-up hover:bg-slate-100"
             style={{ animationDelay: '0.2s' }}
           >
             리포트 바로가기 ↗
@@ -68,8 +68,8 @@ export default function StepAction({
           onClick={onHome}
           className={`w-full active:scale-95 transition-all animate-fade-in-up ${
             homeIsPrimary
-              ? 'py-4 rounded-2xl bg-indigo-500 text-white font-bold text-base shadow-lg shadow-indigo-100 hover:bg-indigo-600'
-              : 'py-3 rounded-2xl text-slate-400 font-medium text-sm hover:text-slate-600'
+              ? 'py-4 rounded-xl bg-indigo-500 text-white font-bold text-base shadow-lg shadow-indigo-100 hover:bg-indigo-600'
+              : 'py-3 rounded-xl text-slate-400 font-medium text-sm hover:text-slate-600'
           }`}
           style={{ animationDelay: onNextLesson ? '0.3s' : '0.1s' }}
         >

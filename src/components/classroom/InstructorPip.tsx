@@ -103,7 +103,7 @@ export default function InstructorPip({
       onTouchStart={onDragStart}
       className="fixed z-30 flex items-center gap-4
         bg-white/95 backdrop-blur-md border border-ybm-border
-        rounded-2xl shadow-lg px-4 py-3
+        rounded-xl shadow-lg px-4 py-3
         max-w-[400px] min-w-[280px]
         select-none"
       style={
@@ -184,7 +184,7 @@ export default function InstructorPip({
       <button
         onClick={onMic}
         aria-label={isListening ? '음성 입력 중지' : '음성 입력 시작'}
-        className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all
+        className={`shrink-0 w-11 h-11 rounded-lg flex items-center justify-center transition-all
           ${isListening
             ? 'bg-cr-accent text-white scale-110 shadow-md'
             : 'bg-cr-accent/10 hover:bg-cr-accent/20 text-cr-accent'}

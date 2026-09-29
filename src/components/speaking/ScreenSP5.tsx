@@ -104,7 +104,7 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
       }
     >
       {/* 흰색 카드 전체 */}
-      <div className="flex flex-col h-full bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+      <div className="flex flex-col h-full bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
 
         {/* 헤더: 배지 + 타이머 + 제목 + 부제 */}
         <div className="px-5 pt-4 pb-3 shrink-0">
@@ -137,7 +137,7 @@ export default function ScreenSP5({ onComplete, onEnd }: Props) {
           <div className="px-5 pb-4">
             <button
               onClick={handleStartPractice}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#2277F0] text-white font-bold text-base hover:bg-[#1a66d4] active:scale-95 transition-all"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#2277F0] text-white font-bold text-base hover:bg-[#1a66d4] active:scale-95 transition-all"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="5" y="1" width="6" height="8" rx="3" stroke="white" strokeWidth="1.5"/>

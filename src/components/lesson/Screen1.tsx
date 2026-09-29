@@ -356,7 +356,7 @@ export default function Screen1({ onComplete, onEnd, onPrev }: Screen1Props) {
     {/* 경고/힌트 토스트 — fixed 위치로 레이아웃 영향 없음 */}
     {warnMessage && (
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce-once">
-        <div className="bg-orange-500 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
+        <div className="bg-orange-500 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-sm font-bold whitespace-nowrap">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0">
             <path d="M9 2L16.5 15H1.5L9 2Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
             <path d="M9 7v4M9 12.5v.5" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
@@ -406,7 +406,7 @@ function ProblemContent({
 
       {/* 헤더 */}
       <div className="flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#2277F0]">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#2277F0]">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <rect x="3" y="2" width="12" height="14" rx="2" stroke="white" strokeWidth="1.5"/>
             <path d="M6 6h6M6 9h6M6 12h4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
@@ -415,14 +415,14 @@ function ProblemContent({
         <span className="font-bold text-base text-[#1A2B4B]">{problem.partLabel}</span>
         <span className="inline-flex items-center justify-center font-bold text-sm px-3 py-1 rounded-lg bg-[#D6EAFF] text-[#2277F0]">Q1</span>
         {drawActive ? (
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
+          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
             <span className="text-sm shrink-0"></span>
             <span className="text-xs font-medium text-amber-700 animate-pulse">
               {drawHint === 'underline' ? '주어에 밑줄 긋기' : drawHint === 'x' ? '틀린 선택지 2개에 X표시' : '힌트에 동그라미 표시'}
             </span>
           </div>
         ) : isListening ? (
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2277F0]/8 border border-[#2277F0]/20">
+          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2277F0]/8 border border-[#2277F0]/20">
             <div className="flex items-center gap-[3px] shrink-0">
               {[0,1,2,3].map((i) => (
                 <span key={i} className="inline-block w-[3px] rounded-full bg-[#2277F0]"
@@ -476,7 +476,7 @@ function ProblemContent({
             <button
               key={id}
               onClick={() => choicesVisible && onChoiceSelect(id)}
-              className={`flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all
+              className={`flex items-center gap-4 p-5 rounded-xl border-2 text-left transition-all
                 ${isHighlight
                   ? 'border-green-400 bg-green-50'
                   : choicesVisible
@@ -541,7 +541,7 @@ function RemoteChoiceBar({
           key={opt.id}
           disabled={disabled}
           onClick={() => onSelect(opt.id)}
-          className="px-4 py-2.5 rounded-xl border-2 border-ybm-border bg-white text-sm font-semibold text-ybm-text
+          className="px-4 py-2.5 rounded-lg border-2 border-ybm-border bg-white text-sm font-semibold text-ybm-text
             hover:border-[#2277F0]/50 hover:bg-[#2277F0]/5 active:scale-95 transition-all
             disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -586,7 +586,7 @@ export function LessonToolbar({
         <button
           onClick={onPrev}
           disabled={!onPrev}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all
             ${!onPrev
               ? 'opacity-30 cursor-not-allowed text-ybm-text-sub'
               : 'text-ybm-text hover:bg-ybm-bg active:scale-95'}
@@ -601,7 +601,7 @@ export function LessonToolbar({
         {onNext && (
           <button
             onClick={onNext}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95
               ${nextEnabled
                 ? `bg-[#2277F0] text-white hover:bg-[#1a66d4] shadow-sm${nextPulse ? ' advance-pulse' : ''}`
                 : 'text-ybm-text-sub border border-ybm-border bg-ybm-bg hover:bg-gray-100'}

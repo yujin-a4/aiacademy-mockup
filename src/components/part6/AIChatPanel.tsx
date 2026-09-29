@@ -342,7 +342,7 @@ export default function AIChatPanel({
 
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
 
       {/* 헤더 */}
       <div className="shrink-0 px-4 py-3 border-b border-ybm-border flex items-center gap-2">
@@ -399,7 +399,7 @@ export default function AIChatPanel({
               <img src="/instructor/park.png" alt="AI 튜터" className="w-6 h-6 rounded-full object-cover object-top shrink-0 mr-2 mt-0.5 border border-violet-200" />
             )}
             <div
-              className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-line
+              className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed whitespace-pre-line
                 ${msg.role === 'user'
                   ? 'bg-[#6366F1] text-white rounded-tr-sm'
                   : 'bg-[#F5F7FA] text-[#1A2B4B] rounded-tl-sm border border-ybm-border'}
@@ -414,7 +414,7 @@ export default function AIChatPanel({
           <div className="flex justify-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/instructor/park.png" alt="AI 튜터" className="w-6 h-6 rounded-full object-cover object-top shrink-0 mr-2 mt-0.5 border border-violet-200" />
-            <div className="bg-[#F5F7FA] border border-ybm-border px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
+            <div className="bg-[#F5F7FA] border border-ybm-border px-4 py-3 rounded-xl rounded-tl-sm flex items-center gap-1.5">
               {[0, 1, 2].map((i) => (
                 <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#6366F1]"
                   style={{ animation: `dotBounce 1s ease-in-out ${i * 0.18}s infinite alternate` }}
@@ -438,7 +438,7 @@ export default function AIChatPanel({
 
           {/* 실시간 인식 텍스트 */}
           {interimText && (
-            <div className="w-full bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 text-center">
+            <div className="w-full bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 text-center">
               <p className="text-sm text-[#6366F1] leading-snug">{interimText}</p>
             </div>
           )}
@@ -508,7 +508,7 @@ export default function AIChatPanel({
 
           <div className="shrink-0 px-3 pb-3 flex items-center gap-2">
             <button onClick={toggleListening}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-all
                 ${listening ? 'bg-red-500 text-white' : 'bg-[#F5F7FA] text-[#6366F1] border border-ybm-border hover:bg-violet-50'}`}
             >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
@@ -523,10 +523,10 @@ export default function AIChatPanel({
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
               placeholder="질문을 입력하세요..."
               disabled={loading}
-              className="flex-1 h-9 px-3 rounded-xl border border-ybm-border text-sm bg-[#F5F7FA] focus:outline-none focus:border-[#6366F1] focus:bg-white transition-colors disabled:opacity-50"
+              className="flex-1 h-9 px-3 rounded-lg border border-ybm-border text-sm bg-[#F5F7FA] focus:outline-none focus:border-[#6366F1] focus:bg-white transition-colors disabled:opacity-50"
             />
             <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[#6366F1] text-white hover:bg-[#4F46E5] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#6366F1] text-white hover:bg-[#4F46E5] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M1 7h12M8 3l5 4-5 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -537,7 +537,7 @@ export default function AIChatPanel({
       )}
 
       {footerNote && (
-        <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+        <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-lg bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
           <p className="font-bold text-ybm-text mb-1">{footerNote.title}</p>
           <p>{footerNote.body}</p>
         </div>

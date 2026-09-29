@@ -63,7 +63,7 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
           </div>
 
           {/* 강사 진행 카드 */}
-          <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl p-6 space-y-5">
+          <div className="bg-white border-2 border-[#E5E7EB] rounded-xl p-6 space-y-5">
             {LOAD_STEPS.map((step, i) => {
               if (current <= i) return null
               const isActive = current === i + 1 && !done
@@ -111,7 +111,7 @@ export default function CurriculumLoading({ onNext }: { onNext: () => void }) {
           {done && (
             <button
               onClick={onNext}
-              className="w-full h-12 bg-primary hover:bg-primary-600 text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98] shadow-md animate-fade-in"
+              className="w-full h-12 bg-primary hover:bg-primary-600 text-white font-bold text-[15px] rounded-lg transition-all active:scale-[0.98] shadow-md animate-fade-in"
             >
               프로그램 확인하기
             </button>

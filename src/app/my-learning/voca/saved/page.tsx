@@ -71,8 +71,8 @@ export default function SavedVocaPage() {
 
       <div className="px-6 max-w-[480px] mx-auto w-full pt-4">
         {/* 단어 수 */}
-        <div className="bg-white rounded-3xl p-6 border border-[#DBEAFE] shadow-sm mb-6 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
+        <div className="bg-white rounded-2xl p-6 border border-[#DBEAFE] shadow-sm mb-6 flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-[#FEF9C3] flex items-center justify-center shrink-0">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
@@ -85,7 +85,7 @@ export default function SavedVocaPage() {
 
         {savedWords.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-xl bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
@@ -101,9 +101,9 @@ export default function SavedVocaPage() {
                 <button
                   key={mode.label}
                   onClick={() => startMode(mode.href)}
-                  className="bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] hover:shadow-md transition-all active:scale-[0.99] text-left"
+                  className="bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] hover:shadow-md transition-all active:scale-[0.99] text-left"
                 >
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: mode.bg }}>
+                  <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" style={{ background: mode.bg }}>
                     {mode.icon}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -119,7 +119,7 @@ export default function SavedVocaPage() {
             <p className="text-[#374151] text-[13px] font-semibold mt-6 mb-3 px-1">저장한 단어 목록</p>
             <div className="flex flex-col gap-2 pb-10">
               {savedWords.map((w) => (
-                <div key={w.id} className="bg-white border border-[#DBEAFE] rounded-xl px-4 py-3 flex items-center justify-between">
+                <div key={w.id} className="bg-white border border-[#DBEAFE] rounded-lg px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-[#1C1B33] font-semibold text-[14px]">{w.word}</p>
                     <p className="text-[#6B7280] text-[12px]">{w.meaning}</p>

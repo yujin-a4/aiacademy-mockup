@@ -190,7 +190,7 @@ export default function InstructorPanel({
       </div>
 
       {/* ── 말풍선 ── */}
-      <div className="mx-3 mt-2 mb-2 bg-white rounded-2xl shadow-sm border border-ybm-border/50 overflow-hidden">
+      <div className="mx-3 mt-2 mb-2 bg-white rounded-xl shadow-sm border border-ybm-border/50 overflow-hidden">
         <div className="flex items-center gap-2 px-4 pt-3 pb-1.5 border-b border-ybm-border/40">
           <span className="text-sm font-semibold text-cr-accent">{instructorName}</span>
           {isLoading ? (

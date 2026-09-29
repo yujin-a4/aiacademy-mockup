@@ -372,7 +372,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-[#f0f4f8]">
         <p className="text-sm text-gray-500">이 강의({lectureCode})에 등록된 문항이 아직 없어요.</p>
-        <button onClick={onEnd} className="px-5 py-2.5 rounded-xl bg-[#2277F0] text-white text-sm font-bold">돌아가기</button>
+        <button onClick={onEnd} className="px-5 py-2.5 rounded-lg bg-[#2277F0] text-white text-sm font-bold">돌아가기</button>
       </div>
     )
   }
@@ -470,7 +470,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
         {panelOpen && (
           <aside
             ref={modalRef}
-            className="fixed z-40 w-[min(400px,92vw)] bg-white rounded-3xl border border-gray-200 overflow-hidden flex flex-col"
+            className="fixed z-40 w-[min(400px,92vw)] bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col"
             style={{
               height: 'min(600px, 80dvh)',
               boxShadow: '0 12px 48px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)',
@@ -513,7 +513,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
               <img src={teacherImg} alt={teacherName} className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
               <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : `${teacherName} 강사와 대화를 시작해요`}</p>
               <button onClick={startAgent} disabled={connecting}
-                className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">
+                className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">
                 {connecting ? '연결 중…' : '▶ 강사와 대화 시작'}
               </button>
             </div>
@@ -523,7 +523,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
                 {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                 {messages.map((m, i) => (
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                    <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                   </div>
                 ))}
                 {/* 강사 말풍선 바로 아래에 재생 중에만 떴다가 사라지는 스피커 표시 */}
@@ -546,7 +546,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
               </div>
               <p className="text-gray-500 text-[12px] font-semibold mb-1">{teacherName} AI 강사</p>
               {lastAi && (
-                <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
+                <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
                   <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
                 </div>
               )}
@@ -566,7 +566,7 @@ export default function DbLessonScreen({ lectureCode, instructor = 'park_hyewon'
             className="fixed bottom-5 right-4 z-30 flex items-end gap-2.5 text-left"
           >
             {(lastAi || !connected) && (
-              <span className="block max-w-[240px] bg-white border border-gray-200 rounded-2xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-gray-700 leading-snug shadow-lg line-clamp-2"
+              <span className="block max-w-[240px] bg-white border border-gray-200 rounded-xl rounded-br-sm px-3.5 py-2.5 text-[13px] text-gray-700 leading-snug shadow-lg line-clamp-2"
                 style={{ boxShadow: '0 4px 20px rgba(34,119,240,0.12), 0 1px 4px rgba(0,0,0,0.08)' }}>
                 {lastAi || `${teacherName} 강사와 대화를 시작해요`}
               </span>
@@ -622,7 +622,7 @@ function QuestionView({ q, idx, total, onNext, revealed }: {
   const optionsBlock = (
     <div className="flex flex-col gap-2 md:gap-2.5">
       {q.options.map((o) => (
-        <div key={o.label} className="flex items-center gap-3 rounded-xl px-4 py-3 border border-gray-200 bg-white">
+        <div key={o.label} className="flex items-center gap-3 rounded-lg px-4 py-3 border border-gray-200 bg-white">
           <span className="w-6 h-6 rounded-full border-2 border-gray-300 text-gray-400 flex items-center justify-center shrink-0 text-xs font-bold">{o.label}</span>
           {hideText
             ? <span className="text-sm text-gray-400 font-medium">🔊 음성으로 들려요</span>
@@ -666,7 +666,7 @@ function QuestionView({ q, idx, total, onNext, revealed }: {
       )}
 
       <button onClick={onNext}
-        className="mt-5 w-full py-3.5 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
+        className="mt-5 w-full py-3.5 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
         {idx < total - 1 ? '다음 문항 →' : '유형학습 마치기 →'}
       </button>
     </div>
@@ -692,7 +692,7 @@ function CoachQuestionView({ q, chosen, idx, total, onNext, teacherName }: {
         </div>
       </div>
 
-      <div className="mb-3 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] px-3.5 py-2.5 text-[12px] font-semibold text-[#B45309] leading-relaxed">
+      <div className="mb-3 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] px-3.5 py-2.5 text-[12px] font-semibold text-[#B45309] leading-relaxed">
         실전에서 틀린 문제예요. {teacherName} 강사가 왜 틀렸는지 오른쪽에서 같이 짚어줄 거예요.
       </div>
 
@@ -709,7 +709,7 @@ function CoachQuestionView({ q, chosen, idx, total, onNext, teacherName }: {
             : isChosen ? 'border-red-400 text-red-500'
             : 'border-gray-300 text-gray-400'
           return (
-            <div key={o.label} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${cls}`}>
+            <div key={o.label} className={`flex items-center gap-3 rounded-lg px-4 py-3 border ${cls}`}>
               <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 text-xs font-bold ${badge}`}>{o.label}</span>
               <span className="text-sm md:text-[15px] leading-snug text-[#1A2B4B]">{o.text}</span>
               {isChosen && !isCorrect && <span className="ml-auto text-[11px] font-bold text-red-500 shrink-0">내가 고른 답</span>}
@@ -720,7 +720,7 @@ function CoachQuestionView({ q, chosen, idx, total, onNext, teacherName }: {
       </div>
 
       <button onClick={onNext}
-        className="mt-5 w-full py-3.5 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
+        className="mt-5 w-full py-3.5 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
         {idx < total - 1 ? '다음 오답 →' : '코칭 마치기 →'}
       </button>
     </div>
@@ -789,7 +789,7 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
         <div className="w-16 h-16 rounded-full bg-[#2277F0]/10 flex items-center justify-center text-3xl">🎉</div>
         <p className="text-lg font-bold text-[#1A2B4B]">오늘 수업 완료!</p>
         <p className="text-sm text-gray-500">유형학습과 실전 문제를 모두 마쳤어요.</p>
-        <button onClick={onEnd} className="mt-2 px-5 py-2.5 rounded-xl bg-[#2277F0] text-white text-sm font-bold hover:bg-[#1a66d4]">돌아가기</button>
+        <button onClick={onEnd} className="mt-2 px-5 py-2.5 rounded-lg bg-[#2277F0] text-white text-sm font-bold hover:bg-[#1a66d4]">돌아가기</button>
       </div>
     )
   }
@@ -811,7 +811,7 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
       </div>
 
       <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
-        <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={teacherImg} alt={teacherName} className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
@@ -830,7 +830,7 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
             {data.sentences.map((c, i) => {
               const ok = results[i]
               return (
-                <div key={i} className={`rounded-2xl border p-4 transition-colors ${checked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                <div key={i} className={`rounded-xl border p-4 transition-colors ${checked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
                     <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
@@ -849,11 +849,11 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
 
           {!checked ? (
             <button onClick={() => { setChecked(true); void speakTTS(data.closing, 'park') }} disabled={!allFilled}
-              className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
+              className={`w-full py-4 rounded-xl font-bold text-base md:text-lg transition-all ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
           ) : (
             <>
               <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{data.sentences.length} 정답!</p>
-              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+              <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={teacherImg} alt={teacherName} className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
@@ -867,7 +867,7 @@ function SummaryView({ data, partName, onEnd, teacherName, teacherImg }: { data:
                 </div>
                 <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{data.closing}</p>
               </div>
-              <button onClick={() => { stopCurrentAudio(); onEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
+              <button onClick={() => { stopCurrentAudio(); onEnd() }} className="w-full py-4 rounded-xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
               <button onClick={() => { stopCurrentAudio(); setChecked(false); setInputs(data.sentences.map(() => '')) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
             </>
           )}
@@ -930,7 +930,7 @@ function AudioPlayer({ src }: { src: string }) {
   const canReplay = replaysLeft > 0
 
   return (
-    <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-2xl p-4 flex items-center gap-3 mt-4">
+    <div className="bg-[#F0F5FF] border border-[#BFD9FF] rounded-xl p-4 flex items-center gap-3 mt-4">
       <button onClick={toggle} aria-label={playing ? '일시정지' : '재생'}
         className="w-12 h-12 rounded-full bg-[#2277F0] flex items-center justify-center shrink-0 shadow-md active:scale-95">
         {playing
@@ -986,7 +986,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-[#f0f4f8]">
         <p className="text-sm text-gray-500">실전 문제가 아직 없어요.</p>
-        <button onClick={() => onFinish([])} className="px-5 py-2.5 rounded-xl bg-[#2277F0] text-white text-sm font-bold">계속</button>
+        <button onClick={() => onFinish([])} className="px-5 py-2.5 rounded-lg bg-[#2277F0] text-white text-sm font-bold">계속</button>
       </div>
     )
   }
@@ -1004,7 +1004,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
         <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5">
           <div className="max-w-2xl mx-auto">
             {/* 점수 카드 */}
-            <div className="rounded-2xl bg-white border border-gray-100 px-6 py-5 text-center mb-5">
+            <div className="rounded-xl bg-white border border-gray-100 px-6 py-5 text-center mb-5">
               <p className="text-[13px] font-semibold text-gray-400 mb-1">정오답 결과</p>
               <p className="text-3xl font-black text-[#1A2B4B]">{correctCount} <span className="text-gray-300">/ {total}</span></p>
             </div>
@@ -1017,7 +1017,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
                 const userOpt    = qq.options.find((o) => o.label === userLabel)
                 const ok = userLabel === correctOpt?.label
                 return (
-                  <div key={qq.code} className="rounded-2xl bg-white border border-gray-100 overflow-hidden">
+                  <div key={qq.code} className="rounded-xl bg-white border border-gray-100 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-50">
                       <span className="text-[13px] font-bold text-gray-500">문항 {i + 1}</span>
                       <span className={`text-[12px] font-bold px-2.5 py-0.5 rounded-full ${ok ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{ok ? '정답' : '오답'}</span>
@@ -1032,7 +1032,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
                       </p>
                       <p className="text-[13px] text-gray-600">정답: <span className="text-[#1A2B4B] font-semibold">{correctOpt?.label}) {correctOpt?.text}</span></p>
                       {!ok && (
-                        <div className="mt-3 rounded-xl bg-[#f0f4f8] px-3.5 py-3 space-y-1.5">
+                        <div className="mt-3 rounded-lg bg-[#f0f4f8] px-3.5 py-3 space-y-1.5">
                           {userOpt?.explanation && (
                             <p className="text-[12px] text-red-500 leading-relaxed"><span className="font-bold">왜 오답:</span> {userOpt.explanation}</p>
                           )}
@@ -1047,7 +1047,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
               })}
             </div>
 
-            <button onClick={() => onFinish(wrong)} className="mt-6 w-full py-3.5 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
+            <button onClick={() => onFinish(wrong)} className="mt-6 w-full py-3.5 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors">
               {wrong.length ? `틀린 문제 ${wrong.length}개, 강사와 오답 복습하기 →` : '수업 마무리 →'}
             </button>
           </div>
@@ -1085,7 +1085,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
               // 듣기 문항(음원 있음)은 보기 텍스트를 감춰 실제 듣기처럼 — 정답 리뷰에서만 텍스트 공개.
               return (
                 <button key={o.label} onClick={() => pick(o.label)}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 border text-left transition-colors ${selected ? 'border-[#2277F0] bg-[#2277F0]/5' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                  className={`flex items-center gap-3 rounded-lg px-4 py-3 border text-left transition-colors ${selected ? 'border-[#2277F0] bg-[#2277F0]/5' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
                   <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 text-xs font-bold ${selected ? 'border-[#2277F0] text-[#2277F0]' : 'border-gray-300 text-gray-400'}`}>{o.label}</span>
                   {q.content.audio_url
                     ? <span className="text-sm text-gray-400 font-medium">🔊 음성으로 들려요</span>
@@ -1096,7 +1096,7 @@ function PracticeView({ questions, partName, isPlaceholder, onFinish, onEnd }: {
           </div>
 
           <button onClick={next} disabled={!chosen}
-            className="mt-5 w-full py-3.5 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors disabled:opacity-40 disabled:hover:bg-[#2277F0]">
+            className="mt-5 w-full py-3.5 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] transition-colors disabled:opacity-40 disabled:hover:bg-[#2277F0]">
             {idx < total - 1 ? '다음 문항 →' : '채점하기'}
           </button>
         </div>
@@ -1121,12 +1121,12 @@ function PartContent({ q }: { q: UiDbQuestion }) {
         <div>
           <div className="mb-3"><Label>사진</Label></div>
           {c.image_url ? (
-            <figure className="rounded-xl overflow-hidden border border-gray-200 bg-[#0e1525]">
+            <figure className="rounded-lg overflow-hidden border border-gray-200 bg-[#0e1525]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={c.image_url} alt={c.photo_type ?? '사진 묘사'} className="w-full max-h-[440px] object-contain" />
             </figure>
           ) : (
-            <div className="rounded-xl border-2 border-dashed border-gray-200 bg-[#f0f4f8] px-6 py-12 text-center">
+            <div className="rounded-lg border-2 border-dashed border-gray-200 bg-[#f0f4f8] px-6 py-12 text-center">
               <p className="text-3xl mb-3">📷</p>
               <p className="text-sm font-semibold text-[#1A2B4B] mb-1">{c.photo_type ?? ''}</p>
               <p className="text-xs text-gray-500 leading-relaxed">{c.key_elements ?? ''}</p>
@@ -1151,7 +1151,7 @@ function PartContent({ q }: { q: UiDbQuestion }) {
           <div className="mb-3"><Label>{q.part === 3 ? '대화' : '담화'}</Label></div>
           <div className="flex flex-col gap-2">
             {lines.filter(Boolean).map((line, i) => (
-              <p key={i} className="bg-[#f0f4f8] rounded-xl px-4 py-2.5 text-sm leading-relaxed text-[#1A2B4B]">{line}</p>
+              <p key={i} className="bg-[#f0f4f8] rounded-lg px-4 py-2.5 text-sm leading-relaxed text-[#1A2B4B]">{line}</p>
             ))}
           </div>
           {c.question_text && (

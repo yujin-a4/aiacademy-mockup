@@ -34,7 +34,7 @@ export default function CoursesPage() {
 
       {/* 헤더 */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-ybm-blue mb-4 shadow-md">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-ybm-blue mb-4 shadow-md">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <rect x="5" y="3" width="18" height="22" rx="3" stroke="white" strokeWidth="1.8"/>
             <path d="M9 9h10M9 13h10M9 17h6" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
@@ -51,7 +51,7 @@ export default function CoursesPage() {
             key={course.id}
             disabled={!course.available}
             onClick={() => course.available && router.push('/classroom')}
-            className={`w-full text-left rounded-2xl border-2 p-5 transition-all
+            className={`w-full text-left rounded-xl border-2 p-5 transition-all
               ${course.available
                 ? 'border-ybm-blue bg-white hover:bg-[#F0F6FF] active:scale-[0.98] shadow-card cursor-pointer'
                 : 'border-ybm-border bg-white opacity-60 cursor-not-allowed'}
@@ -59,7 +59,7 @@ export default function CoursesPage() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm
                   ${course.available ? 'bg-ybm-blue-light text-ybm-blue' : 'bg-ybm-bg text-ybm-text-sub'}
                 `}>
                   {course.id === 'part5' ? 'P5' : course.id === 'part7' ? 'P7' : 'TS'}

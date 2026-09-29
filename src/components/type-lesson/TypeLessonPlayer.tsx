@@ -932,7 +932,7 @@ function rawCueItems(lesson: TypeLesson, cue: AudioCue): { id: string; text: str
  *     꺼지거나(효과만) 켜지지 않는다(hideVerdict 만). 그래서 상수로 묶어 둔다. */
 const TELLS_ANSWER = /^S5|정답\s*근거|^채점/
 
-const PRIMARY_BTN = 'px-6 py-3 rounded-xl bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
+const PRIMARY_BTN = 'px-6 py-3 rounded-lg bg-[#2563EB] text-white text-[14px] font-bold hover:bg-[#1D4ED8] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed'
 
 /* ── 잘못 짚은 낱말을 **강사가 읽을 말로** 바꾼다 (구현 중 메모 24행) ──
    낱개로 쉼표로 이어 붙이면 "'all, component, parts'는 아니에요" 라고 또박또박 끊어 읽는다.
@@ -1068,7 +1068,7 @@ function ContentActionHint({ turn, lesson, answers, graded, pickedQ, pickedTurn,
   }
   /* 강사 창 안(발화 박스 아래 / 채팅 흐름 안)에 뜬다 — 폭이 좁으므로 두 줄로 접어 쓴다 */
   return (
-    <div className={`shrink-0 flex items-start gap-2 rounded-xl border px-3 py-2 ${
+    <div className={`shrink-0 flex items-start gap-2 rounded-lg border px-3 py-2 ${
       done ? 'border-[#9FE7BC] bg-[#F2FCF6]' : 'border-[#FDBA74] bg-[#FFF7ED]'
     }`}>
       <Icon name={icon} className={`w-[15px] h-[15px] shrink-0 mt-[3px] ${done ? 'text-[#217A52]' : 'text-[#C2410C]'}`} />
@@ -4462,7 +4462,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
                     ⚠️ FGI 전에 막을 자리다. `disabled={!nav.can}` 로 되돌리면 끝난다. */}
                 <button onClick={nav.go}
                   title={nav.can ? undefined : `${nav.hint} (개발용: 눌러서 건너뛸 수 있어요)`}
-                  className={`ml-auto shrink-0 text-[13px] font-bold rounded-xl px-4 py-2 transition-colors ${
+                  className={`ml-auto shrink-0 text-[13px] font-bold rounded-lg px-4 py-2 transition-colors ${
                     nav.can ? 'bg-[#2563EB] text-white hover:bg-[#1D4ED8] active:scale-[0.99]'
                       : 'bg-[#F1F3F7] text-[#C4C9D4] hover:bg-[#E8EBF2]'
                   }`}>
@@ -4882,7 +4882,7 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           누르는 것이 아니라 읽고 지나가는 것이라 pointer-events 를 죽여 아래 화면을 가리지 않는다. */}
       {endToast && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-6">
-          <div className="animate-toast max-w-[360px] rounded-2xl bg-[#1C1B33]/95 px-5 py-4 text-center text-white shadow-high">
+          <div className="animate-toast max-w-[360px] rounded-xl bg-[#1C1B33]/95 px-5 py-4 text-center text-white shadow-high">
             <p className="text-[14px] font-black">유형 학습이 끝났어요</p>
             {/* 이제 수업 다음은 **바로 실전**이다 — 없어진 '혼자 들어보는 구간' 을 안내하던
                 문구(음원을 눌러 다시 들어보세요…)는 같이 뺐다(09-18). */}
@@ -5713,7 +5713,7 @@ function ExpressionTray({ list, met }: { list: Expression[]; met: Set<string> })
       </button>
       {open && !!got.length && (
         <div className="absolute bottom-full left-0 mb-2 z-30 w-[260px] max-h-[240px] overflow-y-auto
-                        rounded-xl border border-[#E5E7EB] bg-white shadow-lg divide-y divide-[#F1F3F7]">
+                        rounded-lg border border-[#E5E7EB] bg-white shadow-lg divide-y divide-[#F1F3F7]">
           {got.map((e) => (
             <div key={e.en} className="flex items-baseline gap-2 px-3 py-2">
               <span className="text-[12px] font-bold text-[#334155]">{e.en}</span>
@@ -6094,7 +6094,7 @@ function RecapVocabRow({ index, sentence, picked, correct, graded, onPick }: {
       <div className="grid grid-cols-3 gap-2">
         {sentence.choices.map((c) => (
           <button key={c} onClick={() => onPick(c)}
-            className={`min-h-[44px] px-2.5 py-2 rounded-[10px] border-[1.5px] text-[13px] font-bold leading-tight transition-colors ${
+            className={`min-h-[44px] px-2.5 py-2 rounded-lg border-[1.5px] text-[13px] font-bold leading-tight transition-colors ${
               picked === c ? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]'
                 : 'border-[#DDE1E8] bg-white text-[#334155] hover:border-[#2563EB] hover:text-[#1D4ED8]'}`}>
             {c}
@@ -6618,7 +6618,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
               return (
                 /* 초록 박스는 **다 맞았다는 신호**로 읽힌다(사용자 지적 09-21) — 결과 칸은
                    점수와 무관한 파랑으로 둔다. 맞고 틀림은 아래 줄의 ✓✗ 가 말한다. */
-                <div className="flex items-center gap-2.5 rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5">
+                <div className="flex items-center gap-2.5 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-2.5">
                   <span className="text-[19px] font-black text-[#1D4ED8] tabular-nums">
                     {got}<span className="text-[13px] font-extrabold text-[#6C93DB]"> / {items.length}</span>
                   </span>

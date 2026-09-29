@@ -215,7 +215,7 @@ export function CallLogSheet({
     <div className="fixed inset-0 z-[200] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-sm bg-white rounded-t-3xl pb-10 pt-5 px-5 shadow-2xl animate-slide-up overflow-y-auto"
+        className="relative w-full max-w-sm bg-white rounded-t-2xl pb-10 pt-5 px-5 shadow-2xl animate-slide-up overflow-y-auto"
         style={{ maxHeight: '75vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -232,7 +232,7 @@ export function CallLogSheet({
         ) : (
           <div className="space-y-1">
             {[...entries].reverse().map((entry) => (
-              <div key={entry.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+              <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
                 <div className="w-11 h-11 rounded-full overflow-hidden relative bg-[#EFF6FF] shrink-0">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-[#2563EB] font-black text-lg">{entry.instructorName.slice(0, 1)}</span>

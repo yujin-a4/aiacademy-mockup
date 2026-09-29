@@ -152,7 +152,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
       <div className="flex gap-4 h-full">
 
         {/* 왼쪽: 사진 카드 */}
-        <div className="flex-1 min-w-0 flex flex-col bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
           <div className="px-5 pt-4 pb-3 shrink-0">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -173,7 +173,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
               {!isRecording ? (
                 <button
                   onClick={handleStartRecording}
-                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#2277F0] text-white font-bold text-base hover:bg-[#1a66d4] active:scale-95 transition-all"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#2277F0] text-white font-bold text-base hover:bg-[#1a66d4] active:scale-95 transition-all"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <rect x="5" y="1" width="6" height="8" rx="3" stroke="white" strokeWidth="1.5"/>
@@ -183,7 +183,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
                   녹음 시작
                 </button>
               ) : (
-                <div className="flex items-center gap-3 bg-[#F0F6FF] rounded-2xl px-4 py-2.5">
+                <div className="flex items-center gap-3 bg-[#F0F6FF] rounded-xl px-4 py-2.5">
                   {/* Animated waveform */}
                   <div className="flex-1 flex items-end justify-center gap-[3px] h-10">
                     {WAVE_HEIGHTS.map((h, i) => (
@@ -200,7 +200,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
                   {/* 완료 button */}
                   <button
                     onClick={handleRead}
-                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
+                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white font-bold text-sm hover:bg-green-600 active:scale-95 transition-all"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <rect x="3.5" y="3.5" width="7" height="7" rx="1.2" fill="white"/>
@@ -217,7 +217,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
             <div className="px-5 pb-4 shrink-0">
               <button
                 onClick={handlePlayback}
-                className={`flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-base transition-all active:scale-95
+                className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-base transition-all active:scale-95
                   ${isPlaying ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-white border-2 border-[#2277F0] text-[#2277F0] hover:bg-[#EFF6FF]'}`}
               >
                 {isPlaying ? (
@@ -242,7 +242,7 @@ export default function ScreenSP4({ onComplete, onEnd }: Props) {
         </div>
 
         {/* 오른쪽: 스크립트 카드 — 강사 패널과 같은 너비 */}
-        <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col bg-white rounded-2xl border border-ybm-border shadow-sm overflow-hidden">
+        <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col bg-white rounded-xl border border-ybm-border shadow-sm overflow-hidden">
           <div className="px-4 pt-4 pb-3 border-b border-ybm-border/50 shrink-0 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-[#2277F0] shrink-0">
               <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>

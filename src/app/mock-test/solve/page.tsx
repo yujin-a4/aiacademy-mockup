@@ -2010,9 +2010,9 @@ function TestSolverInner() {
             role="dialog"
             aria-modal="true"
             aria-label="답안 현황"
-            className="absolute inset-x-0 bottom-0 max-h-[75vh] flex flex-col bg-[#F8FAFF] rounded-t-xl border-t border-[#DBEAFE] shadow-2xl"
+            className="absolute inset-x-0 bottom-0 max-h-[75vh] flex flex-col bg-[#F8FAFF] rounded-t-lg border-t border-[#DBEAFE] shadow-2xl"
           >
-            <div className="px-4 py-3 border-b border-[#DBEAFE] bg-white rounded-t-xl flex items-center gap-3 shrink-0">
+            <div className="px-4 py-3 border-b border-[#DBEAFE] bg-white rounded-t-lg flex items-center gap-3 shrink-0">
               <h2 className="text-[#1C1B33] text-[13px] font-black shrink-0">답안 현황</h2>
               <div className="flex items-center gap-2.5 text-[10px] text-[#9CA3AF] font-medium min-w-0">
                 <span className="flex items-center gap-1">

@@ -115,7 +115,7 @@ function ChoiceCard({ label, text, state, onClick, disabled }: {
   }[state]
   const badge = { idle: 'bg-gray-200 text-gray-500', 'selected-correct': 'bg-green-500 text-white', 'selected-wrong': 'bg-red-500 text-white', 'reveal-correct': 'bg-green-500 text-white', dimmed: 'bg-gray-200 text-gray-400' }[state]
   return (
-    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-xl border text-left transition-all text-sm md:text-base ${box}`}>
+    <button onClick={onClick} disabled={disabled} className={`w-full flex items-center gap-3 px-4 py-3 md:py-3.5 rounded-lg border text-left transition-all text-sm md:text-base ${box}`}>
       <span className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center text-[11px] md:text-sm font-bold flex-shrink-0 ${badge}`}>{label}</span>
       <span className="font-medium leading-snug flex-1">{text}</span>
       {(state === 'selected-correct' || state === 'reveal-correct') && (
@@ -327,7 +327,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={TEACHER_IMG} alt="박혜원" className="w-20 h-20 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
                 <p className="text-sm text-gray-500 text-center">{connecting ? '강사와 연결 중…' : '박혜원 강사와 대화를 시작해요'}</p>
-                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-xl bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
+                <button onClick={startAgent} disabled={connecting} className="px-5 py-3 rounded-lg bg-[#2277F0] text-white font-bold text-sm hover:bg-[#1a66d4] disabled:opacity-60">{connecting ? '연결 중…' : '▶ 강사와 대화 시작'}</button>
               </div>
             ) : chatMode === 'text' ? (
               <>
@@ -335,7 +335,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                   {messages.length === 0 && <p className="text-center text-xs text-gray-400 mt-4">강사가 곧 말을 걸어요…</p>}
                   {messages.map((m, i) => (
                     <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[85%] px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
+                      <div className={`max-w-[85%] px-3 py-2.5 rounded-xl text-sm leading-relaxed ${m.role === 'ai' ? 'bg-gray-100 text-gray-800 rounded-tl-sm' : 'bg-[#2277F0] text-white rounded-tr-sm'}`}>{m.text}</div>
                     </div>
                   ))}
                   {!!quickReplies?.length && (
@@ -362,7 +362,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 </div>
                 <p className="text-gray-500 text-[12px] font-semibold mb-1">박혜원 AI 강사</p>
                 {lastAi && (
-                  <div className="bg-gray-100 rounded-xl p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
+                  <div className="bg-gray-100 rounded-lg p-3 w-full my-3 text-center max-h-24 overflow-y-auto">
                     <p className="text-gray-600 text-[13px] leading-relaxed">{lastAi}</p>
                   </div>
                 )}
@@ -391,7 +391,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
           <div ref={mainRef} className="flex-1 overflow-y-auto min-h-0 bg-white">
             <div className="max-w-2xl mx-auto w-full px-5 md:px-8 py-5 space-y-5">
               <span className="inline-block bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">{SCREEN1_PROBLEM.partLabel}</span>
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 md:p-5">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 md:p-5">
                 <SentenceView q={q} filledText={lessonSelected !== undefined ? q.choices[lessonSelected].text : undefined} />
               </div>
               <div className="flex flex-col gap-2 md:gap-2.5">
@@ -406,7 +406,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 })}
               </div>
               {lessonAnswered && (
-                <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+                <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
                   <div className="flex items-center gap-2 mb-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
@@ -450,7 +450,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
             </div>
 
             <span className="inline-block bg-[#2277F0]/10 text-[#2277F0] text-xs md:text-sm font-bold px-3 py-1 rounded-full">Part 5 · 수동태</span>
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 md:p-5">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 md:p-5">
               <SentenceView q={q} filledText={selected !== undefined ? q.choices[selected].text : undefined} />
             </div>
             <div className="flex flex-col gap-2 md:gap-2.5">
@@ -465,7 +465,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
               })}
             </div>
             {answered && (
-              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
+              <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5">
                 <div className="flex items-center gap-2 mb-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={TEACHER_IMG} alt="AI 강사" className="w-6 h-6 md:w-7 md:h-7 rounded-full object-cover border border-[#2277F0]/40" />
@@ -475,7 +475,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 <p className="text-[13px] md:text-[15px] text-[#374151] leading-relaxed">{q.explanation}</p>
               </div>
             )}
-            <button onClick={next} disabled={!answered} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 문제 →'}</button>
+            <button onClick={next} disabled={!answered} className={`w-full py-4 rounded-xl font-bold text-base md:text-lg ${answered ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>{isLast ? '완료하기 →' : '다음 문제 →'}</button>
           </div>
         </div>
       </div>
@@ -498,7 +498,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
     <div className="h-dvh flex flex-col bg-[#f0f4f8] overflow-hidden">
       <PhaseStepper active={3} onEnd={handleEnd} />
       <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6">
-        <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center gap-3 mb-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={TEACHER_IMG} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/30" />
@@ -513,7 +513,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
               const segments = parseSummaryPrompt(card.prompt)
               const ok = cardResults[ci]
               return (
-                <div key={card.id} className={`rounded-2xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
+                <div key={card.id} className={`rounded-xl border p-4 ${summaryChecked ? (ok ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50') : 'border-gray-200 bg-gray-50'}`}>
                   <div className="flex items-start gap-3">
                     <span className="shrink-0 w-6 h-6 rounded-full bg-[#D6EAFF] text-[#2277F0] text-xs font-bold flex items-center justify-center mt-0.5">{ci + 1}</span>
                     <p className="text-sm md:text-base text-[#1A2B4B] leading-loose">
@@ -551,11 +551,11 @@ export default function Part5BlankScreen({ onEnd }: Props) {
             })}
           </div>
           {!summaryChecked ? (
-            <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-2xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
+            <button onClick={() => { setSummaryChecked(true); void speakTTS(CLOSING_SUMMARY_SCRIPT, persona) }} disabled={!allFilled} className={`w-full py-4 rounded-xl font-bold text-base md:text-lg ${allFilled ? 'bg-[#2277F0] text-white hover:bg-[#1a66d4]' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>채점하기</button>
           ) : (
             <>
               <p className="text-center text-sm font-bold text-[#2277F0] mb-3">요약 {correctCount}/{SCREEN4_CARDS.length} 정답!</p>
-              <div className="rounded-2xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
+              <div className="rounded-xl border border-[#BFD9FF] bg-[#F0F5FF] p-4 md:p-5 mb-5">
                 <div className="flex items-center gap-3 mb-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={INSTRUCTOR_PHOTO} alt="박혜원" className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#2277F0]/40" />
@@ -564,7 +564,7 @@ export default function Part5BlankScreen({ onEnd }: Props) {
                 </div>
                 <p className="text-sm md:text-[15px] text-[#374151] leading-relaxed">{CLOSING_SUMMARY_SCRIPT}</p>
               </div>
-              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-2xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
+              <button onClick={() => { stopCurrentAudio(); handleEnd() }} className="w-full py-4 rounded-xl bg-[#2277F0] text-white font-bold text-base md:text-lg hover:bg-[#1a66d4]">학습 마치기 →</button>
               <button onClick={() => { stopCurrentAudio(); setSummaryChecked(false); setSummaryInputs({}) }} className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-gray-600">다시 채우기</button>
             </>
           )}

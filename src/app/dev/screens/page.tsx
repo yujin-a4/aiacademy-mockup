@@ -58,7 +58,7 @@ function DeviceFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 bg-[#E9EDF5] flex items-center justify-center overflow-hidden">
       <div style={{ width: DEVICE.w, height: DEVICE.h, transform: `scale(${scale})` }}
-        className="shrink-0 origin-center bg-white rounded-[18px] border border-[#CBD5E1] overflow-hidden shadow-[0_10px_50px_rgba(15,23,42,0.16)]">
+        className="shrink-0 origin-center bg-white rounded-xl border border-[#CBD5E1] overflow-hidden shadow-[0_10px_50px_rgba(15,23,42,0.16)]">
         {/* 안쪽은 자기가 화면 전체라고 믿어야 한다.
             실전 화면 루트가 h-dvh(=브라우저 뷰포트 높이)라 그대로 두면 프레임 820px 을 무시하고
             실제 창 높이로 늘어난다. 이 프레임 안에서만 100%로 바꾼다. */}
@@ -311,14 +311,14 @@ function LectureList() {
             {lectures.filter((l) => l.part === p).map((l) => (
               l.questionCount > 0 ? (
                 <a key={l.code} href={`/dev/screens?s=lecture:${l.code}`}
-                  className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-xl px-3 py-2 hover:border-[#93C5FD] transition-colors">
+                  className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-lg px-3 py-2 hover:border-[#93C5FD] transition-colors">
                   <span className="shrink-0 text-[10px] font-mono font-bold text-[#2563EB]">{l.code}</span>
                   <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-[#1C1B33]">{l.title}</span>
                   <span className="shrink-0 text-[10px] text-[#9CA3AF]">문항 {l.questionCount}</span>
                 </a>
               ) : (
                 <div key={l.code}
-                  className="flex items-center gap-2 bg-[#F8FAFC] border border-dashed border-[#E5E7EB] rounded-xl px-3 py-2">
+                  className="flex items-center gap-2 bg-[#F8FAFC] border border-dashed border-[#E5E7EB] rounded-lg px-3 py-2">
                   <span className="shrink-0 text-[10px] font-mono font-bold text-[#CBD5E1]">{l.code}</span>
                   <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-[#C4C9D4]">{l.title}</span>
                   <span className="shrink-0 text-[10px] text-[#C4C9D4]">문항 없음</span>
@@ -394,7 +394,7 @@ function Gallery() {
             <div className="flex flex-col gap-2">
               {SCREENS.filter((s) => s.group === g).map((s) => (
                 <a key={s.id} href={`/dev/screens?s=${s.id}`}
-                  className="block bg-white border border-[#E5E7EB] rounded-xl px-4 py-3 hover:border-[#93C5FD] transition-colors">
+                  className="block bg-white border border-[#E5E7EB] rounded-lg px-4 py-3 hover:border-[#93C5FD] transition-colors">
                   <p className="text-[13px] font-bold text-[#1C1B33]">{s.label}</p>
                   <p className="text-[11.5px] text-[#6B7280] mt-0.5 leading-relaxed">{s.note}</p>
                   <p className="text-[10px] text-[#C4C9D4] mt-1 font-mono">?s={s.id}</p>

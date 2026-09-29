@@ -39,7 +39,7 @@ export default function TypecastConvAIPanel() {
       <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
         {!NEONA_SHARE_URL ? (
           // 공유 링크 미설정 안내
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center bg-white rounded-xl border border-dashed border-ybm-border p-5">
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center bg-white rounded-lg border border-dashed border-ybm-border p-5">
             <p className="text-xs font-bold text-ybm-text">타입캐스트(Neona) 공유 링크가 필요해요</p>
             <p className="text-[11px] text-ybm-text-sub leading-relaxed">
               네오나 대시보드 → <b>박혜원-Neona</b> → <b>공유 링크</b>에서<br />
@@ -52,7 +52,7 @@ export default function TypecastConvAIPanel() {
         ) : !started ? (
           // 시작 게이트 (일레븐랩스 패널의 "대화 시작하기" 미러)
           <>
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center bg-white rounded-xl border border-ybm-border p-4">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center bg-white rounded-lg border border-ybm-border p-4">
               <p className="text-xs text-ybm-text-sub leading-relaxed">
                 {INSTRUCTOR_NAME}(타입캐스트 엔진)과<br />실시간 음성으로 대화하며 수업을 진행하세요.
               </p>
@@ -62,7 +62,7 @@ export default function TypecastConvAIPanel() {
             </div>
             <button
               onClick={() => setStarted(true)}
-              className="w-full py-3 rounded-xl bg-cr-accent text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shrink-0"
+              className="w-full py-3 rounded-lg bg-cr-accent text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shrink-0"
             >
               🎙 {INSTRUCTOR_NAME} 선생님과 대화 시작하기
             </button>
@@ -70,7 +70,7 @@ export default function TypecastConvAIPanel() {
         ) : (
           // 네오나 세션 iframe
           <>
-            <div className="flex-1 min-h-0 rounded-xl overflow-hidden border border-ybm-border bg-white">
+            <div className="flex-1 min-h-0 rounded-lg overflow-hidden border border-ybm-border bg-white">
               <iframe
                 src={NEONA_SHARE_URL}
                 title={`${INSTRUCTOR_NAME} · 타입캐스트 에이전트`}
@@ -82,7 +82,7 @@ export default function TypecastConvAIPanel() {
               href={NEONA_SHARE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-2 rounded-xl border border-ybm-border text-ybm-text-sub text-xs font-semibold hover:bg-ybm-bg transition-colors text-center shrink-0"
+              className="w-full py-2 rounded-lg border border-ybm-border text-ybm-text-sub text-xs font-semibold hover:bg-ybm-bg transition-colors text-center shrink-0"
             >
               새 탭에서 열기 (임베드가 막히면 사용)
             </a>
@@ -91,7 +91,7 @@ export default function TypecastConvAIPanel() {
       </div>
 
       {/* ── 테스트 정보: 이 엔진이 어떻게 동작하는지 ── */}
-      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-xl bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
+      <div className="shrink-0 mx-3 mb-3 px-3 py-2 rounded-lg bg-ybm-bg border border-ybm-border text-[10px] leading-relaxed text-ybm-text-sub">
         <p className="font-bold text-ybm-text mb-1">이 화면 구조: Typecast · Neona (iframe 임베드)</p>
         <p>Neona가 호스팅하는 에이전트 화면을 그대로 iframe으로 띄운 것 — STT·LLM·TTS 전부 Neona 내부에서 처리되고,
           우리 <code className="px-1 bg-white rounded">/api/tutor</code>(DB 레일 엔진)와는 연결돼 있지 않음.

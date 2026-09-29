@@ -222,7 +222,7 @@ function TwoColCard({
         <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
       </div>
 
-      <div className="w-full max-w-[1032px] h-[620px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] h-[620px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
         {/* 좌측 */}
         <div className="relative md:w-[45%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-center overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -257,7 +257,7 @@ function TotalScoreField({
 }) {
   const invalid = value !== null && !isValidScore(value)
   return (
-    <div className={`bg-white border-2 rounded-2xl px-6 py-5 transition-colors ${
+    <div className={`bg-white border-2 rounded-xl px-6 py-5 transition-colors ${
       invalid ? 'border-[#F87171]' : 'border-[#E5E7EB] focus-within:border-primary/50'
     }`}>
       <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-2">총점</p>
@@ -352,7 +352,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           <button
             onClick={() => handleCurrentNext(false)}
             disabled={!currentValid}
-            className={`w-full h-12 font-bold text-[15px] rounded-xl transition-all ${
+            className={`w-full h-12 font-bold text-[15px] rounded-lg transition-all ${
               currentValid
                 ? 'bg-primary hover:bg-[#1D4ED8] text-white active:scale-[0.98]'
                 : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
@@ -392,7 +392,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
                 key={p.no}
                 onClick={() => setWeak(on ? weak.filter(n => n !== p.no) : [...weak, p.no])}
                 aria-pressed={on}
-                className={`min-h-[56px] px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                className={`min-h-[56px] px-4 py-3 rounded-lg border-2 text-left transition-all ${
                   on
                     ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
                     : 'bg-white border-[#E5E7EB] hover:border-primary/40'
@@ -411,7 +411,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
           <button
             onClick={handleWeakNext}
             disabled={weak.length === 0}
-            className={`w-full h-12 font-bold text-[15px] rounded-xl transition-all ${
+            className={`w-full h-12 font-bold text-[15px] rounded-lg transition-all ${
               weak.length > 0
                 ? 'bg-primary hover:bg-[#1D4ED8] text-white active:scale-[0.98]'
                 : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
@@ -450,7 +450,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
                   store.setTargetScore(opt.score)
                   setTimeout(() => { setSelectedScore(null); setSubStep('date') }, 420)
                 }}
-                className={`relative flex items-start gap-4 p-6 md:p-7 rounded-2xl border-2 text-left transition-all duration-200 ${
+                className={`relative flex items-start gap-4 p-6 md:p-7 rounded-xl border-2 text-left transition-all duration-200 ${
                   isSelected
                     ? 'bg-primary border-primary shadow-xl shadow-primary/25 scale-[1.02]'
                     : isDimmed
@@ -458,7 +458,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
                     : 'bg-white border-[#E5E7EB] hover:border-primary/40 hover:shadow-lg hover:shadow-primary/8 hover:scale-[1.01] cursor-pointer'
                 }`}
               >
-                <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-[22px] ${
+                <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-[22px] ${
                   isSelected ? 'bg-white/20' : 'bg-[#EEF2FF]'
                 }`}>
                   {opt.emoji}
@@ -500,7 +500,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
     >
       <div className="animate-fade-in">
         {/* 시험일 — 달력은 빈 날이 대부분이라, 연·월·일을 실제 시험이 있는 값만 늘어놓는다 */}
-        <div className="bg-white border-2 border-[#E5E7EB] rounded-2xl px-6 py-4 mb-4">
+        <div className="bg-white border-2 border-[#E5E7EB] rounded-xl px-6 py-4 mb-4">
           <p className="text-[#94A3B8] text-[11px] font-semibold uppercase tracking-wider mb-0.5">시험일</p>
           <p className="text-[#0F172A] font-bold text-[16px] mb-2">{formatDisplayDate(examDate)}</p>
           {/* 시험이 있는 연·월·일만 휠에 올린다 — 빈 날짜를 늘어놓지 않는다 */}
@@ -521,7 +521,7 @@ export default function GoalSetting({ onNext }: { onNext: () => void }) {
         <div className="space-y-2.5">
           <button
             onClick={handleComplete}
-            className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-xl transition-all active:scale-[0.98]"
+            className="w-full h-12 bg-primary hover:bg-[#1D4ED8] text-white font-bold text-[15px] rounded-lg transition-all active:scale-[0.98]"
           >
             진단 결과 보기
           </button>

@@ -137,7 +137,7 @@ export default function LessonIntro({
 
   /* 강사 발화 말풍선 */
   const SpeechBubble = ({ dark }: { dark: boolean }) => (
-    <div className={`rounded-2xl px-4 py-3 md:px-5 md:py-4 ${dark ? '' : 'bg-gray-50 border border-gray-100'}`}
+    <div className={`rounded-xl px-4 py-3 md:px-5 md:py-4 ${dark ? '' : 'bg-gray-50 border border-gray-100'}`}
       style={dark ? { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)' } : undefined}>
       <div className={`flex items-start gap-2 md:gap-3 ${dark ? 'mb-2 md:mb-3' : 'mb-3'}`}>
         <div className={`bg-[#2277F0] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${dark ? 'w-5 h-5 md:w-8 md:h-8' : 'w-7 h-7 lg:w-8 lg:h-8'}`}>
@@ -172,7 +172,7 @@ export default function LessonIntro({
           style={{ background: 'rgba(255,255,255,0.13)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
           <div className="mb-3 md:mb-4"><SpeechBubble dark /></div>
 
-          <div className="rounded-xl mb-3 md:mb-5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <div className="rounded-lg mb-3 md:mb-5 overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
             <p className="text-[9px] md:text-sm font-bold text-white/50 uppercase tracking-widest px-3 md:px-5 pt-2.5 md:pt-4 pb-1.5 md:pb-2">오늘 배울 내용</p>
             {points.map((pt, i) => (
               <div key={pt.text} className="flex items-center gap-2.5 md:gap-3.5 px-3 md:px-5 py-1.5 md:py-3">
@@ -184,7 +184,7 @@ export default function LessonIntro({
           </div>
 
           <button onClick={onStart} disabled={preparing}
-            className="w-full bg-[#2277F0] text-white font-bold py-3 md:py-4 rounded-xl md:rounded-2xl text-sm md:text-lg active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-wait">
+            className="w-full bg-[#2277F0] text-white font-bold py-3 md:py-4 rounded-lg md:rounded-xl text-sm md:text-lg active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-wait">
             {preparing ? '수업 준비 중…' : '수업 시작하기 →'}
           </button>
         </div>
@@ -199,7 +199,7 @@ export default function LessonIntro({
               <h1 className="text-3xl xl:text-4xl font-black text-[#1A2B4B] mt-1.5 leading-tight">{tag}</h1>
             </div>
 
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl mb-8 overflow-hidden flex-1">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl mb-8 overflow-hidden flex-1">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-6 pt-5 pb-3">오늘 배울 내용</p>
               {points.map((pt, i) => (
                 <div key={pt.text} className="flex items-center gap-4 px-6 py-4 border-t border-gray-100">
@@ -210,7 +210,7 @@ export default function LessonIntro({
             </div>
 
             <button onClick={onStart} disabled={preparing}
-              className="w-full bg-[#2277F0] text-white font-bold py-4 rounded-2xl text-lg hover:bg-[#1a66d4] transition-colors active:scale-[0.99] disabled:opacity-50 disabled:cursor-wait">
+              className="w-full bg-[#2277F0] text-white font-bold py-4 rounded-xl text-lg hover:bg-[#1a66d4] transition-colors active:scale-[0.99] disabled:opacity-50 disabled:cursor-wait">
               {preparing ? '수업 준비 중…' : '수업 시작하기 →'}
             </button>
           </div>

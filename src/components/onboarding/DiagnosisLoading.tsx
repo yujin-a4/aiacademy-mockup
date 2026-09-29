@@ -45,7 +45,7 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
         <span className="text-[#374151] text-[13px] font-bold">YBM AI 어학원</span>
       </div>
 
-      <div className="w-full max-w-[1032px] min-h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
+      <div className="w-full max-w-[1032px] min-h-[600px] rounded-2xl overflow-hidden shadow-2xl shadow-black/10 flex flex-col md:flex-row">
         {/* ── 좌측 ── */}
         <div className="relative md:w-[45%] bg-gradient-to-br from-[#3B82F6] to-[#2563EB] p-8 md:p-10 flex flex-col justify-center overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -64,7 +64,7 @@ export default function DiagnosisLoading({ onNext }: { onNext: () => void }) {
 
         {/* ── 우측 ── */}
         <div className="md:w-[55%] bg-white flex flex-col justify-center px-8 md:px-10 py-10">
-          <div className="bg-[#F8FAFF] border-2 border-[#E5E7EB] rounded-2xl p-6 space-y-4">
+          <div className="bg-[#F8FAFF] border-2 border-[#E5E7EB] rounded-xl p-6 space-y-4">
             {STEPS.map((text, i) => {
               if (current <= i) return null
               const isActive = current === i + 1 && !done

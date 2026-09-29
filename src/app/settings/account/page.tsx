@@ -21,7 +21,7 @@ export default function AccountSettings() {
         {ITEMS.map((item) => (
           <button
             key={item.label}
-            className="w-full bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm"
+            className="w-full bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 flex items-center gap-4 hover:border-[#C7D2FE] transition-colors text-left shadow-sm"
           >
             <span className="text-[22px] shrink-0">{item.icon}</span>
             <div className="flex-1 min-w-0">
@@ -34,7 +34,7 @@ export default function AccountSettings() {
 
         {/* 로그아웃 */}
         <div className="pt-2">
-          <button className="w-full bg-white border border-[#DBEAFE] rounded-2xl px-5 py-4 flex items-center gap-4 hover:bg-[#FEF2F2] hover:border-[#FECACA] transition-colors text-left shadow-sm">
+          <button className="w-full bg-white border border-[#DBEAFE] rounded-xl px-5 py-4 flex items-center gap-4 hover:bg-[#FEF2F2] hover:border-[#FECACA] transition-colors text-left shadow-sm">
             <span className="text-[22px] shrink-0"></span>
             <div className="flex-1 min-w-0">
               <p className="text-[#DC2626] font-semibold text-[14px]">로그아웃</p>

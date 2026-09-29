@@ -454,7 +454,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 )}
 
                 <div
-                  className={`w-full h-full rounded-[22px] overflow-hidden relative group ${
+                  className={`w-full h-full rounded-2xl overflow-hidden relative group ${
                     isActive
                       ? 'ring-[3px] ring-[#2563EB] shadow-2xl shadow-[#2563EB]/30'
                       : 'ring-1 ring-[#E5E7EB]'
@@ -485,13 +485,13 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-250 flex flex-col justify-end p-3 gap-2">
                       <button
                         onClick={e => { e.stopPropagation(); goToDetail(inst) }}
-                        className="w-full bg-white text-[#1C1B33] rounded-xl h-10 font-semibold text-[13px] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-colors active:scale-[0.98]"
+                        className="w-full bg-white text-[#1C1B33] rounded-lg h-10 font-semibold text-[13px] hover:bg-[#EFF6FF] hover:text-[#2563EB] transition-colors active:scale-[0.98]"
                       >
                         {inst.name} 강사 자세히 보기
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); handleConfirm(inst.id) }}
-                        className="w-full bg-[#2563EB] text-white rounded-xl h-10 font-semibold text-[13px] hover:bg-[#1D4ED8] transition-colors active:scale-[0.98]"
+                        className="w-full bg-[#2563EB] text-white rounded-lg h-10 font-semibold text-[13px] hover:bg-[#1D4ED8] transition-colors active:scale-[0.98]"
                       >
                         바로 선택하기
                       </button>
@@ -599,11 +599,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
         <div className="max-w-[1000px] mx-auto w-full px-6 py-8">
 
           {/* 강사 프로필 상단 */}
-          <div className="bg-white rounded-[24px] border border-[#DBEAFE] p-8 shadow-sm mb-8">
+          <div className="bg-white rounded-2xl border border-[#DBEAFE] p-8 shadow-sm mb-8">
             <div className="flex flex-col md:flex-row gap-8">
               {/* 이미지 */}
               <div className="w-full md:w-[240px] shrink-0">
-                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F3F4F6] border border-[#DBEAFE]">
+                <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-[#F3F4F6] border border-[#DBEAFE]">
                   <img src={selectedInst.thumbnail} alt={selectedInst.name} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
               </div>
@@ -625,7 +625,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                   ))}
                 </div>
 
-                <div className="bg-[#EFF6FF] rounded-2xl p-5 border border-[#EDE9FE]">
+                <div className="bg-[#EFF6FF] rounded-xl p-5 border border-[#EDE9FE]">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-[#2563EB] font-semibold text-[16px]">
                       {userName}님의 성향과 {matchScores[selectedInst.id] ?? 50}% 매칭
@@ -663,7 +663,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
               <div className="w-full md:w-[280px] shrink-0 space-y-4">
                 {/* '이런 분께 추천해요' 숨김 — 현재 불필요 (표시하려면 false→true) */}
                 {(false as boolean) && selectedInst && (
-                <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#DBEAFE]">
+                <div className="bg-[#F8FAFF] rounded-xl p-6 border border-[#DBEAFE]">
                   <h4 className="text-[#1C1B33] font-bold text-[14px] mb-4">이런 분께 추천해요</h4>
                   <ul className="space-y-3">
                     {selectedInst.recommendations.map((rec: string, i: number) => (
@@ -683,7 +683,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 <div className="space-y-2.5">
                   <button
                     onClick={() => handleConfirm(selectedInst.id)}
-                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#2563EB]/20"
+                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-lg font-bold text-[15px] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#2563EB]/20"
                   >
                     이 강사 선택하기
                   </button>
@@ -695,7 +695,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                       )
                       window.location.href = '/lessons'
                     }}
-                    className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-xl font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
+                    className="w-full bg-white border border-[#DBEAFE] text-[#2563EB] py-4 rounded-lg font-bold text-[15px] transition-all flex items-center justify-center gap-2 hover:bg-[#F8FAFF]"
                   >
                     샘플 수업 시작하기
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -730,7 +730,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
 
           <div className="animate-fade-in">
             {activeTab === 'feature' && (
-              <section className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
+              <section className="bg-white rounded-2xl border border-[#DBEAFE] p-10">
                 <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">
                   {userName ? `${userName}님께 이 설계를 제안하는 이유` : '이 설계를 제안하는 이유'}
                 </h4>
@@ -739,7 +739,7 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 {/* 진도 타임라인(StudyPlanTimeline)은 보류 — 되살리려면 여기서 렌더하면 된다 */}
 
                 {/* 학습 제안 배경 — 온보딩 응답(C/S·R/P·목표점수) + 강사 전략 조합 */}
-                <div className="bg-[#EFF6FF] rounded-2xl p-6 border border-[#DBEAFE]">
+                <div className="bg-[#EFF6FF] rounded-xl p-6 border border-[#DBEAFE]">
                   <span className="text-[#2563EB] text-[12px] font-bold block mb-2">학습 제안 배경</span>
                   <p className="text-[#1C1B33] text-[15px] leading-relaxed">
                     {proposalBackground(
@@ -750,11 +750,11 @@ export default function InstructorSelect({ onNext, onBack }: { onNext: () => voi
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
-                  <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#EFF6FF]">
+                  <div className="bg-[#F8FAFF] rounded-xl p-6 border border-[#EFF6FF]">
                     <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">추천 플랜</span>
                     <p className="text-[#1C1B33] text-[17px] font-bold">{selectedInst.proposal.plan}</p>
                   </div>
-                  <div className="bg-[#F8FAFF] rounded-2xl p-6 border border-[#EFF6FF]">
+                  <div className="bg-[#F8FAFF] rounded-xl p-6 border border-[#EFF6FF]">
                     <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">목표 달성</span>
                     <p className="text-[#2563EB] text-[17px] font-bold">{selectedInst.proposal.target}</p>
                   </div>
@@ -823,7 +823,7 @@ function StudyPlanTimeline({
   const startLabel = fmt(new Date(new Date(examDate).getTime() - curriculumDays * MS_DAY))
 
   return (
-    <div className="bg-white rounded-2xl border border-[#DBEAFE] p-6 mb-6">
+    <div className="bg-white rounded-xl border border-[#DBEAFE] p-6 mb-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
         <span className="text-[#1C1B33] text-[16px] font-bold">
           {userName ? `${userName}님의 진도 계획` : '진도 계획'}
@@ -868,7 +868,7 @@ function StudyPlanTimeline({
       {/* 주차 요약 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-5">
         {weeks.map((w) => (
-          <div key={w.label} className="bg-[#F8FAFF] rounded-xl px-3 py-2.5 border border-[#EFF6FF]">
+          <div key={w.label} className="bg-[#F8FAFF] rounded-lg px-3 py-2.5 border border-[#EFF6FF]">
             <span className="text-[#2563EB] text-[11px] font-bold block">{w.label}</span>
             <span className="text-[#1C1B33] text-[12px] font-semibold leading-snug line-clamp-2">{w.title}</span>
           </div>
@@ -954,7 +954,7 @@ function InstructorCurriculum({
       ]
 
   return (
-    <section className="bg-white rounded-3xl border border-[#DBEAFE] p-10">
+    <section className="bg-white rounded-2xl border border-[#DBEAFE] p-10">
       <h4 className="text-[#1C1B33] font-bold text-[20px] mb-1">
         {userName ? `${userName}님을 위한 맞춤 커리큘럼` : '맞춤 커리큘럼'}
       </h4>
@@ -963,7 +963,7 @@ function InstructorCurriculum({
       </p>
 
       {/* 강좌 기본정보 */}
-      <div className="grid grid-cols-3 gap-px bg-[#DBEAFE] border border-[#DBEAFE] rounded-2xl overflow-hidden mb-6">
+      <div className="grid grid-cols-3 gap-px bg-[#DBEAFE] border border-[#DBEAFE] rounded-xl overflow-hidden mb-6">
         {summary.map((s) => (
           <div key={s.label} className="bg-white px-4 py-4">
             <span className="text-[#9CA3AF] text-[12px] font-bold block mb-1">{s.label}</span>
@@ -980,7 +980,7 @@ function InstructorCurriculum({
           강 단위 배치는 콘텐츠팀 시트가 나오기 전까지 만들지 않는다(지어내면 실제 수업과 어긋난다). */}
       <div className="space-y-3">
         {inst.curriculum.map((w, i) => (
-          <div key={i} className="border border-[#DBEAFE] rounded-2xl overflow-hidden">
+          <div key={i} className="border border-[#DBEAFE] rounded-xl overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-3.5 bg-[#F8FAFF]">
               <span className="shrink-0 px-2.5 h-7 rounded-md bg-[#2563EB] text-white text-[12px] font-bold flex items-center">
                 {w.week}
@@ -1002,13 +1002,13 @@ function InstructorCurriculum({
 
       <button
         onClick={() => setShowAll((v) => !v)}
-        className="mt-4 w-full py-3 rounded-xl border border-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#F8FAFF] transition-colors"
+        className="mt-4 w-full py-3 rounded-lg border border-[#DBEAFE] text-[#2563EB] text-[14px] font-bold hover:bg-[#F8FAFF] transition-colors"
       >
         {showAll ? '강의 목록 접기' : `전체 ${total}강 목록 보기`}
       </button>
 
       {showAll && (
-      <ul className="mt-4 border border-[#DBEAFE] rounded-2xl divide-y divide-[#EFF6FF] overflow-hidden">
+      <ul className="mt-4 border border-[#DBEAFE] rounded-xl divide-y divide-[#EFF6FF] overflow-hidden">
         {curriculum.map((l) => (
           <li key={l.code} className="flex items-center gap-4 px-5 py-4 bg-white">
             <span className="w-11 shrink-0 text-[12px] font-bold text-center text-[#2563EB]">
@@ -1057,7 +1057,7 @@ function DayPlanView({
       {plan.weeks.map((w) => {
         const open = openWeeks.includes(w.week)
         return (
-          <div key={w.week} className="border border-[#DBEAFE] rounded-2xl overflow-hidden">
+          <div key={w.week} className="border border-[#DBEAFE] rounded-xl overflow-hidden">
             <button
               onClick={() => toggleWeek(w.week)}
               className="w-full flex items-center gap-3 px-5 py-4 bg-[#F8FAFF] hover:bg-[#EFF6FF] transition-colors text-left"
