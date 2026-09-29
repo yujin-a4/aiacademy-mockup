@@ -85,14 +85,19 @@ export function instPose(instructor: string, pose: InstPose): string | null {
 }
 
 /* ── 강사 영상 클립 (원형 아바타 안에서 도는 무음 루프) ──
-   사진 대신 영상을 넣는다. **포즈와 같은 열쇠(InstPose)를 쓴다** — 단계마다 상황을 고르는
-   판단(poseForTurn)은 이미 있고, 여기서는 그 상황에 어떤 클립을 물릴지만 정한다.
+   사진 대신 영상을 넣는다. 상태 목록은 **제작 시트 '영상 풀' 탭의 상태키 그대로**다
+   (시트 1KmPU-1x1DtLFa7_qHV9Znkeqzp9xZkRqVUGSeJpWKDg). 어느 상황에 어느 상태를 고르는지는
+   수업 화면의 clipStateFor() 가 정하고, 여기서는 상태 → 파일만 정한다.
 
-   클립 넷. 위 POSE_FALLBACK 이 빈 자리를 알아서 채운다.
-     gesture-a / gesture-b — 일반적인 말하는 장면 둘. **강사가 말하는 동안**이 여기다
-     nod                   — 끄덕임. 강사가 말하지 않는 동안(학생이 답하거나 화면을 보는 시간).
-                             말하는 그림을 그대로 두면 소리 없이 입만 움직이는 꼴이 된다
-     praise                — 박수. 칭찬·마무리(S7 표현 정리)에서만 나온다
+     idle        아무도 말하지 않는 시간 (화면 전환 직후·문제를 보는 중)
+     listen      학생이 말하거나 입력하는 중 — 끄덕임
+     listen-cue  자료 음원(LC)이 나가는 중 — 같이 듣는 자세
+     talk ×3     일반 설명. 여러 개를 번갈아 돌린다 — 한 동작만 반복되면 티가 난다(FGI 34번)
+     point ×2    화면 한 곳을 짚는 턴 (S1/S4/S5 · mark · match)
+     emphasize   토익 TIP 판 위에서 말할 때
+     summary     핵심 요약 화면에서 말할 때
+     correct / wrong / praise   채점 직후 **잠깐** 덮는 반응 클립
+   빈 자리는 CLIP_FALLBACK 이 가까운 상태로 채운다.
 
    ⚠️ 클립은 **무음**이고, 강사 목소리는 이것과 아무 상관이 없다 — 목소리는 ElevenLabs 에이전트가
       따로 내보낸다(음성 모드) 또는 lib/tts 가 재생한다. 영상이 muted 인 것과 강사가 말하는 것은
@@ -105,35 +110,69 @@ export function instPose(instructor: string, pose: InstPose): string | null {
      · H.264 mp4. 카톡에서 넘어온 원본은 HEVC 라 브라우저에서 안 도는 경우가 있다
      · 한 개 1MB 안쪽. 아바타 원에 18MB 짜리를 물리면 수업 시작이 그만큼 늦어진다
    변환은 scripts/make-instructor-clips.js 가 한다. */
-export const INST_CLIPS: Record<string, Partial<Record<InstPose, string>>> = {
-  lee_doyun: {
-    /* 둘 다 '일반적인 말하는 장면'이라 어느 쪽을 어디에 걸든 맞고 틀리고가 없다. 다만 한 클립만
-       계속 돌면 같은 동작이 반복되는 게 눈에 띄므로 상황을 갈라 두 개가 번갈아 나오게 둔다. */
-    greeting: '/instructor/lee_doyun/clips/gesture-a.mp4',   // 인사·기본
-    explain: '/instructor/lee_doyun/clips/gesture-a.mp4',    // 설명하는 중
-    point: '/instructor/lee_doyun/clips/gesture-b.mp4',      // 짚어주는 중
-    listen: '/instructor/lee_doyun/clips/nod.mp4',           // 끄덕임 — 강사가 말하지 않는 동안
-    praise: '/instructor/lee_doyun/clips/praise.mp4',        // 박수 — 칭찬·마무리
-  },
-  yun_daeun: {
-    /* 이도윤과 같은 4종·같은 배치. 다만 원본 프레이밍이 이도윤보다 타이트해(얼굴이 더 크다)
-       두 강사를 나란히 놓는 화면에서는 크기가 갈린다 — 맞추려면 더 넓게 재생성해야 한다. */
-    greeting: '/instructor/yun_daeun/clips/gesture-a.mp4',   // 인사·기본
-    explain: '/instructor/yun_daeun/clips/gesture-a.mp4',    // 설명하는 중
-    point: '/instructor/yun_daeun/clips/gesture-b.mp4',      // 짚어주는 중
-    listen: '/instructor/yun_daeun/clips/nod.mp4',           // 끄덕임 — 강사가 말하지 않는 동안
-    praise: '/instructor/yun_daeun/clips/praise.mp4',        // 박수 — 칭찬·마무리
-  },
+export type ClipState =
+  | 'idle' | 'listen' | 'listen-cue' | 'talk' | 'point' | 'emphasize' | 'summary'
+  | 'correct' | 'wrong' | 'praise'
+
+/* ── 상태별 풀 ──
+   파일은 `public/instructor/<강사>/clips/<상태>-<번호>.mp4` — 번호는 시트의 '변형' 열이다.
+   **클립을 더 만들면 파일을 넣고 여기 개수만 올린다.** 같은 상태가 이어지는 동안 한 바퀴
+   (5초)마다 풀 안에서 다른 클립으로 넘어간다(TutorDock ClipStack) — 풀이 클수록 반복이 안 보인다.
+
+   ⚠️ 풀에 넣는 클립의 조건: **시작·끝 프레임이 idle 시작과 같은 자세**(손 모은 정면).
+      바퀴 끝에서 디졸브 없이 잘라 넘기므로, 자세가 다르면 그 순간 툭 튄다. 실측(09-29):
+      시트 클립은 전부 SSIM 0.99 로 맞는데, 좌우반전한 point(윤다은 1·이도윤 2)는 0.91/0.86,
+      예전 박수 praise 는 0.78/0.92 로 튄다 → 이 셋은 새로 뽑을 때 갈아 끼울 것. */
+const POOL: Record<ClipState, number> = {
+  idle: 1, listen: 1, 'listen-cue': 1, talk: 3, point: 2,
+  emphasize: 1, summary: 1, correct: 1, wrong: 1, praise: 1,
+}
+const clipSet = (id: string, pool: Partial<Record<ClipState, number>> = {}) => {
+  const out: Partial<Record<ClipState, string[]>> = {}
+  for (const [state, n] of Object.entries({ ...POOL, ...pool }) as [ClipState, number][]) {
+    out[state] = Array.from({ length: n }, (_, i) => `/instructor/${id}/clips/${state}-${i + 1}.mp4`)
+  }
+  return out
+}
+export const INST_CLIPS: Record<string, Partial<Record<ClipState, string[]>>> = {
+  /* 강사마다 풀 크기가 다르면 두 번째 인자로 덮는다 — 예: clipSet('lee_doyun', { idle: 3 }) */
+  lee_doyun: clipSet('lee_doyun'),
+  /* 원본 프레이밍이 이도윤보다 타이트해(얼굴이 더 크다) 두 강사를 나란히 놓는 화면에서는
+     크기가 갈린다 — 맞추려면 더 넓게 재생성해야 한다. */
+  yun_daeun: clipSet('yun_daeun'),
 }
 
-/** 강사 × 포즈 → 영상 경로. 클립이 없으면 null (호출부가 사진으로 폴백한다). */
-export function instClip(instructor: string, pose: InstPose): string | null {
+/* 상태 폴백 — 클립이 빠진 강사가 생겨도 말하는 그림은 말하는 그림으로, 조용한 그림은 조용한 그림으로 */
+const CLIP_FALLBACK: Record<ClipState, ClipState[]> = {
+  idle: ['idle', 'listen'],
+  listen: ['listen', 'idle'],
+  'listen-cue': ['listen-cue', 'listen', 'idle'],
+  talk: ['talk'],
+  point: ['point', 'talk'],
+  emphasize: ['emphasize', 'talk'],
+  summary: ['summary', 'talk'],
+  correct: ['correct', 'praise', 'talk'],
+  wrong: ['wrong', 'talk'],
+  praise: ['praise', 'correct', 'talk'],
+}
+
+/** 강사 × 상태 → 그 상태의 클립 풀. 어느 것을 틀지는 화면(ClipStack)이 바퀴마다 고른다.
+ *  클립이 없으면 null (호출부가 사진으로 폴백한다). */
+export function instClip(instructor: string, state: ClipState): string[] | null {
   const clips = INST_CLIPS[instructor]
   if (!clips) return null
-  for (const p of POSE_FALLBACK[pose]) {
-    if (clips[p]) return clips[p] as string
+  for (const s of CLIP_FALLBACK[state]) {
+    const list = clips[s]
+    if (list?.length) return list
   }
   return null
+}
+
+/** 클립 상태 → 사진 포즈 — 클립이 없는 강사가 같은 판단으로 사진을 고르게 */
+export const CLIP_TO_POSE: Record<ClipState, InstPose> = {
+  idle: 'greeting', listen: 'listen', 'listen-cue': 'listen',
+  talk: 'explain', point: 'point', emphasize: 'explain', summary: 'explain',
+  correct: 'praise', wrong: 'greeting', praise: 'praise',
 }
 
 /* ── 강사 → TTS 목소리(persona) ──
@@ -186,8 +225,11 @@ export const INST_VOICE: Record<string, string> = {
    코드스위칭이 나은 v3 을 쓴다. 적어두지 않은 강사는 api/tts 의 기본(multilingual v2).
    ⚠️ v3 은 voice_settings.speed 를 받지 않는다(에러) — api/tts 가 v3 일 때 speed 를 빼고 보낸다.
       대신 v3 은 응답이 느리고 한 번에 보낼 수 있는 글자도 절반(5,000자)이다. */
+/* 09-29 이도윤 → v4. 같은 대본 줄을 비교하니 v3 가 뭉개던 발음("인물이"→"이 물이")이 또렷해졌다.
+   대신 15~30% 느리다(몰아치던 설명에는 오히려 맞다). 목소리가 Voice Design(generated)이라 재학습은
+   필요 없다 — 복제 목소리(IVC·PVC)였다면 v4 로 다시 학습시켜야 한다. 처리 갈래는 ttsText.isV3Family. */
 export const INST_TTS_MODEL: Record<string, string> = {
-  lee_doyun: 'eleven_v3',
+  lee_doyun: 'eleven_v4',
   yun_daeun: 'eleven_v3',
 }
 
@@ -300,7 +342,7 @@ export const hasClips = (instructor: string) => Boolean(INST_CLIPS[instructor])
 
 /** 이 강사의 클립 전부(중복 제거). 화면이 미리 깔아두고 크로스페이드하는 데 쓴다. */
 export function instClips(instructor: string): string[] {
-  return Array.from(new Set(Object.values(INST_CLIPS[instructor] ?? {})))
+  return Array.from(new Set(Object.values(INST_CLIPS[instructor] ?? {}).flat()))
 }
 
 /** 이 강사가 포즈 컷아웃을 갖고 있는가 (없으면 기존 썸네일 UI 유지) */
