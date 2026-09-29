@@ -455,16 +455,80 @@ function TextComposer({ connected, connecting, inputText, setInputText, onSend, 
 /* ── 아바타 안의 영상 ──
    클립을 갈아끼우는 방식(src 교체)은 쓰지 않는다 — 바꿀 때마다 디코딩이 처음부터 다시 돌아서
    원이 까맣게 한 번 깜빡이고, 단계가 넘어갈 때마다 그 깜빡임이 보인다.
-   그래서 **클립 셋을 다 겹쳐 깔아두고 opacity 로만 넘긴다.** 안 보이는 클립도 계속 돌지만
-   무음 3~5초짜리 작은 파일이라 이게 싸다. 얼굴이 이어져 보이는 값이 화면에서는 더 크다. */
-function ClipStack({ clips, active, name }: { clips: string[]; active: string; name: string }) {
+   그래서 **클립을 다 겹쳐 깔아두고 opacity 로만 넘긴다.**
+   다만 **도는 건 지금 것 하나**다. 강사당 13개가 한꺼번에 돌면
+   태블릿이 13개를 동시에 디코딩한다. 멈춰 둔 것도 preload 로 받아 두어 바꿀 때 빈 화면이 없다.
+
+   ── 무엇을 트나: 상태의 **풀**(pool) 안에서 바퀴마다 하나 (09-29) ──
+   화면은 "지금은 talk" 처럼 상태의 풀만 넘긴다. 같은 상태가 이어지면 한 바퀴가 끝날 때마다
+   풀 안의 **다른** 클립으로 넘어간다 — 대기가 길어도 같은 동작이 되풀이되지 않는다.
+
+   ── 언제 바꾸나: **지금 클립이 한 바퀴를 다 돈 뒤** ──
+   문장마다 바로 바꿨더니 1초마다 전환이 걸렸다(사용자 지적). 클립은 모두 손을 모은 같은
+   자세로 시작하고 끝나므로(실측 SSIM 0.99), 바퀴 끝에서 **디졸브 없이 잘라** 넘기면 이음매가
+   안 보인다 — 디졸브를 걸면 오히려 손이 두 겹으로 겹쳐 보인다. 기다리는 동안 상태가 여러 번
+   바뀌면 마지막 것만 쓴다(문장 사이 짧은 쉼은 그냥 지나간다).
+   URGENT 만 즉시, 0.15초 디졸브로 넘긴다 — 정답·오답·칭찬은 그 말과 같이 나와야 하고, 자료
+   음원이 나가는데 강사가 계속 말하는 그림이면 목소리 주인이 헷갈린다. 중간에 끊으니 자세가
+   달라서 짧게 섞는다. */
+const URGENT = /\/(correct|wrong|praise|listen-cue)-\d+\.mp4$/
+/** 풀에서 하나 — 지금 것과 다른 것으로 */
+const pickFrom = (pool: string[], cur?: string) => {
+  const rest = pool.filter((s) => s !== cur)
+  return rest.length ? rest[Math.floor(Math.random() * rest.length)] : pool[0]
+}
+function ClipStack({ clips, pool, name }: { clips: string[]; pool: string[]; name: string }) {
+  const refs = useRef<Record<string, HTMLVideoElement | null>>({})
+  const [shown, setShown] = useState(() => pickFrom(pool))
+  const [fade, setFade] = useState(false)
+  const poolRef = useRef(pool)
+  poolRef.current = pool
+  const poolKey = pool.join('|')
+
+  useEffect(() => {
+    const inPool = pool.includes(shown)
+    if (inPool && pool.length === 1) return                 // 풀에 하나뿐 — 그대로 돈다
+    if (!inPool && URGENT.test(pool[0])) { setFade(true); setShown(pickFrom(pool)); return }
+    const v = refs.current[shown]
+    if (!v || v.paused) { setFade(false); setShown(pickFrom(pool, shown)); return }
+    /* 바퀴 끝에 닿으면 넘긴다. timeupdate 는 초당 4번쯤이라 끝 0.3초를 건너뛸 수 있다 —
+       되감긴 것(시간이 줄어든 것)도 바퀴 끝으로 본다. 이벤트가 안 올 때를 대비해 6초 상한 */
+    const next = () => { setFade(false); setShown(pickFrom(poolRef.current, shown)) }
+    let prev = v.currentTime
+    const flip = () => {
+      const t = v.currentTime
+      if (v.duration - t < 0.3 || t < prev) next()
+      prev = t
+    }
+    const cap = setTimeout(next, 6000)
+    v.addEventListener('timeupdate', flip)
+    return () => { v.removeEventListener('timeupdate', flip); clearTimeout(cap) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolKey, shown])
+
+  useEffect(() => {
+    const v = refs.current[shown]
+    if (v) { v.currentTime = 0; v.play().catch(() => { /* 자동재생 거부 — 첫 프레임이 그대로 보인다 */ }) }
+    /* 사라지는 쪽은 디졸브가 끝난 뒤에 멈춘다 — 바로 멈추면 굳은 얼굴이 겹쳐 보인다.
+       멈추면서 0초로 되감아 둔다: 다음에 바로 자르고 들어올 때 멈췄던 중간 프레임이 한 번 비치지 않게 */
+    const t = setTimeout(() => {
+      for (const [src, el] of Object.entries(refs.current)) {
+        if (src !== shown && el) { el.pause(); el.currentTime = 0 }
+      }
+    }, 200)
+    return () => clearTimeout(t)
+  }, [shown])
   return (
     <>
       {clips.map((src) => (
-        <video key={src} src={src} autoPlay muted loop playsInline preload="auto"
-          aria-label={src === active ? name : undefined}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-          style={{ objectPosition: '50% 16%', opacity: src === active ? 1 : 0 }} />
+        /* disablePictureInPicture — 크롬이 영상에 마우스를 올리면 띄우는 '크게 보기(PIP)' 를 끈다.
+           PIP 는 영상 **한 개**만 떼어 가는데 이 얼굴은 여러 개를 겹쳐 갈아 끼우는 것이라,
+           큰 창에는 처음 잡힌 클립만 남고 대사를 따라 바뀌지 않는다(사용자 지적 09-29). */
+        <video key={src} ref={(el) => { refs.current[src] = el }} src={src} muted loop playsInline preload="auto" disablePictureInPicture
+          aria-label={src === shown ? name : undefined}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ objectPosition: '50% 16%', opacity: src === shown ? 1 : 0,
+            transition: fade ? 'opacity 150ms linear' : 'none' }} />
       ))}
     </>
   )
@@ -473,7 +537,7 @@ function ClipStack({ clips, active, name }: { clips: string[]; active: string; n
 export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, size = 120 }: {
   src: string; name: string; speaking: boolean; getFreq?: () => Uint8Array | undefined; size?: number
   /** 지금 상황에 맞는 영상 클립. 없으면 사진(src)을 그대로 쓴다 */
-  clipSrc?: string | null
+  clipSrc?: string[] | null
   /** 이 강사가 가진 클립 전부 — 겹쳐 깔아두고 크로스페이드하기 위해 */
   allClips?: string[]
 }) {
@@ -517,7 +581,7 @@ export function PulseAvatar({ src, clipSrc, allClips, name, speaking, getFreq, s
       <div className="relative rounded-full overflow-hidden border-[3px] border-white bg-gradient-to-b from-[#EAF1FF] to-white"
         style={{ width: size, height: size, boxShadow: speaking ? `0 0 ${12 + level * 20}px rgba(37,99,235,${0.16 + level * 0.24})` : '0 4px 16px rgba(0,0,0,0.12)' }}>
         {clipSrc ? (
-          <ClipStack clips={allClips?.length ? allClips : [clipSrc]} active={clipSrc} name={name} />
+          <ClipStack clips={allClips?.length ? allClips : clipSrc} pool={clipSrc} name={name} />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={src} alt={name} className="w-full h-full object-cover" style={{ objectPosition: '50% 16%' }} />
@@ -646,7 +710,7 @@ export interface TutorDockProps {
   /** 단계별 강사 포즈 컷아웃(배경 투명). 아바타 원 안에 쓰인다. 없으면 imgSrc. */
   poseSrc?: string | null
   /** 단계별 강사 영상 클립. 있으면 사진 대신 이게 원 안에서 돈다 */
-  clipSrc?: string | null
+  clipSrc?: string[] | null
   /** 이 강사의 클립 전부 — 미리 깔아두고 크로스페이드하려고 받는다 */
   allClips?: string[]
   /** 학생 입력 모드 — 아바타 아래 영역이 갈린다 (음성=발화 박스 / 텍스트=채팅창) */
@@ -826,7 +890,7 @@ export default function TutorDock({
    · 선택지·행동 지시도 이 안에서 작은 UI로 보인다 */
 function MiniDock({ faceSrc, clipSrc, allClips, name, connected, connecting, isSpeaking, preparing, getTutorFreq, lastLine, lastLinePlain, chatMode, setChatMode,
   inputText, setInputText, onSend, onStartAgent, actions, hint, onRestore }: {
-  faceSrc: string; clipSrc?: string | null; allClips?: string[]
+  faceSrc: string; clipSrc?: string[] | null; allClips?: string[]
   name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
   getTutorFreq?: () => Uint8Array | undefined
   lastLine: string
@@ -949,7 +1013,7 @@ function BottomDock({
   lastLine, lastLinePlain, chatMode, setChatMode, micActive, footer,
   inputText, setInputText, onSend, onStartAgent, actions, hint, onExpand, topBar, overlay,
 }: {
-  faceSrc: string; clipSrc?: string | null; allClips?: string[]
+  faceSrc: string; clipSrc?: string[] | null; allClips?: string[]
   name: string; connected: boolean; connecting: boolean; isSpeaking: boolean; preparing?: boolean
   getTutorFreq?: () => Uint8Array | undefined
   lastLine: string; lastLinePlain?: boolean
