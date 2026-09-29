@@ -21,7 +21,7 @@ import { speakEnglishSeq, stopVoice as stopCueAudio } from '@/lib/voice'
 import { speakTTS, prefetchTTS, koLetters, stopCurrentAudio, playbackProgress, tutorVoiceFreq, currentAudio } from '@/lib/tts'
 /* 조사·서술격은 **읽는 소리**로 고른다 — 판단 근거인 발음 사전이 거기 있다 */
 import { koJosa, endsConsonant } from '@/lib/ttsText'
-import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_CUTOUTS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, type InstPose } from '@/data/instructorData'
+import { INST_NAME, INST_PERSONA, INST_THUMBS, INST_CUTOUTS, INST_SCRIPT_ONLY, INST_OPEN_ALL_OPTIONS, INST_RETRY_SCAFFOLD, tutorAgentFor, instPose, instClip, instClips, CLIP_TO_POSE, type ClipState } from '@/data/instructorData'
 import audioManifest from '@/data/typeLearning/audioManifest.json'
 import LessonIntro from '@/components/lesson/LessonIntro'
 import TutorDock, { ActionTray, PulseAvatar, SpeechDots, TapHint, TutorText, type DockMode, type ChatMsg } from '@/components/type-lesson/TutorDock'
@@ -770,26 +770,35 @@ function directiveOf(turn: Turn, gate: Gate = 4): string {
   ].filter(Boolean).join('\n')
 }
 
-/* ── 턴(단계) → 강사 포즈 ──
-   스캐폴딩 의미에 맞춰 포즈를 고른다. 강사가 실제로 말하는 중(speaking)이면 입 벌린 설명 포즈로
-   맞춰 발화와 그림이 어긋나지 않게 한다. 학생이 말할 차례(주관식)엔 듣는 자세.
-   ※ 지금 이도윤은 2장(calm/talk)뿐이라 폴백상 대부분 두 상태로 수렴하지만, 5포즈가 채워지면
-     이 매핑 그대로 세밀해진다. */
-function poseForTurn(turn: Turn, speaking: boolean, cuePlaying = false): InstPose {
-  const k = turn.interaction.kind
-  const s = turn.stage
+/* ── 지금 읽는 문장 → 강사 클립 ──
+   턴 종류(S1·S5…)로 고르면 한 턴 내내 같은 동작이 돈다(사용자 지적 09-29). 대본은 한 턴 안에서도
+   "맞아요." → "paintbrush가 보여도…" → "이런 오답 자주 나와요." 처럼 문장마다 성격이 바뀐다.
+   그래서 **지금 소리 나는 문장**을 읽고 고른다. 반응(정답·오답·칭찬)은 문장 첫머리만 본다 —
+   "왜 오답일까요?" 는 오답 반응이 아니라 보기를 짚는 말이다. 순서가 우선순위다. */
+const LINE_CLIPS: [RegExp, ClipState][] = [
+  [/^(완벽|훌륭|대단|잘\s?했|잘\s?잡았|잘\s?찾았|포인트\s?잡았|연속)/, 'praise'],
+  [/^(맞아요|맞습니다|정답이에요|정답입니다|정확해요|정확합니다|그렇죠|바로 그거)/, 'correct'],
+  [/^(정답이 아니|오답이에요|그건 아니|아니에요|아쉽|틀렸)/, 'wrong'],
+  [/정리|기억해\s?주세요|기억하세요|기억해요/, 'summary'],
+  [/핵심|포인트|중요|주의|함정|하나만|자주 나와|확인해야/, 'emphasize'],
+  [/사진|보기|선택지|[A-D](의|에서|는|에는|가)\s|여기|이 부분|화면|왼쪽|오른쪽|가운데|보이|보여/, 'point'],
+]
+function clipForLine(sentence: string): ClipState {
+  const s = sentence.trim()
+  for (const [re, clip] of LINE_CLIPS) if (re.test(s)) return clip
+  return 'talk'
+}
+
+/* 사진 포즈도 이 판단을 CLIP_TO_POSE 로 옮겨 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
+function clipStateFor(turn: Turn, speaking: boolean, cuePlaying: boolean, sentence: string): ClipState {
   /* ── 자료 음원이 나가는 동안 ──
      소리의 주인이 강사가 아니다. 말하는 클립을 돌리면 **강사가 말하는데 목소리는 다른 사람**인
-     꼴이 된다(실측). 같이 듣는 자세 — 끄덕임(listen)으로 둔다.
-     칭찬(S7)보다도 이게 먼저다: 지금 화면에서 일어나는 일은 '듣고 있는 것' 이다. */
-  if (cuePlaying) return 'listen'
-  if (speaking) return /^S[145]/.test(s) || k === 'mark' || k === 'match' ? 'point' : 'explain'
-  /* 여기부터는 **강사가 말하지 않는 동안**이다. 학생이 답하거나 화면을 보는 시간이므로
-     손짓하며 말하는 그림을 계속 두면 소리 없이 입만 움직이는 꼴이 된다 → 듣는 자세로 모은다.
-     칭찬·마무리(S7)만 예외로 박수. 단, 그때도 학생이 말하는 중이면 듣는 게 먼저다. */
-  if (k === 'subjective') return 'listen'
-  if (s.startsWith('S7') || s.includes('표현 정리')) return 'praise'
-  return 'listen'
+     꼴이 된다(실측). 같이 듣는 자세. */
+  if (cuePlaying) return 'listen-cue'
+  if (speaking) return clipForLine(sentence)
+  /* 여기부터는 **강사가 말하지 않는 동안**이다. 손짓하며 말하는 그림을 두면 소리 없이 입만
+     움직이는 꼴이 된다. 학생이 답할 차례면 끄덕이고, 아니면 가만히 기다린다. */
+  return turn.interaction.kind === 'subjective' ? 'listen' : 'idle'
 }
 
 /* ── 에이전트 그라운딩용 "이번 수업 사실" ──
@@ -4216,6 +4225,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
     : (agentConnected && lastAgentAi) || stripAudioTags(turn.tutor)
   /* 앱이 만든 줄인지는 **지금 흐르는 줄일 때만** 뜻이 있다. typed 가 비면 대본 발화라 늘 강조를 탄다. */
   const tutorLinePlain = typed ? plainLine : false
+  /* 강사 클립은 **지금 소리 나는 문장**으로 고른다(clipForLine). 글자가 읽는 자리까지만 나오므로
+     그 마지막 문장이 곧 지금 말하는 문장이다. 풀 안에서 어느 클립을 틀지는 ClipStack 이 바퀴마다 고른다. */
+  const spokenSentences = tutorLine.split(/(?<=[.!?])\s+/).filter(Boolean)
+  const clipState = clipStateFor(turn, tutorVoicing, cuePlaying, spokenSentences[spokenSentences.length - 1] ?? '')
 
   /* 내 답변 표시 — **전달됐다는 확인**이지 대화 기록이 아니다.
      종전에는 chatLog 의 마지막 학생 발화를 계속 띄워서, 답하지 않은 다음 턴에도 남아 있었다.
@@ -4691,10 +4704,10 @@ export default function TypeLessonPlayer({ lesson: lessonProp, instructor = RAIL
           /* 좁은 화면에서는 접힌 채로 둔다 — 펴 봐야 지문도 강사도 못 읽는 폭이다 */
           canSidebar={!narrow}
           name={teacherName} imgSrc={teacherImg}
-          poseSrc={instPose(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
-          /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(poseForTurn)은
+          poseSrc={instPose(instructor, CLIP_TO_POSE[clipState])}
+          /* 영상 클립이 있는 강사면 사진 대신 이게 원 안에서 돈다. 상황을 고르는 판단(clipStateFor)은
              사진과 똑같이 쓴다 — 판단이 한 군데 있어야 둘이 어긋나지 않는다. */
-          clipSrc={instClip(instructor, poseForTurn(turn, tutorVoicing, cuePlaying))}
+          clipSrc={instClip(instructor, clipState)}
           allClips={instClips(instructor)}
           chatMode={chatMode} setChatMode={setChat}
           /* 파형은 **실제로 나가는 소리**를 따라간다. 에이전트가 붙어 있으면 그쪽 출력,
@@ -6572,7 +6585,7 @@ function WrapStage({ lesson, practiceScore, teacherName, teacherImg, instructor,
         <div className="max-w-[640px] mx-auto flex items-center gap-3.5">
           <div className="shrink-0">
             <PulseAvatar src={teacherImg} name={teacherName} speaking={speaking} size={88}
-              clipSrc={instClip(instructor, speaking ? 'explain' : 'listen')}
+              clipSrc={instClip(instructor, speaking ? 'summary' : 'listen')}
               allClips={instClips(instructor)} />
           </div>
           <div className="flex-1 min-w-0">
